@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Edit, Camera, UserPlus, BookOpen, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Camera, UserPlus, BookOpen, Upload, X, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Instructor {
@@ -41,6 +42,9 @@ const InstructorManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [newCourseTitle, setNewCourseTitle] = useState('');
+  const [newCourseDescription, setNewCourseDescription] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -129,7 +133,10 @@ const InstructorManagement = () => {
     e.preventDefault();
     
     try {
+      let instructorId = editingInstructor?.id;
+
       if (editingInstructor) {
+        // Update existing instructor
         const { error } = await supabase
           .from('instructors')
           .update(formData)
@@ -142,11 +149,15 @@ const InstructorManagement = () => {
           description: "강사 정보가 수정되었습니다."
         });
       } else {
-        const { error } = await supabase
+        // Create new instructor
+        const { data, error } = await supabase
           .from('instructors')
-          .insert([formData]);
+          .insert([formData])
+          .select()
+          .single();
 
         if (error) throw error;
+        instructorId = data.id;
         
         toast({
           title: "성공",
@@ -154,9 +165,29 @@ const InstructorManagement = () => {
         });
       }
 
+      // Update course assignments
+      if (instructorId) {
+        // Remove existing course assignments
+        await supabase
+          .from('courses')
+          .update({ instructor_id: null })
+          .eq('instructor_id', instructorId);
+
+        // Assign selected courses
+        if (selectedCourses.length > 0) {
+          await supabase
+            .from('courses')
+            .update({ instructor_id: instructorId })
+            .in('id', selectedCourses);
+        }
+      }
+
       setIsDialogOpen(false);
       setEditingInstructor(null);
       setFormData({ name: '', email: '', bio: '', photo_url: '' });
+      setSelectedCourses([]);
+      setNewCourseTitle('');
+      setNewCourseDescription('');
       fetchData();
     } catch (error) {
       console.error('Error saving instructor:', error);
@@ -176,17 +207,72 @@ const InstructorManagement = () => {
       bio: instructor.bio || '',
       photo_url: instructor.photo_url || ''
     });
+    
+    // Set selected courses for this instructor
+    const instructorCourses = getInstructorCourses(instructor.id);
+    setSelectedCourses(instructorCourses.map(course => course.id));
+    
     setIsDialogOpen(true);
   };
 
   const openAddDialog = () => {
     setEditingInstructor(null);
     setFormData({ name: '', email: '', bio: '', photo_url: '' });
+    setSelectedCourses([]);
+    setNewCourseTitle('');
+    setNewCourseDescription('');
     setIsDialogOpen(true);
   };
 
   const getInstructorCourses = (instructorId: string) => {
     return courses.filter(course => course.instructor_id === instructorId);
+  };
+
+  const getAvailableCourses = () => {
+    return courses.filter(course => !course.instructor_id || course.instructor_id === editingInstructor?.id);
+  };
+
+  const handleAddNewCourse = async () => {
+    if (!newCourseTitle.trim()) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('courses')
+        .insert([{
+          title: newCourseTitle,
+          description: newCourseDescription,
+          instructor_id: null
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCourses(prev => [...prev, data]);
+      setSelectedCourses(prev => [...prev, data.id]);
+      setNewCourseTitle('');
+      setNewCourseDescription('');
+      
+      toast({
+        title: "성공",
+        description: "새 과목이 추가되었습니다."
+      });
+    } catch (error) {
+      console.error('Error adding course:', error);
+      toast({
+        title: "오류",
+        description: "과목 추가 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const toggleCourseSelection = (courseId: string) => {
+    setSelectedCourses(prev => 
+      prev.includes(courseId) 
+        ? prev.filter(id => id !== courseId)
+        : [...prev, courseId]
+    );
   };
 
   if (loading) {
@@ -363,13 +449,13 @@ const InstructorManagement = () => {
 
         {/* Add/Edit Instructor Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingInstructor ? '강사 정보 수정' : '새 강사 추가'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Photo Upload */}
               <div className="flex flex-col items-center space-y-2">
                 <Avatar className="w-20 h-20">
@@ -401,24 +487,27 @@ const InstructorManagement = () => {
                 </Button>
               </div>
 
-              <div>
-                <Label htmlFor="name">이름 *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  required
-                />
-              </div>
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">이름 *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="email">이메일</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                />
+                <div>
+                  <Label htmlFor="email">이메일</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  />
+                </div>
               </div>
 
               <div>
@@ -432,7 +521,104 @@ const InstructorManagement = () => {
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
+              {/* Course Management */}
+              <div className="space-y-4">
+                <Label className="text-base font-semibold">담당 과목</Label>
+                
+                {/* Available Courses */}
+                <div>
+                  <Label className="text-sm text-muted-foreground">기존 과목 선택</Label>
+                  <div className="grid grid-cols-1 gap-2 mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                    {getAvailableCourses().map((course) => (
+                      <div
+                        key={course.id}
+                        className={`flex items-center space-x-2 p-2 rounded cursor-pointer transition-colors ${
+                          selectedCourses.includes(course.id) 
+                            ? 'bg-primary/10 border border-primary' 
+                            : 'bg-muted/50 hover:bg-muted'
+                        }`}
+                        onClick={() => toggleCourseSelection(course.id)}
+                      >
+                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                          selectedCourses.includes(course.id) 
+                            ? 'bg-primary border-primary' 
+                            : 'border-muted-foreground'
+                        }`}>
+                          {selectedCourses.includes(course.id) && (
+                            <div className="w-2 h-2 bg-white rounded-full" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{course.title}</div>
+                          {course.description && (
+                            <div className="text-xs text-muted-foreground">{course.description}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {getAvailableCourses().length === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-4">
+                        사용 가능한 과목이 없습니다
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add New Course */}
+                <div className="border-t pt-4">
+                  <Label className="text-sm text-muted-foreground">새 과목 추가</Label>
+                  <div className="grid grid-cols-1 gap-2 mt-2">
+                    <Input
+                      placeholder="과목명"
+                      value={newCourseTitle}
+                      onChange={(e) => setNewCourseTitle(e.target.value)}
+                    />
+                    <Input
+                      placeholder="과목 설명 (선택사항)"
+                      value={newCourseDescription}
+                      onChange={(e) => setNewCourseDescription(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddNewCourse}
+                      disabled={!newCourseTitle.trim()}
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      과목 추가
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Selected Courses Display */}
+                {selectedCourses.length > 0 && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">선택된 과목</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedCourses.map((courseId) => {
+                        const course = courses.find(c => c.id === courseId);
+                        return course ? (
+                          <Badge key={courseId} variant="default" className="flex items-center gap-1">
+                            {course.title}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-auto p-0 w-4 h-4"
+                              onClick={() => toggleCourseSelection(courseId)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   취소
                 </Button>
