@@ -36,7 +36,14 @@ interface Instructor {
 interface Course {
   id: string;
   title: string;
+  description: string;
+}
+
+interface InstructorCourse {
+  id: string;
   instructor_id: string;
+  course_id: string;
+  created_at: string;
 }
 
 const SurveyManagement = () => {
@@ -46,6 +53,7 @@ const SurveyManagement = () => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
@@ -68,27 +76,34 @@ const SurveyManagement = () => {
 
   useEffect(() => {
     if (selectedInstructor) {
-      const filtered = courses.filter(course => course.instructor_id === selectedInstructor);
+      // instructor_courses 테이블을 통해 강사의 과목을 가져옴
+      const instructorCourseIds = instructorCourses
+        .filter(ic => ic.instructor_id === selectedInstructor)
+        .map(ic => ic.course_id);
+      const filtered = courses.filter(course => instructorCourseIds.includes(course.id));
       setFilteredCourses(filtered);
       setFormData(prev => ({ ...prev, instructor_id: selectedInstructor, course_id: '' }));
     }
-  }, [selectedInstructor, courses]);
+  }, [selectedInstructor, courses, instructorCourses]);
 
   const fetchData = async () => {
     try {
-      const [surveysRes, instructorsRes, coursesRes] = await Promise.all([
+      const [surveysRes, instructorsRes, coursesRes, instructorCoursesRes] = await Promise.all([
         supabase.from('surveys').select('*').order('created_at', { ascending: false }),
         supabase.from('instructors').select('*').order('name'),
-        supabase.from('courses').select('*').order('title')
+        supabase.from('courses').select('*').order('title'),
+        supabase.from('instructor_courses').select('*')
       ]);
 
       if (surveysRes.error) throw surveysRes.error;
       if (instructorsRes.error) throw instructorsRes.error;
       if (coursesRes.error) throw coursesRes.error;
+      if (instructorCoursesRes.error) throw instructorCoursesRes.error;
 
       setSurveys(surveysRes.data || []);
       setInstructors(instructorsRes.data || []);
       setCourses(coursesRes.data || []);
+      setInstructorCourses(instructorCoursesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({

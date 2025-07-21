@@ -29,7 +29,13 @@ interface Course {
   id: string;
   title: string;
   description: string;
+}
+
+interface InstructorCourse {
+  id: string;
   instructor_id: string;
+  course_id: string;
+  created_at: string;
 }
 
 const InstructorManagement = () => {
@@ -39,6 +45,7 @@ const InstructorManagement = () => {
   
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
@@ -46,7 +53,6 @@ const InstructorManagement = () => {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [newCourseTitle, setNewCourseTitle] = useState('');
   const [newCourseDescription, setNewCourseDescription] = useState('');
-  const [deletingInstructor, setDeletingInstructor] = useState<Instructor | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -61,16 +67,19 @@ const InstructorManagement = () => {
 
   const fetchData = async () => {
     try {
-      const [instructorsRes, coursesRes] = await Promise.all([
+      const [instructorsRes, coursesRes, instructorCoursesRes] = await Promise.all([
         supabase.from('instructors').select('*').order('name'),
-        supabase.from('courses').select('*').order('title')
+        supabase.from('courses').select('*').order('title'),
+        supabase.from('instructor_courses').select('*')
       ]);
 
       if (instructorsRes.error) throw instructorsRes.error;
       if (coursesRes.error) throw coursesRes.error;
+      if (instructorCoursesRes.error) throw instructorCoursesRes.error;
 
       setInstructors(instructorsRes.data || []);
       setCourses(coursesRes.data || []);
+      setInstructorCourses(instructorCoursesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -167,20 +176,24 @@ const InstructorManagement = () => {
         });
       }
 
-      // Update course assignments
+      // Update course assignments using instructor_courses table
       if (instructorId) {
         // Remove existing course assignments
         await supabase
-          .from('courses')
-          .update({ instructor_id: null })
+          .from('instructor_courses')
+          .delete()
           .eq('instructor_id', instructorId);
 
-        // Assign selected courses
+        // Add new course assignments
         if (selectedCourses.length > 0) {
+          const coursesToInsert = selectedCourses.map(courseId => ({
+            instructor_id: instructorId,
+            course_id: courseId
+          }));
+          
           await supabase
-            .from('courses')
-            .update({ instructor_id: instructorId })
-            .in('id', selectedCourses);
+            .from('instructor_courses')
+            .insert(coursesToInsert);
         }
       }
 
@@ -210,9 +223,11 @@ const InstructorManagement = () => {
       photo_url: instructor.photo_url || ''
     });
     
-    // Set selected courses for this instructor
-    const instructorCourses = courses.filter(course => course.instructor_id === instructor.id);
-    setSelectedCourses(instructorCourses.map(course => course.id));
+    // Set selected courses for this instructor using instructor_courses table
+    const instructorCourseIds = instructorCourses
+      .filter(ic => ic.instructor_id === instructor.id)
+      .map(ic => ic.course_id);
+    setSelectedCourses(instructorCourseIds);
     
     setIsDialogOpen(true);
   };
@@ -227,11 +242,10 @@ const InstructorManagement = () => {
   };
 
   const getInstructorCourses = (instructorId: string) => {
-    return courses.filter(course => course.instructor_id === instructorId);
-  };
-
-  const getAvailableCourses = () => {
-    return courses.filter(course => !course.instructor_id || course.instructor_id === editingInstructor?.id);
+    const instructorCourseIds = instructorCourses
+      .filter(ic => ic.instructor_id === instructorId)
+      .map(ic => ic.course_id);
+    return courses.filter(course => instructorCourseIds.includes(course.id));
   };
 
   const handleAddNewCourse = async () => {
@@ -242,8 +256,7 @@ const InstructorManagement = () => {
         .from('courses')
         .insert([{
           title: newCourseTitle,
-          description: newCourseDescription,
-          instructor_id: null
+          description: newCourseDescription
         }])
         .select()
         .single();
@@ -279,10 +292,10 @@ const InstructorManagement = () => {
 
   const handleDeleteInstructor = async (instructor: Instructor) => {
     try {
-      // Remove course assignments first
+      // Remove course assignments first using instructor_courses table
       await supabase
-        .from('courses')
-        .update({ instructor_id: null })
+        .from('instructor_courses')
+        .delete()
         .eq('instructor_id', instructor.id);
 
       // Delete instructor
@@ -298,7 +311,6 @@ const InstructorManagement = () => {
         description: `강사 "${instructor.name}"가 삭제되었습니다.`
       });
 
-      setDeletingInstructor(null);
       fetchData();
     } catch (error) {
       console.error('Error deleting instructor:', error);
@@ -595,55 +607,59 @@ const InstructorManagement = () => {
                 {/* All Courses List */}
                 <div>
                   <Label className="text-sm text-muted-foreground">과목 선택</Label>
-                  <div className="grid grid-cols-1 gap-2 mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
-                    {courses.map((course) => {
-                      const isAssignedToOther = course.instructor_id && course.instructor_id !== editingInstructor?.id;
-                      const isSelected = selectedCourses.includes(course.id);
-                      const assignedInstructor = isAssignedToOther ? instructors.find(inst => inst.id === course.instructor_id) : null;
-                      
-                      return (
-                        <div
-                          key={course.id}
-                          className={`flex items-center space-x-2 p-2 rounded transition-colors ${
-                            isAssignedToOther 
-                              ? 'bg-muted/30 opacity-60 cursor-not-allowed' 
-                              : isSelected
-                                ? 'bg-primary/10 border border-primary cursor-pointer' 
-                                : 'bg-muted/50 hover:bg-muted cursor-pointer'
-                          }`}
-                          onClick={() => !isAssignedToOther && toggleCourseSelection(course.id)}
-                        >
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                            isSelected && !isAssignedToOther
-                              ? 'bg-primary border-primary' 
-                              : 'border-muted-foreground'
-                          }`}>
-                            {isSelected && !isAssignedToOther && (
-                              <div className="w-2 h-2 bg-white rounded-full" />
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">{course.title}</span>
-                              {isAssignedToOther && assignedInstructor && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {assignedInstructor.name} 담당
-                                </Badge>
-                              )}
-                            </div>
-                            {course.description && (
-                              <div className="text-xs text-muted-foreground">{course.description}</div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {courses.length === 0 && (
-                      <div className="text-sm text-muted-foreground text-center py-4">
-                        등록된 과목이 없습니다
-                      </div>
-                    )}
-                  </div>
+                   <div className="grid grid-cols-1 gap-2 mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                     {courses.map((course) => {
+                       const isSelected = selectedCourses.includes(course.id);
+                       const otherInstructors = instructorCourses
+                         .filter(ic => ic.course_id === course.id && ic.instructor_id !== editingInstructor?.id)
+                         .map(ic => instructors.find(inst => inst.id === ic.instructor_id))
+                         .filter(Boolean);
+                       
+                       return (
+                         <div
+                           key={course.id}
+                           className={`flex items-center space-x-2 p-2 rounded transition-colors cursor-pointer ${
+                             isSelected
+                               ? 'bg-primary/10 border border-primary' 
+                               : 'bg-muted/50 hover:bg-muted'
+                           }`}
+                           onClick={() => toggleCourseSelection(course.id)}
+                         >
+                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                             isSelected
+                               ? 'bg-primary border-primary' 
+                               : 'border-muted-foreground'
+                           }`}>
+                             {isSelected && (
+                               <div className="w-2 h-2 bg-white rounded-full" />
+                             )}
+                           </div>
+                           <div className="flex-1">
+                             <div className="flex items-center gap-2">
+                               <span className="font-medium text-sm">{course.title}</span>
+                               {otherInstructors.length > 0 && (
+                                 <div className="flex gap-1">
+                                   {otherInstructors.map((instructor, index) => (
+                                     <Badge key={index} variant="outline" className="text-xs">
+                                       {instructor?.name}
+                                     </Badge>
+                                   ))}
+                                 </div>
+                               )}
+                             </div>
+                             {course.description && (
+                               <div className="text-xs text-muted-foreground">{course.description}</div>
+                             )}
+                           </div>
+                         </div>
+                       );
+                     })}
+                     {courses.length === 0 && (
+                       <div className="text-sm text-muted-foreground text-center py-4">
+                         등록된 과목이 없습니다
+                       </div>
+                     )}
+                   </div>
                 </div>
 
                 {/* Add New Course */}
