@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, BookOpen, FileText, BarChart, Plus, Settings, TrendingUp, Clock } from 'lucide-react';
+import { Users, BookOpen, FileText, BarChart, Plus, Settings, TrendingUp, Clock, Activity } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import SurveyManagement from './SurveyManagement';
 import SurveyResults from './SurveyResults';
 
@@ -162,6 +163,50 @@ const Dashboard = () => {
             <Button onClick={() => navigate('/')} variant="ghost" size="sm">
               설문 메인
             </Button>
+            
+            {/* 최근 활동 아이콘 */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="relative">
+                  <Activity className="h-4 w-4" />
+                  {stats.recentResponsesCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    <h3 className="font-semibold">최근 활동</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">역할</span>
+                      <span className="text-sm font-medium">
+                        {profile?.role === 'admin' ? '관리자' : profile?.role === 'instructor' ? '강사' : '사용자'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">최근 7일 응답</span>
+                      <span className="text-sm font-medium">{stats.recentResponsesCount}건</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">시스템 상태</span>
+                      <span className="text-sm text-green-600 font-medium">정상</span>
+                    </div>
+                    {isInstructor && profile?.instructor_id && (
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-blue-600">
+                          강사 계정으로 로그인되었습니다.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
             <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
           </div>
         </div>
@@ -350,30 +395,6 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* 최근 활동 */}
-        <div className="space-y-4 mt-8">
-          <h2 className="text-xl font-semibold">최근 활동</h2>
-          <Card>
-            <CardHeader>
-              <CardTitle>시스템 상태</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-muted-foreground">
-                  역할: {profile?.role === 'admin' ? '관리자' : profile?.role === 'instructor' ? '강사' : '사용자'}
-                </p>
-                <p className="text-muted-foreground">
-                  시스템이 정상적으로 작동 중입니다.
-                </p>
-                {isInstructor && profile?.instructor_id && (
-                  <p className="text-sm text-blue-600">
-                    강사 계정으로 로그인되었습니다.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </main>
     </div>
   );
