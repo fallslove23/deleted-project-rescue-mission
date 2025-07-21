@@ -464,16 +464,14 @@ const SurveyManagement = () => {
                     size="sm"
                     onClick={() => duplicateSurvey(survey)}
                   >
-                    <Copy className="h-4 w-4 mr-1" />
-                    복제
+                    <Copy className="h-4 w-4" />
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={() => deleteSurvey(survey.id)}
                   >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    삭제
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm">
                     <Edit className="h-4 w-4" />
