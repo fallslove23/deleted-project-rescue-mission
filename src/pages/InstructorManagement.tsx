@@ -211,7 +211,7 @@ const InstructorManagement = () => {
     });
     
     // Set selected courses for this instructor
-    const instructorCourses = getInstructorCourses(instructor.id);
+    const instructorCourses = courses.filter(course => course.instructor_id === instructor.id);
     setSelectedCourses(instructorCourses.map(course => course.id));
     
     setIsDialogOpen(true);
