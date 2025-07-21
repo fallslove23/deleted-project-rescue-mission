@@ -1,0 +1,327 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Edit, Calendar, Users } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface Survey {
+  id: string;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  education_year: number;
+  education_round: number;
+  status: string;
+  instructor_id: string;
+  course_id: string;
+  created_at: string;
+}
+
+interface Instructor {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  instructor_id: string;
+}
+
+const SurveyManagement = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedInstructor, setSelectedInstructor] = useState<string>('');
+  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    education_year: new Date().getFullYear(),
+    education_round: 1,
+    instructor_id: '',
+    course_id: ''
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedInstructor) {
+      const filtered = courses.filter(course => course.instructor_id === selectedInstructor);
+      setFilteredCourses(filtered);
+      setFormData(prev => ({ ...prev, instructor_id: selectedInstructor, course_id: '' }));
+    }
+  }, [selectedInstructor, courses]);
+
+  const fetchData = async () => {
+    try {
+      const [surveysRes, instructorsRes, coursesRes] = await Promise.all([
+        supabase.from('surveys').select('*').order('created_at', { ascending: false }),
+        supabase.from('instructors').select('*').order('name'),
+        supabase.from('courses').select('*').order('title')
+      ]);
+
+      if (surveysRes.error) throw surveysRes.error;
+      if (instructorsRes.error) throw instructorsRes.error;
+      if (coursesRes.error) throw coursesRes.error;
+
+      setSurveys(surveysRes.data || []);
+      setInstructors(instructorsRes.data || []);
+      setCourses(coursesRes.data || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "오류",
+        description: "데이터를 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .insert([{
+          ...formData,
+          created_by: user?.id
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "설문조사가 생성되었습니다."
+      });
+
+      setIsDialogOpen(false);
+      setFormData({
+        title: '',
+        description: '',
+        start_date: '',
+        end_date: '',
+        education_year: new Date().getFullYear(),
+        education_round: 1,
+        instructor_id: '',
+        course_id: ''
+      });
+      setSelectedInstructor('');
+      fetchData();
+    } catch (error) {
+      console.error('Error creating survey:', error);
+      toast({
+        title: "오류",
+        description: "설문조사 생성 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusMap = {
+      'draft': { label: '초안', variant: 'secondary' as const },
+      'active': { label: '진행중', variant: 'default' as const },
+      'completed': { label: '완료', variant: 'outline' as const }
+    };
+    
+    const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, variant: 'secondary' as const };
+    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div>로딩중...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">설문조사 관리</h1>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              새 설문조사
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>새 설문조사 만들기</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="title">제목</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="education_year">교육 연도</Label>
+                  <Input
+                    id="education_year"
+                    type="number"
+                    value={formData.education_year}
+                    onChange={(e) => setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="education_round">차수</Label>
+                  <Input
+                    id="education_round"
+                    type="number"
+                    min="1"
+                    value={formData.education_round}
+                    onChange={(e) => setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="start_date">시작일</Label>
+                  <Input
+                    id="start_date"
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end_date">종료일</Label>
+                  <Input
+                    id="end_date"
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="instructor">강사 선택</Label>
+                  <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="강사를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {instructors.map((instructor) => (
+                        <SelectItem key={instructor.id} value={instructor.id}>
+                          {instructor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="course">강의 선택</Label>
+                  <Select value={formData.course_id} onValueChange={(value) => setFormData(prev => ({ ...prev, course_id: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="강의를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredCourses.map((course) => (
+                        <SelectItem key={course.id} value={course.id}>
+                          {course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">설명</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  취소
+                </Button>
+                <Button type="submit">생성</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid gap-4">
+        {surveys.map((survey) => (
+          <Card key={survey.id}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    {survey.title}
+                    {getStatusBadge(survey.status)}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {survey.education_year}년 {survey.education_round}차
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm">
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">{survey.description}</p>
+              <div className="flex gap-4 text-sm">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{new Date(survey.start_date).toLocaleDateString()} ~ {new Date(survey.end_date).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  <span>응답 수: 0</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default SurveyManagement;
