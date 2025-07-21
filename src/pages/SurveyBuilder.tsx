@@ -10,7 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Plus, Trash2, Edit, GripVertical } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Plus, Trash2, Edit, GripVertical, FileText, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Question {
@@ -20,6 +22,21 @@ interface Question {
   options?: any;
   is_required: boolean;
   order_index: number;
+  section_id?: string;
+}
+
+interface Section {
+  id: string;
+  name: string;
+  description?: string;
+  order_index: number;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description?: string;
+  is_course_evaluation: boolean;
 }
 
 interface Survey {
@@ -45,20 +62,33 @@ const SurveyBuilder = () => {
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
     question_type: 'scale' as string,
     is_required: true,
-    options: null as any
+    options: null as any,
+    section_id: '',
+    scale_min: 1,
+    scale_max: 10
+  });
+
+  const [sectionForm, setSectionForm] = useState({
+    name: '',
+    description: ''
   });
 
   useEffect(() => {
     if (surveyId) {
       fetchSurveyData();
+      fetchTemplates();
     }
   }, [surveyId]);
 
@@ -87,6 +117,10 @@ const SurveyBuilder = () => {
         ...q,
         question_type: q.question_type as string
       })) || []);
+
+      // Fetch sections (template_sections이 아닌 survey와 연결된 섹션이 필요하다면 별도 테이블 생성 필요)
+      // 일단 빈 배열로 시작
+      setSections([]);
     } catch (error) {
       console.error('Error fetching survey data:', error);
       toast({
@@ -99,12 +133,29 @@ const SurveyBuilder = () => {
     }
   };
 
+  const fetchTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('survey_templates')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setTemplates(data || []);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
+
   const resetQuestionForm = () => {
     setQuestionForm({
       question_text: '',
       question_type: 'scale',
       is_required: true,
-      options: null
+      options: null,
+      section_id: '',
+      scale_min: 1,
+      scale_max: 10
     });
     setEditingQuestion(null);
   };
@@ -120,7 +171,8 @@ const SurveyBuilder = () => {
         question_type: questionForm.question_type,
         is_required: questionForm.is_required,
         order_index: newOrderIndex,
-        options: questionForm.question_type === 'scale' ? { min: 1, max: 10 } : questionForm.options
+        options: questionForm.question_type === 'scale' ? { min: questionForm.scale_min, max: questionForm.scale_max } : questionForm.options,
+        section_id: questionForm.section_id || null
       };
 
       if (editingQuestion) {
@@ -167,7 +219,10 @@ const SurveyBuilder = () => {
       question_text: question.question_text,
       question_type: question.question_type,
       is_required: question.is_required,
-      options: question.options
+      options: question.options,
+      section_id: question.section_id || '',
+      scale_min: question.options?.min || 1,
+      scale_max: question.options?.max || 10
     });
     setIsDialogOpen(true);
   };
@@ -199,32 +254,115 @@ const SurveyBuilder = () => {
     }
   };
 
-  const renderScaleQuestion = (question: Question, index: number) => (
-    <div className="p-4 border rounded-lg bg-white">
-      <div className="mb-4">
-        <h3 className="font-medium text-sm">
-          {question.question_text}
-          {question.is_required && <span className="text-red-500 ml-1">*</span>}
-        </h3>
-      </div>
+  const handleAddSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      // 임시로 로컬 상태에만 추가 (실제로는 survey_sections 테이블이 필요)
+      const newSection: Section = {
+        id: Date.now().toString(),
+        name: sectionForm.name,
+        description: sectionForm.description,
+        order_index: sections.length
+      };
       
-      <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>전혀 그렇지 않다</span>
-          <span>매우 그렇다</span>
+      setSections(prev => [...prev, newSection]);
+      setSectionForm({ name: '', description: '' });
+      setIsSectionDialogOpen(false);
+      
+      toast({
+        title: "성공",
+        description: "섹션이 추가되었습니다."
+      });
+    } catch (error) {
+      console.error('Error adding section:', error);
+      toast({
+        title: "오류",
+        description: "섹션 추가 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleLoadTemplate = async (templateId: string) => {
+    try {
+      const { data: templateQuestions, error } = await supabase
+        .from('template_questions')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('order_index');
+
+      if (error) throw error;
+
+      if (templateQuestions) {
+        const newQuestions = templateQuestions.map((tq, index) => ({
+          survey_id: surveyId,
+          question_text: tq.question_text,
+          question_type: tq.question_type,
+          is_required: tq.is_required,
+          order_index: questions.length + index,
+          options: tq.options
+        }));
+
+        const { error: insertError } = await supabase
+          .from('survey_questions')
+          .insert(newQuestions);
+
+        if (insertError) throw insertError;
+
+        toast({
+          title: "성공",
+          description: "템플릿이 적용되었습니다."
+        });
+
+        setIsTemplateDialogOpen(false);
+        fetchSurveyData();
+      }
+    } catch (error) {
+      console.error('Error loading template:', error);
+      toast({
+        title: "오류",
+        description: "템플릿 불러오기 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const renderScaleQuestion = (question: Question, index: number) => {
+    const min = question.options?.min || 1;
+    const max = question.options?.max || 10;
+    const range = max - min + 1;
+    
+    return (
+      <div className="p-4 border rounded-lg bg-white">
+        <div className="mb-4">
+          <h3 className="font-medium text-sm">
+            {question.question_text}
+            {question.is_required && <span className="text-red-500 ml-1">*</span>}
+          </h3>
         </div>
         
-        <RadioGroup className="flex items-center justify-between">
-          {Array.from({ length: 10 }, (_, i) => (
-            <div key={i + 1} className="flex flex-col items-center space-y-1">
-              <span className="text-xs font-medium">{i + 1}</span>
-              <RadioGroupItem value={String(i + 1)} disabled />
-            </div>
-          ))}
-        </RadioGroup>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>전혀 그렇지 않다</span>
+            <span>매우 그렇다</span>
+          </div>
+          
+          <RadioGroup className="flex items-center justify-between">
+            {Array.from({ length: range }, (_, i) => {
+              const value = min + i;
+              return (
+                <div key={value} className="flex flex-col items-center space-y-1">
+                  <span className="text-xs font-medium">{value}</span>
+                  <RadioGroupItem value={String(value)} disabled />
+                </div>
+              );
+            })}
+          </RadioGroup>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -310,100 +448,286 @@ const SurveyBuilder = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">설문 질문</h2>
-              <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) resetQuestionForm();
-              }}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    질문 추가
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingQuestion ? '질문 수정' : '새 질문 추가'}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAddQuestion} className="space-y-4">
-                    <div>
-                      <Label htmlFor="question_text">질문 내용</Label>
-                      <Textarea
-                        id="question_text"
-                        value={questionForm.question_text}
-                        onChange={(e) => setQuestionForm(prev => ({ ...prev, question_text: e.target.value }))}
-                        placeholder="질문을 입력하세요"
-                        required
-                      />
+              <div className="flex gap-2">
+                <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <FileText className="h-4 w-4 mr-2" />
+                      템플릿 불러오기
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>템플릿 선택</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                      {templates.map((template) => (
+                        <Card key={template.id} className="cursor-pointer hover:shadow-md" onClick={() => handleLoadTemplate(template.id)}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="font-medium">{template.name}</h3>
+                                {template.description && (
+                                  <p className="text-sm text-muted-foreground">{template.description}</p>
+                                )}
+                              </div>
+                              {template.is_course_evaluation && (
+                                <Badge>강의평가</Badge>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                    
-                    <div>
-                      <Label htmlFor="question_type">질문 유형</Label>
-                      <Select 
-                        value={questionForm.question_type} 
-                        onValueChange={(value: any) => setQuestionForm(prev => ({ ...prev, question_type: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="scale">척도 (1-10점)</SelectItem>
-                          <SelectItem value="text">주관식</SelectItem>
-                          <SelectItem value="multiple_choice">객관식</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  </DialogContent>
+                </Dialog>
 
-                    <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                        취소
-                      </Button>
-                      <Button type="submit">
-                        {editingQuestion ? '수정' : '추가'}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <FolderPlus className="h-4 w-4 mr-2" />
+                      섹션 추가
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>새 섹션 추가</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleAddSection} className="space-y-4">
+                      <div>
+                        <Label htmlFor="section_name">섹션 이름</Label>
+                        <Input
+                          id="section_name"
+                          value={sectionForm.name}
+                          onChange={(e) => setSectionForm(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="섹션 이름을 입력하세요"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="section_description">섹션 설명</Label>
+                        <Textarea
+                          id="section_description"
+                          value={sectionForm.description}
+                          onChange={(e) => setSectionForm(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="섹션 설명을 입력하세요 (선택사항)"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setIsSectionDialogOpen(false)}>
+                          취소
+                        </Button>
+                        <Button type="submit">추가</Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                  setIsDialogOpen(open);
+                  if (!open) resetQuestionForm();
+                }}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      질문 추가
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingQuestion ? '질문 수정' : '새 질문 추가'}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleAddQuestion} className="space-y-4">
+                      <div>
+                        <Label htmlFor="question_text">질문 내용</Label>
+                        <Textarea
+                          id="question_text"
+                          value={questionForm.question_text}
+                          onChange={(e) => setQuestionForm(prev => ({ ...prev, question_text: e.target.value }))}
+                          placeholder="질문을 입력하세요"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="question_type">질문 유형</Label>
+                          <Select 
+                            value={questionForm.question_type} 
+                            onValueChange={(value: any) => setQuestionForm(prev => ({ ...prev, question_type: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="scale">척도</SelectItem>
+                              <SelectItem value="text">주관식</SelectItem>
+                              <SelectItem value="multiple_choice">객관식</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="section">섹션</Label>
+                          <Select 
+                            value={questionForm.section_id} 
+                            onValueChange={(value) => setQuestionForm(prev => ({ ...prev, section_id: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="섹션 선택 (선택사항)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">섹션 없음</SelectItem>
+                              {sections.map((section) => (
+                                <SelectItem key={section.id} value={section.id}>
+                                  {section.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {questionForm.question_type === 'scale' && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="scale_min">최소값</Label>
+                            <Input
+                              id="scale_min"
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={questionForm.scale_min}
+                              onChange={(e) => setQuestionForm(prev => ({ ...prev, scale_min: parseInt(e.target.value) }))}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="scale_max">최대값</Label>
+                            <Input
+                              id="scale_max"
+                              type="number"
+                              min="2"
+                              max="10"
+                              value={questionForm.scale_max}
+                              onChange={(e) => setQuestionForm(prev => ({ ...prev, scale_max: parseInt(e.target.value) }))}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                          취소
+                        </Button>
+                        <Button type="submit">
+                          {editingQuestion ? '수정' : '추가'}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
-            {/* Question List */}
-            <div className="space-y-4">
-              {questions.map((question, index) => (
-                <div key={question.id} className="relative">
-                  <div className="absolute top-2 right-2 flex gap-1 z-10">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditQuestion(question)}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteQuestion(question.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  
-                  {question.question_type === 'scale' ? (
-                    renderScaleQuestion(question, index)
-                  ) : (
-                    <div className="p-4 border rounded-lg bg-white">
-                      <h3 className="font-medium text-sm mb-2">
-                        {question.question_text}
-                        {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                      </h3>
-                      {question.question_type === 'text' && (
-                        <Textarea placeholder="답변을 입력하세요" disabled />
-                      )}
+            {/* Sections */}
+            {sections.length > 0 && (
+              <div className="space-y-4">
+                {sections.map((section) => (
+                  <div key={section.id} className="space-y-4">
+                    <div className="border-t pt-4">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{section.name}</Badge>
+                        {section.description && (
+                          <span className="text-sm text-muted-foreground">{section.description}</span>
+                        )}
+                      </div>
+                      <Separator className="mt-2" />
                     </div>
-                  )}
-                </div>
-              ))}
+                    
+                    {/* Questions in this section */}
+                    <div className="space-y-3 ml-4">
+                      {questions
+                        .filter((q) => q.section_id === section.id)
+                        .map((question, index) => (
+                          <div key={question.id} className="relative">
+                            <div className="absolute top-2 right-2 flex gap-1 z-10">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditQuestion(question)}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteQuestion(question.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            
+                            {question.question_type === 'scale' ? (
+                              renderScaleQuestion(question, index)
+                            ) : (
+                              <div className="p-4 border rounded-lg bg-white">
+                                <h3 className="font-medium text-sm mb-2">
+                                  {question.question_text}
+                                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                                </h3>
+                                {question.question_type === 'text' && (
+                                  <Textarea placeholder="답변을 입력하세요" disabled />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Questions without sections */}
+            <div className="space-y-4">
+              {questions
+                .filter((q) => !q.section_id)
+                .map((question, index) => (
+                  <div key={question.id} className="relative">
+                    <div className="absolute top-2 right-2 flex gap-1 z-10">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditQuestion(question)}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteQuestion(question.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    
+                    {question.question_type === 'scale' ? (
+                      renderScaleQuestion(question, index)
+                    ) : (
+                      <div className="p-4 border rounded-lg bg-white">
+                        <h3 className="font-medium text-sm mb-2">
+                          {question.question_text}
+                          {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                        </h3>
+                        {question.question_type === 'text' && (
+                          <Textarea placeholder="답변을 입력하세요" disabled />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
             </div>
 
             {questions.length === 0 && (
