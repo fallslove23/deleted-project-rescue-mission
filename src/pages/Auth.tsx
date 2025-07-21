@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -63,8 +64,28 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* Header with back button */}
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-3 flex items-center">
+          <Button
+            onClick={() => navigate('/')}
+            variant="ghost"
+            size="sm"
+            className="mr-3"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            메인으로
+          </Button>
+          <div>
+            <h1 className="text-lg font-semibold text-primary">관리자/강사 로그인</h1>
+            <p className="text-xs text-muted-foreground">설문 결과 조회 및 관리</p>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center">
             {isLogin ? '로그인' : '회원가입'}
@@ -105,7 +126,8 @@ const Auth = () => {
             </Button>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };

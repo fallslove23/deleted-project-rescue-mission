@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Calendar, Users } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
@@ -39,6 +40,7 @@ interface Course {
 }
 
 const SurveyManagement = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -160,9 +162,32 @@ const SurveyManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">설문조사 관리</h1>
+    <div className="min-h-screen bg-background">
+      {/* Header with back button */}
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center">
+            <Button
+              onClick={() => navigate('/dashboard')}
+              variant="ghost"
+              size="sm"
+              className="mr-3"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              대시보드
+            </Button>
+            <div>
+              <h1 className="text-lg font-semibold text-primary">설문조사 관리</h1>
+              <p className="text-xs text-muted-foreground">설문조사 생성 및 관리</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6">
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">설문조사 목록</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -319,7 +344,9 @@ const SurveyManagement = () => {
             </CardContent>
           </Card>
         ))}
-      </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };

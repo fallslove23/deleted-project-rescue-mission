@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, FileText, TrendingUp, Users } from 'lucide-react';
+import { BarChart, FileText, TrendingUp, Users, ArrowLeft } from 'lucide-react';
 
 interface Survey {
   id: string;
@@ -30,6 +31,7 @@ interface Profile {
 }
 
 const SurveyResults = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -161,15 +163,31 @@ const SurveyResults = () => {
   const isInstructor = profile?.role === 'instructor';
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">설문 결과 분석</h1>
-        <p className="text-muted-foreground">
-          {isAdmin ? '전체 설문조사 결과를 확인할 수 있습니다' : '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
-        </p>
-      </div>
+    <div className="min-h-screen bg-background">
+      {/* Header with back button */}
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-3 flex items-center">
+          <Button
+            onClick={() => navigate('/dashboard')}
+            variant="ghost"
+            size="sm"
+            className="mr-3"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            대시보드
+          </Button>
+          <div>
+            <h1 className="text-lg font-semibold text-primary">설문 결과 분석</h1>
+            <p className="text-xs text-muted-foreground">
+              {isAdmin ? '전체 설문조사 결과를 확인할 수 있습니다' : '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
+            </p>
+          </div>
+        </div>
+      </header>
 
-      {/* 필터 */}
+      <main className="container mx-auto px-4 py-6">
+        <div className="space-y-6">
+          {/* 필터 */}
       <div className="flex gap-4">
         <Select value={selectedYear} onValueChange={(value) => {
           setSelectedYear(value);
@@ -207,9 +225,9 @@ const SurveyResults = () => {
             필터 초기화
           </Button>
         )}
-      </div>
+          </div>
 
-      {/* 통계 카드 */}
+          {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -250,9 +268,9 @@ const SurveyResults = () => {
             <div className="text-2xl font-bold">{stats.avgResponseRate}</div>
           </CardContent>
         </Card>
-      </div>
+          </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+          <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="detailed">상세 분석</TabsTrigger>
@@ -333,7 +351,9 @@ const SurveyResults = () => {
             </Card>
           </TabsContent>
         )}
-      </Tabs>
+          </Tabs>
+        </div>
+      </main>
     </div>
   );
 };
