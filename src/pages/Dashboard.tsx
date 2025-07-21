@@ -168,254 +168,212 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-4 md:py-6 safe-area-bottom">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-12">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              📊 대시보드
-            </TabsTrigger>
-            <TabsTrigger value="surveys" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              {isAdmin ? '🛠️ 설문관리' : '📋 설문조사'}
-            </TabsTrigger>
-            <TabsTrigger value="results" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              📈 결과분석
-            </TabsTrigger>
-          </TabsList>
+        {/* 주요 통계 카드들 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">전체 설문조사</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalSurveys}</div>
+              <p className="text-xs text-muted-foreground">
+                {isAdmin ? '전체 시스템' : '담당 강의'}
+              </p>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="overview" className="space-y-6">
-            {/* 주요 통계 카드들 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">진행중인 설문</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.activeSurveys}</div>
+              <p className="text-xs text-muted-foreground">
+                현재 응답 가능
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">총 응답수</CardTitle>
+              <BarChart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalResponses}</div>
+              <p className="text-xs text-muted-foreground">
+                누적 응답 수
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">최근 7일 응답</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.recentResponsesCount}</div>
+              <p className="text-xs text-muted-foreground">
+                최근 활동
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 관리자 전용 통계 */}
+        {isAdmin && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">전체 강사수</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalInstructors}</div>
+                <p className="text-xs text-muted-foreground">
+                  등록된 강사
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">전체 강좌수</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalCourses}</div>
+                <p className="text-xs text-muted-foreground">
+                  개설된 강좌
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">완료된 설문</CardTitle>
+                <BarChart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.completedSurveys}</div>
+                <p className="text-xs text-muted-foreground">
+                  설문 완료
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* 빠른 액션 그리드 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {isAdmin && (
+            <>
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                onClick={() => navigate('/instructors')}
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">전체 설문조사</CardTitle>
+                  <CardTitle className="text-sm font-medium">강사 관리</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    강사 정보를 관리합니다
+                  </p>
+                  <Button size="sm" className="w-full">
+                    <Settings className="h-3 w-3 mr-1" />
+                    관리하기
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+                onClick={() => navigate('/template-management')}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">템플릿 관리</CardTitle>
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalSurveys}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {isAdmin ? '전체 시스템' : '담당 강의'}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">진행중인 설문</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.activeSurveys}</div>
-                  <p className="text-xs text-muted-foreground">
-                    현재 응답 가능
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">총 응답수</CardTitle>
-                  <BarChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalResponses}</div>
-                  <p className="text-xs text-muted-foreground">
-                    누적 응답 수
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">최근 7일 응답</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.recentResponsesCount}</div>
-                  <p className="text-xs text-muted-foreground">
-                    최근 활동
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* 관리자 전용 통계 */}
-            {isAdmin && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">전체 강사수</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalInstructors}</div>
-                    <p className="text-xs text-muted-foreground">
-                      등록된 강사
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">전체 강좌수</CardTitle>
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalCourses}</div>
-                    <p className="text-xs text-muted-foreground">
-                      개설된 강좌
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">완료된 설문</CardTitle>
-                    <BarChart className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.completedSurveys}</div>
-                    <p className="text-xs text-muted-foreground">
-                      설문 완료
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* 빠른 액션 카드들 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {isAdmin && (
-                <>
-                  <Card 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => navigate('/instructors')}
-                  >
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">강사 관리</CardTitle>
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        강사 정보를 관리합니다
-                      </p>
-                      <Button size="sm" className="w-full">
-                        <Settings className="h-3 w-3 mr-1" />
-                        관리하기
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => navigate('/template-management')}
-                  >
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">템플릿 관리</CardTitle>
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        설문조사 템플릿을 관리합니다
-                      </p>
-                      <Button size="sm" className="w-full">
-                        <Settings className="h-3 w-3 mr-1" />
-                        관리하기
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
-              
-              <Card 
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setActiveTab('surveys')}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">설문조사</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {isAdmin ? '설문조사를 관리합니다' : '설문조사를 확인합니다'}
+                  <p className="text-xs text-muted-foreground mb-3">
+                    설문조사 템플릿을 관리합니다
                   </p>
                   <Button size="sm" className="w-full">
-                    {isAdmin ? <Plus className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
-                    {isAdmin ? '새 설문' : '확인하기'}
+                    <Settings className="h-3 w-3 mr-1" />
+                    관리하기
                   </Button>
                 </CardContent>
               </Card>
-              
-              <Card 
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setActiveTab('results')}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">결과 분석</CardTitle>
-                  <BarChart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    피드백 결과를 분석합니다
+            </>
+          )}
+          
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+            onClick={() => navigate('/survey-management')}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">설문조사 관리</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                {isAdmin ? '설문조사를 생성하고 관리합니다' : '설문조사를 확인합니다'}
+              </p>
+              <Button size="sm" className="w-full">
+                {isAdmin ? <Plus className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
+                {isAdmin ? '새 설문' : '확인하기'}
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
+            onClick={() => navigate('/survey-results')}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">결과 분석</CardTitle>
+              <BarChart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                피드백 결과를 분석합니다
+              </p>
+              <Button size="sm" className="w-full">
+                <BarChart className="h-3 w-3 mr-1" />
+                분석하기
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 최근 활동 */}
+        <div className="space-y-4 mt-8">
+          <h2 className="text-xl font-semibold">최근 활동</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle>시스템 상태</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-muted-foreground">
+                  역할: {profile?.role === 'admin' ? '관리자' : profile?.role === 'instructor' ? '강사' : '사용자'}
+                </p>
+                <p className="text-muted-foreground">
+                  시스템이 정상적으로 작동 중입니다.
+                </p>
+                {isInstructor && profile?.instructor_id && (
+                  <p className="text-sm text-blue-600">
+                    강사 계정으로 로그인되었습니다.
                   </p>
-                  <Button size="sm" className="w-full">
-                    <BarChart className="h-3 w-3 mr-1" />
-                    분석하기
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* 최근 활동 */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">최근 활동</h2>
-              <Card>
-                <CardHeader>
-                  <CardTitle>시스템 상태</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-muted-foreground">
-                      역할: {profile?.role === 'admin' ? '관리자' : profile?.role === 'instructor' ? '강사' : '사용자'}
-                    </p>
-                    <p className="text-muted-foreground">
-                      시스템이 정상적으로 작동 중입니다.
-                    </p>
-                    {isInstructor && profile?.instructor_id && (
-                      <p className="text-sm text-blue-600">
-                        강사 계정으로 로그인되었습니다.
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="surveys">
-            {isAdmin ? (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">설문조사 관리</h2>
-                  <Button onClick={() => navigate('/survey-management')}>
-                    설문조사 관리로 이동
-                  </Button>
-                </div>
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-muted-foreground text-center">
-                      설문조사 관리 페이지로 이동하여 설문을 생성하고 관리하세요.
-                    </p>
-                  </CardContent>
-                </Card>
+                )}
               </div>
-            ) : (
-              <SurveyResults />
-            )}
-          </TabsContent>
-
-          <TabsContent value="results">
-            <SurveyResults />
-          </TabsContent>
-        </Tabs>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   );
