@@ -559,7 +559,7 @@ const SurveyBuilder = () => {
                             onValueChange={(value: any) => setQuestionForm(prev => ({ ...prev, question_type: value }))}
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="질문 유형 선택" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="scale">척도</SelectItem>
