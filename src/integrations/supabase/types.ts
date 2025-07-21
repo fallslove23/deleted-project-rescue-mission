@@ -168,6 +168,7 @@ export type Database = {
           order_index: number
           question_text: string
           question_type: string
+          section_id: string | null
           survey_id: string
         }
         Insert: {
@@ -178,6 +179,7 @@ export type Database = {
           order_index?: number
           question_text: string
           question_type?: string
+          section_id?: string | null
           survey_id: string
         }
         Update: {
@@ -188,9 +190,17 @@ export type Database = {
           order_index?: number
           question_text?: string
           question_type?: string
+          section_id?: string | null
           survey_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "survey_questions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "survey_sections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
