@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit, FolderPlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, FolderPlus, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface TemplateQuestion {
@@ -115,16 +115,60 @@ const TemplateBuilder = () => {
   };
 
   const resetQuestionForm = () => {
+    const currentSectionId = questionForm.section_id; // 현재 선택된 섹션 유지
     setQuestionForm({
       question_text: '',
       question_type: 'scale',
       is_required: true,
       options: null,
-      section_id: 'none',
+      section_id: editingQuestion ? 'none' : currentSectionId, // 편집 중이 아닐 때만 섹션 유지
       scale_min: 1,
       scale_max: 10
     });
     setEditingQuestion(null);
+  };
+
+  const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down') => {
+    try {
+      const currentQuestion = questions.find(q => q.id === questionId);
+      if (!currentQuestion) return;
+
+      const questionsInSameContext = questions.filter(q => q.section_id === currentQuestion.section_id);
+      const currentIndex = questionsInSameContext.findIndex(q => q.id === questionId);
+      
+      if (direction === 'up' && currentIndex === 0) return;
+      if (direction === 'down' && currentIndex === questionsInSameContext.length - 1) return;
+
+      const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      const swapQuestion = questionsInSameContext[swapIndex];
+
+      // Swap order_index
+      const { error: error1 } = await supabase
+        .from('template_questions')
+        .update({ order_index: swapQuestion.order_index })
+        .eq('id', currentQuestion.id);
+
+      const { error: error2 } = await supabase
+        .from('template_questions')
+        .update({ order_index: currentQuestion.order_index })
+        .eq('id', swapQuestion.id);
+
+      if (error1 || error2) throw error1 || error2;
+
+      toast({
+        title: "성공",
+        description: "질문 순서가 변경되었습니다."
+      });
+
+      fetchTemplateData();
+    } catch (error) {
+      console.error('Error moving question:', error);
+      toast({
+        title: "오류",
+        description: "질문 순서 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleAddQuestion = async (e: React.FormEvent) => {
@@ -519,40 +563,60 @@ const TemplateBuilder = () => {
                     <div className="space-y-3 ml-4">
                       {questions
                         .filter((q) => q.section_id === section.id)
-                        .map((question, index) => (
-                          <div key={question.id} className="relative">
-                            <div className="absolute top-2 right-2 flex gap-1 z-10">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditQuestion(question)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteQuestion(question.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            
-                            {question.question_type === 'scale' ? (
-                              renderScaleQuestion(question, index)
-                            ) : (
-                              <div className="p-4 border rounded-lg bg-white">
-                                <h3 className="font-medium text-sm mb-2">
-                                  {question.question_text}
-                                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                                </h3>
-                                {question.question_type === 'text' && (
-                                  <Textarea placeholder="답변을 입력하세요" disabled />
-                                )}
+                        .sort((a, b) => a.order_index - b.order_index)
+                        .map((question, index) => {
+                          const sectionQuestions = questions.filter(q => q.section_id === section.id);
+                          return (
+                            <div key={question.id} className="relative">
+                              <div className="absolute top-2 right-2 flex gap-1 z-10">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMoveQuestion(question.id, 'up')}
+                                  disabled={index === 0}
+                                >
+                                  <ArrowUp className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleMoveQuestion(question.id, 'down')}
+                                  disabled={index === sectionQuestions.length - 1}
+                                >
+                                  <ArrowDown className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditQuestion(question)}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteQuestion(question.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
                               </div>
-                            )}
-                          </div>
-                        ))}
+                              
+                              {question.question_type === 'scale' ? (
+                                renderScaleQuestion(question, index)
+                              ) : (
+                                <div className="p-4 border rounded-lg bg-white">
+                                  <h3 className="font-medium text-sm mb-2">
+                                    {question.question_text}
+                                    {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                                  </h3>
+                                  {question.question_type === 'text' && (
+                                    <Textarea placeholder="답변을 입력하세요" disabled />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 ))}
@@ -563,40 +627,60 @@ const TemplateBuilder = () => {
             <div className="space-y-4">
               {questions
                 .filter((q) => !q.section_id)
-                .map((question, index) => (
-                  <div key={question.id} className="relative">
-                    <div className="absolute top-2 right-2 flex gap-1 z-10">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditQuestion(question)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteQuestion(question.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    
-                    {question.question_type === 'scale' ? (
-                      renderScaleQuestion(question, index)
-                    ) : (
-                      <div className="p-4 border rounded-lg bg-white">
-                        <h3 className="font-medium text-sm mb-2">
-                          {question.question_text}
-                          {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                        </h3>
-                        {question.question_type === 'text' && (
-                          <Textarea placeholder="답변을 입력하세요" disabled />
-                        )}
+                .sort((a, b) => a.order_index - b.order_index)
+                .map((question, index) => {
+                  const unsectionedQuestions = questions.filter(q => !q.section_id);
+                  return (
+                    <div key={question.id} className="relative">
+                      <div className="absolute top-2 right-2 flex gap-1 z-10">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMoveQuestion(question.id, 'up')}
+                          disabled={index === 0}
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMoveQuestion(question.id, 'down')}
+                          disabled={index === unsectionedQuestions.length - 1}
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditQuestion(question)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteQuestion(question.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      
+                      {question.question_type === 'scale' ? (
+                        renderScaleQuestion(question, index)
+                      ) : (
+                        <div className="p-4 border rounded-lg bg-white">
+                          <h3 className="font-medium text-sm mb-2">
+                            {question.question_text}
+                            {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                          </h3>
+                          {question.question_type === 'text' && (
+                            <Textarea placeholder="답변을 입력하세요" disabled />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
 
             {questions.length === 0 && (
