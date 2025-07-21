@@ -118,9 +118,15 @@ const SurveyBuilder = () => {
         question_type: q.question_type as string
       })) || []);
 
-      // Fetch sections (template_sections이 아닌 survey와 연결된 섹션이 필요하다면 별도 테이블 생성 필요)
-      // 일단 빈 배열로 시작
-      setSections([]);
+      // Fetch survey sections
+      const { data: sectionsData, error: sectionsError } = await supabase
+        .from('survey_sections')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('order_index');
+
+      if (sectionsError) throw sectionsError;
+      setSections(sectionsData || []);
     } catch (error) {
       console.error('Error fetching survey data:', error);
       toast({
@@ -258,22 +264,25 @@ const SurveyBuilder = () => {
     e.preventDefault();
     
     try {
-      // 임시로 로컬 상태에만 추가 (실제로는 survey_sections 테이블이 필요)
-      const newSection: Section = {
-        id: Date.now().toString(),
-        name: sectionForm.name,
-        description: sectionForm.description,
-        order_index: sections.length
-      };
-      
-      setSections(prev => [...prev, newSection]);
-      setSectionForm({ name: '', description: '' });
-      setIsSectionDialogOpen(false);
+      const { error } = await supabase
+        .from('survey_sections')
+        .insert([{
+          survey_id: surveyId,
+          name: sectionForm.name,
+          description: sectionForm.description,
+          order_index: sections.length
+        }]);
+
+      if (error) throw error;
       
       toast({
         title: "성공",
         description: "섹션이 추가되었습니다."
       });
+
+      setSectionForm({ name: '', description: '' });
+      setIsSectionDialogOpen(false);
+      fetchSurveyData(); // 섹션 목록 새로고침
     } catch (error) {
       console.error('Error adding section:', error);
       toast({
