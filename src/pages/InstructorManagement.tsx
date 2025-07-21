@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Edit, Camera, UserPlus, BookOpen, Upload, X, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Camera, UserPlus, BookOpen, Upload, X, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Instructor {
@@ -45,6 +46,7 @@ const InstructorManagement = () => {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [newCourseTitle, setNewCourseTitle] = useState('');
   const [newCourseDescription, setNewCourseDescription] = useState('');
+  const [deletingInstructor, setDeletingInstructor] = useState<Instructor | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -275,6 +277,39 @@ const InstructorManagement = () => {
     );
   };
 
+  const handleDeleteInstructor = async (instructor: Instructor) => {
+    try {
+      // Remove course assignments first
+      await supabase
+        .from('courses')
+        .update({ instructor_id: null })
+        .eq('instructor_id', instructor.id);
+
+      // Delete instructor
+      const { error } = await supabase
+        .from('instructors')
+        .delete()
+        .eq('id', instructor.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: `강사 "${instructor.name}"가 삭제되었습니다.`
+      });
+
+      setDeletingInstructor(null);
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting instructor:', error);
+      toast({
+        title: "오류",
+        description: "강사 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -419,15 +454,47 @@ const InstructorManagement = () => {
                       </div>
                     </div>
                     
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full"
-                      onClick={() => openEditDialog(instructor)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      수정
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => openEditDialog(instructor)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        수정
+                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            className="px-3"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>강사 삭제</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              "{instructor.name}" 강사를 삭제하시겠습니까?<br />
+                              이 작업은 되돌릴 수 없으며, 담당 과목에서도 해제됩니다.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>취소</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDeleteInstructor(instructor)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              삭제
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </CardContent>
                 </Card>
               );
