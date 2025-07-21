@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
+import SurveyBuilder from "./pages/SurveyBuilder";
 import SurveyResults from "./pages/SurveyResults";
 import NotFound from "./pages/NotFound";
 
@@ -35,9 +36,14 @@ const App = () => (
                 <InstructorManagement />
               </ProtectedRoute>
             } />
-            <Route path="/surveys" element={
+            <Route path="/survey-management" element={
               <ProtectedRoute>
                 <SurveyManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/survey-builder/:surveyId" element={
+              <ProtectedRoute>
+                <SurveyBuilder />
               </ProtectedRoute>
             } />
             <Route path="/results" element={

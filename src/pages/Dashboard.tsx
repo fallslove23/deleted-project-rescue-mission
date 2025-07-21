@@ -370,7 +370,25 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="surveys">
-            {isAdmin ? <SurveyManagement /> : <SurveyResults />}
+            {isAdmin ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold">설문조사 관리</h2>
+                  <Button onClick={() => navigate('/survey-management')}>
+                    설문조사 관리로 이동
+                  </Button>
+                </div>
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-muted-foreground text-center">
+                      설문조사 관리 페이지로 이동하여 설문을 생성하고 관리하세요.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <SurveyResults />
+            )}
           </TabsContent>
 
           <TabsContent value="results">
