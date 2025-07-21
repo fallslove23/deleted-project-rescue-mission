@@ -11,6 +11,8 @@ import Dashboard from "./pages/Dashboard";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
 import SurveyBuilder from "./pages/SurveyBuilder";
+import TemplateManagement from "./pages/TemplateManagement";
+import TemplateBuilder from "./pages/TemplateBuilder";
 import SurveyResults from "./pages/SurveyResults";
 import NotFound from "./pages/NotFound";
 
@@ -44,6 +46,16 @@ const App = () => (
             <Route path="/survey-builder/:surveyId" element={
               <ProtectedRoute>
                 <SurveyBuilder />
+              </ProtectedRoute>
+            } />
+            <Route path="/template-management" element={
+              <ProtectedRoute>
+                <TemplateManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/template-builder/:templateId" element={
+              <ProtectedRoute>
+                <TemplateBuilder />
               </ProtectedRoute>
             } />
             <Route path="/results" element={

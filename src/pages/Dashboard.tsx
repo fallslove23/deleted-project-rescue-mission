@@ -282,26 +282,47 @@ const Dashboard = () => {
             )}
 
             {/* 빠른 액션 카드들 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {isAdmin && (
-                <Card 
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate('/instructors')}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">강사 관리</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      강사 정보를 관리합니다
-                    </p>
-                    <Button size="sm" className="w-full">
-                      <Settings className="h-3 w-3 mr-1" />
-                      관리하기
-                    </Button>
-                  </CardContent>
-                </Card>
+                <>
+                  <Card 
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate('/instructors')}
+                  >
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">강사 관리</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        강사 정보를 관리합니다
+                      </p>
+                      <Button size="sm" className="w-full">
+                        <Settings className="h-3 w-3 mr-1" />
+                        관리하기
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card 
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate('/template-management')}
+                  >
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">템플릿 관리</CardTitle>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        설문조사 템플릿을 관리합니다
+                      </p>
+                      <Button size="sm" className="w-full">
+                        <Settings className="h-3 w-3 mr-1" />
+                        관리하기
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </>
               )}
               
               <Card 
