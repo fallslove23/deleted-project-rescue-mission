@@ -58,7 +58,7 @@ const TemplateBuilder = () => {
     question_type: 'scale' as string,
     is_required: true,
     options: null as any,
-    section_id: '',
+    section_id: 'none',
     scale_min: 1,
     scale_max: 10
   });
@@ -120,7 +120,7 @@ const TemplateBuilder = () => {
       question_type: 'scale',
       is_required: true,
       options: null,
-      section_id: '',
+      section_id: 'none',
       scale_min: 1,
       scale_max: 10
     });
@@ -139,7 +139,7 @@ const TemplateBuilder = () => {
         is_required: questionForm.is_required,
         order_index: newOrderIndex,
         options: questionForm.question_type === 'scale' ? { min: questionForm.scale_min, max: questionForm.scale_max } : questionForm.options,
-        section_id: questionForm.section_id || null
+        section_id: questionForm.section_id === 'none' ? null : questionForm.section_id
       };
 
       if (editingQuestion) {
@@ -187,7 +187,7 @@ const TemplateBuilder = () => {
       question_type: question.question_type,
       is_required: question.is_required,
       options: question.options,
-      section_id: question.section_id || '',
+      section_id: question.section_id || 'none',
       scale_min: question.options?.min || 1,
       scale_max: question.options?.max || 10
     });
@@ -448,7 +448,7 @@ const TemplateBuilder = () => {
                               <SelectValue placeholder="섹션 선택 (선택사항)" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">섹션 없음</SelectItem>
+                              <SelectItem value="none">섹션 없음</SelectItem>
                               {sections.map((section) => (
                                 <SelectItem key={section.id} value={section.id}>
                                   {section.name}
