@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -116,7 +117,7 @@ const SurveyResults = () => {
 
   const getUniqueRounds = () => {
     let filteredSurveys = surveys;
-    if (selectedYear) {
+    if (selectedYear && selectedYear !== '') {
       filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
     }
     const rounds = [...new Set(filteredSurveys.map(s => s.education_round))];
@@ -125,10 +126,10 @@ const SurveyResults = () => {
 
   const getFilteredSurveys = () => {
     let filtered = surveys;
-    if (selectedYear) {
+    if (selectedYear && selectedYear !== '') {
       filtered = filtered.filter(s => s.education_year.toString() === selectedYear);
     }
-    if (selectedRound) {
+    if (selectedRound && selectedRound !== '') {
       filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
     }
     return filtered;
@@ -170,12 +171,14 @@ const SurveyResults = () => {
 
       {/* 필터 */}
       <div className="flex gap-4">
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
+        <Select value={selectedYear} onValueChange={(value) => {
+          setSelectedYear(value);
+          setSelectedRound(''); // Reset round when year changes
+        }}>
           <SelectTrigger className="w-32">
-            <SelectValue placeholder="연도" />
+            <SelectValue placeholder="전체 연도" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">전체</SelectItem>
             {getUniqueYears().map(year => (
               <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
             ))}
@@ -184,15 +187,26 @@ const SurveyResults = () => {
 
         <Select value={selectedRound} onValueChange={setSelectedRound}>
           <SelectTrigger className="w-32">
-            <SelectValue placeholder="차수" />
+            <SelectValue placeholder="전체 차수" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">전체</SelectItem>
             {getUniqueRounds().map(round => (
               <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
             ))}
           </SelectContent>
         </Select>
+
+        {(selectedYear || selectedRound) && (
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setSelectedYear('');
+              setSelectedRound('');
+            }}
+          >
+            필터 초기화
+          </Button>
+        )}
       </div>
 
       {/* 통계 카드 */}
