@@ -142,32 +142,43 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-primary">BS Edu 피드백 시스템</h1>
-            <p className="text-sm text-muted-foreground">
-              {isAdmin ? '관리자' : isInstructor ? '강사' : '사용자'} 대시보드
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
+                <BarChart className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-lg md:text-2xl font-bold text-primary">관리자 대시보드</h1>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  {isAdmin ? '시스템 관리자' : isInstructor ? '강사' : '사용자'} 전용
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm">환영합니다, {user?.email}</span>
+          <div className="flex items-center gap-2 md:gap-4">
+            <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
             <Button onClick={() => navigate('/')} variant="ghost" size="sm">
-              메인으로
+              설문 메인
             </Button>
             <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">대시보드</TabsTrigger>
-            <TabsTrigger value="surveys">
-              {isAdmin ? '설문조사 관리' : '설문조사'}
+      <main className="container mx-auto px-4 py-4 md:py-6 safe-area-bottom">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
+          <TabsList className="grid w-full grid-cols-3 h-12">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              📊 대시보드
             </TabsTrigger>
-            <TabsTrigger value="results">결과 분석</TabsTrigger>
+            <TabsTrigger value="surveys" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              {isAdmin ? '🛠️ 설문관리' : '📋 설문조사'}
+            </TabsTrigger>
+            <TabsTrigger value="results" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              📈 결과분석
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
