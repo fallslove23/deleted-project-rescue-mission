@@ -402,14 +402,14 @@ const SurveyManagement = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {survey.status === 'draft' && (
+                  {(survey.status === 'draft' || survey.status === 'completed') && (
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => updateSurveyStatus(survey.id, 'active')}
                     >
                       <Play className="h-4 w-4 mr-1" />
-                      시작
+                      {survey.status === 'completed' ? '재시작' : '시작'}
                     </Button>
                   )}
                   {survey.status === 'active' && (
