@@ -609,22 +609,27 @@ const TemplateBuilder = () => {
                 {sections.map((section) => (
                   <div key={section.id} className="space-y-4">
                     <div className="border-t pt-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{section.name}</Badge>
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{section.name}</Badge>
+                          </div>
                           {section.description && (
-                            <span className="text-sm text-muted-foreground">{section.description}</span>
+                            <p className="text-sm text-muted-foreground pl-1">
+                              {section.description}
+                            </p>
                           )}
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEditSection(section)}
+                          className="mt-0.5"
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
                       </div>
-                      <Separator className="mt-2" />
+                      <Separator className="mt-3" />
                     </div>
                     
                     {/* Questions in this section */}
