@@ -615,7 +615,7 @@ const TemplateBuilder = () => {
                             <Badge variant="outline">{section.name}</Badge>
                           </div>
                           {section.description && (
-                            <p className="text-sm text-muted-foreground pl-1">
+                            <p className="text-sm text-muted-foreground pl-1 whitespace-pre-wrap">
                               {section.description}
                             </p>
                           )}
