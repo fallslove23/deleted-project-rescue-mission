@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Calendar, Users, ArrowLeft } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
@@ -137,6 +137,83 @@ const SurveyManagement = () => {
       toast({
         title: "오류",
         description: "설문조사 생성 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const updateSurveyStatus = async (surveyId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({ status: newStatus })
+        .eq('id', surveyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: `설문조사가 ${newStatus === 'active' ? '시작' : '종료'}되었습니다.`
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error updating survey status:', error);
+      toast({
+        title: "오류",
+        description: "설문조사 상태 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const duplicateSurvey = async (survey: Survey) => {
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .insert([{
+          title: `${survey.title} (복사본)`,
+          description: survey.description,
+          start_date: survey.start_date,
+          end_date: survey.end_date,
+          education_year: survey.education_year,
+          education_round: survey.education_round,
+          instructor_id: survey.instructor_id,
+          course_id: survey.course_id,
+          status: 'draft',
+          created_by: user?.id
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "설문조사가 복제되었습니다."
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error duplicating survey:', error);
+      toast({
+        title: "오류",
+        description: "설문조사 복제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const sendSurveyResults = async (surveyId: string) => {
+    try {
+      // TODO: Implement email sending functionality
+      toast({
+        title: "알림",
+        description: "이메일 전송 기능은 구현 예정입니다."
+      });
+    } catch (error) {
+      console.error('Error sending survey results:', error);
+      toast({
+        title: "오류",
+        description: "이메일 전송 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     }
@@ -324,9 +401,47 @@ const SurveyManagement = () => {
                     {survey.education_year}년 {survey.education_round}차
                   </p>
                 </div>
-                <Button variant="ghost" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  {survey.status === 'draft' && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => updateSurveyStatus(survey.id, 'active')}
+                    >
+                      <Play className="h-4 w-4 mr-1" />
+                      시작
+                    </Button>
+                  )}
+                  {survey.status === 'active' && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => updateSurveyStatus(survey.id, 'completed')}
+                    >
+                      <Square className="h-4 w-4 mr-1" />
+                      종료
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => sendSurveyResults(survey.id)}
+                  >
+                    <Mail className="h-4 w-4 mr-1" />
+                    결과 전송
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => duplicateSurvey(survey)}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    복제
+                  </Button>
+                  <Button variant="ghost" size="sm">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
