@@ -644,9 +644,9 @@ const TemplateBuilder = () => {
                     
                     {/* Questions in this section */}
                     <div className="space-y-3 ml-4">
-                      {questions
-                        .filter((q) => q.section_id === section.id)
-                        .sort((a, b) => a.order_index - b.order_index)
+                       {questions
+                         .filter((q) => q.section_id === section.id)
+                         .sort((a, b) => b.order_index - a.order_index)
                         .map((question, index) => {
                           const sectionQuestions = questions.filter(q => q.section_id === section.id);
                           return (
@@ -710,7 +710,7 @@ const TemplateBuilder = () => {
             <div className="space-y-4">
               {questions
                 .filter((q) => !q.section_id)
-                .sort((a, b) => a.order_index - b.order_index)
+                .sort((a, b) => b.order_index - a.order_index)
                 .map((question, index) => {
                   const unsectionedQuestions = questions.filter(q => !q.section_id);
                   return (
