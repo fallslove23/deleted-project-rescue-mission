@@ -52,6 +52,7 @@ const TemplateBuilder = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<TemplateQuestion | null>(null);
+  const [editingSection, setEditingSection] = useState<TemplateSection | null>(null);
 
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
@@ -298,6 +299,57 @@ const TemplateBuilder = () => {
     }
   };
 
+  const resetSectionForm = () => {
+    setSectionForm({
+      name: '',
+      description: ''
+    });
+    setEditingSection(null);
+  };
+
+  const handleEditSection = (section: TemplateSection) => {
+    setEditingSection(section);
+    setSectionForm({
+      name: section.name,
+      description: section.description || ''
+    });
+    setIsSectionDialogOpen(true);
+  };
+
+  const handleUpdateSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingSection) return;
+    
+    try {
+      const { error } = await supabase
+        .from('template_sections')
+        .update({
+          name: sectionForm.name,
+          description: sectionForm.description
+        })
+        .eq('id', editingSection.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "섹션이 수정되었습니다."
+      });
+
+      resetSectionForm();
+      setIsSectionDialogOpen(false);
+      fetchTemplateData();
+    } catch (error) {
+      console.error('Error updating section:', error);
+      toast({
+        title: "오류",
+        description: "섹션 수정 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const renderScaleQuestion = (question: TemplateQuestion, index: number) => {
     const min = question.options?.min || 1;
     const max = question.options?.max || 10;
@@ -395,7 +447,10 @@ const TemplateBuilder = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">템플릿 질문</h2>
               <div className="flex gap-2">
-                <Dialog open={isSectionDialogOpen} onOpenChange={setIsSectionDialogOpen}>
+                <Dialog open={isSectionDialogOpen} onOpenChange={(open) => {
+                  setIsSectionDialogOpen(open);
+                  if (!open) resetSectionForm();
+                }}>
                   <DialogTrigger asChild>
                     <Button variant="outline">
                       <FolderPlus className="h-4 w-4 mr-2" />
@@ -404,9 +459,11 @@ const TemplateBuilder = () => {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>새 섹션 추가</DialogTitle>
+                      <DialogTitle>
+                        {editingSection ? '섹션 수정' : '새 섹션 추가'}
+                      </DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleAddSection} className="space-y-4">
+                    <form onSubmit={editingSection ? handleUpdateSection : handleAddSection} className="space-y-4">
                       <div>
                         <Label htmlFor="section_name">섹션 이름</Label>
                         <Input
@@ -430,7 +487,9 @@ const TemplateBuilder = () => {
                         <Button type="button" variant="outline" onClick={() => setIsSectionDialogOpen(false)}>
                           취소
                         </Button>
-                        <Button type="submit">추가</Button>
+                        <Button type="submit">
+                          {editingSection ? '수정' : '추가'}
+                        </Button>
                       </div>
                     </form>
                   </DialogContent>
@@ -550,11 +609,20 @@ const TemplateBuilder = () => {
                 {sections.map((section) => (
                   <div key={section.id} className="space-y-4">
                     <div className="border-t pt-4">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{section.name}</Badge>
-                        {section.description && (
-                          <span className="text-sm text-muted-foreground">{section.description}</span>
-                        )}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{section.name}</Badge>
+                          {section.description && (
+                            <span className="text-sm text-muted-foreground">{section.description}</span>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditSection(section)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
                       </div>
                       <Separator className="mt-2" />
                     </div>
