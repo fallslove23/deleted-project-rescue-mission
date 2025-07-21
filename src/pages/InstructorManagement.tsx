@@ -592,40 +592,55 @@ const InstructorManagement = () => {
               <div className="space-y-4">
                 <Label className="text-base font-semibold">담당 과목</Label>
                 
-                {/* Available Courses */}
+                {/* All Courses List */}
                 <div>
-                  <Label className="text-sm text-muted-foreground">기존 과목 선택</Label>
+                  <Label className="text-sm text-muted-foreground">과목 선택</Label>
                   <div className="grid grid-cols-1 gap-2 mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
-                    {getAvailableCourses().map((course) => (
-                      <div
-                        key={course.id}
-                        className={`flex items-center space-x-2 p-2 rounded cursor-pointer transition-colors ${
-                          selectedCourses.includes(course.id) 
-                            ? 'bg-primary/10 border border-primary' 
-                            : 'bg-muted/50 hover:bg-muted'
-                        }`}
-                        onClick={() => toggleCourseSelection(course.id)}
-                      >
-                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                          selectedCourses.includes(course.id) 
-                            ? 'bg-primary border-primary' 
-                            : 'border-muted-foreground'
-                        }`}>
-                          {selectedCourses.includes(course.id) && (
-                            <div className="w-2 h-2 bg-white rounded-full" />
-                          )}
+                    {courses.map((course) => {
+                      const isAssignedToOther = course.instructor_id && course.instructor_id !== editingInstructor?.id;
+                      const isSelected = selectedCourses.includes(course.id);
+                      const assignedInstructor = isAssignedToOther ? instructors.find(inst => inst.id === course.instructor_id) : null;
+                      
+                      return (
+                        <div
+                          key={course.id}
+                          className={`flex items-center space-x-2 p-2 rounded transition-colors ${
+                            isAssignedToOther 
+                              ? 'bg-muted/30 opacity-60 cursor-not-allowed' 
+                              : isSelected
+                                ? 'bg-primary/10 border border-primary cursor-pointer' 
+                                : 'bg-muted/50 hover:bg-muted cursor-pointer'
+                          }`}
+                          onClick={() => !isAssignedToOther && toggleCourseSelection(course.id)}
+                        >
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                            isSelected && !isAssignedToOther
+                              ? 'bg-primary border-primary' 
+                              : 'border-muted-foreground'
+                          }`}>
+                            {isSelected && !isAssignedToOther && (
+                              <div className="w-2 h-2 bg-white rounded-full" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{course.title}</span>
+                              {isAssignedToOther && assignedInstructor && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {assignedInstructor.name} 담당
+                                </Badge>
+                              )}
+                            </div>
+                            {course.description && (
+                              <div className="text-xs text-muted-foreground">{course.description}</div>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{course.title}</div>
-                          {course.description && (
-                            <div className="text-xs text-muted-foreground">{course.description}</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {getAvailableCourses().length === 0 && (
+                      );
+                    })}
+                    {courses.length === 0 && (
                       <div className="text-sm text-muted-foreground text-center py-4">
-                        사용 가능한 과목이 없습니다
+                        등록된 과목이 없습니다
                       </div>
                     )}
                   </div>
