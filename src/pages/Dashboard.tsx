@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, BookOpen, FileText, BarChart, Plus, Settings, TrendingUp, Clock, Activity } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Separator } from '@/components/ui/separator';
 import SurveyManagement from './SurveyManagement';
 import SurveyResults from './SurveyResults';
 
@@ -140,6 +142,38 @@ const Dashboard = () => {
 
   const isAdmin = profile?.role === 'admin';
   const isInstructor = profile?.role === 'instructor';
+
+  // 차트 데이터 준비
+  const chartData = [
+    {
+      name: '전체 설문',
+      value: stats.totalSurveys,
+      color: '#8884d8'
+    },
+    {
+      name: '진행중',
+      value: stats.activeSurveys,
+      color: '#82ca9d'
+    },
+    {
+      name: '완료',
+      value: stats.completedSurveys,
+      color: '#ffc658'
+    }
+  ];
+
+  const responseData = [
+    {
+      period: '지난주',
+      responses: Math.max(0, stats.totalResponses - stats.recentResponsesCount)
+    },
+    {
+      period: '이번주',
+      responses: stats.recentResponsesCount
+    }
+  ];
+
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658'];
 
   return (
     <div className="min-h-screen bg-background">
@@ -312,6 +346,68 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* 차트 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">설문 현황</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex justify-center gap-4 mt-4">
+                {chartData.map((item, index) => (
+                  <div key={item.name} className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: COLORS[index] }}
+                    />
+                    <span className="text-sm text-muted-foreground">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">응답 추이</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart data={responseData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <Bar dataKey="responses" fill="#8884d8" />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 구분선 */}
+        <Separator className="my-8" />
+
         {/* 빠른 액션 그리드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {isAdmin && (
@@ -328,7 +424,7 @@ const Dashboard = () => {
                   <p className="text-xs text-muted-foreground mb-3">
                     강사 정보를 관리합니다
                   </p>
-                  <Button size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full h-8 text-xs px-2">
                     <Settings className="h-3 w-3 mr-1" />
                     관리하기
                   </Button>
@@ -347,7 +443,7 @@ const Dashboard = () => {
                   <p className="text-xs text-muted-foreground mb-3">
                     설문조사 템플릿을 관리합니다
                   </p>
-                  <Button size="sm" className="w-full">
+                  <Button variant="outline" size="sm" className="w-full h-8 text-xs px-2">
                     <Settings className="h-3 w-3 mr-1" />
                     관리하기
                   </Button>
@@ -368,7 +464,7 @@ const Dashboard = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 {isAdmin ? '설문조사를 생성하고 관리합니다' : '설문조사를 확인합니다'}
               </p>
-              <Button size="sm" className="w-full">
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs px-2">
                 {isAdmin ? <Plus className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
                 {isAdmin ? '새 설문' : '확인하기'}
               </Button>
@@ -387,7 +483,7 @@ const Dashboard = () => {
               <p className="text-xs text-muted-foreground mb-3">
                 피드백 결과를 분석합니다
               </p>
-              <Button size="sm" className="w-full">
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs px-2">
                 <BarChart className="h-3 w-3 mr-1" />
                 분석하기
               </Button>
