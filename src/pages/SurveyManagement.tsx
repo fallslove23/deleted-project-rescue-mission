@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
@@ -197,6 +197,35 @@ const SurveyManagement = () => {
       toast({
         title: "오류",
         description: "설문조사 복제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteSurvey = async (surveyId: string) => {
+    if (!window.confirm('정말로 이 설문을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .delete()
+        .eq('id', surveyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "설문조사가 삭제되었습니다."
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting survey:', error);
+      toast({
+        title: "오류",
+        description: "설문조사 삭제 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     }
@@ -437,6 +466,14 @@ const SurveyManagement = () => {
                   >
                     <Copy className="h-4 w-4 mr-1" />
                     복제
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => deleteSurvey(survey.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    삭제
                   </Button>
                   <Button variant="ghost" size="sm">
                     <Edit className="h-4 w-4" />
