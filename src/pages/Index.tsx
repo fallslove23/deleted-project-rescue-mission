@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { Menu, Calendar, Clock, BarChart, FileText } from 'lucide-react';
+import { Menu, Calendar, Clock, BarChart, FileText, Users } from 'lucide-react';
 
 interface Survey {
   id: string;
@@ -116,6 +116,14 @@ const Index = () => {
                       >
                         <BarChart className="h-4 w-4 mr-2" />
                         관리 대시보드
+                      </Button>
+                      <Button 
+                        onClick={() => navigate('/instructors')}
+                        className="w-full justify-start"
+                        variant="outline"
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        강사 관리
                       </Button>
                       <Button 
                         onClick={() => navigate('/surveys')}
