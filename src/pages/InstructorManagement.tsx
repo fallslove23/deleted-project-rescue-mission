@@ -410,6 +410,7 @@ const InstructorManagement = () => {
                         <AvatarImage 
                           src={instructor.photo_url} 
                           alt={instructor.name}
+                          className="object-cover"
                         />
                         <AvatarFallback className="text-lg">
                           {instructor.name.substring(0, 2)}
