@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
 import SurveyBuilder from "./pages/SurveyBuilder";
+import SurveyParticipate from "./pages/SurveyParticipate";
 import TemplateManagement from "./pages/TemplateManagement";
 import TemplateBuilder from "./pages/TemplateBuilder";
 import SurveyResults from "./pages/SurveyResults";
@@ -54,6 +55,7 @@ const App = () => (
                 <SurveyManagement />
               </ProtectedRoute>
             } />
+            <Route path="/survey/:surveyId" element={<SurveyParticipate />} />
             <Route path="/survey-builder/:surveyId" element={
               <ProtectedRoute>
                 <SurveyBuilder />

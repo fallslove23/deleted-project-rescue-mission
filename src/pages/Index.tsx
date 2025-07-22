@@ -242,7 +242,10 @@ const Index = () => {
                               {new Date(survey.start_date).toLocaleDateString('ko-KR')} ~ {new Date(survey.end_date).toLocaleDateString('ko-KR')}
                             </span>
                           </div>
-                          <Button className="w-full group-hover:bg-primary/90 transition-colors touch-friendly">
+                          <Button 
+                            className="w-full group-hover:bg-primary/90 transition-colors touch-friendly"
+                            onClick={() => navigate(`/survey/${survey.id}`)}
+                          >
                             <FileText className="h-4 w-4 mr-2" />
                             설문 참여하기
                           </Button>
