@@ -30,11 +30,28 @@ const Auth = () => {
         if (error) throw error;
         
         if (data.user) {
-          toast({
-            title: "로그인 성공",
-            description: "대시보드로 이동합니다.",
-          });
-          navigate('/dashboard');
+          // Check if this is first login for instructor
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('first_login')
+            .eq('id', data.user.id)
+            .single();
+
+          if (!profileError && profile?.first_login) {
+            // First login - redirect to password change
+            navigate('/change-password');
+            toast({
+              title: "첫 로그인",
+              description: "비밀번호를 변경해주세요.",
+            });
+          } else {
+            // Normal login
+            navigate('/dashboard');
+            toast({
+              title: "로그인 성공",
+              description: "대시보드로 이동합니다.",
+            });
+          }
         }
       } else {
         const { data, error } = await supabase.auth.signUp({

@@ -201,6 +201,42 @@ const InstructorManagement = () => {
         }
       }
 
+      // Create instructor account if email is provided
+      if (instructorId && formData.email) {
+        try {
+          const { data: funcResult, error: funcError } = await supabase.rpc(
+            'create_instructor_account', 
+            {
+              instructor_email: formData.email,
+              instructor_password: 'bsedu123',
+              instructor_id_param: instructorId
+            }
+          );
+          
+          if (funcError) throw funcError;
+          
+          if (funcResult === 'Instructor account setup completed. Initial password: bsedu123') {
+            toast({
+              title: "계정 생성 완료",
+              description: "강사 계정이 생성되었습니다. 초기 비밀번호: bsedu123"
+            });
+          } else {
+            toast({
+              title: "알림",
+              description: funcResult,
+              variant: "default"
+            });
+          }
+        } catch (accountError) {
+          console.error('Error creating instructor account:', accountError);
+          toast({
+            title: "계정 생성 오류",
+            description: "강사 계정 생성 중 오류가 발생했습니다.",
+            variant: "destructive"
+          });
+        }
+      }
+
       setIsDialogOpen(false);
       setEditingInstructor(null);
       setFormData({ name: '', email: '', bio: '', photo_url: '' });
