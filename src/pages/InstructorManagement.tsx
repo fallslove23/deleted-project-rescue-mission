@@ -338,12 +338,28 @@ const InstructorManagement = () => {
 
     try {
       if (editingCourse) {
+        // Check if title already exists (excluding current course)
+        const { data: existingCourses } = await supabase
+          .from('courses')
+          .select('id')
+          .eq('title', newCourseTitle.trim())
+          .neq('id', editingCourse.id);
+
+        if (existingCourses && existingCourses.length > 0) {
+          toast({
+            title: "오류",
+            description: "이미 존재하는 과목명입니다.",
+            variant: "destructive"
+          });
+          return;
+        }
+
         // Update existing course
         const { error } = await supabase
           .from('courses')
           .update({
-            title: newCourseTitle,
-            description: newCourseDescription
+            title: newCourseTitle.trim(),
+            description: newCourseDescription.trim()
           })
           .eq('id', editingCourse.id);
 
@@ -354,12 +370,27 @@ const InstructorManagement = () => {
           description: "과목이 수정되었습니다."
         });
       } else {
+        // Check if title already exists
+        const { data: existingCourses } = await supabase
+          .from('courses')
+          .select('id')
+          .eq('title', newCourseTitle.trim());
+
+        if (existingCourses && existingCourses.length > 0) {
+          toast({
+            title: "오류",
+            description: "이미 존재하는 과목명입니다.",
+            variant: "destructive"
+          });
+          return;
+        }
+
         // Create new course
         const { data, error } = await supabase
           .from('courses')
           .insert([{
-            title: newCourseTitle,
-            description: newCourseDescription
+            title: newCourseTitle.trim(),
+            description: newCourseDescription.trim()
           }])
           .select()
           .single();
