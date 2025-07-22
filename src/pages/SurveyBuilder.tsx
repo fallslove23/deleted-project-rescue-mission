@@ -676,43 +676,45 @@ const SurveyBuilder = () => {
       <div
         ref={setNodeRef}
         style={style}
-        className="relative group"
+        className="relative group border rounded-lg bg-white"
       >
-        <div className="absolute top-2 left-2 flex gap-1 z-10">
+        {/* Left side - Drag handle and move buttons */}
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-10">
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 rounded bg-white/80 hover:bg-white shadow-sm"
+            className="cursor-grab active:cursor-grabbing p-1 rounded bg-white border shadow-sm hover:shadow-md transition-shadow"
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-0.5">
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 bg-white/80 hover:bg-white shadow-sm"
+              className="h-5 w-5 p-0 bg-white border shadow-sm hover:shadow-md"
               onClick={() => handleMoveQuestion(question.id, 'up')}
               disabled={isFirst}
             >
-              <ArrowUp className="h-3 w-3" />
+              <ArrowUp className="h-2.5 w-2.5" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 bg-white/80 hover:bg-white shadow-sm"
+              className="h-5 w-5 p-0 bg-white border shadow-sm hover:shadow-md"
               onClick={() => handleMoveQuestion(question.id, 'down')}
               disabled={isLast}
             >
-              <ArrowDown className="h-3 w-3" />
+              <ArrowDown className="h-2.5 w-2.5" />
             </Button>
           </div>
         </div>
         
+        {/* Right side - Edit and delete buttons */}
         <div className="absolute top-2 right-2 flex gap-1 z-10">
           <Button
             variant="ghost"
             size="sm"
-            className="bg-white/80 hover:bg-white shadow-sm"
+            className="bg-white/90 hover:bg-white border shadow-sm"
             onClick={() => handleEditQuestion(question)}
           >
             <Edit className="h-3 w-3" />
@@ -720,26 +722,55 @@ const SurveyBuilder = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="bg-white/80 hover:bg-white shadow-sm"
+            className="bg-white/90 hover:bg-white border shadow-sm"
             onClick={() => handleDeleteQuestion(question.id)}
           >
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
         
-        {question.question_type === 'scale' ? (
-          renderScaleQuestion(question, index)
-        ) : (
-          <div className="p-4 border rounded-lg bg-white">
-            <h3 className="font-medium text-sm mb-2">
-              {question.question_text}
-              {question.is_required && <span className="text-red-500 ml-1">*</span>}
-            </h3>
-            {question.question_type === 'text' && (
-              <Textarea placeholder="답변을 입력하세요" disabled />
-            )}
-          </div>
-        )}
+        {/* Main content with left padding for buttons */}
+        <div className="pl-16 pr-20 py-4">
+          {question.question_type === 'scale' ? (
+            <div>
+              <div className="mb-4">
+                <h3 className="font-medium text-sm">
+                  {question.question_text}
+                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                </h3>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>전혀 그렇지 않다</span>
+                  <span>매우 그렇다</span>
+                </div>
+                
+                <RadioGroup className="flex items-center justify-between">
+                  {Array.from({ length: (question.options?.max || 10) - (question.options?.min || 1) + 1 }, (_, i) => {
+                    const value = (question.options?.min || 1) + i;
+                    return (
+                      <div key={value} className="flex flex-col items-center space-y-1">
+                        <span className="text-xs font-medium">{value}</span>
+                        <RadioGroupItem value={String(value)} disabled />
+                      </div>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 className="font-medium text-sm mb-2">
+                {question.question_text}
+                {question.is_required && <span className="text-red-500 ml-1">*</span>}
+              </h3>
+              {question.question_type === 'text' && (
+                <Textarea placeholder="답변을 입력하세요" disabled />
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
