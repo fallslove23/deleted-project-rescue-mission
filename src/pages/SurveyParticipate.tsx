@@ -64,6 +64,8 @@ const SurveyParticipate = () => {
 
   const fetchSurveyData = async () => {
     try {
+      console.log('Fetching survey data for:', surveyId);
+      
       // 설문 정보 가져오기
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
@@ -215,12 +217,14 @@ const SurveyParticipate = () => {
     setSubmitting(true);
     
     try {
-      // 익명 응답 저장 (이메일 없이)
+      console.log('Submitting anonymous survey response');
+      
+      // 익명 응답 저장
       const { data: responseData, error: responseError } = await supabase
         .from('survey_responses')
         .insert({
           survey_id: surveyId,
-          respondent_email: null // 익명으로 설정
+          respondent_email: null // 익명 설문
         })
         .select()
         .single();
@@ -228,18 +232,25 @@ const SurveyParticipate = () => {
       if (responseError) throw responseError;
 
       // 질문별 답변 저장
-      const answerInserts = answers.map(answer => ({
-        response_id: responseData.id,
-        question_id: answer.questionId,
-        answer_text: Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer,
-        answer_value: answer.answer
-      }));
+      const validAnswers = answers.filter(answer => 
+        answer.answer && 
+        (typeof answer.answer === 'string' ? answer.answer.trim() !== '' : answer.answer.length > 0)
+      );
 
-      const { error: answersError } = await supabase
-        .from('question_answers')
-        .insert(answerInserts);
+      if (validAnswers.length > 0) {
+        const answerInserts = validAnswers.map(answer => ({
+          response_id: responseData.id,
+          question_id: answer.questionId,
+          answer_text: Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer,
+          answer_value: answer.answer
+        }));
 
-      if (answersError) throw answersError;
+        const { error: answersError } = await supabase
+          .from('question_answers')
+          .insert(answerInserts);
+
+        if (answersError) throw answersError;
+      }
 
       toast({
         title: "설문 참여 완료!",
@@ -415,15 +426,21 @@ const SurveyParticipate = () => {
             )}
           </CardHeader>
           <CardContent className="space-y-6">
-            {currentQuestions.map((question) => (
-              <div key={question.id} className="space-y-3">
-                <Label className="text-base">
-                  {question.question_text}
-                  {question.is_required && <span className="text-destructive ml-1">*</span>}
-                </Label>
-                {renderQuestion(question)}
+            {currentQuestions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                이 섹션에는 질문이 없습니다.
               </div>
-            ))}
+            ) : (
+              currentQuestions.map((question) => (
+                <div key={question.id} className="space-y-3">
+                  <Label className="text-base">
+                    {question.question_text}
+                    {question.is_required && <span className="text-destructive ml-1">*</span>}
+                  </Label>
+                  {renderQuestion(question)}
+                </div>
+              ))
+            )}
 
             <div className="flex justify-between pt-6">
               <Button
