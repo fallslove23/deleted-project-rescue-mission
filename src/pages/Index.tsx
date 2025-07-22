@@ -38,16 +38,24 @@ const Index = () => {
 
   const fetchTodaysSurveys = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      console.log('Fetching surveys...');
+      
+      // 현재 한국 시간 기준으로 오늘 날짜 범위 설정
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      
       const { data, error } = await supabase
         .from('surveys')
         .select('*')
         .eq('status', 'active')
-        .lte('start_date', today)
-        .gte('end_date', today)
+        .lte('start_date', todayEnd.toISOString())
+        .gte('end_date', todayStart.toISOString())
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
 
+      console.log('Fetched surveys:', data);
+      
       if (error) throw error;
       setSurveys(data || []);
     } catch (error) {

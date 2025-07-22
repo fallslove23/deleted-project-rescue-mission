@@ -373,6 +373,35 @@ const SurveyParticipate = () => {
           </div>
         );
         
+      case 'scale':
+        const min = question.options?.min || 1;
+        const max = question.options?.max || 10;
+        const scaleValue = parseInt(answer?.answer as string) || 0;
+        
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>전혀 그렇지 않다</span>
+              <span>매우 그렇다</span>
+            </div>
+            <RadioGroup
+              value={answer?.answer as string || ''}
+              onValueChange={(value) => handleAnswerChange(question.id, value)}
+              className="flex items-center justify-between"
+            >
+              {Array.from({ length: max - min + 1 }, (_, i) => {
+                const value = min + i;
+                return (
+                  <div key={value} className="flex flex-col items-center space-y-1">
+                    <span className="text-sm font-medium">{value}</span>
+                    <RadioGroupItem value={String(value)} id={`${question.id}-${value}`} />
+                  </div>
+                );
+              })}
+            </RadioGroup>
+          </div>
+        );
+        
       default:
         return (
           <Input
