@@ -873,40 +873,48 @@ const SurveyBuilder = () => {
           {/* Survey Guide */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">설문 유형 가이드</CardTitle>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                설문 유형 가이드
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-border">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="border border-border p-3 text-left font-medium">과목 구성 형태</th>
-                      <th className="border border-border p-3 text-left font-medium">강사 구성</th>
-                      <th className="border border-border p-3 text-left font-medium">설문 유형</th>
-                      <th className="border border-border p-3 text-left font-medium">비고</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="border border-border p-3">이론만 있는 과목</td>
-                      <td className="border border-border p-3">단일 강사</td>
-                      <td className="border border-border p-3">과목 종료 설문(이론용) 만 실시</td>
-                      <td className="border border-border p-3">실습 없음</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-border p-3">이론 + 실습 포함 과목</td>
-                      <td className="border border-border p-3">동일한 강사 (이론 + 실습)</td>
-                      <td className="border border-border p-3">과목 종료 설문(실습용) 만 실시</td>
-                      <td className="border border-border p-3">이론 피드백은 실습 설문에 포함</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-border p-3">이론 + 실습 포함 과목</td>
-                      <td className="border border-border p-3">서로 다른 강사 (이론/실습)</td>
-                      <td className="border border-border p-3">이론용 설문 + 실습용 설문 각각 실시</td>
-                      <td className="border border-border p-3">강사별 설문 분리 필요</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="border rounded-lg p-4 bg-muted/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <h3 className="font-medium text-sm">이론 과목</h3>
+                  </div>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p><span className="font-medium">구성:</span> 이론만</p>
+                    <p><span className="font-medium">강사:</span> 단일 강사</p>
+                    <p><span className="font-medium">설문:</span> 이론용 설문만</p>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <h3 className="font-medium text-sm">이론+실습 (동일강사)</h3>
+                  </div>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p><span className="font-medium">구성:</span> 이론+실습</p>
+                    <p><span className="font-medium">강사:</span> 동일 강사</p>
+                    <p><span className="font-medium">설문:</span> 실습용 설문만</p>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 bg-muted/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <h3 className="font-medium text-sm">이론+실습 (다른강사)</h3>
+                  </div>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p><span className="font-medium">구성:</span> 이론+실습</p>
+                    <p><span className="font-medium">강사:</span> 서로 다름</p>
+                    <p><span className="font-medium">설문:</span> 각각 별도 설문</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
