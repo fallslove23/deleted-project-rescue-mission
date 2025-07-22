@@ -9,9 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Send, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Survey {
   id: string;
@@ -53,7 +52,6 @@ const SurveyParticipate = () => {
   const [sections, setSections] = useState<Section[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
-  const [respondentEmail, setRespondentEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -170,54 +168,31 @@ const SurveyParticipate = () => {
       return questions;
     }
     
-    if (currentStep === 0) {
-      return questions.filter(q => !q.section_id);
-    }
-    
-    const currentSection = sections[currentStep - 1];
+    const currentSection = sections[currentStep];
     return questions.filter(q => q.section_id === currentSection?.id);
   };
 
   const getTotalSteps = () => {
-    let steps = 1; // 기본 정보 입력
-    if (sections.length > 0) {
-      steps += sections.length;
-    }
-    return steps;
+    return sections.length > 0 ? sections.length : 1;
   };
 
   const getStepTitle = () => {
-    if (currentStep === 0) {
-      return "참여자 정보";
-    }
-    
     if (sections.length > 0) {
-      const section = sections[currentStep - 1];
-      return section?.name || `섹션 ${currentStep}`;
+      const section = sections[currentStep];
+      return section?.name || `섹션 ${currentStep + 1}`;
     }
     
     return "설문 응답";
   };
 
   const handleNext = () => {
-    if (currentStep === 0) {
-      if (!respondentEmail.trim()) {
-        toast({
-          title: "이메일을 입력해 주세요",
-          description: "참여자 확인을 위해 이메일이 필요합니다.",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      if (!validateCurrentStep()) {
-        toast({
-          title: "필수 항목을 완성해 주세요",
-          description: "모든 필수 질문에 답변해 주세요.",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!validateCurrentStep()) {
+      toast({
+        title: "필수 항목을 완성해 주세요",
+        description: "모든 필수 질문에 답변해 주세요.",
+        variant: "destructive",
+      });
+      return;
     }
     
     setCurrentStep(prev => prev + 1);
@@ -240,12 +215,12 @@ const SurveyParticipate = () => {
     setSubmitting(true);
     
     try {
-      // 응답 저장
+      // 익명 응답 저장 (이메일 없이)
       const { data: responseData, error: responseError } = await supabase
         .from('survey_responses')
         .insert({
           survey_id: surveyId,
-          respondent_email: respondentEmail
+          respondent_email: null // 익명으로 설정
         })
         .select()
         .single();
@@ -433,44 +408,22 @@ const SurveyParticipate = () => {
         <Card>
           <CardHeader>
             <CardTitle>{getStepTitle()}</CardTitle>
-            {currentStep === 0 ? (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  설문 참여를 위해 이메일 주소를 입력해 주세요. 
-                  입력하신 정보는 설문 결과 분석 목적으로만 사용됩니다.
-                </AlertDescription>
-              </Alert>
-            ) : sections.length > 0 && sections[currentStep - 1]?.description && (
+            {sections.length > 0 && sections[currentStep]?.description && (
               <p className="text-muted-foreground">
-                {sections[currentStep - 1].description}
+                {sections[currentStep].description}
               </p>
             )}
           </CardHeader>
           <CardContent className="space-y-6">
-            {currentStep === 0 ? (
-              <div className="space-y-2">
-                <Label htmlFor="email">이메일 주소 *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={respondentEmail}
-                  onChange={(e) => setRespondentEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  required
-                />
+            {currentQuestions.map((question) => (
+              <div key={question.id} className="space-y-3">
+                <Label className="text-base">
+                  {question.question_text}
+                  {question.is_required && <span className="text-destructive ml-1">*</span>}
+                </Label>
+                {renderQuestion(question)}
               </div>
-            ) : (
-              currentQuestions.map((question) => (
-                <div key={question.id} className="space-y-3">
-                  <Label className="text-base">
-                    {question.question_text}
-                    {question.is_required && <span className="text-destructive ml-1">*</span>}
-                  </Label>
-                  {renderQuestion(question)}
-                </div>
-              ))
-            )}
+            ))}
 
             <div className="flex justify-between pt-6">
               <Button
