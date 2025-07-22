@@ -32,6 +32,13 @@ interface Profile {
   instructor_id: string;
 }
 
+interface Instructor {
+  id: string;
+  name: string;
+  email: string;
+  photo_url: string;
+}
+
 interface QuestionAnswer {
   id: string;
   question_id: string;
@@ -52,6 +59,7 @@ const SurveyResults = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
@@ -68,6 +76,9 @@ const SurveyResults = () => {
   useEffect(() => {
     if (profile) {
       fetchSurveys();
+      if (profile.role === 'instructor' && profile.instructor_id) {
+        fetchInstructorInfo();
+      }
     }
   }, [profile]);
 
@@ -134,6 +145,23 @@ const SurveyResults = () => {
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
+    }
+  };
+
+  const fetchInstructorInfo = async () => {
+    if (!profile?.instructor_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('instructors')
+        .select('id, name, email, photo_url')
+        .eq('id', profile.instructor_id)
+        .single();
+        
+      if (error) throw error;
+      setInstructor(data);
+    } catch (error) {
+      console.error('Error fetching instructor info:', error);
     }
   };
 
@@ -312,8 +340,24 @@ const SurveyResults = () => {
           <div>
             <h1 className="text-lg font-semibold text-primary">설문 결과 분석</h1>
             <p className="text-xs text-muted-foreground">
-              {isAdmin ? '전체 설문조사 결과를 확인할 수 있습니다' : '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
+              {isAdmin ? '전체 설문조사 결과를 확인할 수 있습니다' : 
+               instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
+               '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
             </p>
+            {isInstructor && instructor && (
+              <div className="flex items-center gap-2 mt-2">
+                {instructor.photo_url && (
+                  <img 
+                    src={instructor.photo_url} 
+                    alt={instructor.name}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
+                )}
+                <span className="text-sm text-muted-foreground">
+                  강사: {instructor.name} ({instructor.email})
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </header>
