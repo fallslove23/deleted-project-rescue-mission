@@ -472,6 +472,16 @@ const SurveyParticipate = () => {
   const progress = ((currentStep + 1) / totalSteps) * 100;
   const isLastStep = currentStep === totalSteps - 1;
   const currentQuestions = getCurrentStepQuestions();
+  
+  // Debug logging
+  console.log('Progress Debug:', {
+    currentStep,
+    totalSteps,
+    progress,
+    sectionsLength: sections.length,
+    questionsLength: questions.length,
+    currentQuestionsLength: currentQuestions.length
+  });
 
   return (
     <div className="min-h-screen bg-background">
