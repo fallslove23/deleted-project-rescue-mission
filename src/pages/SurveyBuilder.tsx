@@ -55,7 +55,15 @@ interface Survey {
 interface Instructor {
   id: string;
   name: string;
+  email?: string;
   photo_url?: string;
+  bio?: string;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  description?: string;
 }
 
 const SurveyBuilder = () => {
@@ -66,6 +74,9 @@ const SurveyBuilder = () => {
   
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [allInstructors, setAllInstructors] = useState<Instructor[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -74,6 +85,8 @@ const SurveyBuilder = () => {
   const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isSurveyInfoDialogOpen, setIsSurveyInfoDialogOpen] = useState(false);
+  const [isInstructorDialogOpen, setIsInstructorDialogOpen] = useState(false);
+  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
   const [questionForm, setQuestionForm] = useState({
@@ -101,10 +114,20 @@ const SurveyBuilder = () => {
     status: 'draft'
   });
 
+  const [instructorForm, setInstructorForm] = useState({
+    selectedInstructorId: ''
+  });
+
+  const [courseForm, setCourseForm] = useState({
+    selectedCourseId: ''
+  });
+
   useEffect(() => {
     if (surveyId) {
       fetchSurveyData();
       fetchTemplates();
+      fetchAllInstructors();
+      fetchAllCourses();
     }
   }, [surveyId]);
 
@@ -112,7 +135,7 @@ const SurveyBuilder = () => {
     try {
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
-        .select('*, instructors(*)')
+        .select('*, instructors(*), courses(*)')
         .eq('id', surveyId)
         .single();
 
@@ -120,8 +143,9 @@ const SurveyBuilder = () => {
 
       setSurvey(surveyData);
       setInstructor(surveyData.instructors);
+      setCourse(surveyData.courses);
       
-      // 설문 정보 폼 초기화
+      // 폼 초기화
       setSurveyForm({
         title: surveyData.title || '',
         description: surveyData.description || '',
@@ -130,6 +154,14 @@ const SurveyBuilder = () => {
         start_date: surveyData.start_date ? surveyData.start_date.slice(0, 16) : '',
         end_date: surveyData.end_date ? surveyData.end_date.slice(0, 16) : '',
         status: surveyData.status || 'draft'
+      });
+
+      setInstructorForm({
+        selectedInstructorId: surveyData.instructor_id || ''
+      });
+
+      setCourseForm({
+        selectedCourseId: surveyData.course_id || ''
       });
 
       const { data: questionsData, error: questionsError } = await supabase
@@ -163,6 +195,34 @@ const SurveyBuilder = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllInstructors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('instructors')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setAllInstructors(data || []);
+    } catch (error) {
+      console.error('Error fetching instructors:', error);
+    }
+  };
+
+  const fetchAllCourses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .order('title');
+
+      if (error) throw error;
+      setAllCourses(data || []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
     }
   };
 
@@ -403,6 +463,62 @@ const SurveyBuilder = () => {
     }
   };
 
+  const handleUpdateInstructor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({ instructor_id: instructorForm.selectedInstructorId })
+        .eq('id', surveyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "강사 정보가 변경되었습니다."
+      });
+
+      setIsInstructorDialogOpen(false);
+      fetchSurveyData();
+    } catch (error) {
+      console.error('Error updating instructor:', error);
+      toast({
+        title: "오류",
+        description: "강사 정보 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({ course_id: courseForm.selectedCourseId })
+        .eq('id', surveyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "과목 정보가 변경되었습니다."
+      });
+
+      setIsCourseDialogOpen(false);
+      fetchSurveyData();
+    } catch (error) {
+      console.error('Error updating course:', error);
+      toast({
+        title: "오류",
+        description: "과목 정보 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const renderScaleQuestion = (question: Question, index: number) => {
     const min = question.options?.min || 1;
     const max = question.options?.max || 10;
@@ -616,32 +732,143 @@ const SurveyBuilder = () => {
             </CardHeader>
           </Card>
 
-          {/* Instructor Info */}
-          {instructor && (
+          {/* Instructor and Course Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Instructor Info */}
             <Card>
               <CardContent className="p-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                    {instructor.photo_url ? (
-                      <img 
-                        src={instructor.photo_url} 
-                        alt={instructor.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-xs text-muted-foreground text-center">
-                        사진<br/>없음
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-medium">강사 정보</h3>
-                    <p className="text-sm text-muted-foreground">강사: {instructor.name}</p>
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium">강사 정보</h3>
+                  <Dialog open={isInstructorDialogOpen} onOpenChange={setIsInstructorDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4 mr-2" />
+                        변경
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>강사 변경</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleUpdateInstructor} className="space-y-4">
+                        <div>
+                          <Label htmlFor="instructor_select">강사 선택</Label>
+                          <Select 
+                            value={instructorForm.selectedInstructorId} 
+                            onValueChange={(value) => setInstructorForm(prev => ({ ...prev, selectedInstructorId: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="강사를 선택하세요" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              {allInstructors.map((inst) => (
+                                <SelectItem key={inst.id} value={inst.id}>
+                                  {inst.name} {inst.email && `(${inst.email})`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" onClick={() => setIsInstructorDialogOpen(false)}>
+                            취소
+                          </Button>
+                          <Button type="submit">
+                            변경
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
+                {instructor ? (
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                      {instructor.photo_url ? (
+                        <img 
+                          src={instructor.photo_url} 
+                          alt={instructor.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-xs text-muted-foreground text-center">
+                          사진<br/>없음
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium">{instructor.name}</p>
+                      {instructor.email && (
+                        <p className="text-sm text-muted-foreground">{instructor.email}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">강사 정보 없음</p>
+                )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Course Info */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium">과목 정보</h3>
+                  <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4 mr-2" />
+                        변경
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>과목 변경</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleUpdateCourse} className="space-y-4">
+                        <div>
+                          <Label htmlFor="course_select">과목 선택</Label>
+                          <Select 
+                            value={courseForm.selectedCourseId} 
+                            onValueChange={(value) => setCourseForm(prev => ({ ...prev, selectedCourseId: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="과목을 선택하세요" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              {allCourses.map((course) => (
+                                <SelectItem key={course.id} value={course.id}>
+                                  {course.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" onClick={() => setIsCourseDialogOpen(false)}>
+                            취소
+                          </Button>
+                          <Button type="submit">
+                            변경
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                {course ? (
+                  <div>
+                    <p className="font-medium">{course.title}</p>
+                    {course.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{course.description}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">과목 정보 없음</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Questions */}
           <div className="space-y-4">
