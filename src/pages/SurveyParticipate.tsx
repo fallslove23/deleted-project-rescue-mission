@@ -167,24 +167,44 @@ const SurveyParticipate = () => {
 
   const getCurrentStepQuestions = () => {
     if (sections.length === 0) {
+      // 섹션이 없으면 모든 질문을 보여줌
       return questions;
     }
     
-    const currentSection = sections[currentStep];
+    if (currentStep === 0) {
+      // 첫 번째 단계: 섹션에 속하지 않은 질문들
+      return questions.filter(q => !q.section_id);
+    }
+    
+    // 나머지 단계: 해당 섹션의 질문들
+    const currentSection = sections[currentStep - 1];
     return questions.filter(q => q.section_id === currentSection?.id);
   };
 
   const getTotalSteps = () => {
-    return sections.length > 0 ? sections.length : 1;
+    if (sections.length === 0) {
+      return 1; // 섹션이 없으면 1단계
+    }
+    
+    // 섹션에 속하지 않은 질문들이 있으면 +1단계
+    const questionsWithoutSection = questions.filter(q => !q.section_id);
+    return sections.length + (questionsWithoutSection.length > 0 ? 1 : 0);
   };
 
   const getStepTitle = () => {
-    if (sections.length > 0) {
-      const section = sections[currentStep];
-      return section?.name || `섹션 ${currentStep + 1}`;
+    if (sections.length === 0) {
+      return "설문 응답";
     }
     
-    return "설문 응답";
+    if (currentStep === 0) {
+      const questionsWithoutSection = questions.filter(q => !q.section_id);
+      if (questionsWithoutSection.length > 0) {
+        return "일반 질문";
+      }
+    }
+    
+    const section = sections[currentStep === 0 ? 0 : currentStep - 1];
+    return section?.name || `섹션 ${currentStep + 1}`;
   };
 
   const handleNext = () => {
@@ -419,9 +439,9 @@ const SurveyParticipate = () => {
         <Card>
           <CardHeader>
             <CardTitle>{getStepTitle()}</CardTitle>
-            {sections.length > 0 && sections[currentStep]?.description && (
+            {sections.length > 0 && currentStep > 0 && sections[currentStep - 1]?.description && (
               <p className="text-muted-foreground">
-                {sections[currentStep].description}
+                {sections[currentStep - 1].description}
               </p>
             )}
           </CardHeader>
