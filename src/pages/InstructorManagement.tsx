@@ -53,6 +53,8 @@ const InstructorManagement = () => {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [newCourseTitle, setNewCourseTitle] = useState('');
   const [newCourseDescription, setNewCourseDescription] = useState('');
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -317,6 +319,102 @@ const InstructorManagement = () => {
       toast({
         title: "오류",
         description: "강사 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditCourse = (course: Course) => {
+    setEditingCourse(course);
+    setNewCourseTitle(course.title);
+    setNewCourseDescription(course.description || '');
+    setIsCourseDialogOpen(true);
+  };
+
+  const handleCourseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCourseTitle.trim()) return;
+
+    try {
+      if (editingCourse) {
+        // Update existing course
+        const { error } = await supabase
+          .from('courses')
+          .update({
+            title: newCourseTitle,
+            description: newCourseDescription
+          })
+          .eq('id', editingCourse.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "성공",
+          description: "과목이 수정되었습니다."
+        });
+      } else {
+        // Create new course
+        const { data, error } = await supabase
+          .from('courses')
+          .insert([{
+            title: newCourseTitle,
+            description: newCourseDescription
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setSelectedCourses(prev => [...prev, data.id]);
+        
+        toast({
+          title: "성공",
+          description: "새 과목이 추가되었습니다."
+        });
+      }
+
+      setIsCourseDialogOpen(false);
+      setEditingCourse(null);
+      setNewCourseTitle('');
+      setNewCourseDescription('');
+      fetchData();
+    } catch (error) {
+      console.error('Error saving course:', error);
+      toast({
+        title: "오류",
+        description: "과목 저장 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteCourse = async (course: Course) => {
+    try {
+      // Remove all instructor course assignments first
+      await supabase
+        .from('instructor_courses')
+        .delete()
+        .eq('course_id', course.id);
+
+      // Delete the course
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', course.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: `과목 "${course.title}"가 삭제되었습니다.`
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast({
+        title: "오류",
+        description: "과목 삭제 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     }
@@ -619,23 +717,25 @@ const InstructorManagement = () => {
                        return (
                          <div
                            key={course.id}
-                           className={`flex items-center space-x-2 p-2 rounded transition-colors cursor-pointer ${
+                           className={`flex items-center space-x-2 p-2 rounded transition-colors ${
                              isSelected
                                ? 'bg-primary/10 border border-primary' 
                                : 'bg-muted/50 hover:bg-muted'
                            }`}
-                           onClick={() => toggleCourseSelection(course.id)}
                          >
-                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                             isSelected
-                               ? 'bg-primary border-primary' 
-                               : 'border-muted-foreground'
-                           }`}>
+                           <div 
+                             className={`w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer ${
+                               isSelected
+                                 ? 'bg-primary border-primary' 
+                                 : 'border-muted-foreground'
+                             }`}
+                             onClick={() => toggleCourseSelection(course.id)}
+                           >
                              {isSelected && (
                                <div className="w-2 h-2 bg-white rounded-full" />
                              )}
                            </div>
-                           <div className="flex-1">
+                           <div className="flex-1" onClick={() => toggleCourseSelection(course.id)}>
                              <div className="flex items-center gap-2">
                                <span className="font-medium text-sm">{course.title}</span>
                                {otherInstructors.length > 0 && (
@@ -651,6 +751,51 @@ const InstructorManagement = () => {
                              {course.description && (
                                <div className="text-xs text-muted-foreground">{course.description}</div>
                              )}
+                           </div>
+                           <div className="flex gap-1">
+                             <Button
+                               type="button"
+                               variant="ghost"
+                               size="sm"
+                               className="h-6 w-6 p-0"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleEditCourse(course);
+                               }}
+                             >
+                               <Edit className="h-3 w-3" />
+                             </Button>
+                             <AlertDialog>
+                               <AlertDialogTrigger asChild>
+                                 <Button
+                                   type="button"
+                                   variant="ghost"
+                                   size="sm"
+                                   className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                   onClick={(e) => e.stopPropagation()}
+                                 >
+                                   <Trash2 className="h-3 w-3" />
+                                 </Button>
+                               </AlertDialogTrigger>
+                               <AlertDialogContent>
+                                 <AlertDialogHeader>
+                                   <AlertDialogTitle>과목 삭제</AlertDialogTitle>
+                                   <AlertDialogDescription>
+                                     "{course.title}" 과목을 삭제하시겠습니까?<br />
+                                     이 작업은 되돌릴 수 없으며, 모든 강사 할당이 해제됩니다.
+                                   </AlertDialogDescription>
+                                 </AlertDialogHeader>
+                                 <AlertDialogFooter>
+                                   <AlertDialogCancel>취소</AlertDialogCancel>
+                                   <AlertDialogAction 
+                                     onClick={() => handleDeleteCourse(course)}
+                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                   >
+                                     삭제
+                                   </AlertDialogAction>
+                                 </AlertDialogFooter>
+                               </AlertDialogContent>
+                             </AlertDialog>
                            </div>
                          </div>
                        );
@@ -723,6 +868,58 @@ const InstructorManagement = () => {
                 </Button>
                 <Button type="submit">
                   {editingInstructor ? '수정' : '추가'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Course Edit Dialog */}
+        <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingCourse ? '과목 수정' : '새 과목 추가'}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCourseSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="courseTitle">과목명 *</Label>
+                <Input
+                  id="courseTitle"
+                  value={newCourseTitle}
+                  onChange={(e) => setNewCourseTitle(e.target.value)}
+                  placeholder="과목명을 입력하세요"
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="courseDescription">설명</Label>
+                <Textarea
+                  id="courseDescription"
+                  value={newCourseDescription}
+                  onChange={(e) => setNewCourseDescription(e.target.value)}
+                  placeholder="과목 설명을 입력하세요 (선택사항)"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsCourseDialogOpen(false);
+                    setEditingCourse(null);
+                    setNewCourseTitle('');
+                    setNewCourseDescription('');
+                  }}
+                >
+                  취소
+                </Button>
+                <Button type="submit" disabled={!newCourseTitle.trim()}>
+                  {editingCourse ? '수정' : '추가'}
                 </Button>
               </div>
             </form>
