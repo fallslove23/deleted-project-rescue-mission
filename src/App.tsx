@@ -44,6 +44,11 @@ const App = () => (
                 <InstructorManagement />
               </ProtectedRoute>
             } />
+            <Route path="/surveys" element={
+              <ProtectedRoute>
+                <SurveyManagement />
+              </ProtectedRoute>
+            } />
             <Route path="/survey-management" element={
               <ProtectedRoute>
                 <SurveyManagement />
