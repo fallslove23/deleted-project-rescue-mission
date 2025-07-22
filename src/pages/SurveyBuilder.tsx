@@ -870,6 +870,47 @@ const SurveyBuilder = () => {
             </Card>
           </div>
 
+          {/* Survey Guide */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">설문 유형 가이드</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-border">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="border border-border p-3 text-left font-medium">과목 구성 형태</th>
+                      <th className="border border-border p-3 text-left font-medium">강사 구성</th>
+                      <th className="border border-border p-3 text-left font-medium">설문 유형</th>
+                      <th className="border border-border p-3 text-left font-medium">비고</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border border-border p-3">이론만 있는 과목</td>
+                      <td className="border border-border p-3">단일 강사</td>
+                      <td className="border border-border p-3">과목 종료 설문(이론용) 만 실시</td>
+                      <td className="border border-border p-3">실습 없음</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-border p-3">이론 + 실습 포함 과목</td>
+                      <td className="border border-border p-3">동일한 강사 (이론 + 실습)</td>
+                      <td className="border border-border p-3">과목 종료 설문(실습용) 만 실시</td>
+                      <td className="border border-border p-3">이론 피드백은 실습 설문에 포함</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-border p-3">이론 + 실습 포함 과목</td>
+                      <td className="border border-border p-3">서로 다른 강사 (이론/실습)</td>
+                      <td className="border border-border p-3">이론용 설문 + 실습용 설문 각각 실시</td>
+                      <td className="border border-border p-3">강사별 설문 분리 필요</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Questions */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
