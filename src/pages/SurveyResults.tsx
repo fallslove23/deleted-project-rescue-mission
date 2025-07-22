@@ -60,14 +60,22 @@ const SurveyResults = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
+  const [allInstructors, setAllInstructors] = useState<Instructor[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedSurvey, setSelectedSurvey] = useState<string>('');
+  const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [loading, setLoading] = useState(true);
+
+  // 사용자 권한 확인
+  const isAdmin = profile?.role === 'admin';
+  const isManager = profile?.role === 'manager';
+  const isInstructor = profile?.role === 'instructor';
+  const canViewAll = isAdmin || isManager;
 
   useEffect(() => {
     fetchProfile();
@@ -76,7 +84,10 @@ const SurveyResults = () => {
   useEffect(() => {
     if (profile) {
       fetchSurveys();
-      if (profile.role === 'instructor' && profile.instructor_id) {
+      if (canViewAll) {
+        fetchAllInstructors();
+      }
+      if (profile.instructor_id) {
         fetchInstructorInfo();
       }
     }
@@ -165,6 +176,20 @@ const SurveyResults = () => {
     }
   };
 
+  const fetchAllInstructors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('instructors')
+        .select('id, name, email, photo_url')
+        .order('name');
+        
+      if (error) throw error;
+      setAllInstructors(data || []);
+    } catch (error) {
+      console.error('Error fetching all instructors:', error);
+    }
+  };
+
   const fetchSurveys = async () => {
     try {
       let query = supabase.from('surveys').select('*');
@@ -224,6 +249,9 @@ const SurveyResults = () => {
     }
     if (selectedRound && selectedRound !== '') {
       filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
+    }
+    if (canViewAll && selectedInstructor !== 'all') {
+      filtered = filtered.filter(s => s.instructor_id === selectedInstructor);
     }
     return filtered;
   };
@@ -320,8 +348,6 @@ const SurveyResults = () => {
   }
 
   const stats = getStatistics();
-  const isAdmin = profile?.role === 'admin';
-  const isInstructor = profile?.role === 'instructor';
 
   return (
     <div className="min-h-screen bg-background">
@@ -365,43 +391,60 @@ const SurveyResults = () => {
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
           {/* 필터 */}
-      <div className="flex gap-4">
-        <Select value={selectedYear} onValueChange={(value) => {
-          setSelectedYear(value);
-          setSelectedRound(''); // Reset round when year changes
-        }}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="전체 연도" />
-          </SelectTrigger>
-          <SelectContent>
-            {getUniqueYears().map(year => (
-              <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <div className="flex gap-4 flex-wrap">
+            <Select value={selectedYear} onValueChange={(value) => {
+              setSelectedYear(value);
+              setSelectedRound(''); // Reset round when year changes
+            }}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="전체 연도" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {getUniqueYears().map(year => (
+                  <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Select value={selectedRound} onValueChange={setSelectedRound}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="전체 차수" />
-          </SelectTrigger>
-          <SelectContent>
-            {getUniqueRounds().map(round => (
-              <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <Select value={selectedRound} onValueChange={setSelectedRound}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="전체 차수" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {getUniqueRounds().map(round => (
+                  <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        {(selectedYear || selectedRound) && (
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setSelectedYear('');
-              setSelectedRound('');
-            }}
-          >
-            필터 초기화
-          </Button>
-        )}
+            {canViewAll && (
+              <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="전체 강사" />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="all">전체 강사</SelectItem>
+                  {allInstructors.map(inst => (
+                    <SelectItem key={inst.id} value={inst.id}>
+                      {inst.name} {inst.email && `(${inst.email})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {(selectedYear || selectedRound || (canViewAll && selectedInstructor !== 'all')) && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedYear('');
+                  setSelectedRound('');
+                  setSelectedInstructor('all');
+                }}
+              >
+                필터 초기화
+              </Button>
+            )}
           </div>
 
           {/* 통계 카드 */}
@@ -451,7 +494,7 @@ const SurveyResults = () => {
         <TabsList>
           <TabsTrigger value="overview">개요</TabsTrigger>
           <TabsTrigger value="detailed">상세 분석</TabsTrigger>
-          {isAdmin && <TabsTrigger value="individual">개별 통계</TabsTrigger>}
+          {canViewAll && <TabsTrigger value="individual">개별 통계</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -657,16 +700,100 @@ const SurveyResults = () => {
           )}
         </TabsContent>
 
-        {isAdmin && (
+        {canViewAll && (
           <TabsContent value="individual" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>개별 통계</CardTitle>
+                <CardTitle>강사별 개별 통계</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  각 강사별 설문조사 결과와 통계를 확인할 수 있습니다.
+                </p>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">
-                  강사별/과정별 개별 통계가 여기에 표시됩니다.
-                </p>
+                <div className="space-y-6">
+                  {allInstructors.map(instructor => {
+                    const instructorSurveys = getFilteredSurveys().filter(s => s.instructor_id === instructor.id);
+                    const instructorResponses = responses.filter(r => 
+                      instructorSurveys.some(survey => survey.id === r.survey_id)
+                    );
+                    
+                    if (instructorSurveys.length === 0) return null;
+                    
+                    return (
+                      <div key={instructor.id} className="border rounded-lg p-4">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                            {instructor.photo_url ? (
+                              <img 
+                                src={instructor.photo_url} 
+                                alt={instructor.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-xs text-muted-foreground text-center">
+                                사진<br/>없음
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">{instructor.name}</h3>
+                            {instructor.email && (
+                              <p className="text-sm text-muted-foreground">{instructor.email}</p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div className="text-center p-3 bg-muted/30 rounded-lg">
+                            <div className="text-2xl font-bold text-primary">{instructorSurveys.length}</div>
+                            <div className="text-sm text-muted-foreground">설문조사</div>
+                          </div>
+                          <div className="text-center p-3 bg-muted/30 rounded-lg">
+                            <div className="text-2xl font-bold text-primary">{instructorResponses.length}</div>
+                            <div className="text-sm text-muted-foreground">총 응답</div>
+                          </div>
+                          <div className="text-center p-3 bg-muted/30 rounded-lg">
+                            <div className="text-2xl font-bold text-primary">
+                              {instructorSurveys.length > 0 ? 
+                                Math.round((instructorResponses.length / instructorSurveys.length) * 10) / 10 : 0}
+                            </div>
+                            <div className="text-sm text-muted-foreground">평균 응답/설문</div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <h4 className="font-medium">진행한 설문조사:</h4>
+                          {instructorSurveys.map(survey => (
+                            <div key={survey.id} className="flex justify-between items-center p-2 bg-muted/20 rounded">
+                              <div>
+                                <span className="text-sm font-medium">{survey.title}</span>
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  ({survey.education_year}년 {survey.education_round}차)
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={survey.status === 'active' ? 'default' : 'secondary'}>
+                                  {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  응답: {instructorResponses.filter(r => r.survey_id === survey.id).length}개
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {allInstructors.filter(instructor => 
+                    getFilteredSurveys().some(s => s.instructor_id === instructor.id)
+                  ).length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      선택된 필터 조건에 해당하는 강사별 통계가 없습니다.
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
