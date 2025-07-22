@@ -10,65 +10,76 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isResetPassword, setIsResetPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (error) throw error;
-        
-        if (data.user) {
-          // Check if this is first login for instructor
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('first_login')
-            .eq('id', data.user.id)
-            .single();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      if (data.user) {
+        // Check if this is first login for instructor
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_login')
+          .eq('id', data.user.id)
+          .single();
 
-          if (!profileError && profile?.first_login) {
-            // First login - redirect to password change
-            navigate('/change-password');
-            toast({
-              title: "첫 로그인",
-              description: "비밀번호를 변경해주세요.",
-            });
-          } else {
-            // Normal login
-            navigate('/dashboard');
-            toast({
-              title: "로그인 성공",
-              description: "대시보드로 이동합니다.",
-            });
-          }
+        if (!profileError && profile?.first_login) {
+          // First login - redirect to password change
+          navigate('/change-password');
+          toast({
+            title: "첫 로그인",
+            description: "비밀번호를 변경해주세요.",
+          });
+        } else {
+          // Normal login
+          navigate('/dashboard');
+          toast({
+            title: "로그인 성공",
+            description: "대시보드로 이동합니다.",
+          });
         }
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`
-          }
-        });
-        
-        if (error) throw error;
-        
-        toast({
-          title: "회원가입 성공",
-          description: "이메일을 확인해주세요.",
-        });
       }
+    } catch (error: any) {
+      toast({
+        title: "오류",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/change-password`
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "비밀번호 재설정 이메일 발송",
+        description: "이메일을 확인하여 비밀번호를 재설정해주세요.",
+      });
+      
+      setIsResetPassword(false);
     } catch (error: any) {
       toast({
         title: "오류",
@@ -103,46 +114,48 @@ const Auth = () => {
 
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center">
-            {isLogin ? '로그인' : '회원가입'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">이메일</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+          <CardHeader>
+            <CardTitle className="text-center">
+              {isResetPassword ? '비밀번호 찾기' : '로그인'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={isResetPassword ? handleResetPassword : handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">이메일</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              {!isResetPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">비밀번호</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
+              </Button>
+            </form>
+            <div className="mt-4 text-center">
+              <Button
+                variant="link"
+                onClick={() => setIsResetPassword(!isResetPassword)}
+              >
+                {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">비밀번호</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? '처리중...' : (isLogin ? '로그인' : '회원가입')}
-            </Button>
-          </form>
-          <div className="mt-4 text-center">
-            <Button
-              variant="link"
-              onClick={() => setIsLogin(!isLogin)}
-            >
-              {isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
-            </Button>
-          </div>
-        </CardContent>
+          </CardContent>
         </Card>
       </div>
     </div>
