@@ -55,6 +55,7 @@ const InstructorManagement = () => {
   const [newCourseDescription, setNewCourseDescription] = useState('');
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<'instructors' | 'courses'>('instructors');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -432,26 +433,72 @@ const InstructorManagement = () => {
     <div className="min-h-screen bg-background">
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center">
-            <Button
-              onClick={() => navigate('/dashboard')}
-              variant="ghost"
-              size="sm"
-              className="mr-3"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              대시보드
-            </Button>
-            <div>
-              <h1 className="text-lg font-semibold text-primary">강사 관리</h1>
-              <p className="text-xs text-muted-foreground">강사 정보 및 과목 관리</p>
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Button
+                onClick={() => navigate('/dashboard')}
+                variant="ghost"
+                size="sm"
+                className="mr-3"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                대시보드
+              </Button>
+              <div>
+                <h1 className="text-lg font-semibold text-primary">
+                  {currentView === 'instructors' ? '강사 관리' : '과목 관리'}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {currentView === 'instructors' ? '강사 정보 및 과목 관리' : '전체 과목 관리'}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {currentView === 'courses' && (
+                <Button 
+                  onClick={() => {
+                    setEditingCourse(null);
+                    setNewCourseTitle('');
+                    setNewCourseDescription('');
+                    setIsCourseDialogOpen(true);
+                  }}
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  새 과목 추가
+                </Button>
+              )}
+              {currentView === 'instructors' && (
+                <Button onClick={openAddDialog}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  새 강사 추가
+                </Button>
+              )}
             </div>
           </div>
-          <Button onClick={openAddDialog}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            새 강사 추가
-          </Button>
+          
+          {/* Tab Navigation */}
+          <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+            <Button
+              variant={currentView === 'instructors' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('instructors')}
+              className="flex-1"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              강사 관리
+            </Button>
+            <Button
+              variant={currentView === 'courses' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('courses')}
+              className="flex-1"
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              과목 관리
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -495,133 +542,245 @@ const InstructorManagement = () => {
             </Card>
           </div>
 
-          {/* Instructors Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {instructors.map((instructor) => {
-              const instructorCourses = getInstructorCourses(instructor.id);
-              
-              return (
-                <Card key={instructor.id} className="group hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="text-center">
-                    <div className="relative mx-auto">
-                      <Avatar className="w-20 h-20 mx-auto">
-                        <AvatarImage 
-                          src={instructor.photo_url} 
-                          alt={instructor.name}
-                          className="object-cover"
-                        />
-                        <AvatarFallback className="text-lg">
-                          {instructor.name.substring(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*';
-                          input.onchange = (e) => {
-                            const file = (e.target as HTMLInputElement).files?.[0];
-                            if (file) {
-                              handlePhotoUpload(file, instructor.id);
-                            }
-                          };
-                          input.click();
-                        }}
-                        disabled={uploadingPhoto}
-                      >
-                        <Camera className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{instructor.name}</CardTitle>
-                      {instructor.email && (
-                        <p className="text-sm text-muted-foreground">{instructor.email}</p>
-                      )}
-                    </div>
-                  </CardHeader>
+          {/* Content based on current view */}
+          {currentView === 'instructors' && (
+            <>
+              {/* Instructors Grid */}
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {instructors.map((instructor) => {
+                  const instructorCourses = getInstructorCourses(instructor.id);
                   
-                  <CardContent className="space-y-4">
-                    {instructor.bio && (
-                      <p className="text-sm text-muted-foreground line-clamp-3">
-                        {instructor.bio}
-                      </p>
-                    )}
-                    
-                    <div>
-                      <Label className="text-sm font-medium">담당 과목</Label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {instructorCourses.length > 0 ? (
-                          instructorCourses.map((course) => (
-                            <Badge key={course.id} variant="secondary" className="text-xs">
-                              {course.title}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground">담당 과목 없음</span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => openEditDialog(instructor)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        수정
-                      </Button>
-                      
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="destructive" 
+                  return (
+                    <Card key={instructor.id} className="group hover:shadow-lg transition-all duration-300">
+                      <CardHeader className="text-center">
+                        <div className="relative mx-auto">
+                          <Avatar className="w-20 h-20 mx-auto">
+                            <AvatarImage 
+                              src={instructor.photo_url} 
+                              alt={instructor.name}
+                              className="object-cover"
+                            />
+                            <AvatarFallback className="text-lg">
+                              {instructor.name.substring(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <Button
                             size="sm"
-                            className="px-3"
+                            variant="secondary"
+                            className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                            onClick={() => {
+                              const input = document.createElement('input');
+                              input.type = 'file';
+                              input.accept = 'image/*';
+                              input.onchange = (e) => {
+                                const file = (e.target as HTMLInputElement).files?.[0];
+                                if (file) {
+                                  handlePhotoUpload(file, instructor.id);
+                                }
+                              };
+                              input.click();
+                            }}
+                            disabled={uploadingPhoto}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Camera className="h-4 w-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>강사 삭제</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              "{instructor.name}" 강사를 삭제하시겠습니까?<br />
-                              이 작업은 되돌릴 수 없으며, 담당 과목에서도 해제됩니다.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>취소</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDeleteInstructor(instructor)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              삭제
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{instructor.name}</CardTitle>
+                          {instructor.email && (
+                            <p className="text-sm text-muted-foreground">{instructor.email}</p>
+                          )}
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="space-y-4">
+                        {instructor.bio && (
+                          <p className="text-sm text-muted-foreground line-clamp-3">
+                            {instructor.bio}
+                          </p>
+                        )}
+                        
+                        <div>
+                          <Label className="text-sm font-medium">담당 과목</Label>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {instructorCourses.length > 0 ? (
+                              instructorCourses.map((course) => (
+                                <Badge key={course.id} variant="secondary" className="text-xs">
+                                  {course.title}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">담당 과목 없음</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => openEditDialog(instructor)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            수정
+                          </Button>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                className="px-3"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>강사 삭제</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  "{instructor.name}" 강사를 삭제하시겠습니까?<br />
+                                  이 작업은 되돌릴 수 없으며, 담당 과목에서도 해제됩니다.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>취소</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDeleteInstructor(instructor)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  삭제
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
 
-          {instructors.length === 0 && (
-            <div className="text-center py-12">
-              <UserPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">등록된 강사가 없습니다</h3>
-              <p className="text-muted-foreground mb-4">첫 번째 강사를 추가해보세요!</p>
-              <Button onClick={openAddDialog}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                강사 추가하기
-              </Button>
-            </div>
+              {instructors.length === 0 && (
+                <div className="text-center py-12">
+                  <UserPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">등록된 강사가 없습니다</h3>
+                  <p className="text-muted-foreground mb-4">첫 번째 강사를 추가해보세요!</p>
+                  <Button onClick={openAddDialog}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    강사 추가하기
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Course Management View */}
+          {currentView === 'courses' && (
+            <>
+              {/* Courses Grid */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {courses.map((course) => {
+                  const assignedInstructors = instructorCourses
+                    .filter(ic => ic.course_id === course.id)
+                    .map(ic => instructors.find(inst => inst.id === ic.instructor_id))
+                    .filter(Boolean);
+                  
+                  return (
+                    <Card key={course.id} className="group hover:shadow-lg transition-all duration-300">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">{course.title}</CardTitle>
+                            {course.description && (
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                {course.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-1 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleEditCourse(course)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>과목 삭제</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    "{course.title}" 과목을 삭제하시겠습니까?<br />
+                                    이 작업은 되돌릴 수 없으며, 모든 강사 할당이 해제됩니다.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => handleDeleteCourse(course)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    삭제
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent>
+                        <div>
+                          <Label className="text-sm font-medium">담당 강사</Label>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {assignedInstructors.length > 0 ? (
+                              assignedInstructors.map((instructor) => (
+                                <Badge key={instructor?.id} variant="secondary" className="text-xs">
+                                  {instructor?.name}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">담당 강사 없음</span>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {courses.length === 0 && (
+                <div className="text-center py-12">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">등록된 과목이 없습니다</h3>
+                  <p className="text-muted-foreground mb-4">첫 번째 과목을 추가해보세요!</p>
+                  <Button 
+                    onClick={() => {
+                      setEditingCourse(null);
+                      setNewCourseTitle('');
+                      setNewCourseDescription('');
+                      setIsCourseDialogOpen(true);
+                    }}
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    과목 추가하기
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
