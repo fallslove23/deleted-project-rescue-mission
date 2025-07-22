@@ -469,19 +469,16 @@ const SurveyParticipate = () => {
   }
 
   const totalSteps = getTotalSteps();
-  const progress = ((currentStep + 1) / totalSteps) * 100;
+  
+  // 진행률 계산: 답변한 질문 수 / 전체 질문 수
+  const answeredQuestions = answers.filter(answer => 
+    answer.answer && 
+    (typeof answer.answer === 'string' ? answer.answer.trim() !== '' : answer.answer.length > 0)
+  ).length;
+  const progress = questions.length > 0 ? (answeredQuestions / questions.length) * 100 : 0;
+  
   const isLastStep = currentStep === totalSteps - 1;
   const currentQuestions = getCurrentStepQuestions();
-  
-  // Debug logging
-  console.log('Progress Debug:', {
-    currentStep,
-    totalSteps,
-    progress,
-    sectionsLength: sections.length,
-    questionsLength: questions.length,
-    currentQuestionsLength: currentQuestions.length
-  });
 
   return (
     <div className="min-h-screen bg-background">
