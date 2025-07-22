@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer } from 'lucide-react';
+import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer, Mail } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip, Legend } from 'recharts';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
   id: string;
@@ -70,12 +71,16 @@ const SurveyResults = () => {
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [sendingResults, setSendingResults] = useState(false);
+  const { toast } = useToast();
 
   // 사용자 권한 확인
   const isAdmin = profile?.role === 'admin';
   const isManager = profile?.role === 'manager';
+  const isDirector = profile?.role === 'director';
+  const isTeamLeader = profile?.role === 'team_leader';
   const isInstructor = profile?.role === 'instructor';
-  const canViewAll = isAdmin || isManager;
+  const canViewAll = isAdmin || isManager || isDirector || isTeamLeader;
 
   useEffect(() => {
     fetchProfile();
@@ -339,6 +344,40 @@ const SurveyResults = () => {
   
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
 
+  const handleSendResults = async () => {
+    if (!selectedSurvey) {
+      toast({
+        title: "오류",
+        description: "결과를 전송할 설문을 선택해주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSendingResults(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-survey-results', {
+        body: { surveyId: selectedSurvey }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "설문 결과가 성공적으로 전송되었습니다.",
+      });
+    } catch (error: any) {
+      console.error('Error sending results:', error);
+      toast({
+        title: "오류",
+        description: error.message || "결과 전송 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setSendingResults(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -366,7 +405,7 @@ const SurveyResults = () => {
           <div>
             <h1 className="text-lg font-semibold text-primary">설문 결과 분석</h1>
             <p className="text-xs text-muted-foreground">
-              {isAdmin ? '전체 설문조사 결과를 확인할 수 있습니다' : 
+              {canViewAll ? '전체 설문조사 결과를 확인할 수 있습니다' : 
                instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
                '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
             </p>
@@ -560,6 +599,15 @@ const SurveyResults = () => {
             <>
               {/* 액션 버튼들 */}
               <div className="flex gap-2 mb-4">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={handleSendResults}
+                  disabled={sendingResults}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingResults ? '전송 중...' : '결과 전송'}
+                </Button>
                 <Button variant="outline" size="sm">
                   <Download className="h-4 w-4 mr-2" />
                   엑셀 다운로드
