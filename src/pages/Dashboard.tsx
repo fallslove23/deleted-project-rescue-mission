@@ -179,21 +179,21 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
                 <BarChart className="h-4 w-4 text-primary-foreground" />
               </div>
-              <div>
-                <h1 className="text-lg md:text-2xl font-bold text-primary">관리자 대시보드</h1>
-                <p className="text-xs md:text-sm text-muted-foreground">
+              <div className="min-w-0">
+                <h1 className="text-base md:text-2xl font-bold text-primary truncate">관리자 대시보드</h1>
+                <p className="text-xs md:text-sm text-muted-foreground truncate">
                   {isAdmin ? '시스템 관리자' : isInstructor ? '강사' : '사용자'} 전용
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
+          <div className="flex items-center gap-1 md:gap-4 shrink-0">
+            <span className="text-xs md:text-sm hidden sm:block truncate max-w-32">환영합니다, {user?.email}</span>
             <Button onClick={() => navigate('/')} variant="ghost" size="sm">
               설문 메인
             </Button>

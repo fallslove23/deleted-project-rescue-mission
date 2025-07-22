@@ -832,19 +832,19 @@ const SurveyBuilder = () => {
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center min-w-0 flex-1">
             <Button
               onClick={() => navigate('/survey-management')}
               variant="ghost"
               size="sm"
-              className="mr-3"
+              className="mr-3 shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
               설문조사 관리
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold text-primary">설문조사 편집</h1>
-              <p className="text-xs text-muted-foreground">{survey.title}</p>
+            <div className="min-w-0">
+              <h1 className="text-base md:text-lg font-semibold text-primary truncate">설문조사 편집</h1>
+              <p className="text-xs text-muted-foreground truncate">{survey.title}</p>
             </div>
           </div>
         </div>
@@ -856,11 +856,11 @@ const SurveyBuilder = () => {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-center">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-center break-words hyphens-auto">
                     {survey.title}
                   </CardTitle>
-                  <p className="text-center text-sm text-muted-foreground">
+                  <p className="text-center text-sm text-muted-foreground break-words hyphens-auto">
                     {survey.description}
                   </p>
                   <div className="flex justify-center gap-4 mt-4 text-sm text-muted-foreground">

@@ -428,9 +428,9 @@ const SurveyParticipate = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-lg font-semibold">{survey.title}</h1>
-            <p className="text-sm text-muted-foreground">{getStepTitle()}</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base md:text-lg font-semibold truncate break-words">{survey.title}</h1>
+            <p className="text-sm text-muted-foreground truncate">{getStepTitle()}</p>
           </div>
         </div>
       </header>
@@ -438,10 +438,10 @@ const SurveyParticipate = () => {
       <main className="container mx-auto px-4 py-6 max-w-2xl">
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs md:text-sm text-muted-foreground">
               {currentStep + 1} / {totalSteps}
             </span>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs md:text-sm text-muted-foreground">
               {Math.round(progress)}% 완료
             </span>
           </div>
@@ -472,7 +472,7 @@ const SurveyParticipate = () => {
             ) : (
               currentQuestions.map((question) => (
                 <div key={question.id} className="space-y-3">
-                  <Label className="text-base">
+                  <Label className="text-sm md:text-base break-words hyphens-auto leading-relaxed">
                     {question.question_text}
                     {question.is_required && <span className="text-destructive ml-1">*</span>}
                   </Label>
@@ -481,11 +481,12 @@ const SurveyParticipate = () => {
               ))
             )}
 
-            <div className="flex justify-between pt-6">
+            <div className="flex justify-between pt-6 gap-2">
               <Button
                 variant="outline"
                 onClick={handlePrevious}
                 disabled={currentStep === 0}
+                className="touch-friendly flex-1 max-w-24"
               >
                 이전
               </Button>
@@ -494,7 +495,7 @@ const SurveyParticipate = () => {
                 <Button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="min-w-24"
+                  className="min-w-24 touch-friendly flex-1 max-w-32"
                 >
                   {submitting ? (
                     "제출 중..."
@@ -506,7 +507,7 @@ const SurveyParticipate = () => {
                   )}
                 </Button>
               ) : (
-                <Button onClick={handleNext}>
+                <Button onClick={handleNext} className="touch-friendly flex-1 max-w-24">
                   다음
                 </Button>
               )}

@@ -146,6 +146,17 @@ All colors MUST be HSL.
   min-width: 44px;
 }
 
+/* Text wrapping utilities for mobile */
+.break-words {
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.hyphens-auto {
+  hyphens: auto;
+}
+
 /* Line clamp utilities */
 .line-clamp-2 {
   display: -webkit-box;

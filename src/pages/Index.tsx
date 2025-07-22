@@ -92,9 +92,9 @@ const Index = () => {
       {/* Header with hamburger menu */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-primary">BS/SS 교육과정</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">교육생 피드백 시스템</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base md:text-2xl font-bold text-primary truncate">BS/SS 교육과정</h1>
+            <p className="text-xs md:text-sm text-muted-foreground truncate">교육생 피드백 시스템</p>
           </div>
           
           <Sheet>
@@ -106,13 +106,13 @@ const Index = () => {
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-80">
+            <SheetContent className="w-80 p-4">
               <div className="space-y-6 mt-6">
                 {user ? (
                   <>
                     <div className="border-b pb-4">
                       <h2 className="text-lg font-semibold text-primary">관리자 메뉴</h2>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground mt-1 break-words">
                         환영합니다, {user.email}
                       </p>
                     </div>
@@ -186,8 +186,8 @@ const Index = () => {
       {/* Main content */}
       <main className="container mx-auto px-4 py-6 md:py-8 min-h-screen">
         <div className="mb-6 md:mb-8 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-2 md:mb-4">📝 오늘의 설문조사</h2>
-          <p className="text-muted-foreground text-sm md:text-base">
+          <h2 className="text-xl md:text-3xl font-bold mb-2 md:mb-4 break-words">📝 오늘의 설문조사</h2>
+          <p className="text-muted-foreground text-sm md:text-base break-words">
             진행 중인 설문조사에 참여해 주세요
           </p>
         </div>
@@ -229,7 +229,7 @@ const Index = () => {
                     >
                       <CardHeader className="pb-3">
                         <div className="flex justify-between items-start gap-2">
-                          <CardTitle className="text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2">
+                          <CardTitle className="text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2 break-words hyphens-auto">
                             {survey.title}
                           </CardTitle>
                           <Badge variant="secondary" className="text-xs shrink-0">
@@ -237,7 +237,7 @@ const Index = () => {
                           </Badge>
                         </div>
                         {survey.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 mt-2">
+                          <p className="text-sm text-muted-foreground line-clamp-2 mt-2 break-words hyphens-auto">
                             {survey.description}
                           </p>
                         )}
@@ -246,7 +246,7 @@ const Index = () => {
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
                             <Clock className="h-4 w-4 shrink-0" />
-                            <span className="truncate">
+                            <span className="text-xs truncate break-all">
                               {new Date(survey.start_date).toLocaleDateString('ko-KR')} ~ {new Date(survey.end_date).toLocaleDateString('ko-KR')}
                             </span>
                           </div>
