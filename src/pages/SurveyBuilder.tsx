@@ -12,8 +12,27 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit, GripVertical, FileText, FolderPlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, GripVertical, FileText, FolderPlus, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Question {
   id: string;
@@ -88,6 +107,18 @@ const SurveyBuilder = () => {
   const [isInstructorDialogOpen, setIsInstructorDialogOpen] = useState(false);
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+
+  // DnD sensors for mouse and touch
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
@@ -517,6 +548,200 @@ const SurveyBuilder = () => {
         variant: "destructive"
       });
     }
+  };
+
+  // Question order management
+  const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down') => {
+    const currentQuestions = [...questions];
+    const currentIndex = currentQuestions.findIndex(q => q.id === questionId);
+    
+    if (currentIndex === -1) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    if (newIndex < 0 || newIndex >= currentQuestions.length) return;
+    
+    // Swap the questions
+    const temp = currentQuestions[currentIndex];
+    currentQuestions[currentIndex] = currentQuestions[newIndex];
+    currentQuestions[newIndex] = temp;
+    
+    // Update order_index values
+    currentQuestions[currentIndex].order_index = currentIndex;
+    currentQuestions[newIndex].order_index = newIndex;
+    
+    try {
+      // Update both questions in database
+      const updates = [
+        supabase
+          .from('survey_questions')
+          .update({ order_index: currentIndex })
+          .eq('id', currentQuestions[currentIndex].id),
+        supabase
+          .from('survey_questions')
+          .update({ order_index: newIndex })
+          .eq('id', currentQuestions[newIndex].id)
+      ];
+      
+      await Promise.all(updates);
+      
+      setQuestions(currentQuestions);
+      
+      toast({
+        title: "성공",
+        description: "질문 순서가 변경되었습니다."
+      });
+    } catch (error) {
+      console.error('Error updating question order:', error);
+      toast({
+        title: "오류",
+        description: "질문 순서 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Drag and drop handler
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = questions.findIndex(q => q.id === active.id);
+    const newIndex = questions.findIndex(q => q.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newQuestions = arrayMove(questions, oldIndex, newIndex);
+    
+    // Update order_index for all questions
+    const updatedQuestions = newQuestions.map((q, index) => ({
+      ...q,
+      order_index: index
+    }));
+
+    try {
+      // Update all questions' order_index in database
+      const updates = updatedQuestions.map(q =>
+        supabase
+          .from('survey_questions')
+          .update({ order_index: q.order_index })
+          .eq('id', q.id)
+      );
+      
+      await Promise.all(updates);
+      
+      setQuestions(updatedQuestions);
+      
+      toast({
+        title: "성공",
+        description: "질문 순서가 변경되었습니다."
+      });
+    } catch (error) {
+      console.error('Error updating question order:', error);
+      toast({
+        title: "오류",
+        description: "질문 순서 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Sortable Question Item Component
+  const SortableQuestionItem = ({ question, index, isInSection = false }: { question: Question; index: number; isInSection?: boolean }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: question.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    const currentQuestions = isInSection 
+      ? questions.filter(q => q.section_id === question.section_id) 
+      : questions.filter(q => !q.section_id);
+    
+    const questionIndex = currentQuestions.findIndex(q => q.id === question.id);
+    const isFirst = questionIndex === 0;
+    const isLast = questionIndex === currentQuestions.length - 1;
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="relative group"
+      >
+        <div className="absolute top-2 left-2 flex gap-1 z-10">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 rounded bg-white/80 hover:bg-white shadow-sm"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-white/80 hover:bg-white shadow-sm"
+              onClick={() => handleMoveQuestion(question.id, 'up')}
+              disabled={isFirst}
+            >
+              <ArrowUp className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 bg-white/80 hover:bg-white shadow-sm"
+              onClick={() => handleMoveQuestion(question.id, 'down')}
+              disabled={isLast}
+            >
+              <ArrowDown className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+        
+        <div className="absolute top-2 right-2 flex gap-1 z-10">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-white/80 hover:bg-white shadow-sm"
+            onClick={() => handleEditQuestion(question)}
+          >
+            <Edit className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-white/80 hover:bg-white shadow-sm"
+            onClick={() => handleDeleteQuestion(question.id)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+        
+        {question.question_type === 'scale' ? (
+          renderScaleQuestion(question, index)
+        ) : (
+          <div className="p-4 border rounded-lg bg-white">
+            <h3 className="font-medium text-sm mb-2">
+              {question.question_text}
+              {question.is_required && <span className="text-red-500 ml-1">*</span>}
+            </h3>
+            {question.question_type === 'text' && (
+              <Textarea placeholder="답변을 입력하세요" disabled />
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderScaleQuestion = (question: Question, index: number) => {
@@ -1109,100 +1334,72 @@ const SurveyBuilder = () => {
             {/* Sections */}
             {sections.length > 0 && (
               <div className="space-y-4">
-                {sections.map((section) => (
-                  <div key={section.id} className="space-y-4">
-                    <div className="border-t pt-4">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{section.name}</Badge>
-                        {section.description && (
-                          <span className="text-sm text-muted-foreground">{section.description}</span>
-                        )}
+                {sections.map((section) => {
+                  const sectionQuestions = questions.filter(q => q.section_id === section.id);
+                  
+                  return (
+                    <div key={section.id} className="space-y-4">
+                      <div className="border-t pt-4">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{section.name}</Badge>
+                          {section.description && (
+                            <span className="text-sm text-muted-foreground">{section.description}</span>
+                          )}
+                        </div>
+                        <Separator className="mt-2" />
                       </div>
-                      <Separator className="mt-2" />
+                      
+                      {/* Questions in this section */}
+                      <div className="space-y-3 ml-4">
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <SortableContext
+                            items={sectionQuestions.map(q => q.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {sectionQuestions.map((question, index) => (
+                              <SortableQuestionItem
+                                key={question.id}
+                                question={question}
+                                index={index}
+                                isInSection={true}
+                              />
+                            ))}
+                          </SortableContext>
+                        </DndContext>
+                      </div>
                     </div>
-                    
-                    {/* Questions in this section */}
-                    <div className="space-y-3 ml-4">
-                      {questions
-                        .filter((q) => q.section_id === section.id)
-                        .map((question, index) => (
-                          <div key={question.id} className="relative">
-                            <div className="absolute top-2 right-2 flex gap-1 z-10">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditQuestion(question)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteQuestion(question.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            
-                            {question.question_type === 'scale' ? (
-                              renderScaleQuestion(question, index)
-                            ) : (
-                              <div className="p-4 border rounded-lg bg-white">
-                                <h3 className="font-medium text-sm mb-2">
-                                  {question.question_text}
-                                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                                </h3>
-                                {question.question_type === 'text' && (
-                                  <Textarea placeholder="답변을 입력하세요" disabled />
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {/* Questions without sections */}
             <div className="space-y-4">
-              {questions
-                .filter((q) => !q.section_id)
-                .map((question, index) => (
-                  <div key={question.id} className="relative">
-                    <div className="absolute top-2 right-2 flex gap-1 z-10">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditQuestion(question)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteQuestion(question.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    
-                    {question.question_type === 'scale' ? (
-                      renderScaleQuestion(question, index)
-                    ) : (
-                      <div className="p-4 border rounded-lg bg-white">
-                        <h3 className="font-medium text-sm mb-2">
-                          {question.question_text}
-                          {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                        </h3>
-                        {question.question_type === 'text' && (
-                          <Textarea placeholder="답변을 입력하세요" disabled />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={questions.filter(q => !q.section_id).map(q => q.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {questions
+                    .filter((q) => !q.section_id)
+                    .map((question, index) => (
+                      <SortableQuestionItem
+                        key={question.id}
+                        question={question}
+                        index={index}
+                        isInSection={false}
+                      />
+                    ))}
+                </SortableContext>
+              </DndContext>
             </div>
 
             {questions.length === 0 && (
