@@ -167,28 +167,52 @@ const SurveyParticipate = () => {
 
   const getCurrentStepQuestions = () => {
     if (sections.length === 0) {
-      // 섹션이 없으면 모든 질문을 보여줌
+      // 섹션이 없으면 모든 질문을 한 번에 표시
       return questions;
     }
     
-    if (currentStep === 0) {
-      // 첫 번째 단계: 섹션에 속하지 않은 질문들
-      return questions.filter(q => !q.section_id);
+    // 섹션별로 질문 그룹화
+    const questionsWithoutSection = questions.filter(q => !q.section_id);
+    const allSteps = [];
+    
+    // 섹션에 속하지 않은 질문들이 있으면 첫 번째로 추가
+    if (questionsWithoutSection.length > 0) {
+      allSteps.push(questionsWithoutSection);
     }
     
-    // 나머지 단계: 해당 섹션의 질문들
-    const currentSection = sections[currentStep - 1];
-    return questions.filter(q => q.section_id === currentSection?.id);
+    // 각 섹션의 질문들 추가
+    sections.forEach(section => {
+      const sectionQuestions = questions.filter(q => q.section_id === section.id);
+      if (sectionQuestions.length > 0) {
+        allSteps.push(sectionQuestions);
+      }
+    });
+    
+    return allSteps[currentStep] || [];
   };
 
   const getTotalSteps = () => {
     if (sections.length === 0) {
-      return 1; // 섹션이 없으면 1단계
+      return 1; // 섹션이 없으면 모든 질문을 한 단계로
     }
     
-    // 섹션에 속하지 않은 질문들이 있으면 +1단계
+    let stepCount = 0;
+    
+    // 섹션에 속하지 않은 질문들이 있으면 +1
     const questionsWithoutSection = questions.filter(q => !q.section_id);
-    return sections.length + (questionsWithoutSection.length > 0 ? 1 : 0);
+    if (questionsWithoutSection.length > 0) {
+      stepCount++;
+    }
+    
+    // 질문이 있는 섹션만 카운트
+    sections.forEach(section => {
+      const sectionQuestions = questions.filter(q => q.section_id === section.id);
+      if (sectionQuestions.length > 0) {
+        stepCount++;
+      }
+    });
+    
+    return Math.max(stepCount, 1); // 최소 1단계는 보장
   };
 
   const getStepTitle = () => {
@@ -196,15 +220,30 @@ const SurveyParticipate = () => {
       return "설문 응답";
     }
     
-    if (currentStep === 0) {
-      const questionsWithoutSection = questions.filter(q => !q.section_id);
-      if (questionsWithoutSection.length > 0) {
+    const questionsWithoutSection = questions.filter(q => !q.section_id);
+    let stepIndex = currentStep;
+    
+    // 첫 번째 단계가 섹션에 속하지 않은 질문들인 경우
+    if (questionsWithoutSection.length > 0) {
+      if (currentStep === 0) {
         return "일반 질문";
+      }
+      stepIndex = currentStep - 1;
+    }
+    
+    // 해당 섹션 찾기
+    let validSectionIndex = 0;
+    for (let i = 0; i < sections.length; i++) {
+      const sectionQuestions = questions.filter(q => q.section_id === sections[i].id);
+      if (sectionQuestions.length > 0) {
+        if (validSectionIndex === stepIndex) {
+          return sections[i].name;
+        }
+        validSectionIndex++;
       }
     }
     
-    const section = sections[currentStep === 0 ? 0 : currentStep - 1];
-    return section?.name || `섹션 ${currentStep + 1}`;
+    return "설문 응답";
   };
 
   const handleNext = () => {
@@ -468,11 +507,36 @@ const SurveyParticipate = () => {
         <Card>
           <CardHeader>
             <CardTitle>{getStepTitle()}</CardTitle>
-            {sections.length > 0 && currentStep > 0 && sections[currentStep - 1]?.description && (
-              <p className="text-muted-foreground">
-                {sections[currentStep - 1].description}
-              </p>
-            )}
+            {(() => {
+              // 현재 단계의 섹션 설명 표시
+              if (sections.length === 0) return null;
+              
+              const questionsWithoutSection = questions.filter(q => !q.section_id);
+              let sectionIndex = currentStep;
+              
+              // 첫 번째 단계가 섹션에 속하지 않은 질문들인 경우
+              if (questionsWithoutSection.length > 0) {
+                if (currentStep === 0) return null; // 일반 질문에는 설명 없음
+                sectionIndex = currentStep - 1;
+              }
+              
+              // 해당 섹션 찾기
+              let validSectionIndex = 0;
+              for (let i = 0; i < sections.length; i++) {
+                const sectionQuestions = questions.filter(q => q.section_id === sections[i].id);
+                if (sectionQuestions.length > 0) {
+                  if (validSectionIndex === sectionIndex) {
+                    return sections[i].description ? (
+                      <p className="text-muted-foreground">
+                        {sections[i].description}
+                      </p>
+                    ) : null;
+                  }
+                  validSectionIndex++;
+                }
+              }
+              return null;
+            })()}
           </CardHeader>
           <CardContent className="space-y-6">
             {currentQuestions.length === 0 ? (
