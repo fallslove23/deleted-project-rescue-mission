@@ -56,6 +56,7 @@ const InstructorManagement = () => {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'instructors' | 'courses'>('instructors');
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -903,11 +904,22 @@ const InstructorManagement = () => {
               <div className="space-y-4">
                 <Label className="text-base font-semibold">담당 과목</Label>
                 
-                {/* All Courses List */}
-                <div>
-                  <Label className="text-sm text-muted-foreground">과목 선택</Label>
-                   <div className="grid grid-cols-1 gap-2 mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
-                     {courses.map((course) => {
+                 {/* All Courses List */}
+                 <div>
+                   <Label className="text-sm text-muted-foreground">과목 선택</Label>
+                   <Input
+                     placeholder="과목명으로 검색..."
+                     value={courseSearchQuery}
+                     onChange={(e) => setCourseSearchQuery(e.target.value)}
+                     className="mt-2 mb-2"
+                   />
+                    <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                      {courses
+                        .filter((course) => 
+                          course.title.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
+                          (course.description || '').toLowerCase().includes(courseSearchQuery.toLowerCase())
+                        )
+                        .map((course) => {
                        const isSelected = selectedCourses.includes(course.id);
                        const otherInstructors = instructorCourses
                          .filter(ic => ic.course_id === course.id && ic.instructor_id !== editingInstructor?.id)
