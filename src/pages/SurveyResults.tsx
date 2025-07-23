@@ -11,6 +11,7 @@ import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer, Ma
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip, Legend } from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import InstructorIndividualStats from '@/components/InstructorIndividualStats';
 
 interface Survey {
   id: string;
@@ -488,47 +489,32 @@ const SurveyResults = () => {
             )}
           </div>
 
-          {/* 통계 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 설문조사</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSurveys}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">진행중인 설문</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeSurveys}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 응답수</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalResponses}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">평균 응답률</CardTitle>
-            <BarChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.avgResponseRate}</div>
-          </CardContent>
-        </Card>
+          {/* 요약 통계 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="p-3">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-primary">{stats.totalSurveys}</div>
+                <div className="text-xs text-muted-foreground">설문조사</div>
+              </div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-primary">{stats.totalResponses}</div>
+                <div className="text-xs text-muted-foreground">응답</div>
+              </div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-primary">{stats.avgResponseRate}</div>
+                <div className="text-xs text-muted-foreground">평균응답</div>
+              </div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-primary">{stats.activeSurveys}</div>
+                <div className="text-xs text-muted-foreground">진행중</div>
+              </div>
+            </Card>
           </div>
 
           <Tabs defaultValue="overview" className="space-y-4">
@@ -752,100 +738,14 @@ const SurveyResults = () => {
 
         {canViewAll && (
           <TabsContent value="individual" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>강사별 개별 통계</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  각 강사별 설문조사 결과와 통계를 확인할 수 있습니다.
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {allInstructors.map(instructor => {
-                    const instructorSurveys = getFilteredSurveys().filter(s => s.instructor_id === instructor.id);
-                    const instructorResponses = responses.filter(r => 
-                      instructorSurveys.some(survey => survey.id === r.survey_id)
-                    );
-                    
-                    if (instructorSurveys.length === 0) return null;
-                    
-                    return (
-                      <div key={instructor.id} className="border rounded-lg p-4">
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                            {instructor.photo_url ? (
-                              <img 
-                                src={instructor.photo_url} 
-                                alt={instructor.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="text-xs text-muted-foreground text-center">
-                                사진<br/>없음
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-lg">{instructor.name}</h3>
-                            {instructor.email && (
-                              <p className="text-sm text-muted-foreground">{instructor.email}</p>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div className="text-center p-3 bg-muted/30 rounded-lg">
-                            <div className="text-2xl font-bold text-primary">{instructorSurveys.length}</div>
-                            <div className="text-sm text-muted-foreground">설문조사</div>
-                          </div>
-                          <div className="text-center p-3 bg-muted/30 rounded-lg">
-                            <div className="text-2xl font-bold text-primary">{instructorResponses.length}</div>
-                            <div className="text-sm text-muted-foreground">총 응답</div>
-                          </div>
-                          <div className="text-center p-3 bg-muted/30 rounded-lg">
-                            <div className="text-2xl font-bold text-primary">
-                              {instructorSurveys.length > 0 ? 
-                                Math.round((instructorResponses.length / instructorSurveys.length) * 10) / 10 : 0}
-                            </div>
-                            <div className="text-sm text-muted-foreground">평균 응답/설문</div>
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <h4 className="font-medium">진행한 설문조사:</h4>
-                          {instructorSurveys.map(survey => (
-                            <div key={survey.id} className="flex justify-between items-center p-2 bg-muted/20 rounded">
-                              <div>
-                                <span className="text-sm font-medium">{survey.title}</span>
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({survey.education_year}년 {survey.education_round}차)
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={survey.status === 'active' ? 'default' : 'secondary'}>
-                                  {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  응답: {instructorResponses.filter(r => r.survey_id === survey.id).length}개
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {allInstructors.filter(instructor => 
-                    getFilteredSurveys().some(s => s.instructor_id === instructor.id)
-                  ).length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      선택된 필터 조건에 해당하는 강사별 통계가 없습니다.
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <InstructorIndividualStats 
+              allInstructors={allInstructors}
+              getFilteredSurveys={getFilteredSurveys}
+              setSelectedSurvey={setSelectedSurvey}
+              selectedSurvey={selectedSurvey}
+              answers={answers}
+              questions={questions}
+            />
           </TabsContent>
         )}
           </Tabs>
