@@ -965,110 +965,123 @@ const InstructorManagement = () => {
                      className="mt-2 mb-2"
                    />
                     <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto border rounded-md p-2">
-                      {courses
-                        .filter((course) => 
+                      {(() => {
+                        const filteredCourses = courses.filter((course) => 
                           course.title.toLowerCase().includes(courseSearchQuery.toLowerCase()) ||
                           (course.description || '').toLowerCase().includes(courseSearchQuery.toLowerCase())
-                        )
-                        .map((course) => {
-                       const isSelected = selectedCourses.includes(course.id);
-                       const otherInstructors = instructorCourses
-                         .filter(ic => ic.course_id === course.id && ic.instructor_id !== editingInstructor?.id)
-                         .map(ic => instructors.find(inst => inst.id === ic.instructor_id))
-                         .filter(Boolean);
-                       
-                       return (
-                         <div
-                           key={course.id}
-                           className={`flex items-center space-x-2 p-2 rounded transition-colors ${
-                             isSelected
-                               ? 'bg-primary/10 border border-primary' 
-                               : 'bg-muted/50 hover:bg-muted'
-                           }`}
-                         >
-                           <div 
-                             className={`w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer ${
-                               isSelected
-                                 ? 'bg-primary border-primary' 
-                                 : 'border-muted-foreground'
-                             }`}
-                             onClick={() => toggleCourseSelection(course.id)}
-                           >
-                             {isSelected && (
-                               <div className="w-2 h-2 bg-white rounded-full" />
-                             )}
-                           </div>
-                           <div className="flex-1" onClick={() => toggleCourseSelection(course.id)}>
-                             <div className="flex items-center gap-2">
-                               <span className="font-medium text-sm">{course.title}</span>
-                               {otherInstructors.length > 0 && (
-                                 <div className="flex gap-1">
-                                   {otherInstructors.map((instructor, index) => (
-                                     <Badge key={index} variant="outline" className="text-xs">
-                                       {instructor?.name}
-                                     </Badge>
-                                   ))}
-                                 </div>
-                               )}
-                             </div>
-                             {course.description && (
-                               <div className="text-xs text-muted-foreground">{course.description}</div>
-                             )}
-                           </div>
-                           <div className="flex gap-1">
-                             <Button
-                               type="button"
-                               variant="ghost"
-                               size="sm"
-                               className="h-6 w-6 p-0"
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 handleEditCourse(course);
-                               }}
-                             >
-                               <Edit className="h-3 w-3" />
-                             </Button>
-                             <AlertDialog>
-                               <AlertDialogTrigger asChild>
-                                 <Button
-                                   type="button"
-                                   variant="ghost"
-                                   size="sm"
-                                   className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                                   onClick={(e) => e.stopPropagation()}
-                                 >
-                                   <Trash2 className="h-3 w-3" />
-                                 </Button>
-                               </AlertDialogTrigger>
-                               <AlertDialogContent>
-                                 <AlertDialogHeader>
-                                   <AlertDialogTitle>과목 삭제</AlertDialogTitle>
-                                   <AlertDialogDescription>
-                                     "{course.title}" 과목을 삭제하시겠습니까?<br />
-                                     이 작업은 되돌릴 수 없으며, 모든 강사 할당이 해제됩니다.
-                                   </AlertDialogDescription>
-                                 </AlertDialogHeader>
-                                 <AlertDialogFooter>
-                                   <AlertDialogCancel>취소</AlertDialogCancel>
-                                   <AlertDialogAction 
-                                     onClick={() => handleDeleteCourse(course)}
-                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                   >
-                                     삭제
-                                   </AlertDialogAction>
-                                 </AlertDialogFooter>
-                               </AlertDialogContent>
-                             </AlertDialog>
-                           </div>
-                         </div>
-                       );
-                     })}
-                     {courses.length === 0 && (
-                       <div className="text-sm text-muted-foreground text-center py-4">
-                         등록된 과목이 없습니다
-                       </div>
-                     )}
-                   </div>
+                        );
+                        
+                        if (filteredCourses.length === 0 && courseSearchQuery.trim() !== '') {
+                          return (
+                            <div className="text-sm text-muted-foreground text-center py-4">
+                              검색 결과가 없습니다
+                            </div>
+                          );
+                        }
+                        
+                        if (courses.length === 0) {
+                          return (
+                            <div className="text-sm text-muted-foreground text-center py-4">
+                              등록된 과목이 없습니다
+                            </div>
+                          );
+                        }
+                        
+                        return filteredCourses.map((course) => {
+                          const isSelected = selectedCourses.includes(course.id);
+                          const otherInstructors = instructorCourses
+                            .filter(ic => ic.course_id === course.id && ic.instructor_id !== editingInstructor?.id)
+                            .map(ic => instructors.find(inst => inst.id === ic.instructor_id))
+                            .filter(Boolean);
+                          
+                          return (
+                            <div
+                              key={course.id}
+                              className={`flex items-center space-x-2 p-2 rounded transition-colors ${
+                                isSelected
+                                  ? 'bg-primary/10 border border-primary' 
+                                  : 'bg-muted/50 hover:bg-muted'
+                              }`}
+                            >
+                              <div 
+                                className={`w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-primary border-primary' 
+                                    : 'border-muted-foreground'
+                                }`}
+                                onClick={() => toggleCourseSelection(course.id)}
+                              >
+                                {isSelected && (
+                                  <div className="w-2 h-2 bg-white rounded-full" />
+                                )}
+                              </div>
+                              <div className="flex-1" onClick={() => toggleCourseSelection(course.id)}>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{course.title}</span>
+                                  {otherInstructors.length > 0 && (
+                                    <div className="flex gap-1">
+                                      {otherInstructors.map((instructor, index) => (
+                                        <Badge key={index} variant="outline" className="text-xs">
+                                          {instructor?.name}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                {course.description && (
+                                  <div className="text-xs text-muted-foreground">{course.description}</div>
+                                )}
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditCourse(course);
+                                  }}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>과목 삭제</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        "{course.title}" 과목을 삭제하시겠습니까?<br />
+                                        이 작업은 되돌릴 수 없으며, 모든 강사 할당이 해제됩니다.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>취소</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteCourse(course)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        삭제
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
                 </div>
 
                 {/* Add New Course */}
