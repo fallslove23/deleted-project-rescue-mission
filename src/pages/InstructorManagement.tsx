@@ -512,25 +512,52 @@ const InstructorManagement = () => {
     <div className="min-h-screen bg-background">
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center relative">
-          <Button
-            onClick={() => navigate('/dashboard')}
-            variant="ghost"
-            size="sm"
-            className="touch-friendly"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">대시보드</span>
-          </Button>
-          <div className="absolute left-1/2 transform -translate-x-1/2">
-            <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">
-              {currentView === 'instructors' ? '강사 관리' : '과목 관리'}
-            </h1>
-            <p className="text-xs text-muted-foreground text-center">
-              {currentView === 'instructors' ? '강사 정보 등록 및 관리' : '과목 정보 등록 및 관리'}
-            </p>
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <Button
+              onClick={() => navigate('/dashboard')}
+              variant="ghost"
+              size="sm"
+              className="touch-friendly"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">대시보드</span>
+              <span className="sm:hidden">뒤로</span>
+            </Button>
+            <div className="text-center flex-1 min-w-0 mx-4">
+              <h1 className="text-sm sm:text-lg font-semibold text-primary truncate">
+                {currentView === 'instructors' ? '강사 관리' : '과목 관리'}
+              </h1>
+              <p className="text-xs text-muted-foreground truncate">
+                {currentView === 'instructors' ? '강사 정보 등록 및 관리' : '과목 정보 등록 및 관리'}
+              </p>
+            </div>
           </div>
-          <div className="flex gap-2 absolute right-4">
+          
+          {/* 탭 버튼들 */}
+          <div className="flex gap-2 mb-3">
+            <Button
+              variant={currentView === 'instructors' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCurrentView('instructors')}
+              className="touch-friendly flex-1 text-xs sm:text-sm"
+            >
+              <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              강사 관리
+            </Button>
+            <Button
+              variant={currentView === 'courses' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCurrentView('courses')}
+              className="touch-friendly flex-1 text-xs sm:text-sm"
+            >
+              <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              과목 관리
+            </Button>
+          </div>
+          
+          {/* 액션 버튼 */}
+          <div className="flex gap-2">
             {currentView === 'courses' && (
               <Button 
                 onClick={() => {
@@ -539,15 +566,14 @@ const InstructorManagement = () => {
                   setNewCourseDescription('');
                   setIsCourseDialogOpen(true);
                 }}
-                variant="outline"
-                className="touch-friendly text-sm hidden sm:flex"
+                className="touch-friendly text-xs sm:text-sm flex-1"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                 새 과목 추가
               </Button>
             )}
             {currentView === 'instructors' && (
-              <Button onClick={openAddDialog} className="touch-friendly text-sm hidden sm:flex">
+              <Button onClick={openAddDialog} className="touch-friendly text-xs sm:text-sm flex-1">
                 <UserPlus className="h-4 w-4 mr-2" />
                 새 강사 추가
               </Button>

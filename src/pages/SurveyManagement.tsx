@@ -370,43 +370,43 @@ const SurveyManagement = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="border rounded-lg p-4 bg-muted/20">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <h3 className="font-medium text-sm">이론 과목</h3>
-                  </div>
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <p><span className="font-medium">구성:</span> 이론만</p>
-                    <p><span className="font-medium">강사:</span> 단일 강사</p>
-                    <p><span className="font-medium">설문:</span> 이론용 설문만</p>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg p-4 bg-muted/20">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <h3 className="font-medium text-sm">이론+실습 (동일강사)</h3>
-                  </div>
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <p><span className="font-medium">구성:</span> 이론+실습</p>
-                    <p><span className="font-medium">강사:</span> 동일 강사</p>
-                    <p><span className="font-medium">설문:</span> 실습용 설문만</p>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg p-4 bg-muted/20">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <h3 className="font-medium text-sm">이론+실습 (다른강사)</h3>
-                  </div>
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <p><span className="font-medium">구성:</span> 이론+실습</p>
-                    <p><span className="font-medium">강사:</span> 서로 다름</p>
-                    <p><span className="font-medium">설문:</span> 각각 별도 설문</p>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="border rounded-lg p-3 sm:p-4 bg-muted/20">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                <h3 className="font-medium text-sm break-words">이론 과목</h3>
               </div>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p><span className="font-medium">구성:</span> 이론만</p>
+                <p><span className="font-medium">강사:</span> 단일 강사</p>
+                <p><span className="font-medium">설문:</span> 이론용 설문만</p>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-3 sm:p-4 bg-muted/20">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                <h3 className="font-medium text-sm break-words">이론+실습 (동일강사)</h3>
+              </div>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p><span className="font-medium">구성:</span> 이론+실습</p>
+                <p><span className="font-medium">강사:</span> 동일 강사</p>
+                <p><span className="font-medium">설문:</span> 실습용 설문만</p>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-3 sm:p-4 bg-muted/20">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0"></div>
+                <h3 className="font-medium text-sm break-words">이론+실습 (다른강사)</h3>
+              </div>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p><span className="font-medium">구성:</span> 이론+실습</p>
+                <p><span className="font-medium">강사:</span> 서로 다름</p>
+                <p><span className="font-medium">설문:</span> 각각 별도 설문</p>
+              </div>
+            </div>
+          </div>
             </CardContent>
           </Card>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -418,12 +418,12 @@ const SurveyManagement = () => {
               <span className="break-words">새 설문조사</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>새 설문조사 만들기</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="title">제목</Label>
                   <Input
@@ -431,6 +431,7 @@ const SurveyManagement = () => {
                     value={formData.title}
                     onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                     required
+                    className="touch-friendly"
                   />
                 </div>
                 <div>
@@ -441,11 +442,12 @@ const SurveyManagement = () => {
                     value={formData.education_year}
                     onChange={(e) => setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
                     required
+                    className="touch-friendly"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="education_round">차수</Label>
                   <Input
@@ -455,6 +457,7 @@ const SurveyManagement = () => {
                     value={formData.education_round}
                     onChange={(e) => setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
                     required
+                    className="touch-friendly"
                   />
                 </div>
                 <div>
@@ -465,6 +468,7 @@ const SurveyManagement = () => {
                     value={formData.start_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
                     required
+                    className="touch-friendly"
                   />
                 </div>
                 <div>
@@ -475,11 +479,12 @@ const SurveyManagement = () => {
                     value={formData.end_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
                     required
+                    className="touch-friendly"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="instructor">강사 선택</Label>
                   <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
@@ -534,108 +539,129 @@ const SurveyManagement = () => {
       </div>
 
       <div className="grid gap-4">
-        {surveys.map((survey) => (
-          <Card key={survey.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    {survey.title}
-                    {getStatusBadge(survey.status)}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {survey.education_year}년 {survey.education_round}차
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2 sm:gap-4 justify-start sm:justify-end">
-                  {(survey.status === 'draft' || survey.status === 'completed') && (
-                    <Button 
-                      variant="outline" 
+        {surveys.map((survey) => {
+          const surveyInstructor = instructors.find(i => i.id === survey.instructor_id);
+          const surveyCourse = courses.find(c => c.id === survey.course_id);
+          
+          return (
+            <Card key={survey.id} className="transition-shadow hover:shadow-md">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="space-y-4">
+                  {/* Header section */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                        <CardTitle className="text-base sm:text-lg break-words line-clamp-2">{survey.title}</CardTitle>
+                        {getStatusBadge(survey.status)}
+                      </div>
+                      <p className="text-sm text-muted-foreground break-words line-clamp-2">
+                        {survey.description}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Info section */}
+                  <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+                    <p className="break-words"><strong>강사:</strong> {surveyInstructor?.name || 'Unknown'}</p>
+                    <p className="break-words"><strong>과목:</strong> {surveyCourse?.title || 'Unknown'}</p>
+                    <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차</p>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      <span className="break-all">{survey.start_date.slice(0, 10)} ~ {survey.end_date.slice(0, 10)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Action buttons */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                    <Button
+                      variant="outline"
                       size="sm"
-                      className="touch-friendly text-xs"
-                      onClick={() => updateSurveyStatus(survey.id, 'active')}
+                      onClick={() => navigate(`/survey-builder/${survey.id}`)}
+                      className="touch-friendly text-xs h-9 px-2"
                     >
-                      <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="break-words">
-                        {survey.status === 'completed' ? '재시작' : '시작'}
-                      </span>
+                      <Edit className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">편집</span>
                     </Button>
-                  )}
-                  {survey.status === 'active' && (
-                    <Button 
-                      variant="outline" 
+                    
+                    <Button
+                      variant="outline"
                       size="sm"
-                      className="touch-friendly text-xs"
-                      onClick={() => updateSurveyStatus(survey.id, 'completed')}
+                      onClick={() => duplicateSurvey(survey)}
+                      className="touch-friendly text-xs h-9 px-2"
                     >
-                      <Square className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="break-words">종료</span>
+                      <Copy className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">복사</span>
                     </Button>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="touch-friendly text-xs"
-                    onClick={() => handleShare(survey)}
-                  >
-                    <Share2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    <span className="hidden sm:inline">공유</span>
-                    <span className="sm:hidden">공유</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="touch-friendly text-xs"
-                    onClick={() => sendSurveyResults(survey.id)}
-                  >
-                    <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    <span className="hidden sm:inline">결과 전송</span>
-                    <span className="sm:hidden">결과</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="touch-friendly text-xs"
-                    onClick={() => duplicateSurvey(survey)}
-                  >
-                    <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="touch-friendly text-xs"
-                    onClick={() => deleteSurvey(survey.id)}
-                  >
-                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="touch-friendly text-xs"
-                    onClick={() => navigate(`/survey-builder/${survey.id}`)}
-                  >
-                    <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
+                    
+                    {survey.status === 'draft' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateSurveyStatus(survey.id, 'active')}
+                        className="touch-friendly text-xs h-9 px-2"
+                      >
+                        <Play className="h-3 w-3 mr-1" />
+                        <span className="hidden sm:inline">시작</span>
+                      </Button>
+                    )}
+                    
+                    {survey.status === 'active' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateSurveyStatus(survey.id, 'completed')}
+                        className="touch-friendly text-xs h-9 px-2"
+                      >
+                        <Square className="h-3 w-3 mr-1" />
+                        <span className="hidden sm:inline">종료</span>
+                      </Button>
+                    )}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/survey-results/${survey.id}`)}
+                      className="touch-friendly text-xs h-9 px-2"
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">결과</span>
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleShare(survey)}
+                      className="touch-friendly text-xs h-9 px-2"
+                    >
+                      <Share2 className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">공유</span>
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendSurveyResults(survey.id)}
+                      className="touch-friendly text-xs h-9 px-2"
+                    >
+                      <Mail className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">전송</span>
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteSurvey(survey.id)}
+                      className="touch-friendly text-xs h-9 px-2 col-span-2 sm:col-span-1"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">삭제</span>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4 break-words hyphens-auto">{survey.description}</p>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4 flex-shrink-0" />
-                  <span className="break-words truncate">
-                    {new Date(survey.start_date).toLocaleDateString()} ~ {new Date(survey.end_date).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4 flex-shrink-0" />
-                  <span className="break-words">응답 수: 0</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+            </Card>
+          );
+        })}
           </div>
         </div>
       </main>

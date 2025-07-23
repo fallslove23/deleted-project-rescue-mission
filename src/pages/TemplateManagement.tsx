@@ -279,19 +279,19 @@ const TemplateManagement = () => {
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold">템플릿 목록</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-lg sm:text-xl font-bold break-words">템플릿 목록</h2>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetTemplateForm();
             }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="touch-friendly w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   새 템플릿
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingTemplate ? '템플릿 수정' : '새 템플릿 만들기'}
@@ -306,6 +306,7 @@ const TemplateManagement = () => {
                       onChange={(e) => setTemplateForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="템플릿 이름을 입력하세요"
                       required
+                      className="touch-friendly"
                     />
                   </div>
                   
@@ -317,6 +318,7 @@ const TemplateManagement = () => {
                       onChange={(e) => setTemplateForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="템플릿 설명을 입력하세요 (선택사항)"
                       rows={3}
+                      className="touch-friendly"
                     />
                   </div>
 
@@ -326,14 +328,14 @@ const TemplateManagement = () => {
                       checked={templateForm.is_course_evaluation}
                       onCheckedChange={(checked) => setTemplateForm(prev => ({ ...prev, is_course_evaluation: checked }))}
                     />
-                    <Label htmlFor="is_course_evaluation">강의평가용 템플릿</Label>
+                    <Label htmlFor="is_course_evaluation" className="break-words">강의평가용 템플릿</Label>
                   </div>
 
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  <div className="flex flex-col sm:flex-row justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="touch-friendly">
                       취소
                     </Button>
-                    <Button type="submit">
+                    <Button type="submit" className="touch-friendly">
                       {editingTemplate ? '수정' : '생성'}
                     </Button>
                   </div>
@@ -345,58 +347,69 @@ const TemplateManagement = () => {
           <div className="grid gap-4">
             {templates.map((template) => (
               <Card key={template.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        {template.name}
-                        {template.is_course_evaluation && (
-                          <Badge>강의평가</Badge>
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                          <CardTitle className="text-base sm:text-lg break-words line-clamp-2">{template.name}</CardTitle>
+                          {template.is_course_evaluation && (
+                            <Badge>강의평가</Badge>
+                          )}
+                        </div>
+                        {template.description && (
+                          <p className="text-sm text-muted-foreground break-words line-clamp-2">
+                            {template.description}
+                          </p>
                         )}
-                      </CardTitle>
-                      {template.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {template.description}
-                        </p>
-                      )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditQuestions(template.id)}
+                        className="touch-friendly text-xs h-9 px-2"
                       >
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-3 w-3 mr-1" />
+                        <span className="hidden sm:inline">편집</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleDuplicate(template)}
+                        className="touch-friendly text-xs h-9 px-2"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-3 w-3 mr-1" />
+                        <span className="hidden sm:inline">복사</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(template)}
+                        className="touch-friendly text-xs h-9 px-2"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3 w-3 mr-1" />
+                        <span className="hidden sm:inline">수정</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleDelete(template.id)}
+                        className="touch-friendly text-xs h-9 px-2"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        <span className="hidden sm:inline">삭제</span>
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-muted-foreground">
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  <div className="text-xs sm:text-sm text-muted-foreground break-words">
                     생성일: {new Date(template.created_at).toLocaleDateString()}
                     {template.updated_at !== template.created_at && (
-                      <span className="ml-4">
+                      <span className="block sm:inline sm:ml-4">
                         수정일: {new Date(template.updated_at).toLocaleDateString()}
                       </span>
                     )}

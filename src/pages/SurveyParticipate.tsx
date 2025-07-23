@@ -281,6 +281,7 @@ const SurveyParticipate = () => {
             value={answer?.answer as string || ''}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             placeholder="답변을 입력해 주세요"
+            className="touch-friendly"
           />
         );
         
@@ -291,6 +292,7 @@ const SurveyParticipate = () => {
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             placeholder="상세한 의견을 입력해 주세요"
             rows={4}
+            className="touch-friendly"
           />
         );
         
@@ -301,9 +303,9 @@ const SurveyParticipate = () => {
             onValueChange={(value) => handleAnswerChange(question.id, value)}
           >
             {question.options?.map((option: string, index: number) => (
-              <div key={index} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`${question.id}-${index}`} />
-                <Label htmlFor={`${question.id}-${index}`}>{option}</Label>
+              <div key={index} className="flex items-center space-x-2 touch-friendly">
+                <RadioGroupItem value={option} id={`${question.id}-${index}`} className="touch-friendly" />
+                <Label htmlFor={`${question.id}-${index}`} className="break-words cursor-pointer">{option}</Label>
               </div>
             ))}
           </RadioGroup>
@@ -315,7 +317,7 @@ const SurveyParticipate = () => {
             {question.options?.map((option: string, index: number) => {
               const selectedAnswers = answer?.answer as string[] || [];
               return (
-                <div key={index} className="flex items-center space-x-2">
+                <div key={index} className="flex items-center space-x-2 touch-friendly">
                   <Checkbox
                     id={`${question.id}-${index}`}
                     checked={selectedAnswers.includes(option)}
@@ -327,8 +329,9 @@ const SurveyParticipate = () => {
                         handleAnswerChange(question.id, currentAnswers.filter(a => a !== option));
                       }
                     }}
+                    className="touch-friendly"
                   />
-                  <Label htmlFor={`${question.id}-${index}`}>{option}</Label>
+                  <Label htmlFor={`${question.id}-${index}`} className="break-words cursor-pointer">{option}</Label>
                 </div>
               );
             })}
@@ -338,7 +341,7 @@ const SurveyParticipate = () => {
       case 'rating':
         const rating = parseInt(answer?.answer as string) || 0;
         return (
-          <div className="flex space-x-2">
+          <div className="grid grid-cols-5 gap-2 sm:flex sm:space-x-2">
             {[1, 2, 3, 4, 5].map(value => (
               <Button
                 key={value}
@@ -346,6 +349,7 @@ const SurveyParticipate = () => {
                 variant={rating === value ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleAnswerChange(question.id, value.toString())}
+                className="touch-friendly text-sm h-10"
               >
                 {value}
               </Button>
@@ -360,21 +364,21 @@ const SurveyParticipate = () => {
         
         return (
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>전혀 그렇지 않다</span>
-              <span>매우 그렇다</span>
+            <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
+              <span className="break-words">전혀 그렇지 않다</span>
+              <span className="break-words">매우 그렇다</span>
             </div>
             <RadioGroup
               value={answer?.answer as string || ''}
               onValueChange={(value) => handleAnswerChange(question.id, value)}
-              className="flex items-center justify-between"
+              className="grid grid-cols-5 sm:flex sm:items-center sm:justify-between gap-2"
             >
               {Array.from({ length: max - min + 1 }, (_, i) => {
                 const value = min + i;
                 return (
-                  <div key={value} className="flex flex-col items-center space-y-1">
-                    <span className="text-sm font-medium">{value}</span>
-                    <RadioGroupItem value={String(value)} id={`${question.id}-${value}`} />
+                  <div key={value} className="flex flex-col items-center space-y-1 touch-friendly">
+                    <span className="text-xs sm:text-sm font-medium">{value}</span>
+                    <RadioGroupItem value={String(value)} id={`${question.id}-${value}`} className="touch-friendly" />
                   </div>
                 );
               })}
