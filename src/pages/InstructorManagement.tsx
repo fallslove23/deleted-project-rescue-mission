@@ -150,6 +150,24 @@ const InstructorManagement = () => {
     try {
       let instructorId = editingInstructor?.id;
 
+      // Check for email duplication if email is provided
+      if (formData.email) {
+        const { data: existingInstructors } = await supabase
+          .from('instructors')
+          .select('id')
+          .eq('email', formData.email.trim())
+          .neq('id', editingInstructor?.id || '');
+
+        if (existingInstructors && existingInstructors.length > 0) {
+          toast({
+            title: "오류",
+            description: "이미 사용 중인 이메일입니다.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
       if (editingInstructor) {
         // Update existing instructor
         const { error } = await supabase
@@ -201,8 +219,8 @@ const InstructorManagement = () => {
         }
       }
 
-      // Create instructor account if email is provided
-      if (instructorId && formData.email) {
+      // Create instructor account only for new instructors with email
+      if (!editingInstructor && instructorId && formData.email) {
         try {
           const { data: funcResult, error: funcError } = await supabase.rpc(
             'create_instructor_account', 
@@ -215,18 +233,11 @@ const InstructorManagement = () => {
           
           if (funcError) throw funcError;
           
-          if (funcResult === 'Instructor account setup completed. Initial password: bsedu123') {
-            toast({
-              title: "계정 생성 완료",
-              description: "강사 계정이 생성되었습니다. 초기 비밀번호: bsedu123"
-            });
-          } else {
-            toast({
-              title: "알림",
-              description: funcResult,
-              variant: "default"
-            });
-          }
+          toast({
+            title: "알림",
+            description: "강사가 로그인 페이지에서 해당 이메일로 회원가입하면 자동으로 계정이 연결됩니다.",
+            variant: "default"
+          });
         } catch (accountError) {
           console.error('Error creating instructor account:', accountError);
           toast({
