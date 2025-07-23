@@ -59,7 +59,7 @@ const InstructorIndividualStats = ({
   questions
 }: Props) => {
   const [selectedInstructorDetail, setSelectedInstructorDetail] = useState<string>('');
-  const [viewType, setViewType] = useState<'monthly' | 'yearly' | 'round'>('yearly');
+  const [viewType, setViewType] = useState<'monthly' | 'yearly' | 'round' | 'half-yearly' | 'quarterly'>('yearly');
   const [instructorResponses, setInstructorResponses] = useState<any[]>([]);
   const [showSurveyDetails, setShowSurveyDetails] = useState<string>('');
 
@@ -123,6 +123,90 @@ const InstructorIndividualStats = ({
       
       return Object.values(yearlyData).map((data: any) => ({
         period: `${data.year}년`,
+        surveys: data.surveys,
+        avgRating: data.ratingCount > 0 ? (data.totalRating / data.ratingCount).toFixed(1) : 0
+      }));
+    }
+    
+    if (viewType === 'half-yearly') {
+      const halfYearlyData = instructorSurveys.reduce((acc, survey) => {
+        const year = survey.education_year;
+        const round = survey.education_round;
+        // 1-2차: 상반기, 3-4차: 하반기로 가정
+        const half = round <= 2 ? 1 : 2;
+        const key = `${year}-${half}`;
+        
+        if (!acc[key]) {
+          acc[key] = { 
+            year, 
+            half, 
+            surveys: 0, 
+            totalRating: 0, 
+            ratingCount: 0 
+          };
+        }
+        acc[key].surveys++;
+        
+        // 평점 계산
+        const surveyQuestions = questions.filter(q => q.question_type === 'rating');
+        surveyQuestions.forEach(question => {
+          const questionAnswers = answers.filter(a => a.question_id === question.id);
+          questionAnswers.forEach(answer => {
+            const rating = parseInt(answer.answer_text);
+            if (!isNaN(rating)) {
+              acc[key].totalRating += rating;
+              acc[key].ratingCount++;
+            }
+          });
+        });
+        
+        return acc;
+      }, {} as any);
+      
+      return Object.values(halfYearlyData).map((data: any) => ({
+        period: `${data.year}년 ${data.half === 1 ? '상반기' : '하반기'}`,
+        surveys: data.surveys,
+        avgRating: data.ratingCount > 0 ? (data.totalRating / data.ratingCount).toFixed(1) : 0
+      }));
+    }
+    
+    if (viewType === 'quarterly') {
+      const quarterlyData = instructorSurveys.reduce((acc, survey) => {
+        const year = survey.education_year;
+        const round = survey.education_round;
+        // 1차: 1분기, 2차: 2분기, 3차: 3분기, 4차: 4분기로 가정
+        const quarter = Math.min(round, 4);
+        const key = `${year}-${quarter}`;
+        
+        if (!acc[key]) {
+          acc[key] = { 
+            year, 
+            quarter, 
+            surveys: 0, 
+            totalRating: 0, 
+            ratingCount: 0 
+          };
+        }
+        acc[key].surveys++;
+        
+        // 평점 계산
+        const surveyQuestions = questions.filter(q => q.question_type === 'rating');
+        surveyQuestions.forEach(question => {
+          const questionAnswers = answers.filter(a => a.question_id === question.id);
+          questionAnswers.forEach(answer => {
+            const rating = parseInt(answer.answer_text);
+            if (!isNaN(rating)) {
+              acc[key].totalRating += rating;
+              acc[key].ratingCount++;
+            }
+          });
+        });
+        
+        return acc;
+      }, {} as any);
+      
+      return Object.values(quarterlyData).map((data: any) => ({
+        period: `${data.year}년 ${data.quarter}분기`,
         surveys: data.surveys,
         avgRating: data.ratingCount > 0 ? (data.totalRating / data.ratingCount).toFixed(1) : 0
       }));
@@ -306,6 +390,8 @@ const InstructorIndividualStats = ({
                         </SelectTrigger>
                         <SelectContent className="bg-background z-50">
                           <SelectItem value="yearly">연도별</SelectItem>
+                          <SelectItem value="half-yearly">반기별</SelectItem>
+                          <SelectItem value="quarterly">분기별</SelectItem>
                           <SelectItem value="round">회차별</SelectItem>
                         </SelectContent>
                       </Select>
