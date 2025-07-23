@@ -87,14 +87,15 @@ const ChangePassword = () => {
             onClick={() => navigate('/auth')}
             variant="ghost"
             size="sm"
-            className="mr-3"
+            className="mr-3 touch-friendly"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            로그인으로
+            <span className="hidden sm:inline">로그인으로</span>
+            <span className="sm:hidden">로그인</span>
           </Button>
-          <div>
-            <h1 className="text-lg font-semibold text-primary">비밀번호 변경</h1>
-            <p className="text-xs text-muted-foreground">첫 로그인 시 비밀번호를 변경해주세요</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">비밀번호 변경</h1>
+            <p className="text-xs text-muted-foreground break-words hyphens-auto">첫 로그인 시 비밀번호를 변경해주세요</p>
           </div>
         </div>
       </header>
@@ -102,7 +103,7 @@ const ChangePassword = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-center">비밀번호 변경</CardTitle>
+            <CardTitle className="text-center text-lg sm:text-xl break-words">비밀번호 변경</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleChangePassword} className="space-y-4">
@@ -139,13 +140,13 @@ const ChangePassword = () => {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full touch-friendly" disabled={loading}>
                 {loading ? '변경 중...' : '비밀번호 변경'}
               </Button>
             </form>
             
             <div className="mt-4 p-3 bg-muted rounded-md">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground break-words hyphens-auto">
                 <strong>알림:</strong> 비밀번호 변경 후 대시보드로 이동됩니다.
               </p>
             </div>

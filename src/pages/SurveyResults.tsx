@@ -397,14 +397,15 @@ const SurveyResults = () => {
             onClick={() => navigate('/dashboard')}
             variant="ghost"
             size="sm"
-            className="mr-3"
+            className="mr-3 touch-friendly"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            대시보드
+            <span className="hidden sm:inline">대시보드</span>
+            <span className="sm:hidden">대시보드</span>
           </Button>
-          <div>
-            <h1 className="text-lg font-semibold text-primary">설문 결과 분석</h1>
-            <p className="text-xs text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">설문 결과 분석</h1>
+            <p className="text-xs text-muted-foreground break-words hyphens-auto">
               {canViewAll ? '전체 설문조사 결과를 확인할 수 있습니다' : 
                instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
                '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
@@ -418,7 +419,7 @@ const SurveyResults = () => {
                     className="w-6 h-6 rounded-full object-cover"
                   />
                 )}
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground break-words truncate">
                   강사: {instructor.name} ({instructor.email})
                 </span>
               </div>
@@ -430,12 +431,12 @@ const SurveyResults = () => {
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
           {/* 필터 */}
-          <div className="flex gap-4 flex-wrap">
+          <div className="flex gap-2 sm:gap-4 flex-wrap">
             <Select value={selectedYear} onValueChange={(value) => {
               setSelectedYear(value);
               setSelectedRound(''); // Reset round when year changes
             }}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-24 sm:w-32 touch-friendly">
                 <SelectValue placeholder="전체 연도" />
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
@@ -446,7 +447,7 @@ const SurveyResults = () => {
             </Select>
 
             <Select value={selectedRound} onValueChange={setSelectedRound}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-24 sm:w-32 touch-friendly">
                 <SelectValue placeholder="전체 차수" />
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
@@ -458,13 +459,13 @@ const SurveyResults = () => {
 
             {canViewAll && (
               <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-32 sm:w-48 touch-friendly">
                   <SelectValue placeholder="전체 강사" />
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   <SelectItem value="all">전체 강사</SelectItem>
                   {allInstructors.map(inst => (
-                    <SelectItem key={inst.id} value={inst.id}>
+                    <SelectItem key={inst.id} value={inst.id} className="break-words">
                       {inst.name} {inst.email && `(${inst.email})`}
                     </SelectItem>
                   ))}
@@ -475,13 +476,14 @@ const SurveyResults = () => {
             {(selectedYear || selectedRound || (canViewAll && selectedInstructor !== 'all')) && (
               <Button 
                 variant="outline" 
+                className="touch-friendly text-sm"
                 onClick={() => {
                   setSelectedYear('');
                   setSelectedRound('');
                   setSelectedInstructor('all');
                 }}
               >
-                필터 초기화
+                <span className="break-words">필터 초기화</span>
               </Button>
             )}
           </div>
@@ -530,10 +532,10 @@ const SurveyResults = () => {
           </div>
 
           <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">개요</TabsTrigger>
-          <TabsTrigger value="detailed">상세 분석</TabsTrigger>
-          {canViewAll && <TabsTrigger value="individual">개별 통계</TabsTrigger>}
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3">
+          <TabsTrigger value="overview" className="text-sm touch-friendly">개요</TabsTrigger>
+          <TabsTrigger value="detailed" className="text-sm touch-friendly">상세 분석</TabsTrigger>
+          {canViewAll && <TabsTrigger value="individual" className="text-sm touch-friendly">개별 통계</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -551,14 +553,14 @@ const SurveyResults = () => {
                     }`}
                     onClick={() => setSelectedSurvey(survey.id)}
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h4 className="font-medium">{survey.title}</h4>
-                        <p className="text-sm text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium break-words">{survey.title}</h4>
+                        <p className="text-sm text-muted-foreground break-words">
                           {survey.education_year}년 {survey.education_round}차
                         </p>
                       </div>
-                      <Badge variant={survey.status === 'active' ? 'default' : 'secondary'}>
+                      <Badge variant={survey.status === 'active' ? 'default' : 'secondary'} className="text-xs flex-shrink-0">
                         {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
                       </Badge>
                     </div>

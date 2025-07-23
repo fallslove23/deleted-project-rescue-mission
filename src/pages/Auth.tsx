@@ -100,14 +100,15 @@ const Auth = () => {
             onClick={() => navigate('/')}
             variant="ghost"
             size="sm"
-            className="mr-3"
+            className="mr-3 touch-friendly"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            메인으로
+            <span className="hidden sm:inline">메인으로</span>
+            <span className="sm:hidden">메인</span>
           </Button>
-          <div>
-            <h1 className="text-lg font-semibold text-primary">관리자/강사 로그인</h1>
-            <p className="text-xs text-muted-foreground">설문 결과 조회 및 관리</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">관리자/강사 로그인</h1>
+            <p className="text-xs text-muted-foreground break-words">설문 결과 조회 및 관리</p>
           </div>
         </div>
       </header>
@@ -115,7 +116,7 @@ const Auth = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-center">
+            <CardTitle className="text-center text-lg sm:text-xl break-words">
               {isResetPassword ? '비밀번호 찾기' : '로그인'}
             </CardTitle>
           </CardHeader>
@@ -143,13 +144,16 @@ const Auth = () => {
                   />
                 </div>
               )}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
+              <Button type="submit" className="w-full touch-friendly text-sm sm:text-base" disabled={loading}>
+                <span className="break-words">
+                  {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
+                </span>
               </Button>
             </form>
             <div className="mt-4 text-center">
               <Button
                 variant="link"
+                className="touch-friendly break-words hyphens-auto text-sm"
                 onClick={() => setIsResetPassword(!isResetPassword)}
               >
                 {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}

@@ -502,22 +502,23 @@ const InstructorManagement = () => {
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <div className="flex items-center">
               <Button
                 onClick={() => navigate('/dashboard')}
                 variant="ghost"
                 size="sm"
-                className="mr-3"
+                className="mr-3 touch-friendly"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
-                대시보드
+                <span className="hidden sm:inline">대시보드</span>
+                <span className="sm:hidden">대시보드</span>
               </Button>
-              <div>
-                <h1 className="text-lg font-semibold text-primary">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">
                   {currentView === 'instructors' ? '강사 관리' : '과목 관리'}
                 </h1>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground break-words hyphens-auto">
                   {currentView === 'instructors' ? '강사 정보 및 과목 관리' : '전체 과목 관리'}
                 </p>
               </div>
@@ -532,15 +533,18 @@ const InstructorManagement = () => {
                     setIsCourseDialogOpen(true);
                   }}
                   variant="outline"
+                  className="touch-friendly text-sm"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  새 과목 추가
+                  <span className="hidden sm:inline">새 과목 추가</span>
+                  <span className="sm:hidden">추가</span>
                 </Button>
               )}
               {currentView === 'instructors' && (
-                <Button onClick={openAddDialog}>
+                <Button onClick={openAddDialog} className="touch-friendly text-sm">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  새 강사 추가
+                  <span className="hidden sm:inline">새 강사 추가</span>
+                  <span className="sm:hidden">추가</span>
                 </Button>
               )}
             </div>
@@ -552,19 +556,19 @@ const InstructorManagement = () => {
               variant={currentView === 'instructors' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setCurrentView('instructors')}
-              className="flex-1"
+              className="flex-1 touch-friendly text-sm"
             >
-              <UserPlus className="h-4 w-4 mr-2" />
-              강사 관리
+              <UserPlus className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="break-words">강사 관리</span>
             </Button>
             <Button
               variant={currentView === 'courses' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setCurrentView('courses')}
-              className="flex-1"
+              className="flex-1 touch-friendly text-sm"
             >
-              <BookOpen className="h-4 w-4 mr-2" />
-              과목 관리
+              <BookOpen className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="break-words">과목 관리</span>
             </Button>
           </div>
         </div>
@@ -654,16 +658,16 @@ const InstructorManagement = () => {
                           </Button>
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{instructor.name}</CardTitle>
+                          <CardTitle className="text-base sm:text-lg break-words">{instructor.name}</CardTitle>
                           {instructor.email && (
-                            <p className="text-sm text-muted-foreground">{instructor.email}</p>
+                            <p className="text-sm text-muted-foreground break-words">{instructor.email}</p>
                           )}
                         </div>
                       </CardHeader>
                       
                       <CardContent className="space-y-4">
                         {instructor.bio && (
-                          <p className="text-sm text-muted-foreground line-clamp-3">
+                          <p className="text-sm text-muted-foreground line-clamp-3 break-words hyphens-auto">
                             {instructor.bio}
                           </p>
                         )}
@@ -673,7 +677,7 @@ const InstructorManagement = () => {
                           <div className="flex flex-wrap gap-1 mt-1">
                             {instructorCourses.length > 0 ? (
                               instructorCourses.map((course) => (
-                                <Badge key={course.id} variant="secondary" className="text-xs">
+                                <Badge key={course.id} variant="secondary" className="text-xs break-words">
                                   {course.title}
                                 </Badge>
                               ))
@@ -687,11 +691,11 @@ const InstructorManagement = () => {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="flex-1"
+                            className="flex-1 touch-friendly text-sm"
                             onClick={() => openEditDialog(instructor)}
                           >
-                            <Edit className="h-4 w-4 mr-2" />
-                            수정
+                            <Edit className="h-4 w-4 mr-1 sm:mr-2" />
+                            <span className="break-words">수정</span>
                           </Button>
                           
                           <AlertDialog>
@@ -699,7 +703,7 @@ const InstructorManagement = () => {
                               <Button 
                                 variant="destructive" 
                                 size="sm"
-                                className="px-3"
+                                className="px-3 touch-friendly"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -707,7 +711,7 @@ const InstructorManagement = () => {
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>강사 삭제</AlertDialogTitle>
-                                <AlertDialogDescription>
+                                <AlertDialogDescription className="break-words hyphens-auto">
                                   "{instructor.name}" 강사를 삭제하시겠습니까?<br />
                                   이 작업은 되돌릴 수 없으며, 담당 과목에서도 해제됩니다.
                                 </AlertDialogDescription>

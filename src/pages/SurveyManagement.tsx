@@ -286,20 +286,21 @@ const SurveyManagement = () => {
     <div className="min-h-screen bg-background">
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center">
             <Button
               onClick={() => navigate('/dashboard')}
               variant="ghost"
               size="sm"
-              className="mr-3"
+              className="mr-3 touch-friendly"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              대시보드
+              <span className="hidden sm:inline">대시보드</span>
+              <span className="sm:hidden">대시보드</span>
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold text-primary">설문조사 관리</h1>
-              <p className="text-xs text-muted-foreground">설문조사 생성 및 관리</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">설문조사 관리</h1>
+              <p className="text-xs text-muted-foreground break-words">설문조사 생성 및 관리</p>
             </div>
           </div>
         </div>
@@ -355,13 +356,13 @@ const SurveyManagement = () => {
               </div>
             </CardContent>
           </Card>
-          <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">설문조사 목록</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-lg sm:text-xl font-bold break-words">설문조사 목록</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="touch-friendly text-sm w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
-              새 설문조사
+              <span className="break-words">새 설문조사</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
@@ -493,69 +494,80 @@ const SurveyManagement = () => {
                     {survey.education_year}년 {survey.education_round}차
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 sm:gap-4 justify-start sm:justify-end">
                   {(survey.status === 'draft' || survey.status === 'completed') && (
                     <Button 
                       variant="outline" 
                       size="sm"
+                      className="touch-friendly text-xs"
                       onClick={() => updateSurveyStatus(survey.id, 'active')}
                     >
-                      <Play className="h-4 w-4 mr-1" />
-                      {survey.status === 'completed' ? '재시작' : '시작'}
+                      <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="break-words">
+                        {survey.status === 'completed' ? '재시작' : '시작'}
+                      </span>
                     </Button>
                   )}
                   {survey.status === 'active' && (
                     <Button 
                       variant="outline" 
                       size="sm"
+                      className="touch-friendly text-xs"
                       onClick={() => updateSurveyStatus(survey.id, 'completed')}
                     >
-                      <Square className="h-4 w-4 mr-1" />
-                      종료
+                      <Square className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="break-words">종료</span>
                     </Button>
                   )}
                   <Button 
                     variant="outline" 
                     size="sm"
+                    className="touch-friendly text-xs"
                     onClick={() => sendSurveyResults(survey.id)}
                   >
-                    <Mail className="h-4 w-4 mr-1" />
-                    결과 전송
+                    <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    <span className="hidden sm:inline">결과 전송</span>
+                    <span className="sm:hidden">결과</span>
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
+                    className="touch-friendly text-xs"
                     onClick={() => duplicateSurvey(survey)}
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
+                    className="touch-friendly text-xs"
                     onClick={() => deleteSurvey(survey.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm"
+                    className="touch-friendly text-xs"
                     onClick={() => navigate(`/survey-builder/${survey.id}`)}
                   >
-                    <Edit className="h-4 w-4" />
+                    <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">{survey.description}</p>
-              <div className="flex gap-4 text-sm">
+              <p className="text-sm text-muted-foreground mb-4 break-words hyphens-auto">{survey.description}</p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm">
                 <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>{new Date(survey.start_date).toLocaleDateString()} ~ {new Date(survey.end_date).toLocaleDateString()}</span>
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  <span className="break-words truncate">
+                    {new Date(survey.start_date).toLocaleDateString()} ~ {new Date(survey.end_date).toLocaleDateString()}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4" />
-                  <span>응답 수: 0</span>
+                  <Users className="h-4 w-4 flex-shrink-0" />
+                  <span className="break-words">응답 수: 0</span>
                 </div>
               </div>
             </CardContent>
