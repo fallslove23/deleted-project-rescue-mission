@@ -42,6 +42,7 @@ interface Question {
   is_required: boolean;
   order_index: number;
   section_id?: string;
+  satisfaction_type?: string;
 }
 
 interface Section {
@@ -127,7 +128,8 @@ const SurveyBuilder = () => {
     options: null as any,
     section_id: 'none',
     scale_min: 1,
-    scale_max: 10
+    scale_max: 10,
+    satisfaction_type: 'none' as string
   });
 
   const [sectionForm, setSectionForm] = useState({
@@ -279,7 +281,8 @@ const SurveyBuilder = () => {
       options: null,
       section_id: 'none',
       scale_min: 1,
-      scale_max: 10
+      scale_max: 10,
+      satisfaction_type: 'none'
     });
     setEditingQuestion(null);
   };
@@ -296,7 +299,8 @@ const SurveyBuilder = () => {
         is_required: questionForm.is_required,
         order_index: newOrderIndex,
         options: questionForm.question_type === 'scale' ? { min: questionForm.scale_min, max: questionForm.scale_max } : questionForm.options,
-        section_id: questionForm.section_id === 'none' ? null : questionForm.section_id
+        section_id: questionForm.section_id === 'none' ? null : questionForm.section_id,
+        satisfaction_type: questionForm.satisfaction_type === 'none' ? null : questionForm.satisfaction_type
       };
 
       if (editingQuestion) {
@@ -346,7 +350,8 @@ const SurveyBuilder = () => {
       options: question.options,
       section_id: question.section_id || 'none',
       scale_min: question.options?.min || 1,
-      scale_max: question.options?.max || 10
+      scale_max: question.options?.max || 10,
+      satisfaction_type: (question as any).satisfaction_type || 'none'
     });
     setIsDialogOpen(true);
   };
@@ -1319,6 +1324,23 @@ const SurveyBuilder = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="satisfaction_type">만족도 태그</Label>
+                        <Select 
+                          value={questionForm.satisfaction_type} 
+                          onValueChange={(value) => setQuestionForm(prev => ({ ...prev, satisfaction_type: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="만족도 태그 선택 (선택사항)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">태그 없음</SelectItem>
+                            <SelectItem value="course">과정 만족도</SelectItem>
+                            <SelectItem value="instructor">강사 만족도</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {questionForm.question_type === 'scale' && (

@@ -178,6 +178,7 @@ export type Database = {
           order_index: number
           question_text: string
           question_type: string
+          satisfaction_type: string | null
           section_id: string | null
           survey_id: string
         }
@@ -189,6 +190,7 @@ export type Database = {
           order_index?: number
           question_text: string
           question_type?: string
+          satisfaction_type?: string | null
           section_id?: string | null
           survey_id: string
         }
@@ -200,6 +202,7 @@ export type Database = {
           order_index?: number
           question_text?: string
           question_type?: string
+          satisfaction_type?: string | null
           section_id?: string | null
           survey_id?: string
         }
@@ -403,6 +406,7 @@ export type Database = {
           order_index: number
           question_text: string
           question_type: string
+          satisfaction_type: string | null
           section_id: string | null
           template_id: string
         }
@@ -414,6 +418,7 @@ export type Database = {
           order_index?: number
           question_text: string
           question_type?: string
+          satisfaction_type?: string | null
           section_id?: string | null
           template_id: string
         }
@@ -425,6 +430,7 @@ export type Database = {
           order_index?: number
           question_text?: string
           question_type?: string
+          satisfaction_type?: string | null
           section_id?: string | null
           template_id?: string
         }
