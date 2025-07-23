@@ -67,6 +67,7 @@ const SurveyResults = () => {
   const [allInstructors, setAllInstructors] = useState<Instructor[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
+  const [allResponses, setAllResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedSurvey, setSelectedSurvey] = useState<string>('');
@@ -102,11 +103,40 @@ const SurveyResults = () => {
   }, [profile]);
 
   useEffect(() => {
+    if (profile) {
+      fetchAllResponses();
+    }
     if (selectedSurvey) {
       fetchResponses();
       fetchQuestionsAndAnswers();
     }
-  }, [selectedSurvey]);
+  }, [selectedSurvey, profile]);
+
+  const fetchAllResponses = async () => {
+    try {
+      let query = supabase.from('survey_responses').select('*');
+      
+      // 강사인 경우 자신의 강의 설문에 대한 응답만 조회
+      if (profile?.role === 'instructor' && profile.instructor_id) {
+        const { data: instructorSurveys } = await supabase
+          .from('surveys')
+          .select('id')
+          .eq('instructor_id', profile.instructor_id);
+        
+        if (instructorSurveys && instructorSurveys.length > 0) {
+          const surveyIds = instructorSurveys.map(s => s.id);
+          query = query.in('survey_id', surveyIds);
+        }
+      }
+      
+      const { data, error } = await query.order('submitted_at', { ascending: false });
+      
+      if (error) throw error;
+      setAllResponses(data || []);
+    } catch (error) {
+      console.error('Error fetching all responses:', error);
+    }
+  };
 
   const fetchQuestionsAndAnswers = async () => {
     if (!selectedSurvey) return;
@@ -518,14 +548,7 @@ const SurveyResults = () => {
             </Card>
           </div>
 
-          <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3">
-          <TabsTrigger value="overview" className="text-sm touch-friendly">개요</TabsTrigger>
-          <TabsTrigger value="detailed" className="text-sm touch-friendly">상세 분석</TabsTrigger>
-          {canViewAll && <TabsTrigger value="individual" className="text-sm touch-friendly">개별 통계</TabsTrigger>}
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
+          {/* 설문조사 목록 */}
           <Card>
             <CardHeader>
               <CardTitle>설문조사 목록</CardTitle>
@@ -535,21 +558,45 @@ const SurveyResults = () => {
                 {getFilteredSurveys().map((survey) => (
                   <div
                     key={survey.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedSurvey === survey.id ? 'bg-muted border-primary' : 'hover:bg-muted/50'
-                    }`}
-                    onClick={() => setSelectedSurvey(survey.id)}
+                    className="p-3 border rounded-lg transition-colors hover:bg-muted/50"
                   >
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                       <div className="min-w-0 flex-1">
                         <h4 className="font-medium break-words">{survey.title}</h4>
                         <p className="text-sm text-muted-foreground break-words">
                           {survey.education_year}년 {survey.education_round}차
                         </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant={survey.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                            {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            응답 수: {allResponses.filter(r => r.survey_id === survey.id).length}개
+                          </span>
+                        </div>
                       </div>
-                      <Badge variant={survey.status === 'active' ? 'default' : 'secondary'} className="text-xs flex-shrink-0">
-                        {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
-                      </Badge>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
+                          className="touch-friendly"
+                        >
+                          <BarChart className="h-4 w-4 mr-1" />
+                          <span className="hidden sm:inline">상세 분석</span>
+                        </Button>
+                        {canViewAll && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedSurvey(survey.id)}
+                            className="touch-friendly"
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span className="hidden sm:inline ml-1">개별 통계</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -557,188 +604,8 @@ const SurveyResults = () => {
             </CardContent>
           </Card>
 
-          {selectedSurvey && (
-            <Card>
-              <CardHeader>
-                <CardTitle>응답 현황</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p>총 응답 수: {responses.length}개</p>
-                  <p>최근 응답: {responses.length > 0 ? new Date(responses[0].submitted_at).toLocaleString() : '없음'}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="detailed" className="space-y-4">
-          {!selectedSurvey ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>상세 분석</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-center">
-                  분석할 설문조사를 선택해주세요.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {/* 액션 버튼들 */}
-              <div className="flex gap-2 mb-4">
-                <Button 
-                  variant="default" 
-                  size="sm" 
-                  onClick={handleSendResults}
-                  disabled={sendingResults}
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  {sendingResults ? '전송 중...' : '결과 전송'}
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  엑셀 다운로드
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Printer className="h-4 w-4 mr-2" />
-                  인쇄
-                </Button>
-              </div>
-
-              {/* 질문별 분석 */}
-              {questionAnalyses.map((analysis, index) => (
-                <Card key={analysis.question.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      Q{index + 1}. {analysis.question.question_text}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      총 응답 수: {analysis.totalAnswers}개
-                      {analysis.question.is_required && (
-                        <Badge variant="secondary" className="ml-2">필수</Badge>
-                      )}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    {analysis.type === 'chart' && (
-                      <div className="space-y-4">
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={analysis.chartData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={40}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                              >
-                                {analysis.chartData.map((entry, idx) => (
-                                  <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, name]} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {analysis.chartData.map((item, idx) => (
-                            <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <div 
-                                  className="w-4 h-4 rounded-full" 
-                                  style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                                />
-                                <span className="text-sm">{item.name}</span>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-medium">{item.value}개</p>
-                                <p className="text-xs text-muted-foreground">{item.percentage}%</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {analysis.type === 'rating' && (
-                      <div className="space-y-4">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-primary">{analysis.average}</div>
-                          <p className="text-sm text-muted-foreground">평균 점수 (5점 만점)</p>
-                        </div>
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RechartsBarChart data={analysis.chartData}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="name" />
-                              <YAxis />
-                              <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                              <Bar dataKey="value" fill="#8884d8" />
-                            </RechartsBarChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="space-y-2">
-                          {analysis.chartData.map((item, idx) => (
-                            <div key={item.name} className="flex items-center gap-4">
-                              <span className="text-sm w-12">{item.name}</span>
-                              <div className="flex-1">
-                                <Progress value={item.percentage} className="h-2" />
-                              </div>
-                              <span className="text-sm text-muted-foreground w-16">
-                                {item.value}개 ({item.percentage}%)
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {analysis.type === 'text' && (
-                      <div className="space-y-3">
-                        {analysis.answers && analysis.answers.length > 0 ? (
-                          analysis.answers.map((answer, idx) => (
-                            <div key={answer.id} className="p-3 border rounded-lg">
-                              <p className="text-sm">{answer.answer_text}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {new Date(answer.created_at).toLocaleString()}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-muted-foreground text-center py-8">
-                            아직 응답이 없습니다.
-                          </p>
-                        )}
-                        {analysis.totalAnswers > 10 && (
-                          <p className="text-sm text-muted-foreground text-center">
-                            총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-
-              {questionAnalyses.length === 0 && (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">
-                      선택한 설문조사에 질문이 없거나 응답이 없습니다.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          )}
-        </TabsContent>
-
-        {canViewAll && (
-          <TabsContent value="individual" className="space-y-4">
+          {/* 개별 통계 (관리자/매니저만) */}
+          {canViewAll && selectedSurvey && (
             <InstructorIndividualStats 
               allInstructors={allInstructors}
               getFilteredSurveys={getFilteredSurveys}
@@ -747,9 +614,7 @@ const SurveyResults = () => {
               answers={answers}
               questions={questions}
             />
-          </TabsContent>
-        )}
-          </Tabs>
+          )}
         </div>
       </main>
     </div>

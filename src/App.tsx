@@ -16,6 +16,7 @@ import SurveyParticipate from "./pages/SurveyParticipate";
 import TemplateManagement from "./pages/TemplateManagement";
 import TemplateBuilder from "./pages/TemplateBuilder";
 import SurveyResults from "./pages/SurveyResults";
+import SurveyDetailedAnalysis from "./pages/SurveyDetailedAnalysis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,16 @@ const App = () => (
             <Route path="/results" element={
               <ProtectedRoute>
                 <SurveyResults />
+              </ProtectedRoute>
+            } />
+            <Route path="/survey-results" element={
+              <ProtectedRoute>
+                <SurveyResults />
+              </ProtectedRoute>
+            } />
+            <Route path="/survey-detailed-analysis/:surveyId" element={
+              <ProtectedRoute>
+                <SurveyDetailedAnalysis />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
