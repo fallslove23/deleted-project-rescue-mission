@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText } from 'lucide-react';
+import QRCode from 'qrcode';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
@@ -58,6 +59,9 @@ const SurveyManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [selectedSurveyForShare, setSelectedSurveyForShare] = useState<Survey | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -261,6 +265,58 @@ const SurveyManagement = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleShare = async (survey: Survey) => {
+    setSelectedSurveyForShare(survey);
+    const shareUrl = `${window.location.origin}/survey/${survey.id}`;
+    
+    try {
+      const qrCodeUrl = await QRCode.toDataURL(shareUrl, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      });
+      setQrCodeDataUrl(qrCodeUrl);
+      setShareDialogOpen(true);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      toast({
+        title: "오류",
+        description: "QR 코드 생성 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "성공",
+        description: "링크가 클립보드에 복사되었습니다."
+      });
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "클립보드 복사에 실패했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const downloadQRCode = () => {
+    if (!qrCodeDataUrl || !selectedSurveyForShare) return;
+    
+    const link = document.createElement('a');
+    link.download = `${selectedSurveyForShare.title}_QR코드.png`;
+    link.href = qrCodeDataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getStatusBadge = (status: string) => {
@@ -520,6 +576,16 @@ const SurveyManagement = () => {
                     variant="outline" 
                     size="sm"
                     className="touch-friendly text-xs"
+                    onClick={() => handleShare(survey)}
+                  >
+                    <Share2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    <span className="hidden sm:inline">공유</span>
+                    <span className="sm:hidden">공유</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="touch-friendly text-xs"
                     onClick={() => sendSurveyResults(survey.id)}
                   >
                     <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -573,6 +639,74 @@ const SurveyManagement = () => {
           </div>
         </div>
       </main>
+
+      {/* Share Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>설문조사 공유</DialogTitle>
+          </DialogHeader>
+          {selectedSurveyForShare && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium text-sm mb-2">{selectedSurveyForShare.title}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {selectedSurveyForShare.education_year}년 {selectedSurveyForShare.education_round}차
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">공유 링크</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      value={`${window.location.origin}/survey/${selectedSurveyForShare.id}`}
+                      readOnly
+                      className="text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => copyToClipboard(`${window.location.origin}/survey/${selectedSurveyForShare.id}`)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <Label className="text-sm font-medium">QR 코드</Label>
+                  {qrCodeDataUrl && (
+                    <div className="mt-2 space-y-3">
+                      <div className="flex justify-center">
+                        <img 
+                          src={qrCodeDataUrl} 
+                          alt="QR 코드" 
+                          className="border rounded-lg"
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadQRCode}
+                        className="w-full"
+                      >
+                        <QrCode className="h-4 w-4 mr-2" />
+                        QR 코드 다운로드
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={() => setShareDialogOpen(false)}>
+                  닫기
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
