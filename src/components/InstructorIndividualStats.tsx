@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Star, TrendingUp, Calendar, Filter, Eye, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Instructor {
   id: string;
@@ -60,10 +61,42 @@ const InstructorIndividualStats = ({
   answers,
   questions
 }: Props) => {
+  const { user } = useAuth();
   const [selectedInstructorDetail, setSelectedInstructorDetail] = useState<string>('');
   const [viewType, setViewType] = useState<'monthly' | 'yearly' | 'round' | 'half-yearly' | 'quarterly'>('yearly');
   const [instructorResponses, setInstructorResponses] = useState<any[]>([]);
   const [showSurveyDetails, setShowSurveyDetails] = useState<string>('');
+
+  // 로그인한 사용자가 강사인 경우 자동 선택
+  useEffect(() => {
+    const autoSelectInstructor = async () => {
+      if (!user || selectedInstructorDetail) return;
+
+      try {
+        // 현재 로그인한 사용자의 프로필 조회
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('instructor_id, role')
+          .eq('id', user.id)
+          .single();
+
+        if (error || !profile) return;
+
+        // 사용자가 강사이고 instructor_id가 있는 경우
+        if (profile.role === 'instructor' && profile.instructor_id) {
+          // 해당 강사가 통계에 있는지 확인
+          const hasInstructorSurveys = getFilteredSurveys().some(s => s.instructor_id === profile.instructor_id);
+          if (hasInstructorSurveys) {
+            setSelectedInstructorDetail(profile.instructor_id);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking instructor profile:', error);
+      }
+    };
+
+    autoSelectInstructor();
+  }, [user, allInstructors, getFilteredSurveys, selectedInstructorDetail]);
 
   // 강사별 누적 평점 계산
   const getInstructorRatings = (instructorId: string) => {
