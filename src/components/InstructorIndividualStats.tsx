@@ -282,9 +282,9 @@ const InstructorIndividualStats = ({
       {/* 강사 선택 */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-center sm:justify-start gap-2">
+          <CardTitle className="flex items-center relative">
             <Filter className="h-5 w-5" />
-            <span className="hidden sm:inline">강사별 개별 통계</span>
+            <span className="absolute left-1/2 transform -translate-x-1/2 w-full text-center">강사별 개별 통계</span>
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             강사를 선택하여 상세 통계를 확인하세요
@@ -382,9 +382,9 @@ const InstructorIndividualStats = ({
                 <Card>
                   <CardHeader>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <CardTitle className="flex items-center justify-center sm:justify-start gap-2">
+                      <CardTitle className="flex items-center relative">
                         <TrendingUp className="h-5 w-5" />
-                        <span className="hidden sm:inline">누적 평점 추이</span>
+                        <span className="absolute left-1/2 transform -translate-x-1/2 w-full text-center">누적 평점 추이</span>
                       </CardTitle>
                       <Select value={viewType} onValueChange={(value: any) => setViewType(value)}>
                         <SelectTrigger className="w-32 touch-friendly">
@@ -429,9 +429,9 @@ const InstructorIndividualStats = ({
                 {/* 평점 분포 */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center justify-center sm:justify-start gap-2">
+                    <CardTitle className="flex items-center relative">
                       <BarChart className="h-5 w-5" />
-                      <span className="hidden sm:inline">평점 분포</span>
+                      <span className="absolute left-1/2 transform -translate-x-1/2 w-full text-center">평점 분포</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

@@ -395,18 +395,18 @@ const SurveyResults = () => {
     <div className="min-h-screen bg-background">
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex flex-col sm:flex-row items-center">
+        <div className="container mx-auto px-4 py-3 flex items-center relative">
           <Button
             onClick={() => navigate('/dashboard')}
             variant="ghost"
             size="sm"
-            className="mb-2 sm:mb-0 sm:mr-3 touch-friendly"
+            className="touch-friendly"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline ml-1">대시보드</span>
           </Button>
-          <div className="min-w-0 flex-1 text-center sm:text-left">
-            <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">설문 결과 분석</h1>
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">설문 결과 분석</h1>
             <p className="text-xs text-muted-foreground break-words hyphens-auto">
               {canViewAll ? '전체 설문조사 결과를 확인할 수 있습니다' : 
                instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
