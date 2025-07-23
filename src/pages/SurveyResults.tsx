@@ -55,6 +55,8 @@ interface SurveyQuestion {
   question_type: string;
   options: any;
   is_required: boolean;
+  survey_id: string;
+  order_index: number;
 }
 
 const SurveyResults = () => {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Star, TrendingUp, Calendar, Filter, Eye } from 'lucide-react';
+import { BarChart, Star, TrendingUp, Calendar, Filter, Eye, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -39,6 +39,8 @@ interface SurveyQuestion {
   question_type: string;
   options: any;
   is_required: boolean;
+  survey_id: string;
+  order_index: number;
 }
 
 interface Props {
@@ -521,45 +523,137 @@ const InstructorIndividualStats = ({
                             </div>
                           </div>
                           
-                          {showSurveyDetails === survey.id && (
-                            <div className="mt-4 pt-4 border-t">
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div className="text-center p-3 bg-muted/30 rounded">
-                                  <div className="text-lg font-bold text-primary">
-                                    {instructorResponses.length}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">총 응답 수</div>
-                                </div>
-                                <div className="text-center p-3 bg-muted/30 rounded">
-                                  <div className="text-lg font-bold text-primary">
-                                    {instructorResponses.length > 0 ? 
-                                     new Date(instructorResponses[0].submitted_at).toLocaleDateString() : '-'}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">최근 응답</div>
-                                </div>
-                                <div className="text-center p-3 bg-muted/30 rounded">
-                                  <div className="text-lg font-bold text-primary">
-                                    {(() => {
-                                      const ratingQuestions = questions.filter(q => q.question_type === 'rating');
-                                      const surveyRatings: number[] = [];
-                                      ratingQuestions.forEach(question => {
-                                        const questionAnswers = answers.filter(a => a.question_id === question.id);
-                                        questionAnswers.forEach(answer => {
-                                          const rating = parseInt(answer.answer_text);
-                                          if (!isNaN(rating)) {
-                                            surveyRatings.push(rating);
-                                          }
-                                        });
-                                      });
-                                      return surveyRatings.length > 0 ? 
-                                        (surveyRatings.reduce((sum, r) => sum + r, 0) / surveyRatings.length).toFixed(1) : '-';
-                                    })()}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">평균 평점</div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                           {showSurveyDetails === survey.id && (
+                             <div className="mt-4 pt-4 border-t">
+                               {/* 요약 정보 */}
+                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                 <div className="text-center p-3 bg-muted/30 rounded">
+                                   <div className="text-lg font-bold text-primary">
+                                     {instructorResponses.length}
+                                   </div>
+                                   <div className="text-xs text-muted-foreground">총 응답 수</div>
+                                 </div>
+                                 <div className="text-center p-3 bg-muted/30 rounded">
+                                   <div className="text-lg font-bold text-primary">
+                                     {instructorResponses.length > 0 ? 
+                                      new Date(instructorResponses[0].submitted_at).toLocaleDateString() : '-'}
+                                   </div>
+                                   <div className="text-xs text-muted-foreground">최근 응답</div>
+                                 </div>
+                                 <div className="text-center p-3 bg-muted/30 rounded">
+                                   <div className="text-lg font-bold text-primary">
+                                     {(() => {
+                                       const ratingQuestions = questions.filter(q => q.question_type === 'rating');
+                                       const surveyRatings: number[] = [];
+                                       ratingQuestions.forEach(question => {
+                                         const questionAnswers = answers.filter(a => a.question_id === question.id);
+                                         questionAnswers.forEach(answer => {
+                                           const rating = parseInt(answer.answer_text);
+                                           if (!isNaN(rating)) {
+                                             surveyRatings.push(rating);
+                                           }
+                                         });
+                                       });
+                                       return surveyRatings.length > 0 ? 
+                                         (surveyRatings.reduce((sum, r) => sum + r, 0) / surveyRatings.length).toFixed(1) : '-';
+                                     })()}
+                                   </div>
+                                   <div className="text-xs text-muted-foreground">평균 평점</div>
+                                 </div>
+                               </div>
+
+                               {/* 개별 응답지 */}
+                               <div className="space-y-4">
+                                 <h5 className="font-medium flex items-center gap-2">
+                                   <FileText className="h-4 w-4" />
+                                   개별 응답 ({instructorResponses.length}건)
+                                 </h5>
+                                 
+                                 {instructorResponses.length === 0 ? (
+                                   <div className="text-center py-8 text-muted-foreground">
+                                     아직 응답이 없습니다
+                                   </div>
+                                 ) : (
+                                   <div className="space-y-4 max-h-96 overflow-y-auto">
+                                     {instructorResponses.map((response, responseIndex) => {
+                                       const responseAnswers = answers.filter(a => 
+                                         questions.find(q => q.id === a.question_id && q.survey_id === survey.id)
+                                       );
+                                       
+                                       return (
+                                         <Card key={response.id} className="bg-muted/10">
+                                           <CardHeader className="pb-3">
+                                             <div className="flex justify-between items-start">
+                                               <div>
+                                                 <CardTitle className="text-sm">응답 #{responseIndex + 1}</CardTitle>
+                                                 <p className="text-xs text-muted-foreground">
+                                                   {new Date(response.submitted_at).toLocaleString()}
+                                                 </p>
+                                               </div>
+                                               {response.respondent_email && (
+                                                 <Badge variant="outline" className="text-xs">
+                                                   {response.respondent_email}
+                                                 </Badge>
+                                               )}
+                                             </div>
+                                           </CardHeader>
+                                           <CardContent className="pt-0">
+                                             <div className="space-y-3">
+                                               {questions
+                                                 .filter(q => q.survey_id === survey.id)
+                                                 .sort((a, b) => a.order_index - b.order_index)
+                                                 .map(question => {
+                                                   const answer = responseAnswers.find(a => a.question_id === question.id);
+                                                   
+                                                   return (
+                                                     <div key={question.id} className="border-l-2 border-muted pl-3">
+                                                       <div className="text-sm font-medium mb-1">
+                                                         {question.question_text}
+                                                       </div>
+                                                       <div className="text-sm text-muted-foreground">
+                                                         {question.question_type === 'rating' && answer?.answer_text ? (
+                                                           <div className="flex items-center gap-2">
+                                                             <span className="font-medium text-primary">
+                                                               {answer.answer_text}점
+                                                             </span>
+                                                             {question.options?.labels && (
+                                                               <span className="text-xs">
+                                                                 ({question.options.labels[parseInt(answer.answer_text) - 1]})
+                                                               </span>
+                                                             )}
+                                                           </div>
+                                                         ) : question.question_type === 'scale' && answer?.answer_text ? (
+                                                           <span className="font-medium text-primary">
+                                                             {answer.answer_text}점 
+                                                             {question.options?.min && question.options?.max && 
+                                                               <span className="text-xs ml-1">
+                                                                 (최소 {question.options.min}, 최대 {question.options.max})
+                                                               </span>
+                                                             }
+                                                           </span>
+                                                         ) : answer?.answer_text ? (
+                                                           <div className="bg-background p-2 rounded text-sm border">
+                                                             {answer.answer_text}
+                                                           </div>
+                                                         ) : (
+                                                           <span className="text-muted-foreground italic">
+                                                             응답 없음
+                                                           </span>
+                                                         )}
+                                                       </div>
+                                                     </div>
+                                                   );
+                                                 })}
+                                             </div>
+                                           </CardContent>
+                                         </Card>
+                                       );
+                                     })}
+                                   </div>
+                                 )}
+                               </div>
+                             </div>
+                           )}
                         </div>
                       ))}
                     </div>
