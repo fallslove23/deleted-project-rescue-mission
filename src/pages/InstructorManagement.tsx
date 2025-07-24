@@ -470,8 +470,11 @@ const InstructorManagement = () => {
 
   const handleSyncAllInstructors = async () => {
     try {
+      console.log('Starting instructor sync...');
+      
       // 모든 강사들 중 이메일이 있는 강사들 필터링
       const instructorsWithEmail = instructors.filter(instructor => instructor.email);
+      console.log('Instructors with email:', instructorsWithEmail.length);
 
       if (instructorsWithEmail.length === 0) {
         toast({
@@ -481,32 +484,13 @@ const InstructorManagement = () => {
         return;
       }
 
-      // 이미 프로필이 연결된 강사들 확인
-      const { data: existingProfiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('instructor_id, email')
-        .not('instructor_id', 'is', null);
-
-      if (profileError) throw profileError;
-
-      // 연결되지 않은 강사들 찾기
-      const unlinkedInstructors = instructorsWithEmail.filter(instructor => 
-        !existingProfiles?.some(profile => profile.instructor_id === instructor.id)
-      );
-
-      if (unlinkedInstructors.length === 0) {
-        toast({
-          title: "알림",
-          description: "모든 강사의 계정이 이미 동기화되어 있습니다.",
-        });
-        return;
-      }
-
       let successCount = 0;
       let errorCount = 0;
 
-      for (const instructor of unlinkedInstructors) {
+      for (const instructor of instructorsWithEmail) {
         try {
+          console.log(`Creating account for: ${instructor.name} (${instructor.email})`);
+          
           const { data: funcResult, error: funcError } = await supabase.rpc(
             'create_instructor_account', 
             {
@@ -516,7 +500,12 @@ const InstructorManagement = () => {
             }
           );
           
-          if (funcError) throw funcError;
+          if (funcError) {
+            console.error(`Function error for ${instructor.name}:`, funcError);
+            throw funcError;
+          }
+          
+          console.log(`Success for ${instructor.name}:`, funcResult);
           successCount++;
         } catch (err) {
           console.error(`Error creating account for ${instructor.name}:`, err);
@@ -699,31 +688,6 @@ const InstructorManagement = () => {
         </div>
       </div>
           
-      {/* Tab Navigation */}
-      <div className="p-4 border-b bg-background">
-        <div className="container mx-auto">
-          <div className="flex space-x-1 bg-muted p-1 rounded-lg max-w-md mx-auto">
-            <Button
-              variant={currentView === 'instructors' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentView('instructors')}
-              className="flex-1 touch-friendly text-sm"
-            >
-              <UserPlus className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="break-words">강사 관리</span>
-            </Button>
-            <Button
-              variant={currentView === 'courses' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentView('courses')}
-              className="flex-1 touch-friendly text-sm"
-            >
-              <BookOpen className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="break-words">과목 관리</span>
-            </Button>
-          </div>
-        </div>
-      </div>
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
