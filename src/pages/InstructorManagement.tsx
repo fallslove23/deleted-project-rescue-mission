@@ -470,21 +470,28 @@ const InstructorManagement = () => {
 
   const handleSyncAllInstructors = async () => {
     try {
-      // 계정이 연결되지 않은 강사들을 찾기
-      const { data: instructorsWithoutAccounts, error } = await supabase
-        .from('instructors')
-        .select(`
-          id, 
-          name, 
-          email,
-          profiles!inner(instructor_id)
-        `)
-        .is('profiles.instructor_id', null);
+      // 모든 강사들 중 이메일이 있는 강사들 필터링
+      const instructorsWithEmail = instructors.filter(instructor => instructor.email);
 
-      if (error) throw error;
+      if (instructorsWithEmail.length === 0) {
+        toast({
+          title: "알림",
+          description: "이메일이 설정된 강사가 없습니다.",
+        });
+        return;
+      }
 
-      const unlinkedInstructors = instructors.filter(instructor => 
-        instructor.email && !instructorsWithoutAccounts?.some(i => i.id === instructor.id)
+      // 이미 프로필이 연결된 강사들 확인
+      const { data: existingProfiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('instructor_id, email')
+        .not('instructor_id', 'is', null);
+
+      if (profileError) throw profileError;
+
+      // 연결되지 않은 강사들 찾기
+      const unlinkedInstructors = instructorsWithEmail.filter(instructor => 
+        !existingProfiles?.some(profile => profile.instructor_id === instructor.id)
       );
 
       if (unlinkedInstructors.length === 0) {
@@ -638,8 +645,8 @@ const InstructorManagement = () => {
               </Button>
             )}
             {currentView === 'instructors' && (
-              <>
-                <Button onClick={openAddDialog} className="touch-friendly text-xs sm:text-sm flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
+                <Button onClick={openAddDialog} className="touch-friendly text-xs sm:text-sm">
                   <UserPlus className="h-4 w-4 mr-2" />
                   새 강사 추가
                 </Button>
@@ -651,7 +658,15 @@ const InstructorManagement = () => {
                   <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                   계정 동기화
                 </Button>
-              </>
+                <Button 
+                  onClick={() => setCurrentView('courses')}
+                  variant="secondary"
+                  className="touch-friendly text-xs sm:text-sm"
+                >
+                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                  과목 관리
+                </Button>
+              </div>
             )}
           </div>
         </div>
