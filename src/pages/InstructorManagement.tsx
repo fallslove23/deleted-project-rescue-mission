@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Edit, Camera, UserPlus, BookOpen, Upload, X, PlusCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Camera, UserPlus, BookOpen, Upload, X, PlusCircle, Trash2, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Instructor {
@@ -468,6 +468,71 @@ const InstructorManagement = () => {
     }
   };
 
+  const handleSyncAllInstructors = async () => {
+    try {
+      // 계정이 연결되지 않은 강사들을 찾기
+      const { data: instructorsWithoutAccounts, error } = await supabase
+        .from('instructors')
+        .select(`
+          id, 
+          name, 
+          email,
+          profiles!inner(instructor_id)
+        `)
+        .is('profiles.instructor_id', null);
+
+      if (error) throw error;
+
+      const unlinkedInstructors = instructors.filter(instructor => 
+        instructor.email && !instructorsWithoutAccounts?.some(i => i.id === instructor.id)
+      );
+
+      if (unlinkedInstructors.length === 0) {
+        toast({
+          title: "알림",
+          description: "모든 강사의 계정이 이미 동기화되어 있습니다.",
+        });
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const instructor of unlinkedInstructors) {
+        try {
+          const { data: funcResult, error: funcError } = await supabase.rpc(
+            'create_instructor_account', 
+            {
+              instructor_email: instructor.email,
+              instructor_password: 'bsedu123',
+              instructor_id_param: instructor.id
+            }
+          );
+          
+          if (funcError) throw funcError;
+          successCount++;
+        } catch (err) {
+          console.error(`Error creating account for ${instructor.name}:`, err);
+          errorCount++;
+        }
+      }
+
+      toast({
+        title: successCount > 0 ? "동기화 완료" : "동기화 실패",
+        description: `${successCount}명의 강사 계정이 생성되었습니다.${errorCount > 0 ? ` (실패: ${errorCount}명)` : ''}`,
+        variant: successCount > 0 ? "default" : "destructive"
+      });
+
+    } catch (error) {
+      console.error('Error syncing instructors:', error);
+      toast({
+        title: "오류",
+        description: "강사 계정 동기화 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleDeleteCourse = async (course: Course) => {
     try {
       // Remove all instructor course assignments first
@@ -573,10 +638,20 @@ const InstructorManagement = () => {
               </Button>
             )}
             {currentView === 'instructors' && (
-              <Button onClick={openAddDialog} className="touch-friendly text-xs sm:text-sm flex-1">
-                <UserPlus className="h-4 w-4 mr-2" />
-                새 강사 추가
-              </Button>
+              <>
+                <Button onClick={openAddDialog} className="touch-friendly text-xs sm:text-sm flex-1">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  새 강사 추가
+                </Button>
+                <Button 
+                  onClick={handleSyncAllInstructors} 
+                  variant="outline"
+                  className="touch-friendly text-xs sm:text-sm"
+                >
+                  <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                  계정 동기화
+                </Button>
+              </>
             )}
           </div>
         </div>
