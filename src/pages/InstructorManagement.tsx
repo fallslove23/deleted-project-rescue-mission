@@ -470,11 +470,8 @@ const InstructorManagement = () => {
 
   const handleSyncAllInstructors = async () => {
     try {
-      console.log('Starting instructor sync...');
-      
       // 모든 강사들 중 이메일이 있는 강사들 필터링
       const instructorsWithEmail = instructors.filter(instructor => instructor.email);
-      console.log('Instructors with email:', instructorsWithEmail.length);
 
       if (instructorsWithEmail.length === 0) {
         toast({
@@ -486,11 +483,10 @@ const InstructorManagement = () => {
 
       let successCount = 0;
       let errorCount = 0;
+      const results: string[] = [];
 
       for (const instructor of instructorsWithEmail) {
         try {
-          console.log(`Creating account for: ${instructor.name} (${instructor.email})`);
-          
           const { data: funcResult, error: funcError } = await supabase.rpc(
             'create_instructor_account', 
             {
@@ -501,24 +497,26 @@ const InstructorManagement = () => {
           );
           
           if (funcError) {
-            console.error(`Function error for ${instructor.name}:`, funcError);
             throw funcError;
           }
           
-          console.log(`Success for ${instructor.name}:`, funcResult);
+          results.push(`${instructor.name}: ${funcResult}`);
           successCount++;
         } catch (err) {
-          console.error(`Error creating account for ${instructor.name}:`, err);
+          console.error(`Error for ${instructor.name}:`, err);
+          results.push(`${instructor.name}: 실패`);
           errorCount++;
         }
       }
 
+      // 완료 알림 - 이제 강사들이 직접 회원가입하면 자동 연결됨
       toast({
-        title: successCount > 0 ? "동기화 완료" : "동기화 실패",
-        description: `${successCount}명의 강사 계정이 생성되었습니다.${errorCount > 0 ? ` (실패: ${errorCount}명)` : ''}`,
+        title: "계정 동기화 완료",
+        description: `${successCount}명 처리됨. 강사들은 이제 해당 이메일로 회원가입하면 계정이 자동 연결됩니다.${errorCount > 0 ? ` (실패: ${errorCount}명)` : ''}`,
         variant: successCount > 0 ? "default" : "destructive"
       });
-
+      
+      console.log('Sync results:', results);
     } catch (error) {
       console.error('Error syncing instructors:', error);
       toast({
