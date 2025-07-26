@@ -481,47 +481,32 @@ const InstructorManagement = () => {
         return;
       }
 
-      let successCount = 0;
-      let errorCount = 0;
-      const results: string[] = [];
-
-      for (const instructor of instructorsWithEmail) {
-        try {
-          const { data: funcResult, error: funcError } = await supabase.rpc(
-            'create_instructor_account', 
-            {
-              instructor_email: instructor.email,
-              instructor_password: 'bsedu123',
-              instructor_id_param: instructor.id
-            }
-          );
-          
-          if (funcError) {
-            throw funcError;
-          }
-          
-          results.push(`${instructor.name}: ${funcResult}`);
-          successCount++;
-        } catch (err) {
-          console.error(`Error for ${instructor.name}:`, err);
-          results.push(`${instructor.name}: 실패`);
-          errorCount++;
+      // Edge Function을 호출하여 사용자 계정 일괄 생성
+      const { data, error } = await supabase.functions.invoke('create-instructor-users', {
+        body: {
+          instructor_emails: instructorsWithEmail.map(instructor => instructor.email)
         }
+      });
+
+      if (error) {
+        throw error;
       }
 
-      // 완료 알림 - 이제 강사들이 직접 회원가입하면 자동 연결됨
-      toast({
-        title: "계정 동기화 완료",
-        description: `${successCount}명 처리됨. 강사들은 이제 해당 이메일로 회원가입하면 계정이 자동 연결됩니다.${errorCount > 0 ? ` (실패: ${errorCount}명)` : ''}`,
-        variant: successCount > 0 ? "default" : "destructive"
-      });
+      const { results, summary } = data;
       
-      console.log('Sync results:', results);
+      toast({
+        title: "계정 생성 완료",
+        description: `총 ${summary.total}명 중 ${summary.created}명 생성, ${summary.already_exists}명 기존재, ${summary.errors}명 실패`
+      });
+
+      // 상세 결과를 콘솔에 출력
+      console.log('계정 생성 결과:', results);
+      
     } catch (error) {
-      console.error('Error syncing instructors:', error);
+      console.error('Error creating instructor users:', error);
       toast({
         title: "오류",
-        description: "강사 계정 동기화 중 오류가 발생했습니다.",
+        description: "강사 계정 생성 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     }
