@@ -464,6 +464,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_role_change_allowed: {
+        Args: { user_id: string; new_role: string; old_role: string }
+        Returns: boolean
+      }
       create_admin_user: {
         Args: { admin_email: string; admin_password: string }
         Returns: undefined
