@@ -176,8 +176,8 @@ const Dashboard = () => {
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658'];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/95 backdrop-blur-sm sticky top-0 z-50 shadow-glass">
+    <div className="min-h-screen bg-white">
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">

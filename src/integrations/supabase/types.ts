@@ -492,6 +492,18 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_user_profile: {
+        Args: { user_id: string }
+        Returns: {
+          id: string
+          email: string
+          role: string
+          instructor_id: string
+          first_login: boolean
+          created_at: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
