@@ -145,12 +145,12 @@ const Dashboard = () => {
   const isAdmin = profile?.role === 'admin';
   const isInstructor = profile?.role === 'instructor';
 
-  // 강사 로그인 시 결과 분석 탭을 기본으로 설정
+  // 강사 로그인 시 결과 분석 탭을 기본으로 설정 (프로필 로딩 완료 후에만 실행)
   useEffect(() => {
-    if (isInstructor && activeTab === 'overview') {
+    if (!loading && profile && isInstructor && activeTab === 'overview') {
       setActiveTab('results');
     }
-  }, [isInstructor, activeTab]);
+  }, [loading, profile, isInstructor, activeTab]);
 
   // 차트 데이터 준비
   const chartData = [
