@@ -8,7 +8,11 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
-import Dashboard from "./pages/Dashboard";
+import DashboardOverview from "./pages/DashboardOverview";
+import DashboardSurveyManagement from "./pages/DashboardSurveyManagement";
+import DashboardSurveyResults from "./pages/DashboardSurveyResults";
+import DashboardInstructorManagement from "./pages/DashboardInstructorManagement";
+import DashboardTemplateManagement from "./pages/DashboardTemplateManagement";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
 import SurveyBuilder from "./pages/SurveyBuilder";
@@ -38,7 +42,27 @@ const App = () => (
             } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <Dashboard />
+                <DashboardOverview />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/surveys" element={
+              <ProtectedRoute>
+                <DashboardSurveyManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/results" element={
+              <ProtectedRoute>
+                <DashboardSurveyResults />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/instructors" element={
+              <ProtectedRoute>
+                <DashboardInstructorManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/templates" element={
+              <ProtectedRoute>
+                <DashboardTemplateManagement />
               </ProtectedRoute>
             } />
             <Route path="/instructors" element={
