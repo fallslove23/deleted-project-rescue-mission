@@ -145,6 +145,13 @@ const Dashboard = () => {
   const isAdmin = profile?.role === 'admin';
   const isInstructor = profile?.role === 'instructor';
 
+  // 강사 로그인 시 결과 분석 탭을 기본으로 설정
+  useEffect(() => {
+    if (isInstructor && activeTab === 'overview') {
+      setActiveTab('results');
+    }
+  }, [isInstructor, activeTab]);
+
   // 차트 데이터 준비
   const chartData = [
     {
@@ -252,7 +259,7 @@ const Dashboard = () => {
         {/* 탭 네비게이션 */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 border border-gray-200 shadow-sm">
-            <TabsList className={`grid ${isAdmin ? 'grid-cols-5' : 'grid-cols-3'} gap-1 bg-transparent h-auto p-0`}>
+            <TabsList className={`grid ${isAdmin ? 'grid-cols-5' : isInstructor ? 'grid-cols-4' : 'grid-cols-3'} gap-1 bg-transparent h-auto p-0`}>
               <TabsTrigger 
                 value="overview" 
                 className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
@@ -277,24 +284,26 @@ const Dashboard = () => {
                 결과분석
               </TabsTrigger>
               
+              {/* 강사관리 탭 - 관리자와 강사 모두 접근 가능 */}
+              {(isAdmin || isInstructor) && (
+                <TabsTrigger 
+                  value="instructors" 
+                  className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  강사관리
+                </TabsTrigger>
+              )}
+              
+              {/* 템플릿관리 탭 - 관리자만 접근 가능 */}
               {isAdmin && (
-                <>
-                  <TabsTrigger 
-                    value="instructors" 
-                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
-                  >
-                    <Users className="h-4 w-4 mr-2" />
-                    강사관리
-                  </TabsTrigger>
-                  
-                  <TabsTrigger 
-                    value="templates" 
-                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
-                  >
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    템플릿관리
-                  </TabsTrigger>
-                </>
+                <TabsTrigger 
+                  value="templates" 
+                  className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  템플릿관리
+                </TabsTrigger>
               )}
             </TabsList>
           </div>
@@ -484,14 +493,14 @@ const Dashboard = () => {
             <SurveyResults />
           </TabsContent>
 
-          {/* 강사관리 탭 (관리자 전용) */}
-          {isAdmin && (
+          {/* 강사관리 탭 - 관리자와 강사 모두 접근 가능 */}
+          {(isAdmin || isInstructor) && (
             <TabsContent value="instructors">
               <InstructorManagement />
             </TabsContent>
           )}
 
-          {/* 템플릿관리 탭 (관리자 전용) */}
+          {/* 템플릿관리 탭 - 관리자만 접근 가능 */}
           {isAdmin && (
             <TabsContent value="templates">
               <TemplateManagement />
