@@ -60,10 +60,32 @@ const Dashboard = () => {
           .eq('id', user.id)
           .maybeSingle();
           
-        if (error && error.code !== 'PGRST116') throw error;
-        setProfile(data);
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching profile:', error);
+        }
+        
+        // 프로필이 없는 경우 기본 프로필 생성
+        if (!data) {
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email,
+              role: 'user'
+            })
+            .select()
+            .single();
+            
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+          } else {
+            setProfile(newProfile);
+          }
+        } else {
+          setProfile(data);
+        }
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error in fetchProfile:', error);
       } finally {
         setLoading(false);
       }
@@ -83,6 +105,8 @@ const Dashboard = () => {
   }, [profile]);
 
   const fetchDashboardStats = async () => {
+    if (!profile) return;
+    
     try {
       const isAdmin = profile?.role === 'admin';
       const isInstructor = profile?.role === 'instructor';
