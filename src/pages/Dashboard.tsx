@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,8 +34,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
-  const hasSetInitialTab = useRef(false);
+  // 강사 로그인 시 결과 분석 탭을 기본으로 설정
+  const [activeTab, setActiveTab] = useState(() => {
+    // 초기 상태에서는 overview로 시작하고, 프로필 로딩 후 조건부로 변경
+    return 'overview';
+  });
   const [stats, setStats] = useState<DashboardStats>({
     totalSurveys: 0,
     activeSurveys: 0,
@@ -72,6 +75,10 @@ const Dashboard = () => {
   useEffect(() => {
     if (profile) {
       fetchDashboardStats();
+      // 강사인 경우 결과 분석 탭으로 설정
+      if (profile.role === 'instructor' && activeTab === 'overview') {
+        setActiveTab('results');
+      }
     }
   }, [profile]);
 
@@ -145,14 +152,6 @@ const Dashboard = () => {
 
   const isAdmin = profile?.role === 'admin';
   const isInstructor = profile?.role === 'instructor';
-
-  // 강사 로그인 시 결과 분석 탭을 기본으로 설정 (한 번만 실행)
-  useEffect(() => {
-    if (!loading && profile && isInstructor && !hasSetInitialTab.current) {
-      setActiveTab('results');
-      hasSetInitialTab.current = true;
-    }
-  }, [loading, profile, isInstructor]);
 
   // 차트 데이터 준비
   const chartData = [
