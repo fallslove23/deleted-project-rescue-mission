@@ -92,101 +92,113 @@ const Index = () => {
       {/* Header with hamburger menu */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base md:text-2xl font-bold text-primary truncate">BS/SS 교육과정</h1>
-            <p className="text-xs md:text-sm text-muted-foreground truncate">교육생 피드백 시스템</p>
+          <div className="absolute left-4">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
+                  <Menu className="h-5 w-5 md:h-6 md:w-6" />
+                  {user && (
+                    <div className="absolute -top-1 -right-1 h-2 w-2 md:h-3 md:w-3 bg-primary rounded-full"></div>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-80 p-4">
+                <div className="space-y-6 mt-6">
+                  {user ? (
+                    <>
+                      <div className="border-b pb-4">
+                        <h2 className="text-lg font-semibold text-primary">관리자 메뉴</h2>
+                        <p className="text-sm text-muted-foreground mt-1 break-words">
+                          환영합니다, {user.email}
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        <Button 
+                          onClick={() => navigate('/dashboard')}
+                          className="w-full justify-start"
+                          variant="default"
+                        >
+                          <BarChart className="h-4 w-4 mr-2" />
+                          관리 대시보드
+                        </Button>
+                        <Button 
+                          onClick={() => navigate('/dashboard/instructors')}
+                          className="w-full justify-start"
+                          variant="outline"
+                        >
+                          <Users className="h-4 w-4 mr-2" />
+                          강사 관리
+                        </Button>
+                        <Button 
+                          onClick={() => navigate('/dashboard/surveys')}
+                          className="w-full justify-start"
+                          variant="outline"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          설문조사 관리
+                        </Button>
+                        <Button 
+                          onClick={() => navigate('/dashboard/results')}
+                          className="w-full justify-start"
+                          variant="outline"
+                        >
+                          <BarChart className="h-4 w-4 mr-2" />
+                          결과 분석
+                        </Button>
+                        <Button 
+                          onClick={() => navigate('/dashboard/templates')}
+                          className="w-full justify-start"
+                          variant="outline"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          템플릿 관리
+                        </Button>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          // 로그아웃하고 페이지 새로고침
+                          window.location.reload();
+                        }}
+                        variant="ghost" 
+                        className="w-full text-muted-foreground"
+                      >
+                        로그아웃
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="border-b pb-4">
+                        <h2 className="text-lg font-semibold">관리자/강사 로그인</h2>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          설문 결과 조회 및 관리
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => navigate('/auth')}
+                        className="w-full"
+                      >
+                        로그인하기
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
           
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Menu className="h-6 w-6" />
-                {user && (
-                  <div className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full"></div>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="w-80 p-4">
-              <div className="space-y-6 mt-6">
-                {user ? (
-                  <>
-                    <div className="border-b pb-4">
-                      <h2 className="text-lg font-semibold text-primary">관리자 메뉴</h2>
-                      <p className="text-sm text-muted-foreground mt-1 break-words">
-                        환영합니다, {user.email}
-                      </p>
-                    </div>
-                    <div className="space-y-3">
-                      <Button 
-                        onClick={() => navigate('/dashboard')}
-                        className="w-full justify-start"
-                        variant="default"
-                      >
-                        <BarChart className="h-4 w-4 mr-2" />
-                        관리 대시보드
-                      </Button>
-                      <Button 
-                        onClick={() => navigate('/instructors')}
-                        className="w-full justify-start"
-                        variant="outline"
-                      >
-                        <Users className="h-4 w-4 mr-2" />
-                        강사 관리
-                      </Button>
-                      <Button 
-                        onClick={() => navigate('/surveys')}
-                        className="w-full justify-start"
-                        variant="outline"
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        설문조사 관리
-                      </Button>
-                      <Button 
-                        onClick={() => navigate('/results')}
-                        className="w-full justify-start"
-                        variant="outline"
-                      >
-                        <BarChart className="h-4 w-4 mr-2" />
-                        결과 분석
-                      </Button>
-                    </div>
-                    <Button 
-                      onClick={() => {
-                        // 로그아웃하고 페이지 새로고침
-                        window.location.reload();
-                      }}
-                      variant="ghost" 
-                      className="w-full text-muted-foreground"
-                    >
-                      로그아웃
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <div className="border-b pb-4">
-                      <h2 className="text-lg font-semibold">관리자/강사 로그인</h2>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        설문 결과 조회 및 관리
-                      </p>
-                    </div>
-                    <Button 
-                      onClick={() => navigate('/auth')}
-                      className="w-full"
-                    >
-                      로그인하기
-                    </Button>
-                  </>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+          <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-12">
+            <h1 className="text-base md:text-2xl font-bold text-primary text-center truncate">BS/SS 교육과정</h1>
+            <p className="text-xs md:text-sm text-muted-foreground text-center truncate">교육생 피드백 시스템</p>
+          </div>
+          
+          <div className="w-8 md:w-10"></div> {/* Right spacer for balance */}
         </div>
       </header>
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-6 md:py-8 min-h-screen">
         <div className="mb-6 md:mb-8 text-center">
-          <h2 className="text-xl md:text-3xl font-bold mb-2 md:mb-4 break-words">📝 오늘의 설문조사</h2>
+          <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">📝 오늘의 설문조사</h2>
           <p className="text-muted-foreground text-sm md:text-base break-words">
             진행 중인 설문조사에 참여해 주세요
           </p>
