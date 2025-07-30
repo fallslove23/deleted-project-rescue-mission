@@ -272,7 +272,7 @@ const TemplateManagement = () => {
           </Button>
           <div className="absolute left-1/2 transform -translate-x-1/2">
             <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">템플릿 관리</h1>
-            <p className="text-xs text-muted-foreground text-center">설문조사 템플릿 생성 및 관리</p>
+            <p className="text-xs text-muted-foreground text-center break-words">설문조사 템플릿 생성 및 관리</p>
           </div>
         </div>
       </header>

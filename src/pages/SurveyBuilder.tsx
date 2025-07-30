@@ -836,21 +836,19 @@ const SurveyBuilder = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center min-w-0 flex-1">
-            <Button
-              onClick={() => navigate('/survey-management')}
-              variant="ghost"
-              size="sm"
-              className="mr-3 shrink-0"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              설문조사 관리
-            </Button>
-            <div className="min-w-0">
-              <h1 className="text-base md:text-lg font-semibold text-primary truncate">설문조사 편집</h1>
-              <p className="text-xs text-muted-foreground truncate">{survey.title}</p>
-            </div>
+        <div className="container mx-auto px-4 py-3 flex items-center relative">
+          <Button
+            onClick={() => navigate('/survey-management')}
+            variant="ghost"
+            size="sm"
+            className="touch-friendly"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">설문조사 관리</span>
+          </Button>
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <h1 className="text-sm sm:text-lg font-semibold text-primary text-center break-words">설문조사 편집</h1>
+            <p className="text-xs text-muted-foreground text-center break-words line-clamp-2">{survey.title}</p>
           </div>
         </div>
       </header>

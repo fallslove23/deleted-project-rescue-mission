@@ -252,16 +252,21 @@ const SurveyManagement = () => {
 
   const sendSurveyResults = async (surveyId: string) => {
     try {
-      // TODO: Implement email sending functionality
-      toast({
-        title: "알림",
-        description: "이메일 전송 기능은 구현 예정입니다."
+      const { data, error } = await supabase.functions.invoke('send-survey-results', {
+        body: { surveyId }
       });
-    } catch (error) {
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "설문 결과가 성공적으로 전송되었습니다."
+      });
+    } catch (error: any) {
       console.error('Error sending survey results:', error);
       toast({
         title: "오류",
-        description: "이메일 전송 중 오류가 발생했습니다.",
+        description: error.message || "이메일 전송 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     }

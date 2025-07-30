@@ -348,8 +348,8 @@ const SurveyDetailedAnalysis = () => {
             <span className="hidden sm:inline ml-1">결과 분석</span>
           </Button>
           <div className="absolute left-1/2 transform -translate-x-1/2">
-            <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">상세 분석</h1>
-            <p className="text-xs text-muted-foreground break-words text-center">
+            <h1 className="text-sm sm:text-lg font-semibold text-primary text-center break-words">상세 분석</h1>
+            <p className="text-xs text-muted-foreground break-words text-center line-clamp-2">
               {survey.title}
             </p>
           </div>

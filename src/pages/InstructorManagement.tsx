@@ -569,10 +569,10 @@ const InstructorManagement = () => {
               <span className="sm:hidden">뒤로</span>
             </Button>
             <div className="text-center flex-1 min-w-0 mx-4">
-              <h1 className="text-sm sm:text-lg font-semibold text-primary truncate">
+              <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">
                 {currentView === 'instructors' ? '강사 관리' : '과목 관리'}
               </h1>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground break-words">
                 {currentView === 'instructors' ? '강사 정보 등록 및 관리' : '과목 정보 등록 및 관리'}
               </p>
             </div>
