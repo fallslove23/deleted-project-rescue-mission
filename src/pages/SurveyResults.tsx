@@ -78,13 +78,14 @@ const SurveyResults = () => {
   const [sendingResults, setSendingResults] = useState(false);
   const { toast } = useToast();
 
-  // 사용자 권한 확인
-  const isAdmin = profile?.role === 'admin';
-  const isManager = profile?.role === 'manager';
-  const isDirector = profile?.role === 'director';
-  const isTeamLeader = profile?.role === 'team_leader';
-  const isInstructor = profile?.role === 'instructor';
-  const canViewAll = isAdmin || isManager || isDirector || isTeamLeader;
+  // 사용자 권한 확인 (새로운 역할 시스템 사용)
+  const { userRoles } = useAuth();
+  const isAdmin = userRoles.includes('admin');
+  const isOperator = userRoles.includes('operator');
+  const isDirector = userRoles.includes('director');
+  const isInstructor = userRoles.includes('instructor');
+  const canViewAll = isAdmin || isOperator || isDirector;
+  const canViewInstructorStats = isInstructor;
 
   useEffect(() => {
     fetchProfile();
@@ -117,7 +118,7 @@ const SurveyResults = () => {
       let query = supabase.from('survey_responses').select('*');
       
       // 강사인 경우 자신의 강의 설문에 대한 응답만 조회
-      if (profile?.role === 'instructor' && profile.instructor_id) {
+      if (isInstructor && profile.instructor_id) {
         const { data: instructorSurveys } = await supabase
           .from('surveys')
           .select('id')
@@ -257,7 +258,7 @@ const SurveyResults = () => {
       let query = supabase.from('surveys').select('*');
       
       // 강사인 경우 자신의 강의 설문만 조회
-      if (profile?.role === 'instructor' && profile.instructor_id) {
+      if (isInstructor && profile.instructor_id) {
         query = query.eq('instructor_id', profile.instructor_id);
       }
       

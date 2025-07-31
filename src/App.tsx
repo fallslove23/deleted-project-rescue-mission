@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import DefaultRedirect from "@/components/DefaultRedirect";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
@@ -33,7 +34,12 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={
+              <>
+                <Index />
+                <DefaultRedirect />
+              </>
+            } />
             <Route path="/auth" element={<Auth />} />
             <Route path="/change-password" element={
               <ProtectedRoute>
@@ -41,27 +47,27 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/dashboard" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardOverview />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/surveys" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardSurveyManagement />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/results" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
                 <DashboardSurveyResults />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/instructors" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardInstructorManagement />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/templates" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardTemplateManagement />
               </ProtectedRoute>
             } />

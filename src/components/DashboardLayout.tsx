@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AdminSidebar } from './AdminSidebar'
-import { BarChart, Activity } from 'lucide-react'
+import { BarChart, Activity, Home, LogOut } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface DashboardLayoutProps {
@@ -14,7 +14,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, title, description }: DashboardLayoutProps) {
-  const { user, signOut } = useAuth()
+  const { user, userRoles, signOut } = useAuth()
   const navigate = useNavigate()
 
   return (
@@ -24,42 +24,56 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
         
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <header className="h-16 border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-            <div className="flex items-center justify-between h-full px-4">
-              <div className="flex items-center gap-2 md:gap-3">
-                <SidebarTrigger className="h-8 w-8 order-first" />
-                <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-2">
-                  <div className="flex items-center gap-2 justify-center">
-                    <div className="h-8 w-8 md:h-10 md:w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                      <BarChart className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
-                    </div>
-                    <h1 className="text-base md:text-xl font-bold bg-gradient-accent bg-clip-text text-transparent text-center truncate">
-                      {title}
-                    </h1>
-                  </div>
-                  {description && (
-                    <p className="text-xs md:text-sm text-muted-foreground text-center truncate max-w-full">
-                      {description}
-                    </p>
-                  )}
-                </div>
+          <header className="h-14 border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+            <div className="flex items-center h-full px-2 sm:px-4">
+              {/* Left: Sidebar Toggle */}
+              <div className="flex items-center">
+                <SidebarTrigger className="h-8 w-8 p-1 mr-2" />
               </div>
-              
-              <div className="flex items-center gap-1 md:gap-2">
-                <span className="text-xs md:text-sm hidden lg:block truncate max-w-24 md:max-w-32">
+
+              {/* Center: Page Title */}
+              <div className="flex-1 text-center min-w-0 px-2">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-neon">
+                    <BarChart className="h-3 w-3 sm:h-4 sm:w-4 text-primary-foreground" />
+                  </div>
+                  <h1 className="text-sm sm:text-lg font-bold bg-gradient-accent bg-clip-text text-transparent break-words leading-tight">
+                    {title}
+                  </h1>
+                </div>
+                {description && (
+                  <p className="text-xs text-muted-foreground break-words line-clamp-1 mt-1">
+                    {description}
+                  </p>
+                )}
+              </div>
+
+              {/* Right: User Actions */}
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                {/* User Email - Only on larger screens */}
+                <span className="hidden lg:block text-xs text-muted-foreground max-w-20 truncate">
                   {user?.email}
                 </span>
-                <Button onClick={() => navigate('/')} variant="ghost" size="sm" className="text-xs md:text-sm px-2 md:px-3">
-                  메인
+
+                {/* 메인 Button */}
+                <Button
+                  onClick={() => navigate('/')}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                >
+                  <Home className="h-3 w-3 sm:mr-1" />
+                  <span className="hidden sm:inline">메인</span>
                 </Button>
-                
+
+                {/* Activity Popover */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="relative h-8 w-8 md:h-9 md:w-9">
-                      <Activity className="h-3 w-3 md:h-4 md:w-4" />
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-72 md:w-80">
+                  <PopoverContent align="end" className="w-72 sm:w-80">
                     <div className="space-y-4">
                       <div className="flex items-center gap-2">
                         <Activity className="h-4 w-4" />
@@ -70,13 +84,22 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
                           <span className="text-sm text-muted-foreground">시스템 상태</span>
                           <span className="text-sm text-green-600 font-medium">정상</span>
                         </div>
+                        <div className="text-xs text-muted-foreground">
+                          사용자 역할: {userRoles.join(', ')}
+                        </div>
                       </div>
                     </div>
                   </PopoverContent>
                 </Popover>
-                
-                <Button onClick={signOut} variant="outline" size="sm" className="text-xs md:text-sm px-2 md:px-3">
-                  로그아웃
+
+                {/* Logout Button */}
+                <Button
+                  onClick={signOut}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                >
+                  <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
             </div>

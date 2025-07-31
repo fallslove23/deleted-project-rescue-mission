@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Users, FileText, BarChart, BookOpen, Home, Menu } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
+import { useAuth } from "@/hooks/useAuth"
 
 import {
   Sidebar,
@@ -15,18 +16,24 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-const items = [
-  { title: "개요", url: "/dashboard", icon: Home },
-  { title: "설문관리", url: "/dashboard/surveys", icon: FileText },
-  { title: "결과분석", url: "/dashboard/results", icon: BarChart },
-  { title: "강사관리", url: "/dashboard/instructors", icon: Users },
-  { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen },
+const allItems = [
+  { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator"] },
+  { title: "설문관리", url: "/dashboard/surveys", icon: FileText, roles: ["admin", "operator"] },
+  { title: "결과분석", url: "/dashboard/results", icon: BarChart, roles: ["admin", "operator", "instructor", "director"] },
+  { title: "강사관리", url: "/dashboard/instructors", icon: Users, roles: ["admin", "operator"] },
+  { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen, roles: ["admin", "operator"] },
 ]
 
 export function AdminSidebar() {
   const { state } = useSidebar()
+  const { userRoles } = useAuth()
   const location = useLocation()
   const currentPath = location.pathname
+
+  // 사용자 역할에 따라 필터링된 메뉴 항목
+  const items = allItems.filter(item => 
+    item.roles.some(role => userRoles.includes(role))
+  )
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
