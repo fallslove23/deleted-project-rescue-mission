@@ -45,7 +45,7 @@ export function AdminSidebar() {
   const isExpanded = items.some((i) => isActive(i.url))
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive ? "bg-white text-primary font-medium shadow-sm" : "hover:bg-white/50 text-muted-foreground"
+    isActive ? "bg-primary/10 text-primary font-medium border-r-2 border-primary" : "hover:bg-white/50 text-muted-foreground"
 
   return (
     <Sidebar

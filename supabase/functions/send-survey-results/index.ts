@@ -13,6 +13,7 @@ const corsHeaders = {
 
 interface SendResultsRequest {
   surveyId: string;
+  recipients?: string[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -21,7 +22,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { surveyId }: SendResultsRequest = await req.json();
+    const { surveyId, recipients = ['admin', 'instructor'] }: SendResultsRequest = await req.json();
     
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -122,34 +123,61 @@ const handler = async (req: Request): Promise<Response> => {
       resultsHtml += '</div>';
     }
 
-    // Send email to instructor
-    if (survey.instructors?.email) {
+    // Collect email addresses based on selected recipients
+    const emailAddresses = new Set<string>();
+
+    // Send email to instructor if selected
+    if (recipients.includes('instructor') && survey.instructors?.email) {
+      emailAddresses.add(survey.instructors.email);
+    }
+
+    // Get admin and operator emails if selected
+    if (recipients.includes('admin')) {
+      const { data: adminUsers } = await supabase
+        .from('user_roles')
+        .select(`
+          profiles!inner(email)
+        `)
+        .in('role', ['admin', 'operator'])
+        .not('profiles.email', 'is', null);
+
+      if (adminUsers) {
+        adminUsers.forEach(user => {
+          if (user.profiles.email) {
+            emailAddresses.add(user.profiles.email);
+          }
+        });
+      }
+    }
+
+    // Get director emails if selected
+    if (recipients.includes('director')) {
+      const { data: directorUsers } = await supabase
+        .from('user_roles')
+        .select(`
+          profiles!inner(email)
+        `)
+        .eq('role', 'director')
+        .not('profiles.email', 'is', null);
+
+      if (directorUsers) {
+        directorUsers.forEach(user => {
+          if (user.profiles.email) {
+            emailAddresses.add(user.profiles.email);
+          }
+        });
+      }
+    }
+
+    // Send emails to all selected recipients
+    const emailList = Array.from(emailAddresses);
+    if (emailList.length > 0) {
       await resend.emails.send({
         from: "BS교육원 <noreply@bsedu.co.kr>",
-        to: [survey.instructors.email],
+        to: emailList,
         subject: `[BS교육원] ${survey.title} 설문 결과`,
         html: resultsHtml,
       });
-    }
-
-    // Get all users who should receive results (admin, manager, director, team_leader)
-    const { data: adminUsers, error: adminError } = await supabase
-      .from('profiles')
-      .select('email')
-      .in('role', ['admin', 'manager', 'director', 'team_leader'])
-      .not('email', 'is', null);
-
-    if (!adminError && adminUsers) {
-      for (const user of adminUsers) {
-        if (user.email) {
-          await resend.emails.send({
-            from: "BS교육원 <noreply@bsedu.co.kr>",
-            to: [user.email],
-            subject: `[BS교육원] ${survey.title} 설문 결과`,
-            html: resultsHtml,
-          });
-        }
-      }
     }
 
     return new Response(

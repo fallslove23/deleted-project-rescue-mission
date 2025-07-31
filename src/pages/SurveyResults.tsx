@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer, Mail } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip, Legend } from 'recharts';
 import { Progress } from '@/components/ui/progress';
@@ -76,6 +78,8 @@ const SurveyResults = () => {
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const { toast } = useToast();
 
   // 사용자 권한 확인 (새로운 역할 시스템 사용)
@@ -412,18 +416,33 @@ const SurveyResults = () => {
       return;
     }
 
+    if (selectedRecipients.length === 0) {
+      toast({
+        title: "오류",
+        description: "발송할 수신자를 선택해주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSendingResults(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-survey-results', {
-        body: { surveyId: selectedSurvey }
+        body: { 
+          surveyId: selectedSurvey,
+          recipients: selectedRecipients
+        }
       });
 
       if (error) throw error;
 
       toast({
         title: "성공",
-        description: "설문 결과가 성공적으로 전송되었습니다.",
+        description: `설문 결과가 ${selectedRecipients.length}명에게 성공적으로 전송되었습니다.`,
       });
+      
+      setEmailDialogOpen(false);
+      setSelectedRecipients([]);
     } catch (error: any) {
       console.error('Error sending results:', error);
       toast({
@@ -434,6 +453,29 @@ const SurveyResults = () => {
     } finally {
       setSendingResults(false);
     }
+  };
+
+  const openEmailDialog = () => {
+    if (!selectedSurvey) {
+      toast({
+        title: "오류",
+        description: "결과를 전송할 설문을 선택해주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // 기본적으로 관리자와 강사를 선택
+    setSelectedRecipients(['admin', 'instructor']);
+    setEmailDialogOpen(true);
+  };
+
+  const toggleRecipient = (recipientType: string) => {
+    setSelectedRecipients(prev => 
+      prev.includes(recipientType) 
+        ? prev.filter(r => r !== recipientType)
+        : [...prev, recipientType]
+    );
   };
 
   if (loading) {
@@ -621,6 +663,18 @@ const SurveyResults = () => {
                             <span className="hidden sm:inline ml-1">개별 통계</span>
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedSurvey(survey.id);
+                            openEmailDialog();
+                          }}
+                          className="touch-friendly"
+                        >
+                          <Mail className="h-4 w-4" />
+                          <span className="hidden sm:inline ml-1">결과 송부</span>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -640,6 +694,71 @@ const SurveyResults = () => {
               questions={questions}
             />
           )}
+
+          {/* 이메일 발송 다이얼로그 */}
+          <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>결과 이메일 발송</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <p className="text-sm text-muted-foreground">
+                  설문 결과를 받을 수신자를 선택해주세요:
+                </p>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="admin"
+                      checked={selectedRecipients.includes('admin')}
+                      onCheckedChange={() => toggleRecipient('admin')}
+                    />
+                    <label htmlFor="admin" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      관리자 및 운영자
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="instructor"
+                      checked={selectedRecipients.includes('instructor')}
+                      onCheckedChange={() => toggleRecipient('instructor')}
+                    />
+                    <label htmlFor="instructor" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      해당 강사
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="director"
+                      checked={selectedRecipients.includes('director')}
+                      onCheckedChange={() => toggleRecipient('director')}
+                    />
+                    <label htmlFor="director" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      조직장
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setEmailDialogOpen(false)}
+                    disabled={sendingResults}
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    onClick={handleSendResults}
+                    disabled={sendingResults || selectedRecipients.length === 0}
+                  >
+                    {sendingResults ? '발송 중...' : '발송'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </main>
     </div>

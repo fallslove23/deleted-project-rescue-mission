@@ -365,44 +365,44 @@ const TemplateManagement = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditQuestions(template.id)}
-                        className="touch-friendly text-xs h-9 px-2"
-                      >
-                        <FileText className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">편집</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDuplicate(template)}
-                        className="touch-friendly text-xs h-9 px-2"
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">복사</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(template)}
-                        className="touch-friendly text-xs h-9 px-2"
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">수정</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(template.id)}
-                        className="touch-friendly text-xs h-9 px-2"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">삭제</span>
-                      </Button>
-                    </div>
+                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={() => handleEditQuestions(template.id)}
+                         className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
+                       >
+                         <FileText className="h-3 w-3 sm:mr-1 flex-shrink-0" />
+                         <span className="hidden sm:inline truncate">편집</span>
+                       </Button>
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={() => handleDuplicate(template)}
+                         className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
+                       >
+                         <Copy className="h-3 w-3 sm:mr-1 flex-shrink-0" />
+                         <span className="hidden sm:inline truncate">복사</span>
+                       </Button>
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={() => handleEdit(template)}
+                         className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
+                       >
+                         <Edit className="h-3 w-3 sm:mr-1 flex-shrink-0" />
+                         <span className="hidden sm:inline truncate">수정</span>
+                       </Button>
+                       <Button
+                         variant="outline"
+                         size="sm"
+                         onClick={() => handleDelete(template.id)}
+                         className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
+                       >
+                         <Trash2 className="h-3 w-3 sm:mr-1 flex-shrink-0" />
+                         <span className="hidden sm:inline truncate">삭제</span>
+                       </Button>
+                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
