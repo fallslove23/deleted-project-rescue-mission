@@ -1,0 +1,290 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { TrendingUp, Calendar, Hash } from 'lucide-react';
+
+interface Survey {
+  id: string;
+  title: string;
+  education_year: number;
+  education_round: number;
+  status: string;
+  instructor_id: string;
+}
+
+interface SurveyResponse {
+  id: string;
+  survey_id: string;
+  submitted_at: string;
+}
+
+interface QuestionAnswer {
+  id: string;
+  question_id: string;
+  answer_text: string;
+  answer_value: any;
+  response_id: string;
+}
+
+interface SurveyQuestion {
+  id: string;
+  question_text: string;
+  question_type: string;
+  survey_id: string;
+}
+
+interface SurveyStatsByRoundProps {
+  instructorId?: string;
+}
+
+const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [responses, setResponses] = useState<SurveyResponse[]>([]);
+  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
+  const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, [instructorId]);
+
+  const fetchData = async () => {
+    try {
+      // 설문 데이터 가져오기
+      let surveyQuery = supabase.from('surveys').select('*');
+      if (instructorId) {
+        surveyQuery = surveyQuery.eq('instructor_id', instructorId);
+      }
+      
+      const { data: surveyData, error: surveyError } = await surveyQuery
+        .order('education_year', { ascending: false })
+        .order('education_round', { ascending: false });
+      
+      if (surveyError) throw surveyError;
+      setSurveys(surveyData || []);
+
+      if (surveyData && surveyData.length > 0) {
+        const surveyIds = surveyData.map(s => s.id);
+        
+        // 응답 데이터 가져오기
+        const { data: responseData, error: responseError } = await supabase
+          .from('survey_responses')
+          .select('*')
+          .in('survey_id', surveyIds);
+        
+        if (responseError) throw responseError;
+        setResponses(responseData || []);
+
+        // 질문 데이터 가져오기
+        const { data: questionData, error: questionError } = await supabase
+          .from('survey_questions')
+          .select('*')
+          .in('survey_id', surveyIds)
+          .eq('question_type', 'rating');
+        
+        if (questionError) throw questionError;
+        setQuestions(questionData || []);
+
+        // 답변 데이터 가져오기
+        if (responseData && responseData.length > 0) {
+          const responseIds = responseData.map(r => r.id);
+          const { data: answerData, error: answerError } = await supabase
+            .from('question_answers')
+            .select('*')
+            .in('response_id', responseIds);
+          
+          if (answerError) throw answerError;
+          setAnswers(answerData || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getUniqueYears = () => {
+    const years = [...new Set(surveys.map(s => s.education_year))];
+    return years.sort((a, b) => b - a);
+  };
+
+  const getFilteredSurveys = () => {
+    let filtered = surveys;
+    if (selectedYear && selectedYear !== '') {
+      filtered = filtered.filter(s => s.education_year.toString() === selectedYear);
+    }
+    return filtered;
+  };
+
+  const calculateRoundStats = () => {
+    const filteredSurveys = getFilteredSurveys();
+    const roundStats = {};
+
+    filteredSurveys.forEach(survey => {
+      const roundKey = `${survey.education_year}년 ${survey.education_round}차`;
+      
+      if (!roundStats[roundKey]) {
+        roundStats[roundKey] = {
+          round: roundKey,
+          surveys: 0,
+          responses: 0,
+          averageRating: 0,
+          totalRatings: 0,
+          ratingCount: 0
+        };
+      }
+
+      roundStats[roundKey].surveys += 1;
+      
+      // 해당 설문의 응답 수
+      const surveyResponses = responses.filter(r => r.survey_id === survey.id);
+      roundStats[roundKey].responses += surveyResponses.length;
+
+      // 해당 설문의 평점 계산
+      const surveyQuestions = questions.filter(q => q.survey_id === survey.id);
+      surveyQuestions.forEach(question => {
+        const questionAnswers = answers.filter(a => a.question_id === question.id);
+        const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+        
+        if (ratings.length > 0) {
+          roundStats[roundKey].totalRatings += ratings.reduce((sum, r) => sum + r, 0);
+          roundStats[roundKey].ratingCount += ratings.length;
+        }
+      });
+    });
+
+    // 평균 점수 계산
+    Object.keys(roundStats).forEach(key => {
+      if (roundStats[key].ratingCount > 0) {
+        roundStats[key].averageRating = parseFloat(
+          (roundStats[key].totalRatings / roundStats[key].ratingCount).toFixed(1)
+        );
+      }
+    });
+
+    return Object.values(roundStats);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div>로딩중...</div>
+      </div>
+    );
+  }
+
+  const roundStats = calculateRoundStats();
+  const years = getUniqueYears();
+
+  return (
+    <div className="space-y-6">
+      {/* 연도 선택 */}
+      <div className="flex gap-4 items-center flex-wrap">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4" />
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="연도 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">전체</SelectItem>
+              {years.map(year => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}년
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* 회차별 통계 차트 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            회차별 만족도 추이
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {roundStats.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart data={roundStats}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="round" 
+                    fontSize={12}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    domain={[0, 5]}
+                    tickCount={6}
+                    fontSize={12}
+                  />
+                  <Tooltip />
+                  <Legend />
+                  <Bar 
+                    dataKey="averageRating" 
+                    fill="#8884d8" 
+                    name="평균 만족도"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              표시할 데이터가 없습니다.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 회차별 상세 통계 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {(roundStats as any[]).map((stat: any, index) => (
+          <Card key={index}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Hash className="h-4 w-4" />
+                {stat.round}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">설문 수:</span>
+                <span className="font-medium">{stat.surveys}개</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">총 응답:</span>
+                <span className="font-medium">{stat.responses}건</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">평균 만족도:</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{stat.averageRating}</span>
+                  <Badge 
+                    variant={stat.averageRating >= 4 ? 'default' : stat.averageRating >= 3 ? 'secondary' : 'destructive'}
+                    className="text-xs"
+                  >
+                    {stat.averageRating >= 4 ? '우수' : stat.averageRating >= 3 ? '보통' : '개선필요'}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default SurveyStatsByRound;

@@ -14,6 +14,7 @@ import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Respons
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import InstructorIndividualStats from '@/components/InstructorIndividualStats';
+import SurveyStatsByRound from '@/components/SurveyStatsByRound';
 
 interface Survey {
   id: string;
@@ -683,16 +684,44 @@ const SurveyResults = () => {
             </CardContent>
           </Card>
 
-          {/* 개별 통계 (관리자/매니저만) */}
-          {canViewAll && selectedSurvey && (
-            <InstructorIndividualStats 
-              allInstructors={allInstructors}
-              getFilteredSurveys={getFilteredSurveys}
-              setSelectedSurvey={setSelectedSurvey}
-              selectedSurvey={selectedSurvey}
-              answers={answers}
-              questions={questions}
-            />
+          {/* 선택된 설문 분석 */}
+          {selectedSurvey && (
+            <Card>
+              <CardHeader>
+                <CardTitle>선택된 설문 분석</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="overview" className="space-y-4">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="overview" className="text-sm">전체 분석</TabsTrigger>
+                    <TabsTrigger value="round-stats" className="text-sm">회차별 통계</TabsTrigger>
+                    <TabsTrigger value="individual" className="text-sm">개별 통계</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="overview" className="space-y-4">
+                    {/* 기존 전체 분석 내용 */}
+                    <SurveyStatsByRound instructorId={profile?.instructor_id} />
+                  </TabsContent>
+
+                  <TabsContent value="round-stats" className="space-y-4">
+                    <SurveyStatsByRound instructorId={profile?.instructor_id} />
+                  </TabsContent>
+
+                  <TabsContent value="individual" className="space-y-4">
+                    {canViewAll && (
+                      <InstructorIndividualStats 
+                        allInstructors={allInstructors}
+                        getFilteredSurveys={getFilteredSurveys}
+                        setSelectedSurvey={setSelectedSurvey}
+                        selectedSurvey={selectedSurvey}
+                        answers={answers}
+                        questions={questions}
+                      />
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
           )}
 
           {/* 이메일 발송 다이얼로그 */}
