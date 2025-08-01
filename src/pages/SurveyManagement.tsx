@@ -414,16 +414,17 @@ const SurveyManagement = () => {
           </div>
             </CardContent>
           </Card>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-lg sm:text-xl font-bold break-words">설문조사 목록</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="touch-friendly text-sm w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="break-words">새 설문조사</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h2 className="text-lg sm:text-xl font-bold break-words">설문조사 목록</h2>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="touch-friendly text-sm w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="break-words">새 설문조사</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>새 설문조사 만들기</DialogTitle>
             </DialogHeader>
@@ -539,9 +540,9 @@ const SurveyManagement = () => {
                 <Button type="submit">생성</Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogContent>
+          </Dialog>
+        </div>
 
       <div className="grid gap-4">
         {surveys.map((survey) => {
@@ -668,6 +669,7 @@ const SurveyManagement = () => {
           );
         })}
           </div>
+        </div>
         </div>
       </main>
 

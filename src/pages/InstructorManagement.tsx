@@ -601,7 +601,7 @@ const InstructorManagement = () => {
           </div>
           
           {/* 액션 버튼 */}
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             {currentView === 'courses' && (
               <Button 
                 onClick={() => {
@@ -610,34 +610,36 @@ const InstructorManagement = () => {
                   setNewCourseDescription('');
                   setIsCourseDialogOpen(true);
                 }}
-                className="touch-friendly text-xs sm:text-sm flex-1"
+                className="touch-friendly text-xs sm:text-sm w-full"
               >
-                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                 새 과목 추가
               </Button>
             )}
             {currentView === 'instructors' && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
-                <Button onClick={openAddDialog} className="touch-friendly text-xs sm:text-sm">
+              <div className="grid grid-cols-1 gap-2 w-full">
+                <Button onClick={openAddDialog} className="touch-friendly text-xs sm:text-sm w-full">
                   <UserPlus className="h-4 w-4 mr-2" />
                   새 강사 추가
                 </Button>
-                <Button 
-                  onClick={handleSyncAllInstructors} 
-                  variant="outline"
-                  className="touch-friendly text-xs sm:text-sm"
-                >
-                  <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  계정 동기화
-                </Button>
-                <Button 
-                  onClick={() => setCurrentView('courses')}
-                  variant="secondary"
-                  className="touch-friendly text-xs sm:text-sm"
-                >
-                  <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  과목 관리
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    onClick={handleSyncAllInstructors} 
+                    variant="outline"
+                    className="touch-friendly text-xs sm:text-sm w-full"
+                  >
+                    <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    계정 동기화
+                  </Button>
+                  <Button 
+                    onClick={() => setCurrentView('courses')}
+                    variant="secondary"
+                    className="touch-friendly text-xs sm:text-sm w-full"
+                  >
+                    <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    과목 관리
+                  </Button>
+                </div>
               </div>
             )}
           </div>
