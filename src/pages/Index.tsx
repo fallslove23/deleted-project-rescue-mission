@@ -36,34 +36,33 @@ const Index = () => {
     fetchTodaysSurveys();
   }, []);
 
-  const fetchTodaysSurveys = async () => {
-    try {
-      console.log('Fetching surveys...');
-      
-      // 현재 한국 시간 기준으로 오늘 날짜 범위 설정
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      
-      const { data, error } = await supabase
-        .from('surveys')
-        .select('*')
-        .eq('status', 'active')
-        .lte('start_date', todayEnd.toISOString())
-        .gte('end_date', todayStart.toISOString())
-        .order('education_year', { ascending: false })
-        .order('education_round', { ascending: false });
+   const fetchTodaysSurveys = async () => {
+     try {
+       console.log('Fetching surveys...');
+       
+       // 현재 한국 시간(UTC+9) 기준으로 현재 시각 구하기
+       const now = new Date();
+       const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+       
+       const { data, error } = await supabase
+         .from('surveys')
+         .select('*')
+         .eq('status', 'active')
+         .lte('start_date', kstNow.toISOString())
+         .gte('end_date', kstNow.toISOString())
+         .order('education_year', { ascending: false })
+         .order('education_round', { ascending: false });
 
-      console.log('Fetched surveys:', data);
-      
-      if (error) throw error;
-      setSurveys(data || []);
-    } catch (error) {
-      console.error('Error fetching surveys:', error);
-    } finally {
-      setLoadingSurveys(false);
-    }
-  };
+       console.log('Fetched surveys:', data);
+       
+       if (error) throw error;
+       setSurveys(data || []);
+     } catch (error) {
+       console.error('Error fetching surveys:', error);
+     } finally {
+       setLoadingSurveys(false);
+     }
+   };
 
   const groupSurveysByRound = (surveys: Survey[]) => {
     const grouped = surveys.reduce((acc, survey) => {
@@ -137,14 +136,22 @@ const Index = () => {
                           <FileText className="h-4 w-4 mr-2" />
                           설문조사 관리
                         </Button>
-                        <Button 
-                          onClick={() => navigate('/dashboard/results')}
-                          className="w-full justify-start"
-                          variant="outline"
-                        >
-                          <BarChart className="h-4 w-4 mr-2" />
-                          결과 분석
-                        </Button>
+                         <Button 
+                           onClick={() => navigate('/dashboard/results')}
+                           className="w-full justify-start"
+                           variant="outline"
+                         >
+                           <BarChart className="h-4 w-4 mr-2" />
+                           결과 분석
+                         </Button>
+                         <Button 
+                           onClick={() => navigate('/')}
+                           className="w-full justify-start"
+                           variant="outline"
+                         >
+                           <FileText className="h-4 w-4 mr-2" />
+                           설문 리스트
+                         </Button>
                         <Button 
                           onClick={() => navigate('/dashboard/templates')}
                           className="w-full justify-start"
@@ -256,12 +263,24 @@ const Index = () => {
                       </CardHeader>
                       <CardContent className="pt-0">
                         <div className="space-y-3">
-                          <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                            <Clock className="h-4 w-4 shrink-0" />
-                            <span className="text-xs truncate break-all">
-                              {new Date(survey.start_date).toLocaleDateString('ko-KR')} ~ {new Date(survey.end_date).toLocaleDateString('ko-KR')}
-                            </span>
-                          </div>
+                           <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                             <Clock className="h-4 w-4 shrink-0" />
+                             <span className="text-xs truncate break-all">
+                               {new Date(survey.start_date).toLocaleString('ko-KR', { 
+                                 year: 'numeric', 
+                                 month: 'short', 
+                                 day: 'numeric', 
+                                 hour: '2-digit', 
+                                 minute: '2-digit' 
+                               })} ~ {new Date(survey.end_date).toLocaleString('ko-KR', { 
+                                 year: 'numeric', 
+                                 month: 'short', 
+                                 day: 'numeric', 
+                                 hour: '2-digit', 
+                                 minute: '2-digit' 
+                               })}
+                             </span>
+                           </div>
                           <Button 
                             className="w-full group-hover:bg-primary/90 transition-colors touch-friendly"
                             onClick={() => navigate(`/survey/${survey.id}`)}

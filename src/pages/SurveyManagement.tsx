@@ -466,28 +466,28 @@ const SurveyManagement = () => {
                     className="touch-friendly"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="start_date">시작일</Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                    required
-                    className="touch-friendly"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="end_date">종료일</Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                    required
-                    className="touch-friendly"
-                  />
-                </div>
+                 <div>
+                   <Label htmlFor="start_date">시작일시</Label>
+                   <Input
+                     id="start_date"
+                     type="datetime-local"
+                     value={formData.start_date}
+                     onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                     required
+                     className="touch-friendly"
+                   />
+                 </div>
+                 <div>
+                   <Label htmlFor="end_date">종료일시</Label>
+                   <Input
+                     id="end_date"
+                     type="datetime-local"
+                     value={formData.end_date}
+                     onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                     required
+                     className="touch-friendly"
+                   />
+                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -623,15 +623,15 @@ const SurveyManagement = () => {
                       </Button>
                     )}
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/survey-results/${survey.id}`)}
-                      className="touch-friendly text-xs h-9 px-2"
-                    >
-                      <FileText className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">결과</span>
-                    </Button>
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => navigate(`/dashboard/results`)}
+                       className="touch-friendly text-xs h-9 px-2"
+                     >
+                       <FileText className="h-3 w-3 mr-1" />
+                       <span className="hidden sm:inline">결과</span>
+                     </Button>
                     
                     <Button
                       variant="outline"

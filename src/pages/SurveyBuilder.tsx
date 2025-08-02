@@ -184,8 +184,8 @@ const SurveyBuilder = () => {
         description: surveyData.description || '',
         education_year: surveyData.education_year || new Date().getFullYear(),
         education_round: surveyData.education_round || 1,
-        start_date: surveyData.start_date ? surveyData.start_date.slice(0, 16) : '',
-        end_date: surveyData.end_date ? surveyData.end_date.slice(0, 16) : '',
+         start_date: surveyData.start_date ? new Date(surveyData.start_date).toLocaleString('sv-SE').slice(0, 16) : '',
+         end_date: surveyData.end_date ? new Date(surveyData.end_date).toLocaleString('sv-SE').slice(0, 16) : '',
         status: surveyData.status || 'draft'
       });
 
@@ -469,8 +469,8 @@ const SurveyBuilder = () => {
         description: surveyForm.description,
         education_year: surveyForm.education_year,
         education_round: surveyForm.education_round,
-        start_date: surveyForm.start_date ? new Date(surveyForm.start_date).toISOString() : null,
-        end_date: surveyForm.end_date ? new Date(surveyForm.end_date).toISOString() : null,
+         start_date: surveyForm.start_date ? new Date(surveyForm.start_date + '+09:00').toISOString() : null,
+         end_date: surveyForm.end_date ? new Date(surveyForm.end_date + '+09:00').toISOString() : null,
         status: surveyForm.status,
         updated_at: new Date().toISOString()
       };
