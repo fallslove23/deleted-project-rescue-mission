@@ -41,6 +41,11 @@ const App = () => (
               </>
             } />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/default-redirect" element={
+              <ProtectedRoute>
+                <DefaultRedirect />
+              </ProtectedRoute>
+            } />
             <Route path="/change-password" element={
               <ProtectedRoute>
                 <ChangePassword />

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import LoadingScreen from './LoadingScreen';
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
@@ -30,11 +31,7 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo = '/dashboard' }: R
   }, [userRoles, loading, allowedRoles, navigate]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>로딩중...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const hasAccess = allowedRoles.some(role => userRoles.includes(role));

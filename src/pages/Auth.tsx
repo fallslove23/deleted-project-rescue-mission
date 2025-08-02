@@ -44,8 +44,8 @@ const Auth = () => {
             description: "비밀번호를 변경해주세요.",
           });
         } else {
-          // Normal login
-          navigate('/dashboard');
+          // Normal login - force page reload to ensure proper redirect
+          window.location.href = '/default-redirect';
           toast({
             title: "로그인 성공",
             description: "대시보드로 이동합니다.",

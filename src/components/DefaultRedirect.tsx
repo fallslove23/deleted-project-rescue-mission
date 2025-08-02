@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import LoadingScreen from './LoadingScreen';
 
 const DefaultRedirect = () => {
   const { userRoles, loading } = useAuth();
@@ -18,11 +19,7 @@ const DefaultRedirect = () => {
   }, [userRoles, loading, navigate]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>로딩중...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return null;

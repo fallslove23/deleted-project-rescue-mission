@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import LoadingScreen from './LoadingScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -38,11 +39,7 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo }: ProtectedRoutePr
   }, [user, userRoles, loading, navigate, allowedRoles, redirectTo]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>로딩중...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {

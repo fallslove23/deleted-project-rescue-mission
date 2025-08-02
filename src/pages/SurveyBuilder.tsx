@@ -998,13 +998,14 @@ const SurveyBuilder = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-medium">강사 정보</h3>
-                  <Dialog open={isInstructorDialogOpen} onOpenChange={setIsInstructorDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-2" />
-                        변경
-                      </Button>
-                    </DialogTrigger>
+                  {survey.status !== 'completed' && (
+                    <Dialog open={isInstructorDialogOpen} onOpenChange={setIsInstructorDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Edit className="h-4 w-4 mr-2" />
+                          변경
+                        </Button>
+                      </DialogTrigger>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
                         <DialogTitle>강사 변경</DialogTitle>
@@ -1039,6 +1040,12 @@ const SurveyBuilder = () => {
                       </form>
                     </DialogContent>
                   </Dialog>
+                  )}
+                  {survey.status === 'completed' && (
+                    <Badge variant="secondary" className="text-xs">
+                      과정 종료
+                    </Badge>
+                  )}
                 </div>
                 {instructor ? (
                   <div className="flex items-center space-x-4">
