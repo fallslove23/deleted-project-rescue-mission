@@ -44,16 +44,23 @@ const Index = () => {
        const now = new Date();
        const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
        
+       console.log('Current KST time:', kstNow.toISOString());
+       
        const { data, error } = await supabase
          .from('surveys')
          .select('*')
          .eq('status', 'active')
-         .lte('start_date', kstNow.toISOString())
-         .gte('end_date', kstNow.toISOString())
+         .lte('start_date', kstNow.toISOString())  // 시작일이 현재 시간보다 이전이거나 같아야 함
+         .gte('end_date', kstNow.toISOString())    // 종료일이 현재 시간보다 이후이거나 같아야 함
          .order('education_year', { ascending: false })
          .order('education_round', { ascending: false });
 
        console.log('Fetched surveys:', data);
+       console.log('Query conditions:', {
+         status: 'active',
+         start_date_lte: kstNow.toISOString(),
+         end_date_gte: kstNow.toISOString()
+       });
        
        if (error) throw error;
        setSurveys(data || []);
