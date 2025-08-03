@@ -46,6 +46,7 @@ const InstructorManagement = () => {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
+  const [instructorRoles, setInstructorRoles] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
@@ -84,6 +85,9 @@ const InstructorManagement = () => {
       setInstructors(instructorsRes.data || []);
       setCourses(coursesRes.data || []);
       setInstructorCourses(instructorCoursesRes.data || []);
+
+      // 강사별 역할 정보 조회
+      await fetchInstructorRoles();
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -93,6 +97,39 @@ const InstructorManagement = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInstructorRoles = async () => {
+    try {
+      // user_roles를 먼저 조회하고 profiles와 매칭
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, instructor_id')
+        .not('instructor_id', 'is', null);
+
+      if (profilesError) throw profilesError;
+
+      const rolesByInstructor: Record<string, string[]> = {};
+      
+      profiles?.forEach(profile => {
+        if (profile.instructor_id) {
+          const userRolesList = userRoles?.filter(ur => ur.user_id === profile.id);
+          if (userRolesList && userRolesList.length > 0) {
+            rolesByInstructor[profile.instructor_id] = userRolesList.map(ur => ur.role);
+          }
+        }
+      });
+
+      setInstructorRoles(rolesByInstructor);
+    } catch (error) {
+      console.error('Error fetching instructor roles:', error);
     }
   };
 
@@ -707,9 +744,14 @@ const InstructorManagement = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {instructors.length > 0 ? Math.round((courses.length / instructors.length) * 10) / 10 : 0}
+                  {(() => {
+                    const realInstructors = instructors.filter(instructor => 
+                      instructorRoles[instructor.id]?.includes('instructor')
+                    ).length;
+                    return realInstructors > 0 ? Math.round((courses.length / realInstructors) * 10) / 10 : 0;
+                  })()}
                 </div>
-                <p className="text-xs text-muted-foreground">강사당 과목 수</p>
+                <p className="text-xs text-muted-foreground">실제 강사당 과목 수</p>
               </CardContent>
             </Card>
           </div>
@@ -772,20 +814,42 @@ const InstructorManagement = () => {
                           </p>
                         )}
                         
-                        <div>
-                          <Label className="text-sm font-medium">담당 과목</Label>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {instructorCourses.length > 0 ? (
-                              instructorCourses.map((course) => (
-                                <Badge key={course.id} variant="secondary" className="text-xs break-words">
-                                  {course.title}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-xs text-muted-foreground">담당 과목 없음</span>
-                            )}
-                          </div>
-                        </div>
+                         <div>
+                           <Label className="text-sm font-medium">역할</Label>
+                           <div className="flex flex-wrap gap-1 mt-1">
+                             {instructorRoles[instructor.id]?.length > 0 ? (
+                               instructorRoles[instructor.id].map((role) => (
+                                 <Badge 
+                                   key={role} 
+                                   variant={role === 'instructor' ? 'default' : 'outline'} 
+                                   className="text-xs break-words"
+                                 >
+                                   {role === 'instructor' ? '강사' : 
+                                    role === 'admin' ? '관리자' : 
+                                    role === 'director' ? '조직장' : 
+                                    role === 'operator' ? '운영' : role}
+                                 </Badge>
+                               ))
+                             ) : (
+                               <span className="text-xs text-muted-foreground">역할 없음</span>
+                             )}
+                           </div>
+                         </div>
+                         
+                         <div>
+                           <Label className="text-sm font-medium">담당 과목</Label>
+                           <div className="flex flex-wrap gap-1 mt-1">
+                             {instructorCourses.length > 0 ? (
+                               instructorCourses.map((course) => (
+                                 <Badge key={course.id} variant="secondary" className="text-xs break-words">
+                                   {course.title}
+                                 </Badge>
+                               ))
+                             ) : (
+                               <span className="text-xs text-muted-foreground">담당 과목 없음</span>
+                             )}
+                           </div>
+                         </div>
                         
                         <div className="flex gap-2">
                           <Button 

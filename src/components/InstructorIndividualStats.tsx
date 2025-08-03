@@ -53,6 +53,10 @@ interface Props {
   questions: SurveyQuestion[];
 }
 
+interface InstructorWithRoles extends Instructor {
+  roles?: string[];
+}
+
 const InstructorIndividualStats = ({
   allInstructors,
   getFilteredSurveys,
@@ -66,6 +70,52 @@ const InstructorIndividualStats = ({
   const [viewType, setViewType] = useState<'monthly' | 'yearly' | 'round' | 'half-yearly' | 'quarterly'>('yearly');
   const [instructorResponses, setInstructorResponses] = useState<any[]>([]);
   const [showSurveyDetails, setShowSurveyDetails] = useState<string>('');
+  const [instructorsWithRoles, setInstructorsWithRoles] = useState<InstructorWithRoles[]>([]);
+
+  // 강사별 역할 정보 로드
+  useEffect(() => {
+    const loadInstructorRoles = async () => {
+      try {
+        const { data: userRoles, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('user_id, role');
+
+        if (rolesError) throw rolesError;
+
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, instructor_id')
+          .not('instructor_id', 'is', null);
+
+        if (profilesError) throw profilesError;
+
+        const rolesByInstructor: Record<string, string[]> = {};
+        
+        profiles?.forEach(profile => {
+          if (profile.instructor_id) {
+            const userRolesList = userRoles?.filter(ur => ur.user_id === profile.id);
+            if (userRolesList && userRolesList.length > 0) {
+              rolesByInstructor[profile.instructor_id] = userRolesList.map(ur => ur.role);
+            }
+          }
+        });
+
+        const instructorsWithRoles = allInstructors.map(instructor => ({
+          ...instructor,
+          roles: rolesByInstructor[instructor.id] || []
+        }));
+
+        setInstructorsWithRoles(instructorsWithRoles);
+      } catch (error) {
+        console.error('Error loading instructor roles:', error);
+        setInstructorsWithRoles(allInstructors.map(instructor => ({ ...instructor, roles: [] })));
+      }
+    };
+
+    if (allInstructors.length > 0) {
+      loadInstructorRoles();
+    }
+  }, [allInstructors]);
 
   // 로그인한 사용자가 강사인 경우 자동 선택
   useEffect(() => {
@@ -76,14 +126,14 @@ const InstructorIndividualStats = ({
         // 현재 로그인한 사용자의 프로필 조회
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('instructor_id, role')
+          .select('instructor_id')
           .eq('id', user.id)
           .single();
 
         if (error || !profile) return;
 
-        // 사용자가 강사이고 instructor_id가 있는 경우
-        if (profile.role === 'instructor' && profile.instructor_id) {
+        // 사용자에게 instructor_id가 있는 경우
+        if (profile.instructor_id) {
           // 해당 강사가 통계에 있는지 확인
           const hasInstructorSurveys = getFilteredSurveys().some(s => s.instructor_id === profile.instructor_id);
           if (hasInstructorSurveys) {
@@ -96,7 +146,7 @@ const InstructorIndividualStats = ({
     };
 
     autoSelectInstructor();
-  }, [user, allInstructors, getFilteredSurveys, selectedInstructorDetail]);
+  }, [user, instructorsWithRoles, getFilteredSurveys, selectedInstructorDetail]);
 
   // 강사별 누적 평점 계산
   const getInstructorRatings = (instructorId: string) => {
@@ -329,13 +379,25 @@ const InstructorIndividualStats = ({
               <SelectValue placeholder="강사를 선택하세요" />
             </SelectTrigger>
             <SelectContent className="bg-background z-50">
-              {allInstructors.filter(instructor => 
-                getFilteredSurveys().some(s => s.instructor_id === instructor.id)
-              ).map(instructor => (
-                <SelectItem key={instructor.id} value={instructor.id} className="break-words">
-                  {instructor.name} {instructor.email && `(${instructor.email})`}
-                </SelectItem>
-              ))}
+              {instructorsWithRoles
+                .filter(instructor => 
+                  instructor.roles?.includes('instructor') &&
+                  getFilteredSurveys().some(s => s.instructor_id === instructor.id)
+                )
+                .map(instructor => (
+                  <SelectItem key={instructor.id} value={instructor.id} className="break-words">
+                    {instructor.name} {instructor.email && `(${instructor.email})`}
+                    <div className="text-xs text-muted-foreground ml-2">
+                      {instructor.roles?.map(role => 
+                        role === 'instructor' ? '강사' : 
+                        role === 'admin' ? '관리자' : 
+                        role === 'director' ? '조직장' : 
+                        role === 'operator' ? '운영' : role
+                      ).join(', ')}
+                    </div>
+                  </SelectItem>
+                ))
+              }
             </SelectContent>
           </Select>
         </CardContent>
@@ -344,7 +406,7 @@ const InstructorIndividualStats = ({
       {selectedInstructorDetail && (
         <>
           {(() => {
-            const instructor = allInstructors.find(i => i.id === selectedInstructorDetail);
+            const instructor = instructorsWithRoles.find(i => i.id === selectedInstructorDetail);
             const instructorSurveys = getFilteredSurveys().filter(s => s.instructor_id === selectedInstructorDetail);
             const ratings = getInstructorRatings(selectedInstructorDetail);
             const timeSeriesData = getTimeSeriesData(selectedInstructorDetail);
