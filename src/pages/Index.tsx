@@ -24,6 +24,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loadingSurveys, setLoadingSurveys] = useState(true);
+  const [showAllSurveys, setShowAllSurveys] = useState(false);
 
   // 로그인된 사용자도 랜딩 페이지에 유지 (관리자는 햄버거 메뉴에서 대시보드로)
   // useEffect(() => {
@@ -33,8 +34,12 @@ const Index = () => {
   // }, [user, loading, navigate]);
 
   useEffect(() => {
-    fetchTodaysSurveys();
-  }, []);
+    if (showAllSurveys) {
+      fetchAllSurveys();
+    } else {
+      fetchTodaysSurveys();
+    }
+  }, [showAllSurveys]);
 
    const fetchTodaysSurveys = async () => {
      try {
@@ -66,6 +71,29 @@ const Index = () => {
        setSurveys(data || []);
      } catch (error) {
        console.error('Error fetching surveys:', error);
+     } finally {
+       setLoadingSurveys(false);
+     }
+   };
+
+   const fetchAllSurveys = async () => {
+     try {
+       console.log('Fetching all surveys...');
+       
+       const { data, error } = await supabase
+         .from('surveys')
+         .select('*')
+         .eq('status', 'active')
+         .order('education_year', { ascending: false })
+         .order('education_round', { ascending: false })
+         .order('created_at', { ascending: false });
+
+       console.log('Fetched all surveys:', data);
+       
+       if (error) throw error;
+       setSurveys(data || []);
+     } catch (error) {
+       console.error('Error fetching all surveys:', error);
      } finally {
        setLoadingSurveys(false);
      }
@@ -200,21 +228,36 @@ const Index = () => {
             </Sheet>
           </div>
           
-          <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-12">
+          <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-4">
             <h1 className="text-base md:text-2xl font-bold text-primary text-center truncate">BS/SS 교육과정</h1>
             <p className="text-xs md:text-sm text-muted-foreground text-center truncate">교육생 피드백 시스템</p>
           </div>
           
-          <div className="w-8 md:w-10"></div> {/* Right spacer for balance */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showAllSurveys ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setShowAllSurveys(!showAllSurveys);
+                setLoadingSurveys(true);
+              }}
+              className="text-xs px-2 py-1 h-8"
+            >
+              <FileText className="h-3 w-3 mr-1" />
+              {showAllSurveys ? "오늘" : "전체"}
+            </Button>
+          </div>
         </div>
       </header>
 
       {/* Main content */}
       <main className="container mx-auto px-4 py-6 md:py-8 min-h-screen">
         <div className="mb-6 md:mb-8 text-center">
-          <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">📝 오늘의 설문조사</h2>
+          <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">
+            {showAllSurveys ? "📝 전체 설문조사" : "📝 오늘의 설문조사"}
+          </h2>
           <p className="text-muted-foreground text-sm md:text-base break-words">
-            진행 중인 설문조사에 참여해 주세요
+            {showAllSurveys ? "모든 활성 설문조사를 확인하세요" : "진행 중인 설문조사에 참여해 주세요"}
           </p>
         </div>
 
@@ -226,9 +269,14 @@ const Index = () => {
           <div className="text-center py-16 px-4">
             <div className="bg-muted/30 rounded-2xl p-8 max-w-md mx-auto">
               <Calendar className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-lg md:text-xl font-semibold mb-2">진행 중인 설문조사가 없습니다</h3>
+              <h3 className="text-lg md:text-xl font-semibold mb-2">
+                {showAllSurveys ? "활성 설문조사가 없습니다" : "진행 중인 설문조사가 없습니다"}
+              </h3>
               <p className="text-muted-foreground text-sm md:text-base">
-                현재 활성화된 설문조사가 없습니다<br />
+                {showAllSurveys 
+                  ? "현재 활성화된 설문조사가 없습니다" 
+                  : "현재 진행 중인 설문조사가 없습니다"
+                }<br />
                 새로운 설문조사가 시작되면 알려드릴게요! 📢
               </p>
             </div>
@@ -258,9 +306,21 @@ const Index = () => {
                           <CardTitle className="text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2 break-words hyphens-auto">
                             {survey.title}
                           </CardTitle>
-                          <Badge variant="secondary" className="text-xs shrink-0">
-                            진행중
-                          </Badge>
+                           <Badge variant="secondary" className="text-xs shrink-0">
+                             {showAllSurveys ? (
+                               // 전체 보기에서는 현재 시간 기준으로 상태 표시
+                               (() => {
+                                 const now = new Date();
+                                 const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+                                 const startDate = new Date(survey.start_date);
+                                 const endDate = new Date(survey.end_date);
+                                 
+                                 if (kstNow < startDate) return "시작 예정";
+                                 if (kstNow > endDate) return "종료";
+                                 return "진행중";
+                               })()
+                             ) : "진행중"}
+                           </Badge>
                         </div>
                         {survey.description && (
                           <p className="text-sm text-muted-foreground line-clamp-2 mt-2 break-words hyphens-auto">
