@@ -55,7 +55,7 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
                   {user?.email}
                 </span>
 
-                {/* 메인 Button */}
+                {/* 교육생 화면 Button */}
                 <Button
                   onClick={() => navigate('/')}
                   variant="ghost"
@@ -63,7 +63,7 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
                   className="h-8 px-2 text-xs"
                 >
                   <Home className="h-3 w-3 sm:mr-1" />
-                  <span className="hidden sm:inline">메인</span>
+                  <span className="hidden sm:inline">교육생 화면</span>
                 </Button>
 
                 {/* Activity Popover */}

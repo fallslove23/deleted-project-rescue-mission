@@ -226,7 +226,7 @@ const SurveyParticipate = () => {
           survey_id: surveyId,
           respondent_email: null // 익명 설문
         })
-        .select()
+        .select('id')
         .single();
 
       if (responseError) throw responseError;

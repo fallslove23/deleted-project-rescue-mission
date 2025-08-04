@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +66,14 @@ const InstructorManagement = () => {
     bio: '',
     photo_url: ''
   });
+
+  const [roleEditDialog, setRoleEditDialog] = useState(false);
+  const [editingInstructorRoles, setEditingInstructorRoles] = useState<{
+    instructorId: string;
+    instructorName: string;
+    currentRoles: string[];
+  } | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -130,6 +139,91 @@ const InstructorManagement = () => {
       setInstructorRoles(rolesByInstructor);
     } catch (error) {
       console.error('Error fetching instructor roles:', error);
+    }
+  };
+
+  const canEditRoles = () => {
+    return user?.email === 'sethetrend87@osstem.com';
+  };
+
+  const handleOpenRoleDialog = (instructor: Instructor) => {
+    const currentRoles = instructorRoles[instructor.id] || [];
+    setEditingInstructorRoles({
+      instructorId: instructor.id,
+      instructorName: instructor.name,
+      currentRoles
+    });
+    setSelectedRoles(currentRoles);
+    setRoleEditDialog(true);
+  };
+
+  const handleRoleChange = (role: string, checked: boolean) => {
+    if (checked) {
+      setSelectedRoles(prev => [...prev, role]);
+    } else {
+      setSelectedRoles(prev => prev.filter(r => r !== role));
+    }
+  };
+
+  const handleSaveRoles = async () => {
+    if (!editingInstructorRoles || !canEditRoles()) return;
+
+    try {
+      // 해당 강사의 사용자 ID 찾기
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('instructor_id', editingInstructorRoles.instructorId)
+        .single();
+
+      if (profileError || !profile) {
+        toast({
+          title: "오류",
+          description: "강사의 사용자 정보를 찾을 수 없습니다.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // 기존 역할 삭제
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', profile.id);
+
+      if (deleteError) throw deleteError;
+
+      // 새 역할 추가
+      if (selectedRoles.length > 0) {
+        const roleInserts = selectedRoles.map(role => ({
+          user_id: profile.id,
+          role: role as 'operator' | 'instructor' | 'admin' | 'director'
+        }));
+
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert(roleInserts);
+
+        if (insertError) throw insertError;
+      }
+
+      // 데이터 새로고침
+      await fetchInstructorRoles();
+
+      toast({
+        title: "성공",
+        description: "역할이 업데이트되었습니다."
+      });
+
+      setRoleEditDialog(false);
+      setEditingInstructorRoles(null);
+    } catch (error) {
+      console.error('Error updating roles:', error);
+      toast({
+        title: "오류",
+        description: "역할 업데이트 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -814,8 +908,21 @@ const InstructorManagement = () => {
                           </p>
                         )}
                         
-                         <div>
-                           <Label className="text-sm font-medium">역할</Label>
+                          <div>
+                           <div className="flex items-center justify-between">
+                             <Label className="text-sm font-medium">역할</Label>
+                             {canEditRoles() && (
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => handleOpenRoleDialog(instructor)}
+                                 className="h-6 px-2 text-xs"
+                               >
+                                 <Edit className="h-3 w-3 mr-1" />
+                                 수정
+                               </Button>
+                             )}
+                           </div>
                            <div className="flex flex-wrap gap-1 mt-1">
                              {instructorRoles[instructor.id]?.length > 0 ? (
                                instructorRoles[instructor.id].map((role) => (
@@ -1352,6 +1459,45 @@ const InstructorManagement = () => {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 역할 수정 다이얼로그 */}
+        <Dialog open={roleEditDialog} onOpenChange={setRoleEditDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>역할 관리</DialogTitle>
+              <DialogDescription>
+                {editingInstructorRoles?.instructorName}의 역할을 수정합니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                {['instructor', 'admin', 'director', 'operator'].map((role) => (
+                  <div key={role} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={role}
+                      checked={selectedRoles.includes(role)}
+                      onCheckedChange={(checked) => handleRoleChange(role, checked as boolean)}
+                    />
+                    <Label htmlFor={role} className="text-sm">
+                      {role === 'instructor' ? '강사' : 
+                       role === 'admin' ? '관리자' : 
+                       role === 'director' ? '조직장' : 
+                       role === 'operator' ? '운영' : role}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setRoleEditDialog(false)}>
+                  취소
+                </Button>
+                <Button onClick={handleSaveRoles}>
+                  저장
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </main>
