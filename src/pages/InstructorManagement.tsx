@@ -169,34 +169,55 @@ const InstructorManagement = () => {
     if (!editingInstructorRoles || !canEditRoles()) return;
 
     try {
-      // 해당 강사의 사용자 ID 찾기
+      // 해당 강사의 사용자 ID 찾기 또는 생성
+      let profileId = null;
+      
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('instructor_id', editingInstructorRoles.instructorId)
         .single();
 
-      if (profileError || !profile) {
-        toast({
-          title: "오류",
-          description: "강사의 사용자 정보를 찾을 수 없습니다.",
-          variant: "destructive"
-        });
-        return;
+      if (profileError && profileError.code === 'PGRST116') {
+        // 프로필이 없으면 임시 생성
+        const instructor = instructors.find(i => i.id === editingInstructorRoles.instructorId);
+        if (!instructor) {
+          throw new Error('강사 정보를 찾을 수 없습니다.');
+        }
+        
+        const tempUserId = crypto.randomUUID();
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: tempUserId,
+            email: instructor.email,
+            instructor_id: editingInstructorRoles.instructorId,
+            role: 'instructor',
+            first_login: true
+          })
+          .select('id')
+          .single();
+          
+        if (createError) throw createError;
+        profileId = newProfile.id;
+      } else if (profile) {
+        profileId = profile.id;
+      } else {
+        throw profileError;
       }
 
       // 기존 역할 삭제
       const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
-        .eq('user_id', profile.id);
+        .eq('user_id', profileId);
 
       if (deleteError) throw deleteError;
 
       // 새 역할 추가
       if (selectedRoles.length > 0) {
         const roleInserts = selectedRoles.map(role => ({
-          user_id: profile.id,
+          user_id: profileId,
           role: role as 'operator' | 'instructor' | 'admin' | 'director'
         }));
 
@@ -221,7 +242,7 @@ const InstructorManagement = () => {
       console.error('Error updating roles:', error);
       toast({
         title: "오류",
-        description: "역할 업데이트 중 오류가 발생했습니다.",
+        description: `역할 업데이트 중 오류가 발생했습니다: ${(error as Error).message}`,
         variant: "destructive"
       });
     }

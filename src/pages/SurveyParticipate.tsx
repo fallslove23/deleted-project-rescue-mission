@@ -229,6 +229,8 @@ const SurveyParticipate = () => {
         .select('id')
         .single();
 
+      console.log('Response data:', responseData, 'Error:', responseError);
+
       if (responseError) throw responseError;
 
       // 질문별 답변 저장
