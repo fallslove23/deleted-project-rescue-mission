@@ -235,7 +235,7 @@ const Index = () => {
           
           <div className="flex items-center gap-2">
             <Button
-              variant={showAllSurveys ? "default" : "outline"}
+              variant={!showAllSurveys ? "default" : "outline"}
               size="sm"
               onClick={() => {
                 setShowAllSurveys(!showAllSurveys);
@@ -244,7 +244,7 @@ const Index = () => {
               className="text-xs px-2 py-1 h-8"
             >
               <FileText className="h-3 w-3 mr-1" />
-              {showAllSurveys ? "오늘" : "전체"}
+              {showAllSurveys ? "전체" : "오늘"}
             </Button>
           </div>
         </div>
