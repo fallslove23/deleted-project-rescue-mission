@@ -169,9 +169,7 @@ const InstructorManagement = () => {
     if (!editingInstructorRoles || !canEditRoles()) return;
 
     try {
-      // 해당 강사의 사용자 ID 찾기 또는 생성
-      let profileId = null;
-      
+      // 해당 강사의 실제 프로필(사용자 계정) 찾기
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id')
@@ -179,32 +177,20 @@ const InstructorManagement = () => {
         .single();
 
       if (profileError && profileError.code === 'PGRST116') {
-        // 프로필이 없으면 임시 생성
-        const instructor = instructors.find(i => i.id === editingInstructorRoles.instructorId);
-        if (!instructor) {
-          throw new Error('강사 정보를 찾을 수 없습니다.');
-        }
-        
-        const tempUserId = crypto.randomUUID();
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: tempUserId,
-            email: instructor.email,
-            instructor_id: editingInstructorRoles.instructorId,
-            role: 'instructor',
-            first_login: true
-          })
-          .select('id')
-          .single();
-          
-        if (createError) throw createError;
-        profileId = newProfile.id;
-      } else if (profile) {
-        profileId = profile.id;
-      } else {
+        // 실제 사용자 계정이 없는 경우
+        toast({
+          title: "알림",
+          description: "해당 강사의 사용자 계정이 아직 생성되지 않았습니다. 먼저 계정을 생성한 후 역할을 설정해주세요.",
+          variant: "destructive"
+        });
+        setRoleEditDialog(false);
+        setEditingInstructorRoles(null);
+        return;
+      } else if (profileError) {
         throw profileError;
       }
+
+      const profileId = profile.id;
 
       // 기존 역할 삭제
       const { error: deleteError } = await supabase
