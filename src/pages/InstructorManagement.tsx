@@ -169,14 +169,43 @@ const InstructorManagement = () => {
     if (!editingInstructorRoles || !canEditRoles()) return;
 
     try {
-      // 해당 강사의 실제 프로필(사용자 계정) 찾기
-      const { data: profile, error: profileError } = await supabase
+      // 해당 강사 정보 조회
+      const instructor = instructors.find(i => i.id === editingInstructorRoles.instructorId);
+      if (!instructor) {
+        throw new Error('강사 정보를 찾을 수 없습니다.');
+      }
+
+      // 해당 강사의 실제 프로필(사용자 계정) 찾기 - instructor_id 또는 email로 매칭
+      let profile = null;
+      let profileError = null;
+
+      // 먼저 instructor_id로 찾기
+      const { data: profileByInstructorId, error: err1 } = await supabase
         .from('profiles')
         .select('id')
         .eq('instructor_id', editingInstructorRoles.instructorId)
-        .single();
+        .maybeSingle();
 
-      if (profileError && profileError.code === 'PGRST116') {
+      if (err1) {
+        profileError = err1;
+      } else if (profileByInstructorId) {
+        profile = profileByInstructorId;
+      } else if (instructor.email) {
+        // instructor_id로 못 찾으면 email로 찾기
+        const { data: profileByEmail, error: err2 } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', instructor.email)
+          .maybeSingle();
+
+        if (err2) {
+          profileError = err2;
+        } else {
+          profile = profileByEmail;
+        }
+      }
+
+      if (!profile) {
         // 실제 사용자 계정이 없는 경우
         toast({
           title: "알림",
@@ -186,7 +215,9 @@ const InstructorManagement = () => {
         setRoleEditDialog(false);
         setEditingInstructorRoles(null);
         return;
-      } else if (profileError) {
+      }
+
+      if (profileError) {
         throw profileError;
       }
 
@@ -634,7 +665,7 @@ const InstructorManagement = () => {
       
       toast({
         title: "계정 생성 완료",
-        description: `총 ${summary.total}명 중 ${summary.created}명 생성, ${summary.already_exists}명 기존재, ${summary.errors}명 실패`
+        description: `강사 ${summary.created}명 조직장 0명 운영자 0명 중복 제외 총 ${summary.created}명 입니다.`
       });
 
       // 상세 결과를 콘솔에 출력
