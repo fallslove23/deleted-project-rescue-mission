@@ -175,6 +175,8 @@ const InstructorManagement = () => {
         throw new Error('강사 정보를 찾을 수 없습니다.');
       }
 
+      console.log('처리 중인 강사:', instructor);
+
       // 해당 강사의 실제 프로필(사용자 계정) 찾기 - instructor_id 또는 email로 매칭
       let profile = null;
       let profileError = null;
@@ -182,9 +184,11 @@ const InstructorManagement = () => {
       // 먼저 instructor_id로 찾기
       const { data: profileByInstructorId, error: err1 } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, email, instructor_id')
         .eq('instructor_id', editingInstructorRoles.instructorId)
         .maybeSingle();
+
+      console.log('instructor_id로 찾은 프로필:', profileByInstructorId, err1);
 
       if (err1) {
         profileError = err1;
@@ -194,14 +198,31 @@ const InstructorManagement = () => {
         // instructor_id로 못 찾으면 email로 찾기
         const { data: profileByEmail, error: err2 } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, email, instructor_id')
           .eq('email', instructor.email)
           .maybeSingle();
 
+        console.log('email로 찾은 프로필:', profileByEmail, err2);
+
         if (err2) {
           profileError = err2;
-        } else {
+        } else if (profileByEmail) {
           profile = profileByEmail;
+          
+          // email로 찾았다면 instructor_id를 업데이트
+          if (!profileByEmail.instructor_id) {
+            console.log('프로필에 instructor_id 업데이트 중...');
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ instructor_id: editingInstructorRoles.instructorId })
+              .eq('id', profileByEmail.id);
+              
+            if (updateError) {
+              console.error('instructor_id 업데이트 실패:', updateError);
+            } else {
+              console.log('instructor_id 업데이트 성공');
+            }
+          }
         }
       }
 
@@ -220,6 +241,8 @@ const InstructorManagement = () => {
       if (profileError) {
         throw profileError;
       }
+
+      console.log('최종 선택된 프로필:', profile);
 
       const profileId = profile.id;
 
