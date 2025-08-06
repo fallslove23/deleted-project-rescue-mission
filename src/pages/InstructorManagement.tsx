@@ -209,18 +209,26 @@ const InstructorManagement = () => {
         } else if (profileByEmail) {
           profile = profileByEmail;
           
-          // email로 찾았다면 instructor_id를 업데이트
+          // email로 찾았고 instructor_id가 연결되지 않았다면 자동으로 연결
           if (!profileByEmail.instructor_id) {
-            console.log('프로필에 instructor_id 업데이트 중...');
+            console.log('프로필에 instructor_id 자동 연결 중...');
             const { error: updateError } = await supabase
               .from('profiles')
               .update({ instructor_id: editingInstructorRoles.instructorId })
               .eq('id', profileByEmail.id);
               
             if (updateError) {
-              console.error('instructor_id 업데이트 실패:', updateError);
+              console.error('instructor_id 연결 실패:', updateError);
+              throw new Error('강사 계정 연결 중 오류가 발생했습니다.');
             } else {
-              console.log('instructor_id 업데이트 성공');
+              console.log('instructor_id 연결 성공');
+              // 프로필 정보 업데이트
+              profile = { ...profileByEmail, instructor_id: editingInstructorRoles.instructorId };
+              
+              toast({
+                title: "계정 연결",
+                description: "강사 계정이 자동으로 연결되었습니다.",
+              });
             }
           }
         }
