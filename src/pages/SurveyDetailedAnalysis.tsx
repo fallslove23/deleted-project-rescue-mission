@@ -202,7 +202,9 @@ const SurveyDetailedAnalysis = () => {
   };
 
   const getQuestionAnalysis = (questionList: SurveyQuestion[]) => {
-    return questionList.map(question => {
+    // order_index 순서로 정렬
+    const sortedQuestions = [...questionList].sort((a, b) => a.order_index - b.order_index);
+    return sortedQuestions.map(question => {
       const questionAnswers = answers.filter(a => a.question_id === question.id);
       
       if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
@@ -231,10 +233,17 @@ const SurveyDetailedAnalysis = () => {
           chartData,
           type: 'chart'
         };
-      } else if (question.question_type === 'rating') {
+      } else if (question.question_type === 'rating' || question.question_type === 'scale') {
         const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
-        // 5점 척도를 10점 척도로 변환
-        const convertedRatings = ratings.map(r => r * 2);
+        // 원본 점수가 이미 10점 척도인지 5점 척도인지 확인
+        const maxScore = Math.max(...ratings);
+        let convertedRatings = ratings;
+        
+        // 5점 척도라면 10점 척도로 변환
+        if (maxScore <= 5) {
+          convertedRatings = ratings.map(r => r * 2);
+        }
+        
         const average = convertedRatings.length > 0 ? (convertedRatings.reduce((sum, r) => sum + r, 0) / convertedRatings.length).toFixed(1) : '0';
         
         // 점수별 분포 계산 (10점 만점 기준)
@@ -269,7 +278,7 @@ const SurveyDetailedAnalysis = () => {
   };
 
   const calculateCategoryAverage = (questionList: SurveyQuestion[]) => {
-    const ratingQuestions = questionList.filter(q => q.question_type === 'rating');
+    const ratingQuestions = questionList.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
     if (ratingQuestions.length === 0) return 0;
 
     let totalScore = 0;
@@ -280,8 +289,15 @@ const SurveyDetailedAnalysis = () => {
       const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
       
       if (ratings.length > 0) {
-        // 5점 척도를 10점 척도로 변환
-        const convertedRatings = ratings.map(r => r * 2);
+        // 원본 점수가 이미 10점 척도인지 5점 척도인지 확인
+        const maxScore = Math.max(...ratings);
+        let convertedRatings = ratings;
+        
+        // 5점 척도라면 10점 척도로 변환
+        if (maxScore <= 5) {
+          convertedRatings = ratings.map(r => r * 2);
+        }
+        
         totalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
         totalCount += convertedRatings.length;
       }
