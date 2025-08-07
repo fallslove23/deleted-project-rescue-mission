@@ -128,7 +128,11 @@ const DashboardOverview = () => {
         surveysQuery.eq('status', 'active'),
         surveysQuery.eq('status', 'completed'),
         responsesQuery,
-        isAdmin ? supabase.from('instructors').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 }),
+        // 실제 강사 역할을 가진 사용자 수 카운팅 (instructor 역할을 가진 profiles)
+        isAdmin ? supabase
+          .from('profiles')
+          .select('*', { count: 'exact' })
+          .not('instructor_id', 'is', null) : Promise.resolve({ count: 0 }),
         isAdmin ? supabase.from('courses').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 }),
         responsesQuery.gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
       ]);
