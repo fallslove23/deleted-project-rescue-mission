@@ -136,7 +136,7 @@ const Index = () => {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent className="w-80 p-4">
+              <SheetContent side="left" className="w-80 p-4">
                 <div className="space-y-6 mt-6">
                   {user ? (
                     <>
