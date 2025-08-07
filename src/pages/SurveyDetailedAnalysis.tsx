@@ -233,18 +233,20 @@ const SurveyDetailedAnalysis = () => {
         };
       } else if (question.question_type === 'rating') {
         const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
-        const average = ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1) : '0';
+        // 5점 척도를 10점 척도로 변환
+        const convertedRatings = ratings.map(r => r * 2);
+        const average = convertedRatings.length > 0 ? (convertedRatings.reduce((sum, r) => sum + r, 0) / convertedRatings.length).toFixed(1) : '0';
         
-        // 점수별 분포 계산
+        // 점수별 분포 계산 (10점 만점 기준)
         const distribution = {};
-        for (let i = 1; i <= 5; i++) {
-          distribution[i] = ratings.filter(r => r === i).length;
+        for (let i = 1; i <= 10; i++) {
+          distribution[i] = convertedRatings.filter(r => r === i).length;
         }
         
         const chartData = Object.entries(distribution).map(([score, count]) => ({
           name: `${score}점`,
           value: count as number,
-          percentage: ratings.length > 0 ? Math.round(((count as number) / ratings.length) * 100) : 0
+          percentage: convertedRatings.length > 0 ? Math.round(((count as number) / convertedRatings.length) * 100) : 0
         }));
         
         return {
@@ -278,8 +280,10 @@ const SurveyDetailedAnalysis = () => {
       const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
       
       if (ratings.length > 0) {
-        totalScore += ratings.reduce((sum, r) => sum + r, 0);
-        totalCount += ratings.length;
+        // 5점 척도를 10점 척도로 변환
+        const convertedRatings = ratings.map(r => r * 2);
+        totalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
+        totalCount += convertedRatings.length;
       }
     });
 
@@ -428,7 +432,7 @@ const SurveyDetailedAnalysis = () => {
               <CardContent>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-blue-500">{courseAverage}</div>
-                  <div className="text-sm text-muted-foreground">평균 점수 (5점 만점)</div>
+                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {courseQuestions.length}개 질문 기준
                   </div>
@@ -446,7 +450,7 @@ const SurveyDetailedAnalysis = () => {
               <CardContent>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-orange-500">{instructorAverage}</div>
-                  <div className="text-sm text-muted-foreground">평균 점수 (5점 만점)</div>
+                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {instructorQuestions.length}개 질문 기준
                   </div>
@@ -528,7 +532,7 @@ const SurveyDetailedAnalysis = () => {
                         <div className="space-y-4">
                           <div className="text-center">
                             <div className="text-3xl font-bold text-primary">{analysis.average}</div>
-                            <p className="text-sm text-muted-foreground">평균 점수 (5점 만점)</p>
+                            <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
                           </div>
                           <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
@@ -654,7 +658,7 @@ const SurveyDetailedAnalysis = () => {
                         <div className="space-y-4">
                           <div className="text-center">
                             <div className="text-3xl font-bold text-primary">{analysis.average}</div>
-                            <p className="text-sm text-muted-foreground">평균 점수 (5점 만점)</p>
+                            <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
                           </div>
                           <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
