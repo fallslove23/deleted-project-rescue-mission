@@ -45,7 +45,7 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
-  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -115,7 +115,7 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
 
   const getFilteredSurveys = () => {
     let filtered = surveys;
-    if (selectedYear && selectedYear !== '') {
+    if (selectedYear && selectedYear !== 'all') {
       filtered = filtered.filter(s => s.education_year.toString() === selectedYear);
     }
     return filtered;
@@ -192,7 +192,7 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
               <SelectValue placeholder="연도 선택" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">전체</SelectItem>
+              <SelectItem value="all">전체</SelectItem>
               {years.map(year => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}년
