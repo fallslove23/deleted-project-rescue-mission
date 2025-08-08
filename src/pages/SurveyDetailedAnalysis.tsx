@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Download, Printer, Mail, TrendingUp, Star } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
@@ -52,6 +53,15 @@ interface Instructor {
   photo_url: string;
 }
 
+interface AnalysisComment {
+  id: string;
+  survey_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const SurveyDetailedAnalysis = () => {
   const navigate = useNavigate();
   const { surveyId } = useParams();
@@ -63,6 +73,9 @@ const SurveyDetailedAnalysis = () => {
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
+  const [comments, setComments] = useState<AnalysisComment[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [savingComment, setSavingComment] = useState(false);
   const { toast } = useToast();
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
@@ -72,6 +85,7 @@ const SurveyDetailedAnalysis = () => {
       fetchSurveyData();
       fetchResponses();
       fetchQuestionsAndAnswers();
+      loadComments();
     }
   }, [surveyId]);
 
@@ -328,6 +342,65 @@ const SurveyDetailedAnalysis = () => {
       });
     } finally {
       setSendingResults(false);
+    }
+  };
+
+  // 코멘트 로드
+  const loadComments = async () => {
+    if (!surveyId) return;
+    try {
+      const { data, error } = await supabase
+        .from('survey_analysis_comments')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setComments(data || []);
+    } catch (e) {
+      console.error('Error loading comments:', e);
+    }
+  };
+
+  // 코멘트 추가
+  const handleAddComment = async () => {
+    if (!user) {
+      toast({ title: '오류', description: '로그인이 필요합니다.', variant: 'destructive' });
+      return;
+    }
+    if (!surveyId) return;
+    const text = commentText.trim();
+    if (!text) {
+      toast({ title: '오류', description: '코멘트를 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+    setSavingComment(true);
+    try {
+      const { error } = await supabase
+        .from('survey_analysis_comments')
+        .insert({ survey_id: surveyId, author_id: user.id, content: text });
+      if (error) throw error;
+      setCommentText('');
+      await loadComments();
+      toast({ title: '등록 완료', description: '코멘트가 등록되었습니다.' });
+    } catch (e: any) {
+      console.error('Error adding comment:', e);
+      toast({ title: '오류', description: e.message || '코멘트 등록 중 오류가 발생했습니다.', variant: 'destructive' });
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
+  // 코멘트 삭제
+  const handleDeleteComment = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('survey_analysis_comments')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      await loadComments();
+    } catch (e) {
+      console.error('Error deleting comment:', e);
     }
   };
 

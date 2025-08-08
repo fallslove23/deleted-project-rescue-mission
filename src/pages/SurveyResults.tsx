@@ -339,19 +339,20 @@ const SurveyResults = () => {
 
   // 질문별 분석 데이터 생성
   const getQuestionAnalysis = () => {
-    return questions.map(question => {
+    const sortedQuestions = [...questions].sort((a, b) => a.order_index - b.order_index);
+    return sortedQuestions.map(question => {
       const questionAnswers = answers.filter(a => a.question_id === question.id);
       
       if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
         const options = question.options || [];
-        const answerCounts = {};
+        const answerCounts: Record<string, number> = {};
         
-        options.forEach(option => {
+        options.forEach((option: string) => {
           answerCounts[option] = 0;
         });
         
         questionAnswers.forEach(answer => {
-          if (answer.answer_text && answerCounts.hasOwnProperty(answer.answer_text)) {
+          if (answer.answer_text && Object.prototype.hasOwnProperty.call(answerCounts, answer.answer_text)) {
             answerCounts[answer.answer_text]++;
           }
         });
@@ -366,14 +367,14 @@ const SurveyResults = () => {
           question,
           totalAnswers: questionAnswers.length,
           chartData,
-          type: 'chart'
+          type: 'chart' as const
         };
       } else if (question.question_type === 'rating') {
         const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
         const average = ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1) : '0';
         
         // 점수별 분포 계산
-        const distribution = {};
+        const distribution: Record<number, number> = {};
         for (let i = 1; i <= 5; i++) {
           distribution[i] = ratings.filter(r => r === i).length;
         }
@@ -389,7 +390,7 @@ const SurveyResults = () => {
           totalAnswers: questionAnswers.length,
           average,
           chartData,
-          type: 'rating'
+          type: 'rating' as const
         };
       } else {
         // 텍스트 답변
@@ -397,7 +398,7 @@ const SurveyResults = () => {
           question,
           totalAnswers: questionAnswers.length,
           answers: questionAnswers.slice(0, 10), // 최대 10개만 표시
-          type: 'text'
+          type: 'text' as const
         };
       }
     });

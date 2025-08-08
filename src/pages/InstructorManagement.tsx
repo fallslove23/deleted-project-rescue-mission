@@ -195,11 +195,11 @@ const InstructorManagement = () => {
       } else if (profileByInstructorId) {
         profile = profileByInstructorId;
       } else if (instructor.email) {
-        // instructor_id로 못 찾으면 email로 찾기
+        // instructor_id로 못 찾으면 email로(대소문자 무시) 찾기
         const { data: profileByEmail, error: err2 } = await supabase
           .from('profiles')
           .select('id, email, instructor_id')
-          .eq('email', instructor.email)
+          .ilike('email', instructor.email)
           .maybeSingle();
 
         console.log('email로 찾은 프로필:', profileByEmail, err2);
@@ -694,9 +694,49 @@ const InstructorManagement = () => {
 
       const { results, summary } = data;
       
+      // 동기화 대상 이메일 기준으로 실제 생성/기존 계정의 역할 분포 집계 (대소문자 무시, 중복 제거)
+      const uniqueEmails = Array.from(
+        new Set(instructorsWithEmail.map(i => String(i.email).trim().toLowerCase()))
+      );
+
+      // 해당 이메일들의 프로필 조회 (케이스 무시)
+      const profiles: { id: string; email: string }[] = [];
+      for (const em of uniqueEmails) {
+        const { data: prof, error: profErr } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .ilike('email', em)
+          .maybeSingle();
+        if (!profErr && prof) profiles.push(prof as any);
+      }
+
+      const userIds = profiles.map(p => p.id);
+      let instructorCount = 0;
+      let directorCount = 0;
+      let operatorCount = 0; // 운영자 + 관리자 합산
+      if (userIds.length > 0) {
+        const { data: roles, error: rolesErr } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .in('user_id', userIds);
+        if (!rolesErr && roles) {
+          const rolesByUser: Record<string, Set<string>> = {};
+          roles.forEach(r => {
+            if (!rolesByUser[r.user_id]) rolesByUser[r.user_id] = new Set();
+            rolesByUser[r.user_id].add(r.role);
+          });
+          Object.values(rolesByUser).forEach(roleSet => {
+            if (roleSet.has('instructor')) instructorCount += 1;
+            if (roleSet.has('director')) directorCount += 1;
+            if (roleSet.has('operator') || roleSet.has('admin')) operatorCount += 1;
+          });
+        }
+      }
+      const totalUnique = new Set(userIds).size;
+      
       toast({
-        title: "계정 생성 완료",
-        description: `강사 ${summary.created}명 조직장 0명 운영자 0명 중복 제외 총 ${summary.created}명 입니다.`
+        title: '계정 동기화 완료',
+        description: `강사 ${instructorCount}명 조직장 ${directorCount}명 운영자 ${operatorCount}명 중복 제외 총 ${totalUnique}명 입니다.`
       });
 
       // 상세 결과를 콘솔에 출력

@@ -39,11 +39,24 @@ serve(async (req) => {
 
     const results = []
 
-    for (const email of instructor_emails) {
+    // Fetch existing users once (up to 1000) and build a lowercase email set for case-insensitive matching
+    const existingEmailSet = new Set<string>()
+    try {
+      const { data: existingUsersPage } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      existingUsersPage?.users?.forEach(u => {
+        if (u.email) existingEmailSet.add(u.email.toLowerCase())
+      })
+    } catch (e) {
+      console.error('Failed to list existing users:', e)
+    }
+
+    for (const rawEmail of instructor_emails) {
+      const email = String(rawEmail).trim()
       try {
-        // Check if user already exists in auth.users
-        const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-        const userExists = existingUsers.users.some(user => user.email === email)
+        const normalizedEmail = email.toLowerCase()
+
+        // Check if user already exists in auth.users (case-insensitive)
+        const userExists = existingEmailSet.has(normalizedEmail)
 
         if (userExists) {
           results.push({
@@ -56,7 +69,7 @@ serve(async (req) => {
 
         // Create user with admin client
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email,
+          email: normalizedEmail,
           password: 'bsedu123', // Default password
           email_confirm: true, // Auto-confirm email
         })
@@ -70,6 +83,9 @@ serve(async (req) => {
           continue
         }
 
+        // Add to existing set to prevent duplicate creations within the same batch
+        if (newUser.user?.email) existingEmailSet.add(newUser.user.email.toLowerCase())
+
         results.push({
           email,
           status: 'created',
@@ -82,7 +98,7 @@ serve(async (req) => {
         results.push({
           email,
           status: 'error',
-          message: error.message || '사용자 생성 중 오류가 발생했습니다.'
+          message: (error as any).message || '사용자 생성 중 오류가 발생했습니다.'
         })
       }
     }
