@@ -559,6 +559,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_user_roles: {
+        Args: {
+          target_user_id: string
+          roles: Database["public"]["Enums"]["user_role"][]
+        }
+        Returns: undefined
+      }
       check_role_change_allowed: {
         Args: { user_id: string; new_role: string; old_role: string }
         Returns: boolean
