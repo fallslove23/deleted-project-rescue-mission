@@ -559,6 +559,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_link_profile_to_instructor: {
+        Args: { target_profile_id: string; instructor_id_param: string }
+        Returns: undefined
+      }
       admin_set_user_roles: {
         Args: {
           target_user_id: string

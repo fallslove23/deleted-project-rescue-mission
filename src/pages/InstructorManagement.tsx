@@ -126,7 +126,6 @@ const InstructorManagement = () => {
       if (profilesError) throw profilesError;
 
       const rolesByInstructor: Record<string, string[]> = {};
-      
       profiles?.forEach(profile => {
         if (profile.instructor_id) {
           const userRolesList = userRoles?.filter(ur => ur.user_id === profile.id);
@@ -196,10 +195,11 @@ const InstructorManagement = () => {
         profile = profileByInstructorId;
       } else if (instructor.email) {
         // instructor_id로 못 찾으면 email로(대소문자 무시) 찾기
+        const normalizedEmail = instructor.email.trim();
         const { data: profileByEmail, error: err2 } = await supabase
           .from('profiles')
           .select('id, email, instructor_id')
-          .ilike('email', instructor.email)
+          .ilike('email', normalizedEmail)
           .maybeSingle();
 
         console.log('email로 찾은 프로필:', profileByEmail, err2);
@@ -211,25 +211,18 @@ const InstructorManagement = () => {
           
           // email로 찾았고 instructor_id가 연결되지 않았다면 자동으로 연결
           if (!profileByEmail.instructor_id) {
-            console.log('프로필에 instructor_id 자동 연결 중...');
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({ instructor_id: editingInstructorRoles.instructorId })
-              .eq('id', profileByEmail.id);
-              
-            if (updateError) {
-              console.error('instructor_id 연결 실패:', updateError);
+            console.log('프로필에 instructor_id 자동 연결(관리자 권한) 중...');
+            const { error: linkError } = await supabase.rpc('admin_link_profile_to_instructor', {
+              target_profile_id: profileByEmail.id,
+              instructor_id_param: editingInstructorRoles.instructorId
+            });
+            if (linkError) {
+              console.error('instructor_id 연결 실패:', linkError);
               throw new Error('강사 계정 연결 중 오류가 발생했습니다.');
-            } else {
-              console.log('instructor_id 연결 성공');
-              // 프로필 정보 업데이트
-              profile = { ...profileByEmail, instructor_id: editingInstructorRoles.instructorId };
-              
-              toast({
-                title: "계정 연결",
-                description: "강사 계정이 자동으로 연결되었습니다.",
-              });
             }
+            console.log('instructor_id 연결 성공');
+            profile = { ...profileByEmail, instructor_id: editingInstructorRoles.instructorId };
+            toast({ title: '계정 연결', description: '강사 계정이 자동으로 연결되었습니다.' });
           }
         }
       }
@@ -254,27 +247,13 @@ const InstructorManagement = () => {
 
       const profileId = profile.id;
 
-      // 기존 역할 삭제
-      const { error: deleteError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', profileId);
+      // 서버 함수로 역할 일괄 설정 (RLS 우회, 관리자 전용)
+      const { error: roleRpcError } = await supabase.rpc('admin_set_user_roles', {
+        target_user_id: profileId,
+        roles: selectedRoles as unknown as ('operator' | 'instructor' | 'admin' | 'director')[]
+      });
 
-      if (deleteError) throw deleteError;
-
-      // 새 역할 추가
-      if (selectedRoles.length > 0) {
-        const roleInserts = selectedRoles.map(role => ({
-          user_id: profileId,
-          role: role as 'operator' | 'instructor' | 'admin' | 'director'
-        }));
-
-        const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert(roleInserts);
-
-        if (insertError) throw insertError;
-      }
+      if (roleRpcError) throw roleRpcError;
 
       // 데이터 새로고침
       await fetchInstructorRoles();
