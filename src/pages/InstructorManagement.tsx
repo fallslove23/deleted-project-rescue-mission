@@ -185,6 +185,7 @@ const InstructorManagement = () => {
         .from('profiles')
         .select('id, email, instructor_id')
         .eq('instructor_id', editingInstructorRoles.instructorId)
+        .limit(1)
         .maybeSingle();
 
       console.log('instructor_id로 찾은 프로필:', profileByInstructorId, err1);
@@ -200,6 +201,7 @@ const InstructorManagement = () => {
           .from('profiles')
           .select('id, email, instructor_id')
           .ilike('email', normalizedEmail)
+          .limit(1)
           .maybeSingle();
 
         console.log('email로 찾은 프로필:', profileByEmail, err2);
@@ -208,6 +210,7 @@ const InstructorManagement = () => {
           profileError = err2;
         } else if (profileByEmail) {
           profile = profileByEmail;
+          profileError = null;
           
           // email로 찾았고 instructor_id가 연결되지 않았다면 자동으로 연결
           if (!profileByEmail.instructor_id) {
@@ -239,7 +242,7 @@ const InstructorManagement = () => {
         return;
       }
 
-      if (profileError) {
+      if (profileError && !profile) {
         throw profileError;
       }
 
