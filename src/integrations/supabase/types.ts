@@ -570,6 +570,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_set_user_roles_safe: {
+        Args: {
+          target_user_id: string
+          roles: Database["public"]["Enums"]["user_role"][]
+        }
+        Returns: undefined
+      }
       check_role_change_allowed: {
         Args: { user_id: string; new_role: string; old_role: string }
         Returns: boolean
