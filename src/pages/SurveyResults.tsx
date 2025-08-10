@@ -438,9 +438,16 @@ const SurveyResults = () => {
 
       if (error) throw error;
 
+      const results = (data as any)?.results as Array<{ to: string; status: 'sent' | 'failed' }> | undefined;
+      const recipients = (data as any)?.recipients as string[] | undefined;
+      const sent = results?.filter(r => r.status === 'sent').map(r => r.to) || recipients || [];
+      const failed = results?.filter(r => r.status === 'failed').map(r => r.to) || [];
+
       toast({
-        title: "성공",
-        description: `설문 결과가 ${selectedRecipients.length}명에게 성공적으로 전송되었습니다.`,
+        title: failed.length === 0 ? "전송 완료" : "일부 전송 실패",
+        description:
+          `성공 ${sent.length}건${sent.length ? `: ${sent.join(', ')}` : ''}` +
+          `${failed.length ? ` / 실패 ${failed.length}건: ${failed.join(', ')}` : ''}`,
       });
       
       setEmailDialogOpen(false);

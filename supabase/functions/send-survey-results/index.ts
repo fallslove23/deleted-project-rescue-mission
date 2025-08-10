@@ -169,21 +169,47 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send emails to all selected recipients
+    // Send emails to all selected recipients and collect per-recipient results
     const emailList = Array.from(emailAddresses);
+    const results: Array<{ to: string; status: 'sent' | 'failed'; id?: string; error?: string }> = [];
+
     if (emailList.length > 0) {
-      await resend.emails.send({
-        from: "BS교육원 <noreply@bsedu.co.kr>",
-        to: emailList,
-        subject: `[BS교육원] ${survey.title} 설문 결과`,
-        html: resultsHtml,
-      });
+      for (const to of emailList) {
+        try {
+          const { data: sendData, error: sendError } = await resend.emails.send({
+            from: "BS교육원 <noreply@bsedu.co.kr>",
+            to: [to],
+            subject: `[BS교육원] ${survey.title} 설문 결과`,
+            html: resultsHtml,
+          });
+          if (sendError) throw sendError;
+          results.push({ to, status: 'sent', id: sendData?.id });
+        } catch (e: any) {
+          console.error(`Failed sending to ${to}:`, e);
+          results.push({ to, status: 'failed', error: e?.message || 'Unknown error' });
+        }
+      }
     }
 
+    const sentCount = results.filter(r => r.status === 'sent').length;
+    const failedCount = results.filter(r => r.status === 'failed').length;
+    const success = emailList.length > 0 && failedCount === 0;
+
     return new Response(
-      JSON.stringify({ success: true, message: '설문 결과가 성공적으로 전송되었습니다.' }),
+      JSON.stringify({
+        success,
+        message: success
+          ? '설문 결과가 성공적으로 전송되었습니다.'
+          : failedCount > 0
+          ? '일부 수신자에게 전송에 실패했습니다.'
+          : '전송할 수신자가 없습니다.',
+        recipients: emailList,
+        sentCount,
+        failedCount,
+        results,
+      }),
       {
-        status: 200,
+        status: success ? 200 : emailList.length === 0 ? 400 : 207, // 207 Multi-Status for partial success
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
