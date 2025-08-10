@@ -176,69 +176,51 @@ const InstructorManagement = () => {
 
       console.log('처리 중인 강사:', instructor);
 
-      // 해당 강사의 실제 프로필(사용자 계정) 찾기 - auth.users에 실제 존재하는 계정만
+      // 해당 강사의 실제 프로필(사용자 계정) 찾기
       let profile = null;
-      let profileError = null;
 
-      // instructor_id로 유효한 프로필 찾기 (auth.users에 존재하는 것만)
+      // instructor_id로 프로필 찾기
       const { data: profilesByInstructor, error: err1 } = await supabase
         .from('profiles')
         .select('id, email, instructor_id')
-        .eq('instructor_id', editingInstructorRoles.instructorId);
+        .eq('instructor_id', editingInstructorRoles.instructorId)
+        .limit(1);
 
-      console.log('instructor_id로 찾은 모든 프로필:', profilesByInstructor, err1);
+      console.log('instructor_id로 찾은 프로필:', profilesByInstructor, err1);
 
-      if (err1) {
-        profileError = err1;
-      } else if (profilesByInstructor && profilesByInstructor.length > 0) {
-        // auth.users에 실제 존재하는 프로필만 필터링
-        for (const p of profilesByInstructor) {
-          const { data: authUser } = await supabase.auth.admin.getUserById(p.id);
-          if (authUser.user) {
-            profile = p;
-            break;
-          }
-        }
+      if (!err1 && profilesByInstructor && profilesByInstructor.length > 0) {
+        profile = profilesByInstructor[0];
         console.log('유효한 프로필 선택:', profile);
       }
 
-      // instructor_id로 못 찾았거나 유효하지 않으면 email로 찾기
+      // instructor_id로 못 찾았으면 email로 찾기
       if (!profile && instructor.email) {
         const normalizedEmail = instructor.email.trim();
         const { data: profilesByEmail, error: err2 } = await supabase
           .from('profiles')
           .select('id, email, instructor_id')
-          .ilike('email', normalizedEmail);
+          .ilike('email', normalizedEmail)
+          .limit(1);
 
-        console.log('email로 찾은 모든 프로필:', profilesByEmail, err2);
+        console.log('email로 찾은 프로필:', profilesByEmail, err2);
 
-        if (err2) {
-          profileError = err2;
-        } else if (profilesByEmail && profilesByEmail.length > 0) {
-          // auth.users에 실제 존재하는 프로필만 필터링
-          for (const p of profilesByEmail) {
-            const { data: authUser } = await supabase.auth.admin.getUserById(p.id);
-            if (authUser.user) {
-              profile = p;
-              profileError = null;
-              
-              // instructor_id가 연결되지 않았다면 자동으로 연결
-              if (!p.instructor_id) {
-                console.log('프로필에 instructor_id 자동 연결(관리자 권한) 중...');
-                const { error: linkError } = await supabase.rpc('admin_link_profile_to_instructor', {
-                  target_profile_id: p.id,
-                  instructor_id_param: editingInstructorRoles.instructorId
-                });
-                if (linkError) {
-                  console.error('instructor_id 연결 실패:', linkError);
-                  throw new Error('강사 계정 연결 중 오류가 발생했습니다.');
-                }
-                console.log('instructor_id 연결 성공');
-                profile = { ...p, instructor_id: editingInstructorRoles.instructorId };
-                toast({ title: '계정 연결', description: '강사 계정이 자동으로 연결되었습니다.' });
-              }
-              break;
+        if (!err2 && profilesByEmail && profilesByEmail.length > 0) {
+          profile = profilesByEmail[0];
+          
+          // instructor_id가 연결되지 않았다면 자동으로 연결
+          if (!profile.instructor_id) {
+            console.log('프로필에 instructor_id 자동 연결(관리자 권한) 중...');
+            const { error: linkError } = await supabase.rpc('admin_link_profile_to_instructor', {
+              target_profile_id: profile.id,
+              instructor_id_param: editingInstructorRoles.instructorId
+            });
+            if (linkError) {
+              console.error('instructor_id 연결 실패:', linkError);
+              throw new Error('강사 계정 연결 중 오류가 발생했습니다.');
             }
+            console.log('instructor_id 연결 성공');
+            profile = { ...profile, instructor_id: editingInstructorRoles.instructorId };
+            toast({ title: '계정 연결', description: '강사 계정이 자동으로 연결되었습니다.' });
           }
         }
       }
@@ -255,8 +237,9 @@ const InstructorManagement = () => {
         return;
       }
 
-      if (profileError && !profile) {
-        throw profileError;
+      // 프로필이 없으면 오류 발생
+      if (!profile) {
+        throw new Error('해당 강사의 사용자 계정이 아직 생성되지 않았습니다. 먼저 계정을 생성해주세요.');
       }
 
       console.log('최종 선택된 프로필:', profile);
