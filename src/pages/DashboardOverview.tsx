@@ -88,63 +88,71 @@ const DashboardOverview = () => {
 
   const fetchDashboardStats = async () => {
     if (!profile) return;
-    
     try {
       const isAdmin = profile?.role === 'admin';
       const isInstructor = profile?.role === 'instructor';
 
-      // 기본 쿼리들
-      let surveysQuery = supabase.from('surveys').select('*', { count: 'exact' });
-      let responsesQuery = supabase.from('survey_responses').select('*', { count: 'exact' });
-
-      // 강사인 경우 자신의 강의만 조회
+      // 강사인 경우 해당 강사의 설문 ID 목록 조회
+      let instructorSurveyIds: string[] = [];
       if (isInstructor && profile.instructor_id) {
-        surveysQuery = surveysQuery.eq('instructor_id', profile.instructor_id);
-        
-        // 먼저 해당 강사의 설문 ID들을 가져온 다음 responses 쿼리
         const { data: instructorSurveys } = await supabase
           .from('surveys')
           .select('id')
           .eq('instructor_id', profile.instructor_id);
-        
-        const surveyIds = instructorSurveys?.map(s => s.id) || [];
-        if (surveyIds.length > 0) {
-          responsesQuery = responsesQuery.in('survey_id', surveyIds);
-        } else {
-          responsesQuery = responsesQuery.eq('survey_id', 'none');
-        }
+        instructorSurveyIds = (instructorSurveys || []).map((s: any) => s.id);
       }
 
+      // 공통 헬퍼: 설문 카운트 쿼리 생성 (빌더 재사용 금지)
+      const surveyCount = (extra?: { status?: string }) => {
+        let q = supabase.from('surveys').select('*', { count: 'exact' });
+        if (isInstructor && profile.instructor_id) q = q.eq('instructor_id', profile.instructor_id);
+        if (extra?.status) q = q.eq('status', extra.status);
+        return q;
+      };
+
+      // 응답 카운트 쿼리 생성
+      const responsesBase = () => {
+        let q = supabase.from('survey_responses').select('*', { count: 'exact' });
+        if (isInstructor) {
+          if (instructorSurveyIds.length > 0) q = q.in('survey_id', instructorSurveyIds);
+          else return Promise.resolve({ count: 0 } as any);
+        }
+        return q;
+      };
+
       const [
-        surveysResult,
-        activeSurveysResult,
-        completedSurveysResult,
-        responsesResult,
-        instructorsResult,
-        coursesResult,
-        recentResponsesResult
+        totalSurveysRes,
+        activeSurveysRes,
+        completedSurveysRes,
+        totalResponsesRes,
+        totalInstructorsRes,
+        totalCoursesRes,
+        recentResponsesRes,
       ] = await Promise.all([
-        surveysQuery,
-        surveysQuery.eq('status', 'active'),
-        surveysQuery.eq('status', 'completed'),
-        responsesQuery,
-        // 실제 강사 역할을 가진 사용자 수 카운팅 (instructor 역할을 가진 profiles)
-        isAdmin ? supabase
-          .from('profiles')
-          .select('*', { count: 'exact' })
-          .not('instructor_id', 'is', null) : Promise.resolve({ count: 0 }),
-        isAdmin ? supabase.from('courses').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 }),
-        responsesQuery.gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        surveyCount(),
+        surveyCount({ status: 'active' }),
+        surveyCount({ status: 'completed' }),
+        responsesBase(),
+        isAdmin ? supabase.from('instructors').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
+        isAdmin ? supabase.from('courses').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
+        // 최근 7일 응답
+        (async () => {
+          const base: any = await responsesBase();
+          // responsesBase가 즉시 카운트 객체를 반환한 경우
+          // (강사지만 설문이 없는 상황)
+          if ('count' in base && typeof base.count === 'number' && !('data' in base)) return base;
+          return (base as any).gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+        })(),
       ]);
 
       setStats({
-        totalSurveys: surveysResult.count || 0,
-        activeSurveys: activeSurveysResult.count || 0,
-        completedSurveys: completedSurveysResult.count || 0,
-        totalResponses: responsesResult.count || 0,
-        totalInstructors: instructorsResult.count || 0,
-        totalCourses: coursesResult.count || 0,
-        recentResponsesCount: recentResponsesResult.count || 0
+        totalSurveys: totalSurveysRes.count || 0,
+        activeSurveys: activeSurveysRes.count || 0,
+        completedSurveys: completedSurveysRes.count || 0,
+        totalResponses: totalResponsesRes.count || 0,
+        totalInstructors: totalInstructorsRes.count || 0,
+        totalCourses: totalCoursesRes.count || 0,
+        recentResponsesCount: recentResponsesRes.count || 0,
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
