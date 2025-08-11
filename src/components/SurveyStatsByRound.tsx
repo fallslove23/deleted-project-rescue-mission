@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,11 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const { userRoles } = useAuth();
+  const isAdmin = userRoles.includes('admin');
+  const isOperator = userRoles.includes('operator');
+  const isDirector = userRoles.includes('director');
+  const canViewAll = isAdmin || isOperator || isDirector;
 
   useEffect(() => {
     fetchData();
@@ -56,8 +62,18 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
     try {
       // 설문 데이터 가져오기
       let surveyQuery = supabase.from('surveys').select('*');
+      
+      // instructorId가 지정되어 있으면 해당 강사만, 없고 권한이 있으면 전체
       if (instructorId) {
         surveyQuery = surveyQuery.eq('instructor_id', instructorId);
+      } else if (!canViewAll) {
+        // 권한이 없으면 빈 결과 반환
+        setSurveys([]);
+        setResponses([]);
+        setQuestions([]);
+        setAnswers([]);
+        setLoading(false);
+        return;
       }
       
       const { data: surveyData, error: surveyError } = await surveyQuery
@@ -178,6 +194,14 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
     );
   }
 
+  if (!canViewAll && !instructorId) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        회차별 통계를 보려면 관리자 권한이 필요합니다.
+      </div>
+    );
+  }
+
   const roundStats = calculateRoundStats();
   const years = getUniqueYears();
 
@@ -201,6 +225,16 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
             </SelectContent>
           </Select>
         </div>
+        {instructorId && (
+          <div className="text-sm text-muted-foreground">
+            특정 강사의 회차별 통계
+          </div>
+        )}
+        {!instructorId && canViewAll && (
+          <div className="text-sm text-muted-foreground">
+            전체 강사 회차별 통계
+          </div>
+        )}
       </div>
 
       {/* 회차별 통계 차트 */}

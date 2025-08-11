@@ -90,7 +90,6 @@ const SurveyResults = () => {
   const isDirector = userRoles.includes('director');
   const isInstructor = userRoles.includes('instructor');
   const canViewAll = isAdmin || isOperator || isDirector;
-  const canViewInstructorStats = isInstructor;
 
   useEffect(() => {
     fetchProfile();
@@ -325,16 +324,67 @@ const SurveyResults = () => {
   };
 
   const getStatistics = () => {
-    const totalSurveys = getFilteredSurveys().length;
-    const totalResponses = responses.length;
-    const activeSurveys = getFilteredSurveys().filter(s => s.status === 'active').length;
+    // 관리자/운영자는 전체 통계, 강사는 자신의 설문만
+    const relevantSurveys = canViewAll ? getFilteredSurveys() : getFilteredSurveys().filter(s => 
+      profile?.instructor_id && s.instructor_id === profile.instructor_id
+    );
+    
+    // 응답은 선택된 설문이 있으면 해당 설문의 응답만, 없으면 관련 설문들의 전체 응답
+    const relevantResponses = selectedSurvey 
+      ? responses 
+      : allResponses.filter(r => relevantSurveys.some(s => s.id === r.survey_id));
+    
+    const totalSurveys = relevantSurveys.length;
+    const totalResponses = relevantResponses.length;
+    const activeSurveys = relevantSurveys.filter(s => s.status === 'active').length;
+    const completedSurveys = relevantSurveys.filter(s => s.status === 'completed').length;
     
     return {
       totalSurveys,
       totalResponses,
       activeSurveys,
-      avgResponseRate: totalSurveys > 0 ? Math.round((totalResponses / totalSurveys) * 100) / 100 : 0
+      completedSurveys,
+      avgResponseRate: totalSurveys > 0 ? Math.round((totalResponses / totalSurveys) * 10) / 10 : 0
     };
+  };
+
+  // 차수별 통계 계산
+  const getRoundStatistics = () => {
+    const relevantSurveys = canViewAll ? getFilteredSurveys() : getFilteredSurveys().filter(s => 
+      profile?.instructor_id && s.instructor_id === profile.instructor_id
+    );
+    
+    const roundStats: Record<string, {
+      surveys: Survey[];
+      responses: number;
+      year: number;
+      round: number;
+    }> = {};
+
+    relevantSurveys.forEach(survey => {
+      const key = `${survey.education_year}-${survey.education_round}`;
+      if (!roundStats[key]) {
+        roundStats[key] = {
+          surveys: [],
+          responses: 0,
+          year: survey.education_year,
+          round: survey.education_round
+        };
+      }
+      roundStats[key].surveys.push(survey);
+      roundStats[key].responses += allResponses.filter(r => r.survey_id === survey.id).length;
+    });
+
+    return Object.entries(roundStats)
+      .map(([key, data]) => ({
+        key,
+        ...data,
+        displayName: `${data.year}년 ${data.round}차`
+      }))
+      .sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.round - a.round;
+      });
   };
 
   // 질문별 분석 데이터 생성
@@ -496,6 +546,7 @@ const SurveyResults = () => {
   }
 
   const stats = getStatistics();
+  const roundStats = getRoundStatistics();
 
   return (
     <div className="min-h-screen bg-background">
@@ -514,11 +565,11 @@ const SurveyResults = () => {
           <div className="absolute left-1/2 transform -translate-x-1/2">
             <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">설문 결과 분석</h1>
             <p className="text-xs text-muted-foreground break-words hyphens-auto">
-              {canViewAll ? '전체 설문조사 결과를 확인할 수 있습니다' : 
+              {canViewAll ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다' : 
                instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
                '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
             </p>
-            {isInstructor && instructor && (
+            {!canViewAll && instructor && (
               <div className="flex items-center gap-2 mt-2">
                 {instructor.photo_url && (
                   <img 
@@ -596,24 +647,18 @@ const SurveyResults = () => {
             )}
           </div>
 
-          {/* 요약 통계 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* 전체 통계 요약 */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Card className="p-3">
               <div className="text-center">
                 <div className="text-lg sm:text-xl font-bold text-primary">{stats.totalSurveys}</div>
-                <div className="text-xs text-muted-foreground">설문조사</div>
+                <div className="text-xs text-muted-foreground">총 설문</div>
               </div>
             </Card>
             <Card className="p-3">
               <div className="text-center">
                 <div className="text-lg sm:text-xl font-bold text-primary">{stats.totalResponses}</div>
-                <div className="text-xs text-muted-foreground">응답</div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-center">
-                <div className="text-lg sm:text-xl font-bold text-primary">{stats.avgResponseRate}</div>
-                <div className="text-xs text-muted-foreground">평균응답</div>
+                <div className="text-xs text-muted-foreground">총 응답</div>
               </div>
             </Card>
             <Card className="p-3">
@@ -622,7 +667,60 @@ const SurveyResults = () => {
                 <div className="text-xs text-muted-foreground">진행중</div>
               </div>
             </Card>
+            <Card className="p-3">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-primary">{stats.completedSurveys}</div>
+                <div className="text-xs text-muted-foreground">완료</div>
+              </div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-center">
+                <div className="text-lg sm:text-xl font-bold text-primary">{stats.avgResponseRate}</div>
+                <div className="text-xs text-muted-foreground">평균 응답률</div>
+              </div>
+            </Card>
           </div>
+
+          {/* 차수별 통계 */}
+          {roundStats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>차수별 통계</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {roundStats.map((round) => (
+                    <Card key={round.key} className="p-4">
+                      <div className="text-center">
+                        <h3 className="font-semibold text-lg mb-2">{round.displayName}</h3>
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-sm text-muted-foreground">설문 수: </span>
+                            <span className="font-medium">{round.surveys.length}개</span>
+                          </div>
+                          <div>
+                            <span className="text-sm text-muted-foreground">총 응답: </span>
+                            <span className="font-medium">{round.responses}건</span>
+                          </div>
+                          <div className="flex gap-1 flex-wrap justify-center mt-2">
+                            {round.surveys.map(s => (
+                              <Badge 
+                                key={s.id} 
+                                variant={s.status === 'active' ? 'default' : 'secondary'}
+                                className="text-xs"
+                              >
+                                {s.status === 'active' ? '진행중' : s.status === 'completed' ? '완료' : '초안'}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* 설문조사 목록 */}
           <Card>
@@ -661,17 +759,15 @@ const SurveyResults = () => {
                           <BarChart className="h-4 w-4 mr-1" />
                           <span className="hidden sm:inline">상세 분석</span>
                         </Button>
-                        {canViewAll && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedSurvey(survey.id)}
-                            className="touch-friendly"
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span className="hidden sm:inline ml-1">개별 통계</span>
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedSurvey(survey.id)}
+                          className="touch-friendly"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span className="hidden sm:inline ml-1">개별 통계</span>
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -707,12 +803,11 @@ const SurveyResults = () => {
                   </TabsList>
 
                   <TabsContent value="overview" className="space-y-4">
-                    {/* 기존 전체 분석 내용 */}
-                    <SurveyStatsByRound instructorId={profile?.instructor_id} />
+                    <SurveyStatsByRound instructorId={canViewAll ? undefined : profile?.instructor_id} />
                   </TabsContent>
 
                   <TabsContent value="round-stats" className="space-y-4">
-                    <SurveyStatsByRound instructorId={profile?.instructor_id} />
+                    <SurveyStatsByRound instructorId={canViewAll ? undefined : profile?.instructor_id} />
                   </TabsContent>
 
                   <TabsContent value="individual" className="space-y-4">
@@ -725,6 +820,11 @@ const SurveyResults = () => {
                         answers={answers}
                         questions={questions}
                       />
+                    )}
+                    {!canViewAll && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        개별 통계는 관리자 권한이 필요합니다.
+                      </div>
                     )}
                   </TabsContent>
                 </Tabs>
