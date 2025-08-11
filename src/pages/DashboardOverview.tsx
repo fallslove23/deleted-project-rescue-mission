@@ -110,12 +110,14 @@ const DashboardOverview = () => {
         return q;
       };
 
-      // 응답 카운트 쿼리 생성
+      // 응답 카운트 쿼리 생성 (빌더를 반환하고, 설문이 없으면 null)
       const responsesBase = () => {
-        let q = supabase.from('survey_responses').select('*', { count: 'exact' });
+        let q = supabase
+          .from('survey_responses')
+          .select('*', { count: 'exact', head: true });
         if (isInstructor) {
-          if (instructorSurveyIds.length > 0) q = q.in('survey_id', instructorSurveyIds);
-          else return Promise.resolve({ count: 0 } as any);
+          if (instructorSurveyIds.length === 0) return null;
+          q = q.in('survey_id', instructorSurveyIds);
         }
         return q;
       };
@@ -132,16 +134,13 @@ const DashboardOverview = () => {
         surveyCount(),
         surveyCount({ status: 'active' }),
         surveyCount({ status: 'completed' }),
-        responsesBase(),
+        (responsesBase() ?? Promise.resolve({ count: 0 } as any)),
         isAdmin ? supabase.from('instructors').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
         isAdmin ? supabase.from('courses').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
-        // 최근 7일 응답
-        (async () => {
-          const base: any = await responsesBase();
-          // responsesBase가 즉시 카운트 객체를 반환한 경우
-          // (강사지만 설문이 없는 상황)
-          if ('count' in base && typeof base.count === 'number' && !('data' in base)) return base;
-          return (base as any).gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+        (() => {
+          const base = responsesBase();
+          if (!base) return Promise.resolve({ count: 0 } as any);
+          return base.gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
         })(),
       ]);
 
