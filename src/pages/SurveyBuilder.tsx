@@ -137,6 +137,13 @@ const SurveyBuilder = () => {
     description: ''
   });
 
+  const [isSectionEditDialogOpen, setIsSectionEditDialogOpen] = useState(false);
+  const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [sectionEditForm, setSectionEditForm] = useState({
+    name: '',
+    description: ''
+  });
+
   const [surveyForm, setSurveyForm] = useState({
     title: '',
     description: '',
@@ -425,8 +432,91 @@ const SurveyBuilder = () => {
     }
   };
 
+  const handleEditSectionOpen = (section: Section) => {
+    setEditingSection(section);
+    setSectionEditForm({ name: section.name, description: section.description || '' });
+    setIsSectionEditDialogOpen(true);
+  };
+
+  const handleUpdateSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSection) return;
+    try {
+      const { error } = await supabase
+        .from('survey_sections')
+        .update({
+          name: sectionEditForm.name,
+          description: sectionEditForm.description
+        })
+        .eq('id', editingSection.id);
+      if (error) throw error;
+      toast({ title: '성공', description: '섹션이 수정되었습니다.' });
+      setIsSectionEditDialogOpen(false);
+      setEditingSection(null);
+      fetchSurveyData();
+    } catch (error: any) {
+      console.error('Error updating section:', error);
+      toast({ title: '오류', description: error?.message || '섹션 수정 중 오류가 발생했습니다.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    if (!sectionId) return;
+    if (!window.confirm('해당 섹션을 삭제하시겠습니까? 섹션 내 질문은 섹션 없음으로 이동됩니다.')) return;
+    try {
+      const { error: qErr } = await supabase
+        .from('survey_questions')
+        .update({ section_id: null })
+        .eq('section_id', sectionId);
+      if (qErr) throw qErr;
+
+      const { error: delErr } = await supabase
+        .from('survey_sections')
+        .delete()
+        .eq('id', sectionId);
+      if (delErr) throw delErr;
+
+      toast({ title: '성공', description: '섹션이 삭제되었습니다.' });
+      fetchSurveyData();
+    } catch (error: any) {
+      console.error('Error deleting section:', error);
+      toast({ title: '오류', description: error?.message || '섹션 삭제 중 오류가 발생했습니다.', variant: 'destructive' });
+    }
+  };
+
   const handleLoadTemplate = async (templateId: string) => {
     try {
+      const { data: tplSections, error: tplSecErr } = await supabase
+        .from('template_sections')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('order_index');
+
+      if (tplSecErr) throw tplSecErr;
+
+      let sectionIdMap: Record<string, string> = {};
+      if (tplSections && tplSections.length > 0) {
+        const existingCount = sections.length;
+        const newSectionsPayload = tplSections.map((ts) => ({
+          survey_id: surveyId,
+          name: ts.name,
+          description: ts.description,
+          order_index: existingCount + (ts.order_index ?? 0)
+        }));
+        const { data: insertedSections, error: insSecErr } = await supabase
+          .from('survey_sections')
+          .insert(newSectionsPayload)
+          .select();
+        if (insSecErr) throw insSecErr;
+
+        insertedSections?.forEach((s, idx) => {
+          const tpl = tplSections[idx] as any;
+          if (tpl?.id && s?.id) {
+            sectionIdMap[tpl.id] = s.id;
+          }
+        });
+      }
+
       const { data: templateQuestions, error } = await supabase
         .from('template_questions')
         .select('*')
@@ -435,14 +525,17 @@ const SurveyBuilder = () => {
 
       if (error) throw error;
 
-      if (templateQuestions) {
-        const newQuestions = templateQuestions.map((tq, index) => ({
+      if (templateQuestions && templateQuestions.length > 0) {
+        const baseIndex = questions.length;
+        const newQuestions = templateQuestions.map((tq: any, index: number) => ({
           survey_id: surveyId,
           question_text: tq.question_text,
           question_type: tq.question_type,
           is_required: tq.is_required,
-          order_index: questions.length + index,
-          options: tq.options
+          order_index: baseIndex + index,
+          options: tq.options,
+          section_id: tq.section_id ? sectionIdMap[tq.section_id] ?? null : null,
+          satisfaction_type: tq.satisfaction_type ?? null
         }));
 
         const { error: insertError } = await supabase
@@ -450,25 +543,24 @@ const SurveyBuilder = () => {
           .insert(newQuestions);
 
         if (insertError) throw insertError;
-
-        toast({
-          title: "성공",
-          description: "템플릿이 적용되었습니다."
-        });
-
-        setIsTemplateDialogOpen(false);
-        fetchSurveyData();
       }
+
+      toast({
+        title: '성공',
+        description: '템플릿이 적용되었습니다.'
+      });
+
+      setIsTemplateDialogOpen(false);
+      fetchSurveyData();
     } catch (error) {
       console.error('Error loading template:', error);
       toast({
-        title: "오류",
-        description: "템플릿 불러오기 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: '오류',
+        description: '템플릿 불러오기 중 오류가 발생했습니다.',
+        variant: 'destructive'
       });
     }
   };
-
   const handleUpdateSurveyInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -1273,7 +1365,53 @@ const SurveyBuilder = () => {
                   </DialogContent>
                 </Dialog>
 
+                {/* 섹션 수정 다이얼로그 */}
+                <Dialog open={isSectionEditDialogOpen} onOpenChange={setIsSectionEditDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>섹션 수정</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleUpdateSection} className="space-y-4">
+                      <div>
+                        <Label htmlFor="edit_section_name">섹션 이름</Label>
+                        <Input
+                          id="edit_section_name"
+                          value={sectionEditForm.name}
+                          onChange={(e) => setSectionEditForm(prev => ({ ...prev, name: e.target.value }))}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit_section_description">섹션 설명</Label>
+                        <Textarea
+                          id="edit_section_description"
+                          value={sectionEditForm.description}
+                          onChange={(e) => setSectionEditForm(prev => ({ ...prev, description: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => {
+                            if (editingSection) handleDeleteSection(editingSection.id)
+                          }}
+                        >
+                          삭제
+                        </Button>
+                        <div className="flex gap-2">
+                          <Button type="button" variant="outline" onClick={() => setIsSectionEditDialogOpen(false)}>
+                            취소
+                          </Button>
+                          <Button type="submit">저장</Button>
+                        </div>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
                 <Dialog open={isDialogOpen} onOpenChange={(open) => {
+
                   setIsDialogOpen(open);
                   if (!open) resetQuestionForm();
                 }}>
@@ -1407,11 +1545,21 @@ const SurveyBuilder = () => {
                   return (
                     <div key={section.id} className="space-y-4">
                       <div className="border-t pt-4">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{section.name}</Badge>
-                          {section.description && (
-                            <span className="text-sm text-muted-foreground">{section.description}</span>
-                          )}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Badge variant="outline">{section.name}</Badge>
+                            {section.description && (
+                              <span className="text-sm text-muted-foreground truncate">{section.description}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" aria-label="섹션 수정" onClick={() => handleEditSectionOpen(section)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" aria-label="섹션 삭제" onClick={() => handleDeleteSection(section.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <Separator className="mt-2" />
                       </div>
