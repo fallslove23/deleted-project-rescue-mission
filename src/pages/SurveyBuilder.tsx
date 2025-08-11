@@ -387,6 +387,15 @@ const SurveyBuilder = () => {
     e.preventDefault();
     
     try {
+      if (!surveyId) {
+        toast({
+          title: "오류",
+          description: "설문 ID가 없습니다. 먼저 설문을 생성/저장하세요.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('survey_sections')
         .insert([{
@@ -406,11 +415,11 @@ const SurveyBuilder = () => {
       setSectionForm({ name: '', description: '' });
       setIsSectionDialogOpen(false);
       fetchSurveyData(); // 섹션 목록 새로고침
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding section:', error);
       toast({
         title: "오류",
-        description: "섹션 추가 중 오류가 발생했습니다.",
+        description: error?.message || "섹션 추가 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     }

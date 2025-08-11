@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import InstructorIndividualStats from '@/components/InstructorIndividualStats';
 import SurveyStatsByRound from '@/components/SurveyStatsByRound';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface Survey {
   id: string;
@@ -589,6 +590,23 @@ const SurveyResults = () => {
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
+          {isInstructor && instructor && (
+            <section aria-label="강사 정보" className="rounded-xl border bg-card p-4 sm:p-6 shadow-sm">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-2 ring-primary/20">
+                  <AvatarImage src={instructor.photo_url || ''} alt={`${instructor.name} 강사 사진`} />
+                  <AvatarFallback>{(instructor.name || 'IN').slice(0, 2)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-2xl font-bold leading-tight break-words">{instructor.name}</h2>
+                  {instructor.email && (
+                    <p className="text-sm text-muted-foreground break-words">{instructor.email}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">담당 강사의 설문 결과입니다.</p>
+                </div>
+              </div>
+            </section>
+          )}
           {/* 필터 */}
           <div className="flex gap-2 sm:gap-4 flex-wrap">
             <Select value={selectedYear} onValueChange={(value) => {
