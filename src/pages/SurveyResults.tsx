@@ -580,7 +580,7 @@ const SurveyResults = () => {
                   />
                 )}
                 <span className="text-sm text-muted-foreground break-words truncate">
-                  강사: {instructor.name} ({instructor.email})
+                  강사: {instructor.name}
                 </span>
               </div>
             )}
