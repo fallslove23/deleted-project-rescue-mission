@@ -1,5 +1,4 @@
-import { useState } from "react"
-import { Users, FileText, BarChart, BookOpen, Home, Menu } from "lucide-react"
+import { Users, FileText, BarChart, BookOpen, Home } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 
@@ -12,7 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 
@@ -31,51 +29,66 @@ export function AdminSidebar() {
   const currentPath = location.pathname
 
   // 사용자 역할에 따라 필터링된 메뉴 항목
-  const items = allItems.filter(item => 
-    item.roles.some(role => userRoles.includes(role))
+  const items = allItems.filter((item) =>
+    item.roles.some((role) => userRoles.includes(role))
   )
 
   const isActive = (path: string) => {
-    if (path === '/dashboard') {
-      return currentPath === '/dashboard'
+    if (path === "/dashboard") {
+      return currentPath === "/dashboard"
     }
     return currentPath.startsWith(path)
   }
 
-  const isExpanded = items.some((i) => isActive(i.url))
+  const sections = [
+    { label: "대시보드", keys: ["/dashboard"] },
+    { label: "설문", keys: ["/dashboard/surveys", "/dashboard/results"] },
+    { label: "관리", keys: ["/dashboard/instructors", "/dashboard/templates"] },
+  ]
 
-  const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive ? "bg-primary/10 text-primary font-medium border-r-2 border-primary" : "hover:bg-white/50 text-muted-foreground"
+
+  const sectionItems = sections
+    .map((section) => ({
+      ...section,
+      items: items.filter((i) => section.keys.includes(i.url)),
+    }))
+    .filter((sec) => sec.items.length > 0)
 
   return (
-    <Sidebar
-      className={state === "collapsed" ? "w-14" : "w-60"}
-    >
+    <Sidebar className={state === "collapsed" ? "w-14" : "w-60"}>
       <SidebarContent className="bg-gradient-to-b from-primary/5 to-primary/10">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-primary font-semibold">
-            {state === "expanded" && "관리자 메뉴"}
-          </SidebarGroupLabel>
+        {sectionItems.map((section) => (
+          <SidebarGroup key={section.label}>
+            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+              {state === "expanded" && section.label}
+            </SidebarGroupLabel>
 
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      end={item.url === '/dashboard'}
-                      className={({ isActive }) => `${getNavCls({ isActive })} rounded-lg transition-all duration-200 flex items-center justify-start px-3 py-2`}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.url)}
+                      className={state === "expanded" ? "pl-8" : ""}
                     >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {state === "expanded" && <span className="ml-3">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      <NavLink
+                        to={item.url}
+                        end={item.url === "/dashboard"}
+                        className="flex items-center"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {state === "expanded" && (
+                          <span className="ml-2">{item.title}</span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
     </Sidebar>
   )
