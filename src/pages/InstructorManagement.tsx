@@ -39,7 +39,7 @@ interface InstructorCourse {
   created_at: string;
 }
 
-const InstructorManagement = () => {
+const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -772,32 +772,32 @@ const InstructorManagement = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with back button */}
-      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between mb-3">
-            <Button
-              onClick={() => navigate('/dashboard')}
-              variant="ghost"
-              size="sm"
-              className="touch-friendly"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">대시보드</span>
-              <span className="sm:hidden">뒤로</span>
-            </Button>
-            <div className="text-center flex-1 min-w-0 mx-4">
-              <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">
-                {currentView === 'instructors' ? '강사 관리' : '과목 관리'}
-              </h1>
-              <p className="text-xs text-muted-foreground break-words">
-                {currentView === 'instructors' ? '강사 정보 등록 및 관리' : '과목 정보 등록 및 관리'}
-              </p>
+      {showPageHeader && (
+        <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <Button
+                onClick={() => navigate('/dashboard')}
+                variant="ghost"
+                size="sm"
+                className="touch-friendly"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">대시보드</span>
+                <span className="sm:hidden">뒤로</span>
+              </Button>
+              <div className="text-center flex-1 min-w-0 mx-4">
+                <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">
+                  {currentView === 'instructors' ? '강사 관리' : '과목 관리'}
+                </h1>
+                <p className="text-xs text-muted-foreground break-words">
+                  {currentView === 'instructors' ? '강사 정보 등록 및 관리' : '과목 정보 등록 및 관리'}
+                </p>
+              </div>
             </div>
-          </div>
-          
-          {/* 탭 버튼들 */}
-          <div className="flex gap-2 mb-3">
+            
+            {/* 탭 버튼들 */}
+            <div className="flex gap-2 mb-3">
             <Button
               variant={currentView === 'instructors' ? 'default' : 'outline'}
               size="sm"

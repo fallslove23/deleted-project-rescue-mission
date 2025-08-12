@@ -63,7 +63,7 @@ interface SurveyQuestion {
   order_index: number;
 }
 
-const SurveyResults = () => {
+const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -551,42 +551,43 @@ const SurveyResults = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with back button */}
-      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center relative">
-          <Button
-            onClick={() => navigate('/dashboard')}
-            variant="ghost"
-            size="sm"
-            className="touch-friendly"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">대시보드</span>
-          </Button>
-          <div className="absolute left-1/2 transform -translate-x-1/2">
-            <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">설문 결과 분석</h1>
-            <p className="text-xs text-muted-foreground break-words hyphens-auto">
-              {canViewAll ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다' : 
-               instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
-               '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
-            </p>
-            {!canViewAll && instructor && (
-              <div className="flex items-center gap-2 mt-2">
-                {instructor.photo_url && (
-                  <img 
-                    src={instructor.photo_url} 
-                    alt={instructor.name}
-                    className="w-6 h-6 rounded-full object-cover"
-                  />
-                )}
-                <span className="text-sm text-muted-foreground break-words truncate">
-                  강사: {instructor.name}
-                </span>
-              </div>
-            )}
+      {showPageHeader && (
+        <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+          <div className="container mx-auto px-4 py-3 flex items-center relative">
+            <Button
+              onClick={() => navigate('/dashboard')}
+              variant="ghost"
+              size="sm"
+              className="touch-friendly"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">대시보드</span>
+            </Button>
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">설문 결과 분석</h1>
+              <p className="text-xs text-muted-foreground break-words hyphens-auto">
+                {canViewAll ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다' : 
+                 instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
+                 '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
+              </p>
+              {!canViewAll && instructor && (
+                <div className="flex items-center gap-2 mt-2">
+                  {instructor.photo_url && (
+                    <img 
+                      src={instructor.photo_url} 
+                      alt={instructor.name}
+                      className="w-6 h-6 rounded-full object-cover"
+                    />
+                  )}
+                  <span className="text-sm text-muted-foreground break-words truncate">
+                    강사: {instructor.name}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">

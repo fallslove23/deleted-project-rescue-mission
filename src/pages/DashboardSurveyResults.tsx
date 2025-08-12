@@ -4,7 +4,7 @@ import SurveyResults from './SurveyResults';
 const DashboardSurveyResults = () => {
   return (
     <DashboardLayout title="결과 분석" description="설문조사 결과 분석 및 통계">
-      <SurveyResults />
+      <SurveyResults showPageHeader={false} />
     </DashboardLayout>
   );
 };

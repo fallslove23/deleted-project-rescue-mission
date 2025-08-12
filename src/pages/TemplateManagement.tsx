@@ -32,7 +32,7 @@ interface TemplateQuestion {
   order_index: number;
 }
 
-const TemplateManagement = () => {
+const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -258,24 +258,25 @@ const TemplateManagement = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center relative">
-          <Button
-            onClick={() => navigate('/dashboard')}
-            variant="ghost"
-            size="sm"
-            className="touch-friendly"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">대시보드</span>
-          </Button>
-          <div className="absolute left-1/2 transform -translate-x-1/2">
-            <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">템플릿 관리</h1>
-            <p className="text-xs text-muted-foreground text-center break-words">설문조사 템플릿 생성 및 관리</p>
+      {showPageHeader && (
+        <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+          <div className="container mx-auto px-4 py-3 flex items-center relative">
+            <Button
+              onClick={() => navigate('/dashboard')}
+              variant="ghost"
+              size="sm"
+              className="touch-friendly"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">대시보드</span>
+            </Button>
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">템플릿 관리</h1>
+              <p className="text-xs text-muted-foreground text-center break-words">설문조사 템플릿 생성 및 관리</p>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
