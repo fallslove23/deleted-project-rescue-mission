@@ -124,12 +124,16 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     e.preventDefault();
     
     try {
+      const payload = {
+        ...formData,
+        start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
+        end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
+        created_by: user?.id,
+      };
+
       const { error } = await supabase
         .from('surveys')
-        .insert([{
-          ...formData,
-          created_by: user?.id
-        }]);
+        .insert([payload]);
 
       if (error) throw error;
 
@@ -425,9 +429,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 <span className="break-words">새 설문조사</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>새 설문조사 만들기</DialogTitle>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>새 설문조사 만들기</DialogTitle>
+              </DialogHeader>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -454,7 +459,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="education_round">차수</Label>
                   <Input

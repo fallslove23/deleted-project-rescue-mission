@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/sidebar"
 
 const allItems = [
-  { title: "교육생 화면", url: "/student", icon: Home, roles: ["admin", "operator", "instructor", "director"] },
   { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator"] },
   { title: "내 피드백", url: "/dashboard/my-stats", icon: Star, roles: ["instructor", "admin", "operator", "director"] },
   { title: "설문관리", url: "/dashboard/surveys", icon: FileText, roles: ["admin", "operator"] },
@@ -43,10 +42,8 @@ export function AdminSidebar() {
   }
 
 const sections = [
-  { label: "교육생", keys: ["/student"] },
   { label: "대시보드", keys: ["/dashboard"] },
-  { label: "내 통계", keys: ["/dashboard/my-stats"] },
-  { label: "설문", keys: ["/dashboard/surveys", "/dashboard/results"] },
+  { label: "설문", keys: ["/dashboard/surveys", "/dashboard/results", "/dashboard/my-stats"] },
   { label: "관리", keys: ["/dashboard/instructors", "/dashboard/templates"] },
 ]
 

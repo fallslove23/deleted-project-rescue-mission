@@ -55,6 +55,17 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
                   {user?.email}
                 </span>
 
+                {/* Student View Button */}
+                <Button
+                  onClick={() => navigate('/student')}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 hidden sm:inline-flex"
+                  title="교육생 화면"
+                >
+                  <Home className="h-3 w-3 sm:mr-1" />
+                  <span className="hidden sm:inline">교육생 화면</span>
+                </Button>
 
                 {/* Activity Popover */}
                 <Popover>

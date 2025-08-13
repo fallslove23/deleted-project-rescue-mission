@@ -191,8 +191,8 @@ const SurveyBuilder = () => {
         description: surveyData.description || '',
         education_year: surveyData.education_year || new Date().getFullYear(),
         education_round: surveyData.education_round || 1,
-         start_date: surveyData.start_date ? new Date(surveyData.start_date).toLocaleString('sv-SE').slice(0, 16) : '',
-         end_date: surveyData.end_date ? new Date(surveyData.end_date).toLocaleString('sv-SE').slice(0, 16) : '',
+        start_date: surveyData.start_date ? (() => { const d = new Date(surveyData.start_date); const off = d.getTimezoneOffset(); const local = new Date(d.getTime() - off * 60000); return local.toISOString().slice(0,16); })() : '',
+        end_date: surveyData.end_date ? (() => { const d = new Date(surveyData.end_date); const off = d.getTimezoneOffset(); const local = new Date(d.getTime() - off * 60000); return local.toISOString().slice(0,16); })() : '',
         status: surveyData.status || 'draft'
       });
 
@@ -991,6 +991,7 @@ const SurveyBuilder = () => {
                   <DialogContent className="max-w-md">
                     <DialogHeader>
                       <DialogTitle>설문조사 정보 수정</DialogTitle>
+                    </DialogHeader>
                     </DialogHeader>
                     <form onSubmit={handleUpdateSurveyInfo} className="space-y-4">
                       <div>
