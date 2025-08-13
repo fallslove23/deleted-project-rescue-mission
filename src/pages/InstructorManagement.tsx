@@ -863,6 +863,7 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
           </div>
         </div>
       </header>
+      )}
 
       {/* Mobile Action Buttons */}
       <div className="sm:hidden p-4 border-b bg-background">
