@@ -122,8 +122,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     try {
       let query = supabase.from('survey_responses').select('*');
       
-      // 강사인 경우 자신의 강의 설문에 대한 응답만 조회
-      if (isInstructor && profile.instructor_id) {
+      // 관리자/운영자/조직장인 경우 전체 응답 조회, 강사 역할만 있는 경우에만 자신의 강의 설문에 대한 응답만 조회
+      if (isInstructor && profile.instructor_id && !canViewAll) {
         const { data: instructorSurveys } = await supabase
           .from('surveys')
           .select('id')
@@ -262,8 +262,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     try {
       let query = supabase.from('surveys').select('*');
       
-      // 강사인 경우 자신의 강의 설문만 조회
-      if (isInstructor && profile.instructor_id) {
+      // 관리자/운영자/조직장인 경우 전체 설문 조회, 강사 역할만 있는 경우에만 자신의 강의 설문만 조회
+      if (isInstructor && profile.instructor_id && !canViewAll) {
         query = query.eq('instructor_id', profile.instructor_id);
       }
       
