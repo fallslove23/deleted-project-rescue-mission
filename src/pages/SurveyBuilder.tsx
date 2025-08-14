@@ -992,7 +992,6 @@ const SurveyBuilder = () => {
                     <DialogHeader>
                       <DialogTitle>설문조사 정보 수정</DialogTitle>
                     </DialogHeader>
-                    </DialogHeader>
                     <form onSubmit={handleUpdateSurveyInfo} className="space-y-4">
                       <div>
                         <Label htmlFor="survey_title">설문 제목</Label>
@@ -1140,8 +1139,8 @@ const SurveyBuilder = () => {
                           </Button>
                         </div>
                       </form>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogContent>
+                    </Dialog>
                   )}
                   {survey.status === 'completed' && (
                     <Badge variant="secondary" className="text-xs">
