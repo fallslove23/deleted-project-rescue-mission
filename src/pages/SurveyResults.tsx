@@ -495,10 +495,11 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       const failed = results?.filter(r => r.status === 'failed').map(r => r.to) || [];
 
       toast({
-        title: failed.length === 0 ? "전송 완료" : "일부 전송 실패",
-        description:
-          `성공 ${sent.length}건${sent.length ? `: ${sent.join(', ')}` : ''}` +
-          `${failed.length ? ` / 실패 ${failed.length}건: ${failed.join(', ')}` : ''}`,
+        title: failed.length === 0 ? "✅ 이메일 전송 완료!" : "⚠️ 일부 전송 실패",
+        description: failed.length === 0 
+          ? `${sent.length}명에게 설문 결과가 성공적으로 전송되었습니다. 📧` 
+          : `성공 ${sent.length}건${sent.length ? `: ${sent.join(', ')}` : ''} / 실패 ${failed.length}건: ${failed.join(', ')}`,
+        duration: 5000,
       });
       
       setEmailDialogOpen(false);

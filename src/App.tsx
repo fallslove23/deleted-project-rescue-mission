@@ -15,6 +15,7 @@ import DashboardSurveyResults from "./pages/DashboardSurveyResults";
 import DashboardInstructorManagement from "./pages/DashboardInstructorManagement";
 import DashboardTemplateManagement from "./pages/DashboardTemplateManagement";
 import DashboardMyStats from "./pages/DashboardMyStats";
+import DashboardEmailLogs from "./pages/DashboardEmailLogs";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
 import SurveyBuilder from "./pages/SurveyBuilder";
@@ -131,6 +132,11 @@ const App = () => (
             <Route path="/dashboard/my-stats" element={
               <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
                 <DashboardMyStats />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/email-logs" element={
+              <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
+                <DashboardEmailLogs />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
