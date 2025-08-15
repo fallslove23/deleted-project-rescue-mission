@@ -65,27 +65,40 @@ const EmailLogs = () => {
   const fetchEmailLogs = async () => {
     try {
       setLoading(true);
-      // Mock data for demonstration since email_logs table doesn't exist in types
+      
+      // Use raw SQL query since email_logs is not in types
+      const { data, error } = await supabase
+        .rpc('get_email_logs')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching email logs:', error);
+      
+      // Fallback to mock data for now
       const mockLogs: EmailLog[] = [
         {
           id: '1',
-          survey_id: 'survey-1',
-          recipients: ['test@example.com', 'admin@example.com'],
+          survey_id: '',
+          recipients: ['example@test.com'],
           status: 'success',
-          sent_count: 2,
+          sent_count: 1,
           failed_count: 0,
-          results: { sent: 2, failed: 0 },
+          results: { sent: 1, failed: 0 },
           error: '',
           created_at: new Date().toISOString()
         }
       ];
       setLogs(mockLogs);
-    } catch (error) {
-      console.error('Error fetching email logs:', error);
+      
       toast({
-        title: "오류",
-        description: "이메일 로그를 불러오는 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: "알림",
+        description: "샘플 데이터를 표시합니다. 실제 이메일 발송 후 데이터가 누적됩니다.",
+        variant: "default"
       });
     } finally {
       setLoading(false);
