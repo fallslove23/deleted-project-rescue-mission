@@ -41,8 +41,8 @@ const EmailLogs = () => {
   const [logs, setLogs] = useState<EmailLog[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSurvey, setSelectedSurvey] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedSurvey, setSelectedSurvey] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<Date | undefined>(new Date());
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
@@ -109,11 +109,11 @@ const EmailLogs = () => {
   const getFilteredLogs = () => {
     let filtered = logs;
 
-    if (selectedSurvey) {
+    if (selectedSurvey && selectedSurvey !== 'all') {
       filtered = filtered.filter(log => log.survey_id === selectedSurvey);
     }
 
-    if (selectedStatus) {
+    if (selectedStatus && selectedStatus !== 'all') {
       filtered = filtered.filter(log => log.status === selectedStatus);
     }
 
@@ -351,7 +351,7 @@ const EmailLogs = () => {
                   <SelectValue placeholder="전체 설문" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">전체 설문</SelectItem>
+                  <SelectItem value="all">전체 설문</SelectItem>
                   {surveys.map(survey => (
                     <SelectItem key={survey.id} value={survey.id}>
                       {survey.title} ({survey.education_year}년 {survey.education_round}차)
@@ -368,7 +368,7 @@ const EmailLogs = () => {
                   <SelectValue placeholder="전체 상태" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">전체 상태</SelectItem>
+                  <SelectItem value="all">전체 상태</SelectItem>
                   <SelectItem value="success">성공</SelectItem>
                   <SelectItem value="failed">실패</SelectItem>
                   <SelectItem value="partial">부분성공</SelectItem>
