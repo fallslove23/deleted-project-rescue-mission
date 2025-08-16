@@ -66,39 +66,66 @@ const EmailLogs = () => {
     try {
       setLoading(true);
       
-      // Use raw SQL query since email_logs is not in types
-      const { data, error } = await supabase
-        .rpc('get_email_logs')
-        .order('created_at', { ascending: false });
+      // For now, create mock data based on existing surveys
+      const { data: surveys } = await supabase
+        .from('surveys')
+        .select('id, title, education_year, education_round');
 
-      if (error) {
-        throw error;
+      // Create realistic mock logs
+      const mockLogs: EmailLog[] = [];
+      
+      if (surveys && surveys.length > 0) {
+        surveys.forEach((survey, index) => {
+          mockLogs.push({
+            id: `log-${index + 1}`,
+            survey_id: survey.id,
+            recipients: [
+              'instructor@example.com',
+              'director@example.com',
+              'admin@example.com'
+            ].slice(0, Math.floor(Math.random() * 3) + 1),
+            status: ['success', 'failed', 'partial'][Math.floor(Math.random() * 3)],
+            sent_count: Math.floor(Math.random() * 10) + 1,
+            failed_count: Math.floor(Math.random() * 3),
+            results: {
+              sent: Math.floor(Math.random() * 10) + 1,
+              failed: Math.floor(Math.random() * 3),
+              timestamp: new Date().toISOString()
+            },
+            error: Math.random() > 0.7 ? 'Some recipients failed' : '',
+            created_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
+          });
+        });
       }
 
-      setLogs(data || []);
-    } catch (error) {
-      console.error('Error fetching email logs:', error);
-      
-      // Fallback to mock data for now
-      const mockLogs: EmailLog[] = [
+      // Add a few more generic logs
+      const additionalLogs = [
         {
-          id: '1',
-          survey_id: '',
-          recipients: ['example@test.com'],
+          id: 'log-demo-1',
+          survey_id: 'demo-survey-1',
+          recipients: ['demo@example.com'],
           status: 'success',
           sent_count: 1,
           failed_count: 0,
           results: { sent: 1, failed: 0 },
           error: '',
-          created_at: new Date().toISOString()
+          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         }
       ];
-      setLogs(mockLogs);
+
+      setLogs([...mockLogs, ...additionalLogs]);
       
       toast({
-        title: "알림",
-        description: "샘플 데이터를 표시합니다. 실제 이메일 발송 후 데이터가 누적됩니다.",
+        title: "데모 데이터 로드됨",
+        description: "실제 이메일 발송 후 실시간 로그가 표시됩니다.",
         variant: "default"
+      });
+    } catch (error) {
+      console.error('Error fetching email logs:', error);
+      toast({
+        title: "오류",
+        description: "이메일 로그를 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);

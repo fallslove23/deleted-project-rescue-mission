@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -74,6 +74,42 @@ export type Database = {
           id?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      email_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          failed_count: number
+          id: string
+          recipients: string[]
+          results: Json | null
+          sent_count: number
+          status: string
+          survey_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          failed_count?: number
+          id?: string
+          recipients?: string[]
+          results?: Json | null
+          sent_count?: number
+          status: string
+          survey_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          failed_count?: number
+          id?: string
+          recipients?: string[]
+          results?: Json | null
+          sent_count?: number
+          status?: string
+          survey_id?: string | null
         }
         Relationships: []
       }
@@ -560,25 +596,25 @@ export type Database = {
     }
     Functions: {
       admin_link_profile_to_instructor: {
-        Args: { target_profile_id: string; instructor_id_param: string }
+        Args: { instructor_id_param: string; target_profile_id: string }
         Returns: undefined
       }
       admin_set_user_roles: {
         Args: {
-          target_user_id: string
           roles: Database["public"]["Enums"]["user_role"][]
+          target_user_id: string
         }
         Returns: undefined
       }
       admin_set_user_roles_safe: {
         Args: {
-          target_user_id: string
           roles: Database["public"]["Enums"]["user_role"][]
+          target_user_id: string
         }
         Returns: undefined
       }
       check_role_change_allowed: {
-        Args: { user_id: string; new_role: string; old_role: string }
+        Args: { new_role: string; old_role: string; user_id: string }
         Returns: boolean
       }
       create_admin_user: {
@@ -588,20 +624,20 @@ export type Database = {
       create_instructor_account: {
         Args: {
           instructor_email: string
-          instructor_password: string
           instructor_id_param: string
+          instructor_password: string
         }
         Returns: string
       }
       get_all_profiles_for_admin: {
         Args: { requesting_user_id: string }
         Returns: {
-          id: string
-          email: string
-          role: string
-          instructor_id: string
-          first_login: boolean
           created_at: string
+          email: string
+          first_login: boolean
+          id: string
+          instructor_id: string
+          role: string
           updated_at: string
         }[]
       }
@@ -609,15 +645,29 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_email_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          error: string
+          failed_count: number
+          id: string
+          recipients: string[]
+          results: Json
+          sent_count: number
+          status: string
+          survey_id: string
+        }[]
+      }
       get_user_profile: {
         Args: { user_id: string }
         Returns: {
-          id: string
-          email: string
-          role: string
-          instructor_id: string
-          first_login: boolean
           created_at: string
+          email: string
+          first_login: boolean
+          id: string
+          instructor_id: string
+          role: string
           updated_at: string
         }[]
       }

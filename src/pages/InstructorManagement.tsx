@@ -59,6 +59,9 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'instructors' | 'courses'>('instructors');
   const [courseSearchQuery, setCourseSearchQuery] = useState('');
+  const [isCreateUsersDialogOpen, setIsCreateUsersDialogOpen] = useState(false);
+  const [selectedInstructorsForUsers, setSelectedInstructorsForUsers] = useState<string[]>([]);
+  const [creatingUsers, setCreatingUsers] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
