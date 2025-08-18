@@ -55,7 +55,7 @@ const PersonalDashboard = () => {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('year');
-  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
@@ -103,7 +103,7 @@ const PersonalDashboard = () => {
         .select('*')
         .eq('instructor_id', profile.instructor_id);
 
-      if (selectedYear) {
+      if (selectedYear && selectedYear !== 'all') {
         surveyQuery = surveyQuery.eq('education_year', parseInt(selectedYear));
       }
 
@@ -431,7 +431,7 @@ const PersonalDashboard = () => {
             <SelectValue placeholder="전체 연도" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">전체</SelectItem>
+            <SelectItem value="all">전체</SelectItem>
             {getUniqueYears().map(year => (
               <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
             ))}
