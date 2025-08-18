@@ -72,7 +72,8 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     education_year: new Date().getFullYear(),
     education_round: 1,
     instructor_id: '',
-    course_id: ''
+    course_id: '',
+    expected_participants: 0
   });
 
   useEffect(() => {
@@ -152,7 +153,8 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         education_year: new Date().getFullYear(),
         education_round: 1,
         instructor_id: '',
-        course_id: ''
+        course_id: '',
+        expected_participants: 0
       });
       setSelectedInstructor('');
       fetchData();
@@ -569,6 +571,19 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="expected_participants">예상 설문 인원 수</Label>
+                <Input
+                  id="expected_participants"
+                  type="number"
+                  min="1"
+                  value={formData.expected_participants}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expected_participants: parseInt(e.target.value) || 0 }))}
+                  placeholder="예상되는 설문 참여자 수를 입력하세요"
+                  className="touch-friendly"
                 />
               </div>
 

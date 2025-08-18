@@ -45,6 +45,21 @@ All colors MUST be HSL.
     --glass-bg: 240 10% 3.9% / 0.8;
     --glass-border: 240 5% 64.9% / 0.2;
 
+    /* Chart colors - trendy and modern */
+    --chart-primary: 263 70% 50.4%;
+    --chart-secondary: 270 91% 65%;
+    --chart-accent: 285 85% 50%;
+    --chart-success: 142 76% 36%;
+    --chart-warning: 38 92% 50%;
+    --chart-danger: 0 84% 60%;
+    --chart-info: 201 96% 32%;
+    --chart-purple: 263 70% 50.4%;
+    --chart-blue: 221 83% 53%;
+    --chart-teal: 173 58% 39%;
+    --chart-orange: 25 95% 53%;
+    --chart-pink: 330 81% 60%;
+    --chart-indigo: 263 70% 50.4%;
+
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
