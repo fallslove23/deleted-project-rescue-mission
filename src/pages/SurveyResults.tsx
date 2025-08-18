@@ -76,6 +76,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   const [allResponses, setAllResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
+  const [allQuestions, setAllQuestions] = useState<SurveyQuestion[]>([]);
+  const [allAnswers, setAllAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedSurvey, setSelectedSurvey] = useState<string>('');
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('');
@@ -100,25 +102,19 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
 
   useEffect(() => {
     if (profile) {
+      fetchAllInstructors();
       fetchSurveys();
-      if (canViewAll) {
-        fetchAllInstructors();
-      }
-      if (profile.instructor_id) {
-        fetchInstructorInfo();
-      }
+      fetchAllResponses();
+      fetchAllQuestionsAndAnswers(); // 모든 질문과 답변 데이터 로드
     }
   }, [profile]);
 
   useEffect(() => {
-    if (profile) {
-      fetchAllResponses();
-    }
     if (selectedSurvey) {
       fetchResponses();
       fetchQuestionsAndAnswers();
     }
-  }, [selectedSurvey, profile]);
+  }, [selectedSurvey]);
 
   const fetchAllResponses = async () => {
     try {
@@ -146,11 +142,65 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     }
   };
 
+  // 모든 설문의 질문과 답변 데이터 로드 (차수별 통계용)
+  const fetchAllQuestionsAndAnswers = async () => {
+    try {
+      let surveyQuery = supabase.from('surveys').select('id');
+      
+      // 권한에 따라 설문 필터링
+      if (isInstructor && profile?.instructor_id && !canViewAll) {
+        surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
+      }
+      
+      const { data: surveyData, error: surveyError } = await surveyQuery;
+      if (surveyError) throw surveyError;
+      
+      const surveyIds = surveyData?.map(s => s.id) || [];
+      if (surveyIds.length === 0) return;
+
+      // 모든 설문의 질문들 가져오기
+      const { data: questionsData, error: questionsError } = await supabase
+        .from('survey_questions')
+        .select('*')
+        .in('survey_id', surveyIds)
+        .order('order_index');
+      
+      if (questionsError) throw questionsError;
+      setAllQuestions(questionsData || []);
+
+      // 모든 설문의 응답 ID들 가져오기
+      const { data: responseIds, error: responseError } = await supabase
+        .from('survey_responses')
+        .select('id')
+        .in('survey_id', surveyIds);
+      
+      if (responseError) throw responseError;
+      
+      if (responseIds && responseIds.length > 0) {
+        const ids = responseIds.map(r => r.id);
+        
+        // 모든 답변들 가져오기
+        const { data: answersData, error: answersError } = await supabase
+          .from('question_answers')
+          .select('*')
+          .in('response_id', ids)
+          .order('created_at');
+        
+        if (answersError) throw answersError;
+        setAllAnswers(answersData || []);
+      } else {
+        setAllAnswers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching all questions and answers:', error);
+    }
+  };
+
   const fetchQuestionsAndAnswers = async () => {
     if (!selectedSurvey) return;
     
     try {
-      // 설문 질문들 가져오기
+      // 선택된 설문의 질문들 가져오기
       const { data: questionsData, error: questionsError } = await supabase
         .from('survey_questions')
         .select('*')
@@ -158,9 +208,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
         .order('order_index');
       
       if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
-
-      // 해당 설문의 모든 응답 ID들 가져오기
+      
+      // 선택된 설문의 응답 ID들 가져오기
       const { data: responseIds, error: responseError } = await supabase
         .from('survey_responses')
         .select('id')
@@ -171,7 +220,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       if (responseIds && responseIds.length > 0) {
         const ids = responseIds.map(r => r.id);
         
-        // 답변들 가져오기
+        // 선택된 설문의 답변들 가져오기
         const { data: answersData, error: answersError } = await supabase
           .from('question_answers')
           .select('*')
@@ -179,9 +228,10 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
           .order('created_at');
         
         if (answersError) throw answersError;
+        
+        // 선택된 설문의 질문과 답변만 별도로 상태 관리 (개별 분석용)
+        setQuestions(questionsData || []);
         setAnswers(answersData || []);
-      } else {
-        setAnswers([]);
       }
     } catch (error) {
       console.error('Error fetching questions and answers:', error);
@@ -420,10 +470,10 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       let instructorCount = 0;
 
       round.surveys.forEach(survey => {
-        // 현재 로드된 questions와 answers에서 해당 설문 데이터 찾기
-        const surveyQuestions = questions.filter(q => q.survey_id === survey.id);
+        // 전체 로드된 questions와 answers에서 해당 설문 데이터 찾기
+        const surveyQuestions = allQuestions.filter(q => q.survey_id === survey.id);
         const surveyResponses = allResponses.filter(r => r.survey_id === survey.id);
-        const surveyAnswers = answers.filter(a => 
+        const surveyAnswers = allAnswers.filter(a => 
           surveyResponses.some(r => r.id === a.response_id)
         );
 
