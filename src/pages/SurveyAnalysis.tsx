@@ -371,7 +371,7 @@ const SurveyAnalysis = () => {
       <div className="flex flex-col space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">설문 결과 분석</h1>
-          {selectedSurvey && (
+          {selectedSurvey && !isInstructor && (
             <div className="flex gap-2">
               <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
                 <DialogTrigger asChild>

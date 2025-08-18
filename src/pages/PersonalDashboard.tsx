@@ -56,6 +56,7 @@ const PersonalDashboard = () => {
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('year');
   const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedRound, setSelectedRound] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
@@ -69,7 +70,7 @@ const PersonalDashboard = () => {
     if (profile && canViewPersonalStats) {
       fetchData();
     }
-  }, [profile, selectedYear]);
+  }, [profile, selectedYear, selectedRound]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -105,6 +106,10 @@ const PersonalDashboard = () => {
 
       if (selectedYear && selectedYear !== 'all') {
         surveyQuery = surveyQuery.eq('education_year', parseInt(selectedYear));
+      }
+
+      if (selectedRound && selectedRound !== 'all') {
+        surveyQuery = surveyQuery.eq('education_round', parseInt(selectedRound));
       }
 
       const { data: surveysData, error: surveysError } = await surveyQuery
@@ -156,6 +161,15 @@ const PersonalDashboard = () => {
   const getUniqueYears = () => {
     const years = [...new Set(surveys.map(s => s.education_year))];
     return years.sort((a, b) => b - a);
+  };
+
+  const getUniqueRounds = () => {
+    let filteredSurveys = surveys;
+    if (selectedYear && selectedYear !== 'all') {
+      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
+    }
+    const rounds = [...new Set(filteredSurveys.map(s => s.education_round))];
+    return rounds.sort((a, b) => a - b);
   };
 
   const getTrendData = () => {
@@ -434,6 +448,18 @@ const PersonalDashboard = () => {
             <SelectItem value="all">전체</SelectItem>
             {getUniqueYears().map(year => (
               <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedRound} onValueChange={setSelectedRound}>
+          <SelectTrigger className="w-32">
+            <SelectValue placeholder="전체 차수" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">전체</SelectItem>
+            {getUniqueRounds().map(round => (
+              <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
             ))}
           </SelectContent>
         </Select>
