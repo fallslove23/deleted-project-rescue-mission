@@ -134,17 +134,17 @@ const SurveyParticipate = () => {
 
       setSurvey(surveyData);
 
-      // 강의 평가 템플릿 여부 확인
-      const isCourseEval = surveyData.survey_templates?.is_course_evaluation || false;
-      setIsCourseEvaluation(isCourseEval);
+      // 강의 평가 템플릿 여부 또는 강사 ID 존재 여부 확인
+      const isCourseEval = surveyData.survey_templates?.is_course_evaluation || surveyData.instructor_id;
+      setIsCourseEvaluation(!!isCourseEval);
 
-      // 강의 평가 템플릿이고 강사 ID가 있으면 강사 정보 가져오기
-      if (isCourseEval && surveyData.instructor_id) {
+      // 강사 ID가 있으면 강사 정보 가져오기
+      if (surveyData.instructor_id) {
         const { data: instructorData, error: instructorError } = await supabase
           .from('instructors')
           .select('*')
           .eq('id', surveyData.instructor_id)
-          .single();
+          .maybeSingle();
 
         if (!instructorError && instructorData) {
           setInstructor(instructorData);
