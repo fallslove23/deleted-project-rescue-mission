@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer, Mail } from 'lucide-react';
+import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer, Mail, Filter, Calendar, User, BookOpen, ChevronDown, ChevronRight, Eye, Send, X, BarChart3 } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip, Legend } from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -819,62 +819,116 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
             </Card>
           </div>
 
-          {/* 차수별 통계 */}
+          {/* Enhanced Trendy Chart for Round Statistics */}
+          {roundStats.length > 0 && (
+            <Card className="border-2 border-muted-foreground/30">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  차수별 만족도 트렌드
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsBarChart data={roundStats.slice(0, 8).reverse()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" opacity={0.3} />
+                    <XAxis 
+                      dataKey="displayName"
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis 
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}
+                      formatter={(value: any, name: string) => [
+                        `${value.toFixed(1)}/10`, 
+                        name === 'courseSatisfaction' ? '과정 만족도' : '강사 만족도'
+                      ]}
+                      labelFormatter={(label) => `${label}`}
+                    />
+                    <Legend 
+                      formatter={(value) => value === 'courseSatisfaction' ? '과정 만족도' : '강사 만족도'}
+                    />
+                    <Bar 
+                      dataKey="courseSatisfaction" 
+                      name="courseSatisfaction"
+                      fill="hsl(var(--chart-primary))" 
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={60}
+                    />
+                    <Bar 
+                      dataKey="instructorSatisfaction" 
+                      name="instructorSatisfaction"
+                      fill="hsl(var(--chart-secondary))" 
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={60}
+                    />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Enhanced Round Statistics Cards */}
           {roundStats.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>차수별 통계</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  차수별 통계
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {roundStats.map((round) => (
-                    <Card key={round.key} className="p-4 bg-gradient-to-br from-background to-muted/20">
-                      <div className="text-center space-y-3">
-                        <h3 className="font-semibold text-lg mb-3 text-primary">{round.displayName}</h3>
-                        
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div className="bg-background rounded-lg p-2">
-                            <span className="text-muted-foreground block">설문 수</span>
-                            <span className="font-medium text-lg">{round.surveys.length}개</span>
-                          </div>
-                          <div className="bg-background rounded-lg p-2">
-                            <span className="text-muted-foreground block">총 응답</span>
-                            <span className="font-medium text-lg">{round.responses}건</span>
+                    <Card key={round.key} className="border-2 border-muted-foreground/30 hover:border-primary transition-colors bg-gradient-to-br from-background to-muted/20">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                          {round.displayName}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">진행중인 설문</span>
+                          <span className="font-semibold text-primary">{round.surveys.length}개</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">총 응답 수</span>
+                          <span className="font-semibold text-primary">{round.responses}개</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">과정 만족도</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{round.courseSatisfaction > 0 ? `${round.courseSatisfaction.toFixed(1)}/10` : '-'}</span>
+                            {round.courseSatisfaction > 0 && (
+                              <Badge variant={round.courseSatisfaction >= 8 ? 'default' : round.courseSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                {round.courseSatisfaction >= 8 ? '우수' : round.courseSatisfaction >= 6 ? '보통' : '개선필요'}
+                              </Badge>
+                            )}
                           </div>
                         </div>
-
-                        {round.courseSatisfaction > 0 && (
-                          <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3">
-                            <span className="text-sm text-muted-foreground block">과정 만족도</span>
-                            <span className="font-bold text-xl text-blue-600 dark:text-blue-400">
-                              {round.courseSatisfaction.toFixed(1)}점
-                            </span>
-                            <div className="text-xs text-muted-foreground">(10점 만점)</div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">강사 만족도</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{round.instructorSatisfaction > 0 ? `${round.instructorSatisfaction.toFixed(1)}/10` : '-'}</span>
+                            {round.instructorSatisfaction > 0 && (
+                              <Badge variant={round.instructorSatisfaction >= 8 ? 'default' : round.instructorSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                {round.instructorSatisfaction >= 8 ? '우수' : round.instructorSatisfaction >= 6 ? '보통' : '개선필요'}
+                              </Badge>
+                            )}
                           </div>
-                        )}
-
-                        {round.instructorSatisfaction > 0 && (
-                          <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-3">
-                            <span className="text-sm text-muted-foreground block">강사 만족도</span>
-                            <span className="font-bold text-xl text-green-600 dark:text-green-400">
-                              {round.instructorSatisfaction.toFixed(1)}점
-                            </span>
-                            <div className="text-xs text-muted-foreground">(10점 만점)</div>
-                          </div>
-                        )}
-
-                        <div className="flex gap-1 flex-wrap justify-center mt-3">
-                          {round.surveys.map(s => (
-                            <Badge 
-                              key={s.id} 
-                              variant={s.status === 'active' ? 'default' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {s.status === 'active' ? '진행중' : s.status === 'completed' ? '완료' : '초안'}
-                            </Badge>
-                          ))}
                         </div>
-                      </div>
+                      </CardContent>
                     </Card>
                   ))}
                 </div>
@@ -908,25 +962,25 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                             응답 수: {allResponses.filter(r => r.survey_id === survey.id).length}개
                           </span>
                         </div>
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                       </div>
+                       <div className="flex gap-2 flex-shrink-0">
                          <Button
                            variant="default"
                            size="sm"
-                           onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
-                           className="touch-friendly bg-primary hover:bg-primary/90 text-primary-foreground"
+                           onClick={() => navigate(`/dashboard/survey-analysis/${survey.id}`)}
+                           className="touch-friendly text-xs h-9 px-3 bg-primary hover:bg-primary/90"
                          >
-                           <BarChart className="h-4 w-4 mr-1" />
-                           <span className="hidden sm:inline">상세 분석</span>
+                           <Eye className="h-3 w-3 mr-1" />
+                           상세 분석
                          </Button>
                          <Button
                            variant="outline"
                            size="sm"
                            onClick={() => setSelectedSurvey(survey.id)}
-                           className="touch-friendly border-2 border-muted-foreground/30 hover:border-primary hover:bg-muted/50"
+                           className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
                          >
-                           <FileText className="h-4 w-4" />
-                           <span className="hidden sm:inline ml-1">개별 통계</span>
+                           <BarChart className="h-3 w-3 mr-1" />
+                           개별 통계
                          </Button>
                          <Button
                            variant="outline"
@@ -935,14 +989,14 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                              setSelectedSurvey(survey.id);
                              openEmailDialog();
                            }}
-                           className="touch-friendly border-2 border-muted-foreground/30 hover:border-primary hover:bg-muted/50"
+                           className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
                          >
-                           <Mail className="h-4 w-4" />
-                           <span className="hidden sm:inline ml-1">결과 송부</span>
+                           <Send className="h-3 w-3 mr-1" />
+                           결과 송부
                          </Button>
-                      </div>
-                    </div>
-                  </div>
+                       </div>
+                     </div>
+                   </div>
                 ))}
               </div>
             </CardContent>

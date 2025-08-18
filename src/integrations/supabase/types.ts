@@ -428,6 +428,7 @@ export type Database = {
           education_round: number | null
           education_year: number | null
           end_date: string | null
+          expected_participants: number | null
           id: string
           instructor_id: string | null
           start_date: string | null
@@ -444,6 +445,7 @@ export type Database = {
           education_round?: number | null
           education_year?: number | null
           end_date?: string | null
+          expected_participants?: number | null
           id?: string
           instructor_id?: string | null
           start_date?: string | null
@@ -460,6 +462,7 @@ export type Database = {
           education_round?: number | null
           education_year?: number | null
           end_date?: string | null
+          expected_participants?: number | null
           id?: string
           instructor_id?: string | null
           start_date?: string | null
