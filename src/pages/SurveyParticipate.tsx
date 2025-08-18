@@ -9,9 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
+import { InstructorInfoSection } from '@/components/InstructorInfoSection';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 
 interface Survey {
   id: string;
@@ -20,6 +22,16 @@ interface Survey {
   start_date: string;
   end_date: string;
   status: string;
+  template_id?: string;
+  instructor_id?: string;
+}
+
+interface Instructor {
+  id: string;
+  name: string;
+  email?: string;
+  photo_url?: string;
+  bio?: string;
 }
 
 interface Question {
@@ -56,6 +68,8 @@ const SurveyParticipate = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [instructor, setInstructor] = useState<Instructor | null>(null);
+  const [isCoursEvaluation, setIsCourseEvaluation] = useState(false);
 
   useEffect(() => {
     if (surveyId) {
@@ -67,10 +81,17 @@ const SurveyParticipate = () => {
     try {
       console.log('Fetching survey data for:', surveyId);
       
-      // 설문 정보 가져오기
+      // 설문 정보 가져오기 (템플릿 정보 포함)
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
-        .select('*')
+        .select(`
+          *,
+          survey_templates!template_id (
+            id,
+            name,
+            is_course_evaluation
+          )
+        `)
         .eq('id', surveyId)
         .eq('status', 'active')
         .single();
@@ -112,6 +133,23 @@ const SurveyParticipate = () => {
       }
 
       setSurvey(surveyData);
+
+      // 강의 평가 템플릿 여부 확인
+      const isCourseEval = surveyData.survey_templates?.is_course_evaluation || false;
+      setIsCourseEvaluation(isCourseEval);
+
+      // 강의 평가 템플릿이고 강사 ID가 있으면 강사 정보 가져오기
+      if (isCourseEval && surveyData.instructor_id) {
+        const { data: instructorData, error: instructorError } = await supabase
+          .from('instructors')
+          .select('*')
+          .eq('id', surveyData.instructor_id)
+          .single();
+
+        if (!instructorError && instructorData) {
+          setInstructor(instructorData);
+        }
+      }
 
       // 섹션 가져오기
       const { data: sectionsData, error: sectionsError } = await supabase
@@ -463,6 +501,31 @@ const SurveyParticipate = () => {
           </div>
           <Progress value={progress} className="h-2" />
         </div>
+
+        {/* 강의 평가 템플릿일 때만 강사 정보 버튼 표시 */}
+        {isCoursEvaluation && instructor && (
+          <Card className="mb-4">
+            <CardContent className="pt-6">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-full flex items-center gap-2"
+                  >
+                    <User className="h-4 w-4" />
+                    강사 정보 확인하기
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <InstructorInfoSection 
+                    instructor={instructor} 
+                    title="강사 정보"
+                  />
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
