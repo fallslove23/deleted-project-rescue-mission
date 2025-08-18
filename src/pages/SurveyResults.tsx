@@ -299,9 +299,25 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   const fetchAllInstructors = async () => {
     try {
       // 강사 역할을 가진 사용자들만 가져오기
+      const { data: instructorUsers, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'instructor');
+      
+      if (rolesError) throw rolesError;
+      
+      const instructorUserIds = instructorUsers.map(ur => ur.user_id);
+      
+      if (instructorUserIds.length === 0) {
+        setAllInstructors([]);
+        return;
+      }
+      
+      // 강사 역할을 가진 사용자들 중 instructor_id가 있는 프로필만 가져오기
       const { data: instructorProfiles, error: profileError } = await supabase
         .from('profiles')
         .select('instructor_id')
+        .in('id', instructorUserIds)
         .not('instructor_id', 'is', null);
       
       if (profileError) throw profileError;
