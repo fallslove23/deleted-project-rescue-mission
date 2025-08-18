@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, TrendingUp, Users, Award, BarChart3 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { Progress } from '@/components/ui/progress';
+import SurveyStatsByRound from '@/components/SurveyStatsByRound';
 
 interface Survey {
   id: string;
@@ -470,6 +471,7 @@ const PersonalDashboard = () => {
         <TabsList>
           <TabsTrigger value="trend">만족도 트렌드</TabsTrigger>
           <TabsTrigger value="distribution">평점 분포</TabsTrigger>
+          <TabsTrigger value="round-stats">회차별 통계</TabsTrigger>
           <TabsTrigger value="insights">인사이트</TabsTrigger>
         </TabsList>
 
@@ -563,6 +565,10 @@ const PersonalDashboard = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="round-stats" className="space-y-4">
+          <SurveyStatsByRound instructorId={profile?.instructor_id} />
         </TabsContent>
 
         <TabsContent value="insights" className="space-y-4">

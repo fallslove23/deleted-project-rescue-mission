@@ -16,12 +16,12 @@ import {
 
 const allItems = [
   { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator"] },
-  { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator", "director"] },
   { title: "내 피드백", url: "/dashboard/my-stats", icon: Star, roles: ["instructor", "admin", "operator", "director"] },
   { title: "설문관리", url: "/dashboard/surveys", icon: FileText, roles: ["admin", "operator"] },
   { title: "결과분석", url: "/dashboard/results", icon: BarChart, roles: ["admin", "operator", "instructor", "director"] },
   { title: "강사관리", url: "/dashboard/instructors", icon: Users, roles: ["admin", "operator"] },
   { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen, roles: ["admin", "operator"] },
+  { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator", "director"] },
 ]
 
 export function AdminSidebar() {
@@ -44,8 +44,8 @@ export function AdminSidebar() {
 
 const sections = [
   { label: "대시보드", keys: ["/dashboard"] },
-  { label: "설문", keys: ["/dashboard/surveys", "/dashboard/results", "/dashboard/my-stats", "/dashboard/email-logs"] },
-  { label: "관리", keys: ["/dashboard/instructors", "/dashboard/templates"] },
+  { label: "설문", keys: ["/dashboard/surveys", "/dashboard/results", "/dashboard/my-stats"] },
+  { label: "관리", keys: ["/dashboard/instructors", "/dashboard/templates", "/dashboard/email-logs"] },
 ]
 
 
