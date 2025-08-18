@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Trash2, Edit, FolderPlus, ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import {
   DndContext,
   closestCenter,
@@ -652,6 +653,31 @@ const TemplateBuilder = () => {
               )}
             </CardHeader>
           </Card>
+
+          {/* Instructor Info Preview for Course Evaluation Templates */}
+          {template.is_course_evaluation && (
+            <Card className="mb-6 border-primary/20 bg-muted/30">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold text-primary">
+                  강사 정보 (미리보기)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-primary text-sm">강사 사진</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-medium text-muted-foreground">[강사명]</h3>
+                    <p className="text-sm text-muted-foreground mt-1">[강사 이메일]</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      * 실제 설문에서는 배정된 강사 정보가 자동으로 표시됩니다.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Questions */}
           <div className="space-y-4">

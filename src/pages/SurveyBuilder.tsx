@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Trash2, Edit, GripVertical, FileText, FolderPlus, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import {
   DndContext,
   closestCenter,
@@ -1091,6 +1092,9 @@ const SurveyBuilder = () => {
               </div>
             </CardHeader>
           </Card>
+
+          {/* Instructor Info Section */}
+          <InstructorInfoSection instructor={instructor} />
 
           {/* Instructor and Course Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
