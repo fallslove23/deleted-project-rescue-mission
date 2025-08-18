@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
 import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { toZonedTime } from 'date-fns-tz';
 
 interface Survey {
   id: string;
@@ -329,20 +330,29 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   };
 
   const getStatusBadge = (survey: Survey) => {
-    const now = new Date();
-    const startDate = new Date(survey.start_date);
-    const endDate = new Date(survey.end_date);
+    // 한국 시간대(Asia/Seoul) 기준으로 현재 시간 계산
+    const timeZone = 'Asia/Seoul';
+    const nowKST = toZonedTime(new Date(), timeZone);
+    const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
+    const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
+    
+    console.log('Survey time check:', {
+      surveyId: survey.id,
+      nowKST: nowKST.toISOString(),
+      startDateKST: startDateKST.toISOString(),
+      endDateKST: endDateKST.toISOString(),
+      status: survey.status
+    });
     
     // 실제 날짜/시간에 따른 동적 상태 결정
-    let displayStatus = survey.status;
     let displayLabel = '';
     let variant: 'default' | 'secondary' | 'outline' | 'destructive' = 'secondary';
     
     if (survey.status === 'active') {
-      if (now < startDate) {
+      if (nowKST < startDateKST) {
         displayLabel = '시작 예정';
         variant = 'secondary';
-      } else if (now >= startDate && now <= endDate) {
+      } else if (nowKST >= startDateKST && nowKST <= endDateKST) {
         displayLabel = '진행중';
         variant = 'default';
       } else {

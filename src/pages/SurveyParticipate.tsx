@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { toZonedTime } from 'date-fns-tz';
 
 interface Survey {
   id: string;
@@ -86,12 +87,21 @@ const SurveyParticipate = () => {
         return;
       }
 
-      // 날짜 검증
-      const today = new Date();
-      const startDate = new Date(surveyData.start_date);
-      const endDate = new Date(surveyData.end_date);
+      // 한국 시간대 기준으로 날짜 검증
+      const timeZone = 'Asia/Seoul';
+      const nowKST = toZonedTime(new Date(), timeZone);
+      const startDateKST = toZonedTime(new Date(surveyData.start_date), timeZone);
+      const endDateKST = toZonedTime(new Date(surveyData.end_date), timeZone);
       
-      if (today < startDate || today > endDate) {
+      console.log('Survey participation time check:', {
+        surveyId,
+        nowKST: nowKST.toISOString(),
+        startDateKST: startDateKST.toISOString(),
+        endDateKST: endDateKST.toISOString(),
+        isWithinPeriod: nowKST >= startDateKST && nowKST <= endDateKST
+      });
+      
+      if (nowKST < startDateKST || nowKST > endDateKST) {
         toast({
           title: "설문 참여 기간이 아닙니다",
           description: "설문 참여 가능 기간을 확인해 주세요.",
