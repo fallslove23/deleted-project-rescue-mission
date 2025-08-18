@@ -462,6 +462,7 @@ const PersonalDashboard = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="period" />
                     <YAxis domain={[1, 5]} />
+                    <YAxis yAxisId="right" orientation="right" />
                     <Tooltip 
                       formatter={(value: any, name: string) => [
                         name === 'average' ? `${Number(value).toFixed(1)}점` : value,
