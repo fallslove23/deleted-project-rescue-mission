@@ -12,9 +12,28 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit, FileText, FolderPlus } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, GripVertical, FileText, FolderPlus, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Question {
   id: string;
@@ -91,6 +110,17 @@ const SurveyBuilder = () => {
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
+  // DnD sensors for mouse and touch
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
@@ -269,13 +299,22 @@ const SurveyBuilder = () => {
     e.preventDefault();
     
     try {
-      const newOrderIndex = questions.length;
+      // 새 질문 추가 시 현재 섹션의 마지막 order_index + 1로 설정
+      let newOrderIndex = 0;
+      if (questionForm.section_id && questionForm.section_id !== 'none') {
+        const sectionQuestions = questions.filter(q => q.section_id === questionForm.section_id);
+        newOrderIndex = sectionQuestions.length > 0 ? Math.max(...sectionQuestions.map(q => q.order_index)) + 1 : 0;
+      } else {
+        const noSectionQuestions = questions.filter(q => !q.section_id);
+        newOrderIndex = noSectionQuestions.length > 0 ? Math.max(...noSectionQuestions.map(q => q.order_index)) + 1 : 0;
+      }
+      
       const questionData = {
         survey_id: surveyId,
         question_text: questionForm.question_text,
         question_type: questionForm.question_type,
         is_required: questionForm.is_required,
-        order_index: newOrderIndex,
+        order_index: editingQuestion ? editingQuestion.order_index : newOrderIndex, // 수정 시 기존 order_index 유지
         options: questionForm.question_type === 'scale' ? { min: questionForm.scale_min, max: questionForm.scale_max } : questionForm.options,
         section_id: questionForm.section_id === 'none' ? null : questionForm.section_id,
         satisfaction_type: questionForm.satisfaction_type === 'none' ? null : questionForm.satisfaction_type
@@ -361,313 +400,97 @@ const SurveyBuilder = () => {
     }
   };
 
-  const handleAddSection = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      if (!surveyId) {
-        toast({
-          title: "오류",
-          description: "설문 ID가 없습니다. 먼저 설문을 생성/저장하세요.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('survey_sections')
-        .insert([{
-          survey_id: surveyId,
-          name: sectionForm.name,
-          description: sectionForm.description,
-          order_index: sections.length
-        }]);
-
-      if (error) throw error;
-      
-      toast({
-        title: "성공",
-        description: "섹션이 추가되었습니다."
-      });
-
-      setSectionForm({ name: '', description: '' });
-      setIsSectionDialogOpen(false);
-      fetchSurveyData(); // 섹션 목록 새로고침
-    } catch (error: any) {
-      console.error('Error adding section:', error);
-      toast({
-        title: "오류",
-        description: error?.message || "섹션 추가 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleEditSectionOpen = (section: Section) => {
-    setEditingSection(section);
-    setSectionEditForm({ name: section.name, description: section.description || '' });
-    setIsSectionEditDialogOpen(true);
-  };
-
-  const handleUpdateSection = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSection) return;
-    try {
-      const { error } = await supabase
-        .from('survey_sections')
-        .update({
-          name: sectionEditForm.name,
-          description: sectionEditForm.description
-        })
-        .eq('id', editingSection.id);
-      if (error) throw error;
-      toast({ title: '성공', description: '섹션이 수정되었습니다.' });
-      setIsSectionEditDialogOpen(false);
-      setEditingSection(null);
-      fetchSurveyData();
-    } catch (error: any) {
-      console.error('Error updating section:', error);
-      toast({ title: '오류', description: error?.message || '섹션 수정 중 오류가 발생했습니다.', variant: 'destructive' });
-    }
-  };
-
-  const handleDeleteSection = async (sectionId: string) => {
-    if (!sectionId) return;
-    if (!window.confirm('해당 섹션을 삭제하시겠습니까? 섹션 내 질문은 섹션 없음으로 이동됩니다.')) return;
-    try {
-      const { error: qErr } = await supabase
-        .from('survey_questions')
-        .update({ section_id: null })
-        .eq('section_id', sectionId);
-      if (qErr) throw qErr;
-
-      const { error: delErr } = await supabase
-        .from('survey_sections')
-        .delete()
-        .eq('id', sectionId);
-      if (delErr) throw delErr;
-
-      toast({ title: '성공', description: '섹션이 삭제되었습니다.' });
-      fetchSurveyData();
-    } catch (error: any) {
-      console.error('Error deleting section:', error);
-      toast({ title: '오류', description: error?.message || '섹션 삭제 중 오류가 발생했습니다.', variant: 'destructive' });
-    }
-  };
-
-  const handleLoadTemplate = async (templateId: string) => {
-    try {
-      const { data: tplSections, error: tplSecErr } = await supabase
-        .from('template_sections')
-        .select('*')
-        .eq('template_id', templateId)
-        .order('order_index');
-
-      if (tplSecErr) throw tplSecErr;
-
-      let sectionIdMap: Record<string, string> = {};
-      if (tplSections && tplSections.length > 0) {
-        const existingCount = sections.length;
-        const newSectionsPayload = tplSections.map((ts) => ({
-          survey_id: surveyId,
-          name: ts.name,
-          description: ts.description,
-          order_index: existingCount + (ts.order_index ?? 0)
-        }));
-        const { data: insertedSections, error: insSecErr } = await supabase
-          .from('survey_sections')
-          .insert(newSectionsPayload)
-          .select();
-        if (insSecErr) throw insSecErr;
-
-        insertedSections?.forEach((s, idx) => {
-          const tpl = tplSections[idx] as any;
-          if (tpl?.id && s?.id) {
-            sectionIdMap[tpl.id] = s.id;
-          }
-        });
-      }
-
-      const { data: templateQuestions, error } = await supabase
-        .from('template_questions')
-        .select('*')
-        .eq('template_id', templateId)
-        .order('order_index');
-
-      if (error) throw error;
-
-      if (templateQuestions && templateQuestions.length > 0) {
-        const baseIndex = questions.length;
-        const newQuestions = templateQuestions.map((tq: any, index: number) => ({
-          survey_id: surveyId,
-          question_text: tq.question_text,
-          question_type: tq.question_type,
-          is_required: tq.is_required,
-          order_index: baseIndex + index,
-          options: tq.options,
-          section_id: tq.section_id ? sectionIdMap[tq.section_id] ?? null : null,
-          satisfaction_type: tq.satisfaction_type ?? null
-        }));
-
-        const { error: insertError } = await supabase
-          .from('survey_questions')
-          .insert(newQuestions);
-
-        if (insertError) throw insertError;
-      }
-
-      toast({
-        title: '성공',
-        description: '템플릿이 적용되었습니다.'
-      });
-
-      setIsTemplateDialogOpen(false);
-      fetchSurveyData();
-    } catch (error) {
-      console.error('Error loading template:', error);
-      toast({
-        title: '오류',
-        description: '템플릿 불러오기 중 오류가 발생했습니다.',
-        variant: 'destructive'
-      });
-    }
-  };
-  const handleUpdateSurveyInfo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const updateData = {
-        title: surveyForm.title,
-        description: surveyForm.description,
-        education_year: surveyForm.education_year,
-        education_round: surveyForm.education_round,
-         start_date: surveyForm.start_date ? new Date(surveyForm.start_date + '+09:00').toISOString() : null,
-         end_date: surveyForm.end_date ? new Date(surveyForm.end_date + '+09:00').toISOString() : null,
-        status: surveyForm.status,
-        updated_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('surveys')
-        .update(updateData)
-        .eq('id', surveyId);
-
-      if (error) throw error;
-
-      toast({
-        title: "성공",
-        description: "설문조사 정보가 수정되었습니다."
-      });
-
-      setIsSurveyInfoDialogOpen(false);
-      fetchSurveyData();
-    } catch (error) {
-      console.error('Error updating survey info:', error);
-      toast({
-        title: "오류",
-        description: "설문조사 정보 수정 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleUpdateInstructor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const { error } = await supabase
-        .from('surveys')
-        .update({ instructor_id: instructorForm.selectedInstructorId })
-        .eq('id', surveyId);
-
-      if (error) throw error;
-
-      toast({
-        title: "성공",
-        description: "강사 정보가 변경되었습니다."
-      });
-
-      setIsInstructorDialogOpen(false);
-      fetchSurveyData();
-    } catch (error) {
-      console.error('Error updating instructor:', error);
-      toast({
-        title: "오류",
-        description: "강사 정보 변경 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleUpdateCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const { error } = await supabase
-        .from('surveys')
-        .update({ course_id: courseForm.selectedCourseId })
-        .eq('id', surveyId);
-
-      if (error) throw error;
-
-      toast({
-        title: "성공",
-        description: "과목 정보가 변경되었습니다."
-      });
-
-      setIsCourseDialogOpen(false);
-      fetchSurveyData();
-    } catch (error) {
-      console.error('Error updating course:', error);
-      toast({
-        title: "오류",
-        description: "과목 정보 변경 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Question order management
   const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down') => {
-    const currentQuestions = [...questions];
-    const currentIndex = currentQuestions.findIndex(q => q.id === questionId);
+    try {
+      const currentQuestion = questions.find(q => q.id === questionId);
+      if (!currentQuestion) return;
+
+      // 같은 섹션 또는 섹션 없는 질문들 필터링
+      const questionsInSameContext = questions
+        .filter(q => q.section_id === currentQuestion.section_id)
+        .sort((a, b) => a.order_index - b.order_index);
+      
+      const currentIndex = questionsInSameContext.findIndex(q => q.id === questionId);
+      
+      if (direction === 'up' && currentIndex === 0) return;
+      if (direction === 'down' && currentIndex === questionsInSameContext.length - 1) return;
+
+      const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      const swapQuestion = questionsInSameContext[swapIndex];
+
+      // order_index 교환
+      const tempOrderIndex = currentQuestion.order_index;
+      
+      await Promise.all([
+        supabase
+          .from('survey_questions')
+          .update({ order_index: swapQuestion.order_index })
+          .eq('id', currentQuestion.id),
+        supabase
+          .from('survey_questions')
+          .update({ order_index: tempOrderIndex })
+          .eq('id', swapQuestion.id)
+      ]);
+
+      toast({
+        title: "성공",
+        description: "질문 순서가 변경되었습니다."
+      });
+
+      fetchSurveyData();
+    } catch (error) {
+      console.error('Error moving question:', error);
+      toast({
+        title: "오류",
+        description: "질문 순서 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Drag and drop handler
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const activeQuestion = questions.find(q => q.id === active.id);
+    const overQuestion = questions.find(q => q.id === over.id);
     
-    if (currentIndex === -1) return;
-    
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
-    if (newIndex < 0 || newIndex >= currentQuestions.length) return;
-    
-    // Swap the questions
-    const temp = currentQuestions[currentIndex];
-    currentQuestions[currentIndex] = currentQuestions[newIndex];
-    currentQuestions[newIndex] = temp;
-    
-    // Update order_index values
-    currentQuestions[currentIndex].order_index = currentIndex;
-    currentQuestions[newIndex].order_index = newIndex;
+    if (!activeQuestion || !overQuestion) return;
+
+    // 같은 섹션 내에서만 이동 허용
+    if (activeQuestion.section_id !== overQuestion.section_id) return;
+
+    // 같은 섹션의 질문들만 필터링하고 정렬
+    const questionsInSameContext = questions
+      .filter(q => q.section_id === activeQuestion.section_id)
+      .sort((a, b) => a.order_index - b.order_index);
+
+    const oldIndex = questionsInSameContext.findIndex(q => q.id === active.id);
+    const newIndex = questionsInSameContext.findIndex(q => q.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reorderedQuestions = arrayMove(questionsInSameContext, oldIndex, newIndex);
     
     try {
-      // Update both questions in database
-      const updates = [
+      // 재정렬된 질문들의 order_index 업데이트
+      const updates = reorderedQuestions.map((q, index) =>
         supabase
           .from('survey_questions')
-          .update({ order_index: currentIndex })
-          .eq('id', currentQuestions[currentIndex].id),
-        supabase
-          .from('survey_questions')
-          .update({ order_index: newIndex })
-          .eq('id', currentQuestions[newIndex].id)
-      ];
+          .update({ order_index: index })
+          .eq('id', q.id)
+      );
       
       await Promise.all(updates);
-      
-      setQuestions(currentQuestions);
       
       toast({
         title: "성공",
         description: "질문 순서가 변경되었습니다."
       });
+
+      fetchSurveyData();
     } catch (error) {
       console.error('Error updating question order:', error);
       toast({
@@ -677,7 +500,6 @@ const SurveyBuilder = () => {
       });
     }
   };
-
 
   // Simple Question Item Component (without drag and drop)
   const QuestionItem = ({ question, index }: { question: Question; index: number }) => {
@@ -710,6 +532,94 @@ const SurveyBuilder = () => {
         
         {/* Main content with left padding for number and right padding for buttons */}
         <div className="pl-10 pr-20 py-4">
+          {question.question_type === 'scale' ? (
+            <div>
+              <div className="mb-4">
+                <h3 className="font-medium text-sm">
+                  {question.question_text}
+                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                </h3>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>전혀 그렇지 않다</span>
+                  <span>매우 그렇다</span>
+                </div>
+                
+                <RadioGroup className="flex items-center justify-between">
+                  {Array.from({ length: (question.options?.max || 10) - (question.options?.min || 1) + 1 }, (_, i) => {
+                    const value = (question.options?.min || 1) + i;
+                    return (
+                      <div key={value} className="flex flex-col items-center space-y-1">
+                        <span className="text-xs font-medium">{value}</span>
+                        <RadioGroupItem value={String(value)} disabled />
+                      </div>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h3 className="font-medium text-sm mb-2">
+                {question.question_text}
+                {question.is_required && <span className="text-red-500 ml-1">*</span>}
+              </h3>
+              {question.question_type === 'text' && (
+                <Textarea placeholder="답변을 입력하세요" disabled />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Sortable Question Item for drag and drop
+  const SortableQuestionItem = ({ question, index, isInSection }: { question: Question; index: number; isInSection: boolean }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+      cursor: 'grab',
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="relative group border rounded-lg bg-white">
+        {/* Drag handle */}
+        <div className="absolute left-2 top-2 flex items-center justify-center w-6 h-6 bg-primary/10 text-primary text-xs font-medium rounded-full cursor-grab">
+          <GripVertical className="h-4 w-4" />
+        </div>
+
+        {/* Question number indicator */}
+        <div className="absolute left-10 top-2 flex items-center justify-center w-6 h-6 text-primary text-xs font-medium rounded-full">
+          {index + 1}
+        </div>
+        
+        {/* Right side - Edit and delete buttons */}
+        <div className="absolute top-2 right-2 flex gap-1 z-10">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-white/90 hover:bg-white border shadow-sm"
+            onClick={() => handleEditQuestion(question)}
+          >
+            <Edit className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-white/90 hover:bg-white border shadow-sm"
+            onClick={() => handleDeleteQuestion(question.id)}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+        
+        {/* Main content with left padding for number and right padding for buttons */}
+        <div className="pl-16 pr-20 py-4">
           {question.question_type === 'scale' ? (
             <div>
               <div className="mb-4">
@@ -1442,15 +1352,27 @@ const SurveyBuilder = () => {
                       
                        {/* Questions in this section */}
                       <div className="space-y-3 ml-4">
-                        {sectionQuestions
-                          .sort((a, b) => a.order_index - b.order_index)
-                          .map((question, index) => (
-                            <QuestionItem
-                              key={question.id}
-                              question={question}
-                              index={index}
-                            />
-                          ))}
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <SortableContext
+                            items={sectionQuestions.map(q => q.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {sectionQuestions
+                              .sort((a, b) => a.order_index - b.order_index)
+                              .map((question, index) => (
+                                <SortableQuestionItem
+                                  key={question.id}
+                                  question={question}
+                                  index={index}
+                                  isInSection={true}
+                                />
+                              ))}
+                          </SortableContext>
+                        </DndContext>
                       </div>
                     </div>
                   );
@@ -1460,16 +1382,28 @@ const SurveyBuilder = () => {
 
             {/* Questions without sections */}
             <div className="space-y-4">
-              {questions
-                .filter((q) => !q.section_id)
-                .sort((a, b) => a.order_index - b.order_index)
-                .map((question, index) => (
-                  <QuestionItem
-                    key={question.id}
-                    question={question}
-                    index={index}
-                  />
-                ))}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={questions.filter(q => !q.section_id).map(q => q.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {questions
+                    .filter((q) => !q.section_id)
+                    .sort((a, b) => a.order_index - b.order_index)
+                    .map((question, index) => (
+                      <SortableQuestionItem
+                        key={question.id}
+                        question={question}
+                        index={index}
+                        isInSection={false}
+                      />
+                    ))}
+                </SortableContext>
+              </DndContext>
             </div>
 
             {questions.length === 0 && (
