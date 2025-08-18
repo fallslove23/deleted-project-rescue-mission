@@ -16,6 +16,7 @@ import DashboardInstructorManagement from "./pages/DashboardInstructorManagement
 import DashboardTemplateManagement from "./pages/DashboardTemplateManagement";
 import DashboardMyStats from "./pages/DashboardMyStats";
 import DashboardEmailLogs from "./pages/DashboardEmailLogs";
+import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
 import SurveyBuilder from "./pages/SurveyBuilder";
@@ -71,6 +72,11 @@ const App = () => (
             <Route path="/dashboard/instructors" element={
               <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardInstructorManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/courses" element={
+              <ProtectedRoute allowedRoles={["admin", "operator"]}>
+                <DashboardCourseManagement />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/templates" element={

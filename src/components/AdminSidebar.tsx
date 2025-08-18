@@ -20,6 +20,7 @@ const allItems = [
   { title: "결과분석", url: "/dashboard/results", icon: BarChart, roles: ["admin", "operator", "instructor", "director"] },
   { title: "설문관리", url: "/dashboard/surveys", icon: FileText, roles: ["admin", "operator"] },
   { title: "강사관리", url: "/dashboard/instructors", icon: Users, roles: ["admin", "operator"] },
+  { title: "과목관리", url: "/dashboard/courses", icon: BookOpen, roles: ["admin", "operator"] },
   { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen, roles: ["admin", "operator"] },
   { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator", "director"] },
 ]
@@ -45,7 +46,7 @@ export function AdminSidebar() {
 const sections = [
   { label: "대시보드", keys: ["/dashboard"] },
   { label: "설문", keys: ["/dashboard/results", "/dashboard/my-stats"] },
-  { label: "관리", keys: ["/dashboard/surveys", "/dashboard/instructors", "/dashboard/templates", "/dashboard/email-logs"] },
+  { label: "관리", keys: ["/dashboard/surveys", "/dashboard/instructors", "/dashboard/courses", "/dashboard/templates", "/dashboard/email-logs"] },
 ]
 
 

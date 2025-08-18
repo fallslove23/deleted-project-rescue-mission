@@ -1,0 +1,359 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Edit, BookOpen, Trash2, Users } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+}
+
+interface Instructor {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface InstructorCourse {
+  id: string;
+  instructor_id: string;
+  course_id: string;
+}
+
+const CourseManagement = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: ''
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [coursesRes, instructorsRes, instructorCoursesRes] = await Promise.all([
+        supabase.from('courses').select('*').order('title'),
+        supabase.from('instructors').select('id, name, email').order('name'),
+        supabase.from('instructor_courses').select('*')
+      ]);
+
+      if (coursesRes.error) throw coursesRes.error;
+      if (instructorsRes.error) throw instructorsRes.error;
+      if (instructorCoursesRes.error) throw instructorCoursesRes.error;
+
+      setCourses(coursesRes.data || []);
+      setInstructors(instructorsRes.data || []);
+      setInstructorCourses(instructorCoursesRes.data || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "오류",
+        description: "데이터를 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (editingCourse) {
+        // Update existing course
+        const { error } = await supabase
+          .from('courses')
+          .update(formData)
+          .eq('id', editingCourse.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: "성공",
+          description: "과목 정보가 수정되었습니다."
+        });
+      } else {
+        // Create new course
+        const { error } = await supabase
+          .from('courses')
+          .insert([formData]);
+
+        if (error) throw error;
+        
+        toast({
+          title: "성공",
+          description: "새 과목이 추가되었습니다."
+        });
+      }
+
+      setIsDialogOpen(false);
+      setEditingCourse(null);
+      setFormData({ title: '', description: '' });
+      fetchData();
+    } catch (error) {
+      console.error('Error saving course:', error);
+      toast({
+        title: "오류",
+        description: "과목 정보 저장 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const openEditDialog = (course: Course) => {
+    setEditingCourse(course);
+    setFormData({
+      title: course.title,
+      description: course.description || ''
+    });
+    setIsDialogOpen(true);
+  };
+
+  const openAddDialog = () => {
+    setEditingCourse(null);
+    setFormData({ title: '', description: '' });
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteCourse = async (courseId: string) => {
+    try {
+      // First delete instructor-course assignments
+      await supabase
+        .from('instructor_courses')
+        .delete()
+        .eq('course_id', courseId);
+
+      // Then delete the course
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', courseId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "과목이 삭제되었습니다."
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast({
+        title: "오류",
+        description: "과목 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getCourseInstructors = (courseId: string) => {
+    const courseInstructorIds = instructorCourses
+      .filter(ic => ic.course_id === courseId)
+      .map(ic => ic.instructor_id);
+    return instructors.filter(instructor => courseInstructorIds.includes(instructor.id));
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-32">로딩 중...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">과목 관리</h1>
+          <p className="text-muted-foreground">과목 정보 및 강사 배정 관리</p>
+        </div>
+        <Button onClick={openAddDialog} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          새 과목 추가
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <BookOpen className="h-8 w-8 text-primary" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-muted-foreground">총 과목 수</p>
+                <p className="text-2xl font-bold">{courses.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <Users className="h-8 w-8 text-primary" />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-muted-foreground">배정된 강사 수</p>
+                <p className="text-2xl font-bold">
+                  {new Set(instructorCourses.map(ic => ic.instructor_id)).size}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Courses List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {courses.map((course) => {
+          const courseInstructors = getCourseInstructors(course.id);
+          
+          return (
+            <Card key={course.id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">{course.title}</CardTitle>
+                    {course.description && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {course.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pt-0 space-y-4">
+                {/* Assigned Instructors */}
+                <div>
+                  <p className="text-sm font-medium mb-2">
+                    배정된 강사 ({courseInstructors.length}명)
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {courseInstructors.length > 0 ? (
+                      courseInstructors.map((instructor) => (
+                        <Badge key={instructor.id} variant="secondary" className="text-xs">
+                          {instructor.name}
+                        </Badge>
+                      ))
+                    ) : (
+                      <Badge variant="outline" className="text-xs">
+                        배정된 강사 없음
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEditDialog(course)}
+                    className="flex-1"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    수정
+                  </Button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>과목 삭제</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          정말로 "{course.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteCourse(course.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          삭제
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Add/Edit Course Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCourse ? '과목 수정' : '새 과목 추가'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">과목명 *</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="과목명을 입력하세요"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">설명</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="과목 설명을 입력하세요"
+                rows={3}
+              />
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                취소
+              </Button>
+              <Button type="submit" className="flex-1">
+                {editingCourse ? '수정' : '추가'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default CourseManagement;
