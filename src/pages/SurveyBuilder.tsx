@@ -501,7 +501,291 @@ const SurveyBuilder = () => {
     }
   };
 
-  // Simple Question Item Component (without drag and drop)
+  const handleUpdateSurveyInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({
+          title: surveyForm.title,
+          description: surveyForm.description,
+          education_year: surveyForm.education_year,
+          education_round: surveyForm.education_round,
+          start_date: surveyForm.start_date ? new Date(surveyForm.start_date).toISOString() : null,
+          end_date: surveyForm.end_date ? new Date(surveyForm.end_date).toISOString() : null,
+          status: surveyForm.status
+        })
+        .eq('id', surveyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "설문조사 정보가 수정되었습니다."
+      });
+
+      setIsSurveyInfoDialogOpen(false);
+      fetchSurveyData();
+    } catch (error) {
+      console.error('Error updating survey:', error);
+      toast({
+        title: "오류",
+        description: "설문조사 정보 수정 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateInstructor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({
+          instructor_id: instructorForm.selectedInstructorId
+        })
+        .eq('id', surveyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "강사가 변경되었습니다."
+      });
+
+      setIsInstructorDialogOpen(false);
+      fetchSurveyData();
+    } catch (error) {
+      console.error('Error updating instructor:', error);
+      toast({
+        title: "오류",
+        description: "강사 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({
+          course_id: courseForm.selectedCourseId
+        })
+        .eq('id', surveyId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "과목이 변경되었습니다."
+      });
+
+      setIsCourseDialogOpen(false);
+      fetchSurveyData();
+    } catch (error) {
+      console.error('Error updating course:', error);
+      toast({
+        title: "오류",
+        description: "과목 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleLoadTemplate = async (templateId: string) => {
+    if (!window.confirm('템플릿을 불러오면 기존 질문들이 삭제됩니다. 계속하시겠습니까?')) return;
+
+    try {
+      // 기존 질문 삭제
+      await supabase
+        .from('survey_questions')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 기존 섹션 삭제
+      await supabase
+        .from('survey_sections')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 템플릿 섹션 불러오기
+      const { data: templateSections, error: sectionsError } = await supabase
+        .from('template_sections')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('order_index');
+
+      if (sectionsError) throw sectionsError;
+
+      // 섹션 매핑 객체
+      let sectionIdMap: Record<string, string> = {};
+
+      if (templateSections && templateSections.length > 0) {
+        const newSections = templateSections.map(ts => ({
+          survey_id: surveyId,
+          name: ts.name,
+          description: ts.description,
+          order_index: ts.order_index
+        }));
+
+        const { data: createdSections, error: createSectionsError } = await supabase
+          .from('survey_sections')
+          .insert(newSections)
+          .select();
+
+        if (createSectionsError) throw createSectionsError;
+
+        // 매핑 생성
+        templateSections.forEach((ts, index) => {
+          sectionIdMap[ts.id] = createdSections[index].id;
+        });
+      }
+
+      // 템플릿 질문 불러오기
+      const { data: templateQuestions, error: questionsError } = await supabase
+        .from('template_questions')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('order_index');
+
+      if (questionsError) throw questionsError;
+
+      if (templateQuestions && templateQuestions.length > 0) {
+        const newQuestions = templateQuestions.map(tq => ({
+          survey_id: surveyId,
+          question_text: tq.question_text,
+          question_type: tq.question_type,
+          options: tq.options,
+          is_required: tq.is_required,
+          order_index: tq.order_index,
+          section_id: tq.section_id ? sectionIdMap[tq.section_id] : null,
+          satisfaction_type: tq.satisfaction_type
+        }));
+
+        const { error: insertError } = await supabase
+          .from('survey_questions')
+          .insert(newQuestions);
+
+        if (insertError) throw insertError;
+      }
+
+      toast({
+        title: "성공",
+        description: "템플릿이 성공적으로 불러와졌습니다."
+      });
+
+      setIsTemplateDialogOpen(false);
+      fetchSurveyData();
+    } catch (error) {
+      console.error('Error loading template:', error);
+      toast({
+        title: "오류",
+        description: "템플릿 불러오기 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const resetSectionForm = () => {
+    setSectionForm({ name: '', description: '' });
+    setEditingSection(null);
+  };
+
+  const handleAddSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (!surveyId) {
+        toast({
+          title: "오류",
+          description: "설문 ID가 없습니다. 먼저 설문을 생성/저장하세요.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('survey_sections')
+        .insert([{
+          survey_id: surveyId,
+          name: sectionForm.name,
+          description: sectionForm.description,
+          order_index: sections.length
+        }]);
+
+      if (error) throw error;
+      
+      toast({
+        title: "성공",
+        description: "섹션이 추가되었습니다."
+      });
+
+      setSectionForm({ name: '', description: '' });
+      setIsSectionDialogOpen(false);
+      fetchSurveyData();
+    } catch (error: any) {
+      console.error('Error adding section:', error);
+      toast({
+        title: "오류",
+        description: error?.message || "섹션 추가 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditSectionOpen = (section: Section) => {
+    setEditingSection(section);
+    setSectionEditForm({ name: section.name, description: section.description || '' });
+    setIsSectionEditDialogOpen(true);
+  };
+
+  const handleUpdateSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSection) return;
+    try {
+      const { error } = await supabase
+        .from('survey_sections')
+        .update({
+          name: sectionEditForm.name,
+          description: sectionEditForm.description
+        })
+        .eq('id', editingSection.id);
+      if (error) throw error;
+      toast({ title: '성공', description: '섹션이 수정되었습니다.' });
+      setIsSectionEditDialogOpen(false);
+      setEditingSection(null);
+      fetchSurveyData();
+    } catch (error: any) {
+      console.error('Error updating section:', error);
+      toast({ title: '오류', description: error?.message || '섹션 수정 중 오류가 발생했습니다.', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    if (!sectionId) return;
+    if (!window.confirm('해당 섹션을 삭제하시겠습니까? 섹션 내 질문은 섹션 없음으로 이동됩니다.')) return;
+    try {
+      const { error: qErr } = await supabase
+        .from('survey_questions')
+        .update({ section_id: null })
+        .eq('section_id', sectionId);
+      if (qErr) throw qErr;
+
+      const { error: delErr } = await supabase
+        .from('survey_sections')
+        .delete()
+        .eq('id', sectionId);
+      if (delErr) throw delErr;
+
+      toast({ title: '성공', description: '섹션이 삭제되었습니다.' });
+      fetchSurveyData();
+    } catch (error: any) {
+      console.error('Error deleting section:', error);
+      toast({ title: '오류', description: error?.message || '섹션 삭제 중 오류가 발생했습니다.', variant: 'destructive' });
+    }
+  };
   const QuestionItem = ({ question, index }: { question: Question; index: number }) => {
     return (
       <div className="relative group border rounded-lg bg-white">
