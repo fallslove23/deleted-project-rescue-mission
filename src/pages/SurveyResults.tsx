@@ -48,6 +48,7 @@ interface Instructor {
 interface QuestionAnswer {
   id: string;
   question_id: string;
+  response_id: string;
   answer_text: string;
   answer_value: any;
   created_at: string;
@@ -360,6 +361,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       responses: number;
       year: number;
       round: number;
+      courseSatisfaction: number;
+      instructorSatisfaction: number;
     }> = {};
 
     relevantSurveys.forEach(survey => {
@@ -369,11 +372,122 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
           surveys: [],
           responses: 0,
           year: survey.education_year,
-          round: survey.education_round
+          round: survey.education_round,
+          courseSatisfaction: 0,
+          instructorSatisfaction: 0
         };
       }
       roundStats[key].surveys.push(survey);
       roundStats[key].responses += allResponses.filter(r => r.survey_id === survey.id).length;
+    });
+
+    // 각 차수별 만족도 계산 (현재 로드된 데이터 기반)
+    Object.values(roundStats).forEach(round => {
+      let totalCourseSatisfaction = 0;
+      let totalInstructorSatisfaction = 0;
+      let courseCount = 0;
+      let instructorCount = 0;
+
+      round.surveys.forEach(survey => {
+        // 현재 로드된 questions와 answers에서 해당 설문 데이터 찾기
+        const surveyQuestions = questions.filter(q => q.survey_id === survey.id);
+        const surveyResponses = allResponses.filter(r => r.survey_id === survey.id);
+        const surveyAnswers = answers.filter(a => 
+          surveyResponses.some(r => r.id === a.response_id)
+        );
+
+        if (surveyQuestions.length === 0 || surveyAnswers.length === 0) return;
+
+        // 질문 분류
+        const courseQuestions: SurveyQuestion[] = [];
+        const instructorQuestions: SurveyQuestion[] = [];
+
+        surveyQuestions.forEach(question => {
+          const questionText = question.question_text.toLowerCase();
+          
+          if (questionText.includes('강사') || 
+              questionText.includes('지도') || 
+              questionText.includes('설명') || 
+              questionText.includes('질문응답') ||
+              questionText.includes('교수법') ||
+              questionText.includes('전달력') ||
+              questionText.includes('준비도')) {
+            instructorQuestions.push(question);
+          } else if (questionText.includes('과정') || 
+                     questionText.includes('교육') || 
+                     questionText.includes('내용') || 
+                     questionText.includes('커리큘럼') ||
+                     questionText.includes('시간') ||
+                     questionText.includes('교재') ||
+                     questionText.includes('환경') ||
+                     questionText.includes('시설')) {
+            courseQuestions.push(question);
+          } else {
+            courseQuestions.push(question);
+          }
+        });
+
+        // 과정 만족도 계산
+        const courseRatingQuestions = courseQuestions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
+        if (courseRatingQuestions.length > 0) {
+          let courseTotalScore = 0;
+          let courseTotalCount = 0;
+
+          courseRatingQuestions.forEach(question => {
+            const questionAnswers = surveyAnswers.filter(a => a.question_id === question.id);
+            const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+            
+            if (ratings.length > 0) {
+              const maxScore = Math.max(...ratings);
+              let convertedRatings = ratings;
+              
+              if (maxScore <= 5) {
+                convertedRatings = ratings.map(r => r * 2);
+              }
+              
+              courseTotalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
+              courseTotalCount += convertedRatings.length;
+            }
+          });
+
+          if (courseTotalCount > 0) {
+            totalCourseSatisfaction += courseTotalScore / courseTotalCount;
+            courseCount++;
+          }
+        }
+
+        // 강사 만족도 계산
+        const instructorRatingQuestions = instructorQuestions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
+        if (instructorRatingQuestions.length > 0) {
+          let instructorTotalScore = 0;
+          let instructorTotalCount = 0;
+
+          instructorRatingQuestions.forEach(question => {
+            const questionAnswers = surveyAnswers.filter(a => a.question_id === question.id);
+            const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+            
+            if (ratings.length > 0) {
+              const maxScore = Math.max(...ratings);
+              let convertedRatings = ratings;
+              
+              if (maxScore <= 5) {
+                convertedRatings = ratings.map(r => r * 2);
+              }
+              
+              instructorTotalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
+              instructorTotalCount += convertedRatings.length;
+            }
+          });
+
+          if (instructorTotalCount > 0) {
+            totalInstructorSatisfaction += instructorTotalScore / instructorTotalCount;
+            instructorCount++;
+          }
+        }
+      });
+
+      round.courseSatisfaction = courseCount > 0 ? totalCourseSatisfaction / courseCount : 0;
+      round.instructorSatisfaction = instructorCount > 0 ? totalInstructorSatisfaction / instructorCount : 0;
     });
 
     return Object.entries(roundStats)
@@ -659,7 +773,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
             {(selectedYear || selectedRound || (canViewAll && selectedInstructor !== 'all')) && (
               <Button 
                 variant="outline" 
-                className="touch-friendly text-sm"
+                className="touch-friendly text-sm border-2 border-muted-foreground/30 hover:border-primary hover:bg-muted/50"
                 onClick={() => {
                   setSelectedYear('');
                   setSelectedRound('');
@@ -714,29 +828,51 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {roundStats.map((round) => (
-                    <Card key={round.key} className="p-4">
-                      <div className="text-center">
-                        <h3 className="font-semibold text-lg mb-2">{round.displayName}</h3>
-                        <div className="space-y-2">
-                          <div>
-                            <span className="text-sm text-muted-foreground">설문 수: </span>
-                            <span className="font-medium">{round.surveys.length}개</span>
+                    <Card key={round.key} className="p-4 bg-gradient-to-br from-background to-muted/20">
+                      <div className="text-center space-y-3">
+                        <h3 className="font-semibold text-lg mb-3 text-primary">{round.displayName}</h3>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="bg-background rounded-lg p-2">
+                            <span className="text-muted-foreground block">설문 수</span>
+                            <span className="font-medium text-lg">{round.surveys.length}개</span>
                           </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">총 응답: </span>
-                            <span className="font-medium">{round.responses}건</span>
+                          <div className="bg-background rounded-lg p-2">
+                            <span className="text-muted-foreground block">총 응답</span>
+                            <span className="font-medium text-lg">{round.responses}건</span>
                           </div>
-                          <div className="flex gap-1 flex-wrap justify-center mt-2">
-                            {round.surveys.map(s => (
-                              <Badge 
-                                key={s.id} 
-                                variant={s.status === 'active' ? 'default' : 'secondary'}
-                                className="text-xs"
-                              >
-                                {s.status === 'active' ? '진행중' : s.status === 'completed' ? '완료' : '초안'}
-                              </Badge>
-                            ))}
+                        </div>
+
+                        {round.courseSatisfaction > 0 && (
+                          <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3">
+                            <span className="text-sm text-muted-foreground block">과정 만족도</span>
+                            <span className="font-bold text-xl text-blue-600 dark:text-blue-400">
+                              {round.courseSatisfaction.toFixed(1)}점
+                            </span>
+                            <div className="text-xs text-muted-foreground">(10점 만점)</div>
                           </div>
+                        )}
+
+                        {round.instructorSatisfaction > 0 && (
+                          <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-3">
+                            <span className="text-sm text-muted-foreground block">강사 만족도</span>
+                            <span className="font-bold text-xl text-green-600 dark:text-green-400">
+                              {round.instructorSatisfaction.toFixed(1)}점
+                            </span>
+                            <div className="text-xs text-muted-foreground">(10점 만점)</div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-1 flex-wrap justify-center mt-3">
+                          {round.surveys.map(s => (
+                            <Badge 
+                              key={s.id} 
+                              variant={s.status === 'active' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {s.status === 'active' ? '진행중' : s.status === 'completed' ? '완료' : '초안'}
+                            </Badge>
+                          ))}
                         </div>
                       </div>
                     </Card>
