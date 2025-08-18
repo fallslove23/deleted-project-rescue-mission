@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Menu, Calendar, Clock, BarChart, FileText, Users } from 'lucide-react';
+import { toZonedTime } from 'date-fns-tz';
 
 interface Survey {
   id: string;
@@ -45,26 +46,26 @@ const Index = () => {
      try {
        console.log('Fetching surveys...');
        
-       // 현재 한국 시간(UTC+9) 기준으로 현재 시각 구하기
-       const now = new Date();
-       const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+       // 한국 시간대(Asia/Seoul) 기준으로 현재 시각 구하기
+       const timeZone = 'Asia/Seoul';
+       const nowKST = toZonedTime(new Date(), timeZone);
        
-       console.log('Current KST time:', kstNow.toISOString());
+       console.log('Current KST time:', nowKST.toISOString());
        
        const { data, error } = await supabase
          .from('surveys')
          .select('*')
          .eq('status', 'active')
-         .lte('start_date', kstNow.toISOString())  // 시작일이 현재 시간보다 이전이거나 같아야 함
-         .gte('end_date', kstNow.toISOString())    // 종료일이 현재 시간보다 이후이거나 같아야 함
+         .lte('start_date', nowKST.toISOString())  // 시작일이 현재 시간보다 이전이거나 같아야 함
+         .gte('end_date', nowKST.toISOString())    // 종료일이 현재 시간보다 이후이거나 같아야 함
          .order('education_year', { ascending: false })
          .order('education_round', { ascending: false });
 
        console.log('Fetched surveys:', data);
        console.log('Query conditions:', {
          status: 'active',
-         start_date_lte: kstNow.toISOString(),
-         end_date_gte: kstNow.toISOString()
+         start_date_lte: nowKST.toISOString(),
+         end_date_gte: nowKST.toISOString()
        });
        
        if (error) throw error;
@@ -310,13 +311,13 @@ const Index = () => {
                              {showAllSurveys ? (
                                // 전체 보기에서는 현재 시간 기준으로 상태 표시
                                (() => {
-                                 const now = new Date();
-                                 const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-                                 const startDate = new Date(survey.start_date);
-                                 const endDate = new Date(survey.end_date);
+                                 const timeZone = 'Asia/Seoul';
+                                 const nowKST = toZonedTime(new Date(), timeZone);
+                                 const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
+                                 const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
                                  
-                                 if (kstNow < startDate) return "시작 예정";
-                                 if (kstNow > endDate) return "종료";
+                                 if (nowKST < startDateKST) return "시작 예정";
+                                 if (nowKST > endDateKST) return "종료";
                                  return "진행중";
                                })()
                              ) : "진행중"}
