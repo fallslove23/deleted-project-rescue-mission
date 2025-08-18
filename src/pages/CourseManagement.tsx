@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, BookOpen, Trash2, Users, Grid3X3, List } from 'lucide-react';
+import { Plus, Edit, BookOpen, Trash2, Users, Grid3X3, List, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Course {
@@ -41,6 +41,7 @@ const CourseManagement = () => {
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
@@ -179,6 +180,17 @@ const CourseManagement = () => {
     return instructors.filter(instructor => courseInstructorIds.includes(instructor.id));
   };
 
+  // Filter courses based on search query
+  const filteredCourses = courses.filter(course => {
+    const searchLower = searchQuery.toLowerCase();
+    const courseInstructors = getCourseInstructors(course.id);
+    const instructorNames = courseInstructors.map(instructor => instructor.name.toLowerCase()).join(' ');
+    
+    return course.title.toLowerCase().includes(searchLower) ||
+           (course.description && course.description.toLowerCase().includes(searchLower)) ||
+           instructorNames.includes(searchLower);
+  });
+
   if (loading) {
     return <div className="flex items-center justify-center h-32">로딩 중...</div>;
   }
@@ -219,6 +231,17 @@ const CourseManagement = () => {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder="과목명, 설명, 배정강사로 검색..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
@@ -251,7 +274,7 @@ const CourseManagement = () => {
       {/* Courses Grid/List */}
       {viewType === 'card' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((course) => {
+          {filteredCourses.map((course) => {
             const courseInstructors = getCourseInstructors(course.id);
             
             return (
@@ -347,7 +370,7 @@ const CourseManagement = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {courses.map((course) => {
+                  {filteredCourses.map((course) => {
                     const courseInstructors = getCourseInstructors(course.id);
                     
                     return (

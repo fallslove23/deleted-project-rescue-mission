@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Camera, UserPlus, Upload, X, Trash2, Users, RefreshCcw, Grid3X3, List } from 'lucide-react';
+import { Plus, Edit, Camera, UserPlus, Upload, X, Trash2, Users, RefreshCcw, Grid3X3, List, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Instructor {
@@ -49,6 +49,7 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
   const [instructorRoles, setInstructorRoles] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -471,6 +472,17 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
     return courses.filter(course => instructorCourseIds.includes(course.id));
   };
 
+  // Filter instructors based on search query
+  const filteredInstructors = instructors.filter(instructor => {
+    const searchLower = searchQuery.toLowerCase();
+    const instructorCoursesData = getInstructorCourses(instructor.id);
+    const courseTitles = instructorCoursesData.map(course => course.title.toLowerCase()).join(' ');
+    
+    return instructor.name.toLowerCase().includes(searchLower) ||
+           (instructor.email && instructor.email.toLowerCase().includes(searchLower)) ||
+           courseTitles.includes(searchLower);
+  });
+
   const handleAddNewCourse = async () => {
     if (!newCourseTitle.trim()) return;
 
@@ -656,6 +668,17 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
               </Button>
             </div>
           </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="강사명, 이메일, 담당과목으로 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
       )}
 
@@ -691,18 +714,22 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
       {/* Instructors Grid/List */}
       {viewType === 'card' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {instructors.map((instructor) => {
+          {filteredInstructors.map((instructor) => {
             const instructorCoursesData = getInstructorCourses(instructor.id);
             
             return (
               <Card key={instructor.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3 flex-1">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={instructor.photo_url} alt={instructor.name} />
-                        <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
+                     <div className="flex items-center space-x-3 flex-1">
+                       <Avatar className="h-12 w-12 flex-shrink-0">
+                         <AvatarImage 
+                           src={instructor.photo_url} 
+                           alt={instructor.name}
+                           className="object-cover"
+                         />
+                         <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
+                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-lg leading-tight">{instructor.name}</CardTitle>
                         {instructor.email && (
@@ -851,17 +878,21 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
                   </tr>
                 </thead>
                 <tbody>
-                  {instructors.map((instructor) => {
+                  {filteredInstructors.map((instructor) => {
                     const instructorCoursesData = getInstructorCourses(instructor.id);
                     
                     return (
                       <tr key={instructor.id} className="border-b hover:bg-muted/50">
                         <td className="p-4">
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={instructor.photo_url} alt={instructor.name} />
-                              <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
+                           <div className="flex items-center space-x-3">
+                             <Avatar className="h-10 w-10 flex-shrink-0">
+                               <AvatarImage 
+                                 src={instructor.photo_url} 
+                                 alt={instructor.name}
+                                 className="object-cover"
+                               />
+                               <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
+                             </Avatar>
                             <div>
                               <p className="font-medium">{instructor.name}</p>
                               {instructor.bio && (
