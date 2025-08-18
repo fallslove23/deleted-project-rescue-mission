@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Camera, UserPlus, Upload, X, Trash2, Users, RefreshCcw } from 'lucide-react';
+import { Plus, Edit, Camera, UserPlus, Upload, X, Trash2, Users, RefreshCcw, Grid3X3, List } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Instructor {
@@ -48,6 +48,7 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [instructorRoles, setInstructorRoles] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
+  const [viewType, setViewType] = useState<'card' | 'list'>('card');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -618,20 +619,42 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
           </div>
           
           {/* Action Buttons */}
-          <div className="flex gap-2">
-            <Button onClick={openAddDialog} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              새 강사 추가
-            </Button>
-            <Button 
-              onClick={handleSyncAllInstructors} 
-              variant="outline"
-              disabled={creatingUsers}
-              className="flex items-center gap-2"
-            >
-              <RefreshCcw className={`h-4 w-4 ${creatingUsers ? 'animate-spin' : ''}`} />
-              계정 동기화
-            </Button>
+          <div className="flex justify-between items-center">
+            <div className="flex gap-2">
+              <Button onClick={openAddDialog} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                새 강사 추가
+              </Button>
+              <Button 
+                onClick={handleSyncAllInstructors} 
+                variant="outline"
+                disabled={creatingUsers}
+                className="flex items-center gap-2"
+              >
+                <RefreshCcw className={`h-4 w-4 ${creatingUsers ? 'animate-spin' : ''}`} />
+                계정 동기화
+              </Button>
+            </div>
+            
+            {/* View Toggle */}
+            <div className="flex gap-1 border rounded-md p-1">
+              <Button
+                variant={viewType === 'card' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewType('card')}
+                className="h-8 px-3"
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewType === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewType('list')}
+                className="h-8 px-3"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -665,153 +688,284 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
         </Card>
       </div>
 
-      {/* Instructors Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {instructors.map((instructor) => {
-          const instructorCoursesData = getInstructorCourses(instructor.id);
-          
-          return (
-            <Card key={instructor.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3 flex-1">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={instructor.photo_url} alt={instructor.name} />
-                      <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg leading-tight">{instructor.name}</CardTitle>
-                      {instructor.email && (
-                        <p className="text-sm text-muted-foreground truncate">{instructor.email}</p>
+      {/* Instructors Grid/List */}
+      {viewType === 'card' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {instructors.map((instructor) => {
+            const instructorCoursesData = getInstructorCourses(instructor.id);
+            
+            return (
+              <Card key={instructor.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={instructor.photo_url} alt={instructor.name} />
+                        <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg leading-tight">{instructor.name}</CardTitle>
+                        {instructor.email && (
+                          <p className="text-sm text-muted-foreground truncate">{instructor.email}</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col gap-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePhotoUpload(file, instructor.id);
+                        }}
+                        className="hidden"
+                        id={`photo-${instructor.id}`}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => document.getElementById(`photo-${instructor.id}`)?.click()}
+                        disabled={uploadingPhoto}
+                        className="p-1 h-auto"
+                      >
+                        <Camera className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {instructor.bio && (
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                      {instructor.bio}
+                    </p>
+                  )}
+                </CardHeader>
+                
+                <CardContent className="pt-0 space-y-4">
+                  {/* Roles */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">역할</p>
+                      {canEditRoles() && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenRoleDialog(instructor)}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          수정
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {instructorRoles[instructor.id]?.length > 0 ? (
+                        instructorRoles[instructor.id].map((role) => (
+                          <Badge 
+                            key={role} 
+                            variant={role === 'instructor' ? 'default' : 'outline'} 
+                            className="text-xs"
+                          >
+                            {role === 'instructor' ? '강사' : 
+                             role === 'admin' ? '관리자' : 
+                             role === 'director' ? '조직장' : 
+                             role === 'operator' ? '운영' : role}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="outline" className="text-xs">역할 없음</Badge>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex flex-col gap-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handlePhotoUpload(file, instructor.id);
-                      }}
-                      className="hidden"
-                      id={`photo-${instructor.id}`}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => document.getElementById(`photo-${instructor.id}`)?.click()}
-                      disabled={uploadingPhoto}
-                      className="p-1 h-auto"
-                    >
-                      <Camera className="h-3 w-3" />
-                    </Button>
+                  {/* Courses */}
+                  <div>
+                    <p className="text-sm font-medium mb-2">담당 과목</p>
+                    <div className="flex flex-wrap gap-1">
+                      {instructorCoursesData.length > 0 ? (
+                        instructorCoursesData.map((course) => (
+                          <Badge key={course.id} variant="secondary" className="text-xs">
+                            {course.title}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="outline" className="text-xs">담당 과목 없음</Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-                
-                {instructor.bio && (
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                    {instructor.bio}
-                  </p>
-                )}
-              </CardHeader>
-              
-              <CardContent className="pt-0 space-y-4">
-                {/* Roles */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium">역할</p>
-                    {canEditRoles() && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenRoleDialog(instructor)}
-                        className="h-6 px-2 text-xs"
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        수정
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {instructorRoles[instructor.id]?.length > 0 ? (
-                      instructorRoles[instructor.id].map((role) => (
-                        <Badge 
-                          key={role} 
-                          variant={role === 'instructor' ? 'default' : 'outline'} 
-                          className="text-xs"
-                        >
-                          {role === 'instructor' ? '강사' : 
-                           role === 'admin' ? '관리자' : 
-                           role === 'director' ? '조직장' : 
-                           role === 'operator' ? '운영' : role}
-                        </Badge>
-                      ))
-                    ) : (
-                      <Badge variant="outline" className="text-xs">역할 없음</Badge>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Courses */}
-                <div>
-                  <p className="text-sm font-medium mb-2">담당 과목</p>
-                  <div className="flex flex-wrap gap-1">
-                    {instructorCoursesData.length > 0 ? (
-                      instructorCoursesData.map((course) => (
-                        <Badge key={course.id} variant="secondary" className="text-xs">
-                          {course.title}
-                        </Badge>
-                      ))
-                    ) : (
-                      <Badge variant="outline" className="text-xs">담당 과목 없음</Badge>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditDialog(instructor)}
-                    className="flex-1"
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    수정
-                  </Button>
                   
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>강사 삭제</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          정말로 "{instructor.name}" 강사를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>취소</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDeleteInstructor(instructor)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          삭제
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(instructor)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      수정
+                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>강사 삭제</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            정말로 "{instructor.name}" 강사를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteInstructor(instructor)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-medium">강사</th>
+                    <th className="text-left p-4 font-medium">이메일</th>
+                    <th className="text-left p-4 font-medium">역할</th>
+                    <th className="text-left p-4 font-medium">담당 과목</th>
+                    <th className="text-left p-4 font-medium">작업</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {instructors.map((instructor) => {
+                    const instructorCoursesData = getInstructorCourses(instructor.id);
+                    
+                    return (
+                      <tr key={instructor.id} className="border-b hover:bg-muted/50">
+                        <td className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={instructor.photo_url} alt={instructor.name} />
+                              <AvatarFallback>{instructor.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{instructor.name}</p>
+                              {instructor.bio && (
+                                <p className="text-sm text-muted-foreground line-clamp-1">{instructor.bio}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <p className="text-sm">{instructor.email || '-'}</p>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-wrap gap-1">
+                            {instructorRoles[instructor.id]?.length > 0 ? (
+                              instructorRoles[instructor.id].map((role) => (
+                                <Badge 
+                                  key={role} 
+                                  variant={role === 'instructor' ? 'default' : 'outline'} 
+                                  className="text-xs"
+                                >
+                                  {role === 'instructor' ? '강사' : 
+                                   role === 'admin' ? '관리자' : 
+                                   role === 'director' ? '조직장' : 
+                                   role === 'operator' ? '운영' : role}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline" className="text-xs">역할 없음</Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-wrap gap-1">
+                            {instructorCoursesData.length > 0 ? (
+                              instructorCoursesData.slice(0, 2).map((course) => (
+                                <Badge key={course.id} variant="secondary" className="text-xs">
+                                  {course.title}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline" className="text-xs">담당 과목 없음</Badge>
+                            )}
+                            {instructorCoursesData.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{instructorCoursesData.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(instructor)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            
+                            {canEditRoles() && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenRoleDialog(instructor)}
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                            )}
+                            
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>강사 삭제</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    정말로 "{instructor.name}" 강사를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteInstructor(instructor)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    삭제
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add/Edit Instructor Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

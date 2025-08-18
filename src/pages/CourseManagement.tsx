@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, BookOpen, Trash2, Users } from 'lucide-react';
+import { Plus, Edit, BookOpen, Trash2, Users, Grid3X3, List } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Course {
@@ -40,6 +40,7 @@ const CourseManagement = () => {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewType, setViewType] = useState<'card' | 'list'>('card');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
@@ -190,10 +191,32 @@ const CourseManagement = () => {
           <h1 className="text-2xl font-bold">과목 관리</h1>
           <p className="text-muted-foreground">과목 정보 및 강사 배정 관리</p>
         </div>
-        <Button onClick={openAddDialog} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          새 과목 추가
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={openAddDialog} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            새 과목 추가
+          </Button>
+          
+          {/* View Toggle */}
+          <div className="flex gap-1 border rounded-md p-1">
+            <Button
+              variant={viewType === 'card' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewType('card')}
+              className="h-8 px-3"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewType === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewType('list')}
+              className="h-8 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Stats */}
@@ -225,89 +248,193 @@ const CourseManagement = () => {
         </Card>
       </div>
 
-      {/* Courses List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map((course) => {
-          const courseInstructors = getCourseInstructors(course.id);
-          
-          return (
-            <Card key={course.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{course.title}</CardTitle>
-                    {course.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {course.description}
-                      </p>
-                    )}
+      {/* Courses Grid/List */}
+      {viewType === 'card' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {courses.map((course) => {
+            const courseInstructors = getCourseInstructors(course.id);
+            
+            return (
+              <Card key={course.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">{course.title}</CardTitle>
+                      {course.description && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {course.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="pt-0 space-y-4">
-                {/* Assigned Instructors */}
-                <div>
-                  <p className="text-sm font-medium mb-2">
-                    배정된 강사 ({courseInstructors.length}명)
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {courseInstructors.length > 0 ? (
-                      courseInstructors.map((instructor) => (
-                        <Badge key={instructor.id} variant="secondary" className="text-xs">
-                          {instructor.name}
-                        </Badge>
-                      ))
-                    ) : (
-                      <Badge variant="outline" className="text-xs">
-                        배정된 강사 없음
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+                </CardHeader>
                 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditDialog(course)}
-                    className="flex-1"
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    수정
-                  </Button>
+                <CardContent className="pt-0 space-y-4">
+                  {/* Assigned Instructors */}
+                  <div>
+                    <p className="text-sm font-medium mb-2">
+                      배정된 강사 ({courseInstructors.length}명)
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {courseInstructors.length > 0 ? (
+                        courseInstructors.map((instructor) => (
+                          <Badge key={instructor.id} variant="secondary" className="text-xs">
+                            {instructor.name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          배정된 강사 없음
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                   
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>과목 삭제</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          정말로 "{course.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>취소</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDeleteCourse(course.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          삭제
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(course)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      수정
+                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>과목 삭제</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            정말로 "{course.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteCourse(course.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-medium">과목명</th>
+                    <th className="text-left p-4 font-medium">설명</th>
+                    <th className="text-left p-4 font-medium">배정된 강사</th>
+                    <th className="text-left p-4 font-medium">강사 수</th>
+                    <th className="text-left p-4 font-medium">작업</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courses.map((course) => {
+                    const courseInstructors = getCourseInstructors(course.id);
+                    
+                    return (
+                      <tr key={course.id} className="border-b hover:bg-muted/50">
+                        <td className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center">
+                              <BookOpen className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{course.title}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <p className="text-sm text-muted-foreground">
+                            {course.description || '-'}
+                          </p>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-wrap gap-1">
+                            {courseInstructors.length > 0 ? (
+                              courseInstructors.slice(0, 2).map((instructor) => (
+                                <Badge key={instructor.id} variant="secondary" className="text-xs">
+                                  {instructor.name}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline" className="text-xs">배정된 강사 없음</Badge>
+                            )}
+                            {courseInstructors.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{courseInstructors.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <Badge variant="outline" className="text-sm">
+                            {courseInstructors.length}명
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(course)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>과목 삭제</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    정말로 "{course.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteCourse(course.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    삭제
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add/Edit Course Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
