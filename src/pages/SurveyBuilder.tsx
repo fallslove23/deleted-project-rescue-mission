@@ -12,28 +12,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit, GripVertical, FileText, FolderPlus, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, FileText, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 interface Question {
   id: string;
@@ -110,17 +91,6 @@ const SurveyBuilder = () => {
   const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
-  // DnD sensors for mouse and touch
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
@@ -708,112 +678,14 @@ const SurveyBuilder = () => {
     }
   };
 
-  // Drag and drop handler
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
 
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = questions.findIndex(q => q.id === active.id);
-    const newIndex = questions.findIndex(q => q.id === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const newQuestions = arrayMove(questions, oldIndex, newIndex);
-    
-    // Update order_index for all questions
-    const updatedQuestions = newQuestions.map((q, index) => ({
-      ...q,
-      order_index: index
-    }));
-
-    try {
-      // Update all questions' order_index in database
-      const updates = updatedQuestions.map(q =>
-        supabase
-          .from('survey_questions')
-          .update({ order_index: q.order_index })
-          .eq('id', q.id)
-      );
-      
-      await Promise.all(updates);
-      
-      setQuestions(updatedQuestions);
-      
-      toast({
-        title: "성공",
-        description: "질문 순서가 변경되었습니다."
-      });
-    } catch (error) {
-      console.error('Error updating question order:', error);
-      toast({
-        title: "오류",
-        description: "질문 순서 변경 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Sortable Question Item Component
-  const SortableQuestionItem = ({ question, index, isInSection = false }: { question: Question; index: number; isInSection?: boolean }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: question.id });
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    };
-
-    const currentQuestions = isInSection 
-      ? questions.filter(q => q.section_id === question.section_id) 
-      : questions.filter(q => !q.section_id);
-    
-    const questionIndex = currentQuestions.findIndex(q => q.id === question.id);
-    const isFirst = questionIndex === 0;
-    const isLast = questionIndex === currentQuestions.length - 1;
-
+  // Simple Question Item Component (without drag and drop)
+  const QuestionItem = ({ question, index }: { question: Question; index: number }) => {
     return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="relative group border rounded-lg bg-white"
-      >
-        {/* Left side - Drag handle and move buttons */}
-        <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-10">
-          <div
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 rounded bg-white border shadow-sm hover:shadow-md transition-shadow"
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0 bg-white border shadow-sm hover:shadow-md"
-              onClick={() => handleMoveQuestion(question.id, 'up')}
-              disabled={isFirst}
-            >
-              <ArrowUp className="h-2.5 w-2.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0 bg-white border shadow-sm hover:shadow-md"
-              onClick={() => handleMoveQuestion(question.id, 'down')}
-              disabled={isLast}
-            >
-              <ArrowDown className="h-2.5 w-2.5" />
-            </Button>
-          </div>
+      <div className="relative group border rounded-lg bg-white">
+        {/* Question number indicator */}
+        <div className="absolute left-2 top-2 flex items-center justify-center w-6 h-6 bg-primary/10 text-primary text-xs font-medium rounded-full">
+          {index + 1}
         </div>
         
         {/* Right side - Edit and delete buttons */}
@@ -836,8 +708,8 @@ const SurveyBuilder = () => {
           </Button>
         </div>
         
-        {/* Main content with left padding for buttons */}
-        <div className="pl-16 pr-20 py-4">
+        {/* Main content with left padding for number and right padding for buttons */}
+        <div className="pl-10 pr-20 py-4">
           {question.question_type === 'scale' ? (
             <div>
               <div className="mb-4">
@@ -1568,27 +1440,17 @@ const SurveyBuilder = () => {
                         <Separator className="mt-2" />
                       </div>
                       
-                      {/* Questions in this section */}
+                       {/* Questions in this section */}
                       <div className="space-y-3 ml-4">
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handleDragEnd}
-                        >
-                          <SortableContext
-                            items={sectionQuestions.map(q => q.id)}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            {sectionQuestions.map((question, index) => (
-                              <SortableQuestionItem
-                                key={question.id}
-                                question={question}
-                                index={index}
-                                isInSection={true}
-                              />
-                            ))}
-                          </SortableContext>
-                        </DndContext>
+                        {sectionQuestions
+                          .sort((a, b) => a.order_index - b.order_index)
+                          .map((question, index) => (
+                            <QuestionItem
+                              key={question.id}
+                              question={question}
+                              index={index}
+                            />
+                          ))}
                       </div>
                     </div>
                   );
@@ -1598,27 +1460,16 @@ const SurveyBuilder = () => {
 
             {/* Questions without sections */}
             <div className="space-y-4">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={questions.filter(q => !q.section_id).map(q => q.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {questions
-                    .filter((q) => !q.section_id)
-                    .map((question, index) => (
-                      <SortableQuestionItem
-                        key={question.id}
-                        question={question}
-                        index={index}
-                        isInSection={false}
-                      />
-                    ))}
-                </SortableContext>
-              </DndContext>
+              {questions
+                .filter((q) => !q.section_id)
+                .sort((a, b) => a.order_index - b.order_index)
+                .map((question, index) => (
+                  <QuestionItem
+                    key={question.id}
+                    question={question}
+                    index={index}
+                  />
+                ))}
             </div>
 
             {questions.length === 0 && (
