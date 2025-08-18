@@ -328,15 +328,39 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     document.body.removeChild(link);
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusMap = {
-      'draft': { label: '초안', variant: 'secondary' as const },
-      'active': { label: '진행중', variant: 'default' as const },
-      'completed': { label: '완료', variant: 'outline' as const }
-    };
+  const getStatusBadge = (survey: Survey) => {
+    const now = new Date();
+    const startDate = new Date(survey.start_date);
+    const endDate = new Date(survey.end_date);
     
-    const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, variant: 'secondary' as const };
-    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
+    // 실제 날짜/시간에 따른 동적 상태 결정
+    let displayStatus = survey.status;
+    let displayLabel = '';
+    let variant: 'default' | 'secondary' | 'outline' | 'destructive' = 'secondary';
+    
+    if (survey.status === 'active') {
+      if (now < startDate) {
+        displayLabel = '시작 예정';
+        variant = 'secondary';
+      } else if (now >= startDate && now <= endDate) {
+        displayLabel = '진행중';
+        variant = 'default';
+      } else {
+        displayLabel = '종료';
+        variant = 'outline';
+      }
+    } else if (survey.status === 'draft') {
+      displayLabel = '초안';
+      variant = 'secondary';
+    } else if (survey.status === 'completed') {
+      displayLabel = '완료';
+      variant = 'outline';
+    } else {
+      displayLabel = survey.status;
+      variant = 'secondary';
+    }
+    
+    return <Badge variant={variant}>{displayLabel}</Badge>;
   };
 
   if (loading) {
@@ -563,7 +587,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                         <CardTitle className="text-base sm:text-lg break-words line-clamp-2">{survey.title}</CardTitle>
-                        {getStatusBadge(survey.status)}
+                        {getStatusBadge(survey)}
                       </div>
                       <p className="text-sm text-muted-foreground break-words line-clamp-2">
                         {survey.description}
