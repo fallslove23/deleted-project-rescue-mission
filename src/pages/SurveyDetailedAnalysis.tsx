@@ -440,7 +440,7 @@ const SurveyDetailedAnalysis = () => {
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center relative">
           <Button
-            onClick={() => navigate('/survey-results')}
+            onClick={() => navigate('/dashboard/results')}
             variant="ghost"
             size="sm"
             className="touch-friendly"

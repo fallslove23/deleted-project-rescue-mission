@@ -126,7 +126,12 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/survey-detailed-analysis/:surveyId" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
+                <SurveyDetailedAnalysis />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/detailed-analysis/:surveyId" element={
+              <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
                 <SurveyDetailedAnalysis />
               </ProtectedRoute>
             } />

@@ -24,6 +24,7 @@ interface Survey {
   education_round: number;
   status: string;
   instructor_id: string;
+  expected_participants?: number;
 }
 
 interface SurveyResponse {
@@ -247,9 +248,25 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
 
   const fetchAllInstructors = async () => {
     try {
+      // 강사 역할을 가진 사용자들만 가져오기
+      const { data: instructorProfiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('instructor_id')
+        .not('instructor_id', 'is', null);
+      
+      if (profileError) throw profileError;
+      
+      const instructorIds = instructorProfiles.map(p => p.instructor_id).filter(Boolean);
+      
+      if (instructorIds.length === 0) {
+        setAllInstructors([]);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('instructors')
         .select('id, name, email, photo_url')
+        .in('id', instructorIds)
         .order('name');
         
       if (error) throw error;
@@ -350,10 +367,16 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     };
   };
 
-  // 차수별 통계 계산
+  // 차수별 통계 계산 (페이지네이션 고려)
   const getRoundStatistics = () => {
     const relevantSurveys = canViewAll ? getFilteredSurveys() : getFilteredSurveys().filter(s => 
       profile?.instructor_id && s.instructor_id === profile.instructor_id
+    );
+    
+    // 최신 2년치 데이터만 표시 (성능 최적화)
+    const currentYear = new Date().getFullYear();
+    const recentSurveys = relevantSurveys.filter(s => 
+      s.education_year >= currentYear - 1
     );
     
     const roundStats: Record<string, {
@@ -363,9 +386,10 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       round: number;
       courseSatisfaction: number;
       instructorSatisfaction: number;
+      responseRate: number;
     }> = {};
 
-    relevantSurveys.forEach(survey => {
+    recentSurveys.forEach(survey => {
       const key = `${survey.education_year}-${survey.education_round}`;
       if (!roundStats[key]) {
         roundStats[key] = {
@@ -374,11 +398,18 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
           year: survey.education_year,
           round: survey.education_round,
           courseSatisfaction: 0,
-          instructorSatisfaction: 0
+          instructorSatisfaction: 0,
+          responseRate: 0
         };
       }
       roundStats[key].surveys.push(survey);
-      roundStats[key].responses += allResponses.filter(r => r.survey_id === survey.id).length;
+      const surveyResponses = allResponses.filter(r => r.survey_id === survey.id).length;
+      roundStats[key].responses += surveyResponses;
+      
+      // 응답률 계산 (예상 참가자 수가 있는 경우)
+      if (survey.expected_participants && survey.expected_participants > 0) {
+        roundStats[key].responseRate = Math.round((surveyResponses / survey.expected_participants) * 100);
+      }
     });
 
     // 각 차수별 만족도 계산 (현재 로드된 데이터 기반)
@@ -967,7 +998,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                          <Button
                            variant="default"
                            size="sm"
-                           onClick={() => navigate(`/dashboard/survey-analysis/${survey.id}`)}
+                           onClick={() => navigate(`/dashboard/detailed-analysis/${survey.id}`)}
                            className="touch-friendly text-xs h-9 px-3 bg-primary hover:bg-primary/90"
                          >
                            <Eye className="h-3 w-3 mr-1" />
