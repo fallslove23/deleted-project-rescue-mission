@@ -71,10 +71,10 @@ const SurveyAnalysis = () => {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
-  const [selectedSurvey, setSelectedSurvey] = useState<string>('');
+  const [selectedSurvey, setSelectedSurvey] = useState<string>('none');
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
-  const [selectedYear, setSelectedYear] = useState<string>('');
-  const [selectedRound, setSelectedRound] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedRound, setSelectedRound] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -101,7 +101,7 @@ const SurveyAnalysis = () => {
   }, [profile]);
 
   useEffect(() => {
-    if (selectedSurvey) {
+    if (selectedSurvey && selectedSurvey !== 'none') {
       fetchResponses();
       fetchQuestionsAndAnswers();
     }
@@ -219,10 +219,10 @@ const SurveyAnalysis = () => {
 
   const getFilteredSurveys = () => {
     let filtered = surveys;
-    if (selectedYear && selectedYear !== '') {
+    if (selectedYear && selectedYear !== 'all') {
       filtered = filtered.filter(s => s.education_year.toString() === selectedYear);
     }
-    if (selectedRound && selectedRound !== '') {
+    if (selectedRound && selectedRound !== 'all') {
       filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
     }
     if (canViewAll && selectedInstructor !== 'all') {
@@ -238,7 +238,7 @@ const SurveyAnalysis = () => {
 
   const getUniqueRounds = () => {
     let filteredSurveys = surveys;
-    if (selectedYear && selectedYear !== '') {
+    if (selectedYear && selectedYear !== 'all') {
       filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
     }
     const rounds = [...new Set(filteredSurveys.map(s => s.education_round))];
@@ -359,7 +359,7 @@ const SurveyAnalysis = () => {
   };
 
   const selectedSurveyData = surveys.find(s => s.id === selectedSurvey);
-  const questionAnalyses = selectedSurvey ? getQuestionAnalysis() : [];
+  const questionAnalyses = selectedSurvey && selectedSurvey !== 'none' ? getQuestionAnalysis() : [];
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
 
   if (loading) {
@@ -461,7 +461,7 @@ const SurveyAnalysis = () => {
               <SelectValue placeholder="전체 연도" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">전체</SelectItem>
+              <SelectItem value="all">전체</SelectItem>
               {getUniqueYears().map(year => (
                 <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
               ))}
@@ -473,7 +473,7 @@ const SurveyAnalysis = () => {
               <SelectValue placeholder="전체 차수" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">전체</SelectItem>
+              <SelectItem value="all">전체</SelectItem>
               {getUniqueRounds().map(round => (
                 <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
               ))}
