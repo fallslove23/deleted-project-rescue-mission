@@ -55,9 +55,9 @@ const PersonalDashboard = () => {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('year');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('round');
   const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [selectedRound, setSelectedRound] = useState<string>('all');
+  const [selectedRound, setSelectedRound] = useState<string>('latest');
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
@@ -71,7 +71,7 @@ const PersonalDashboard = () => {
     if (profile && canViewPersonalStats) {
       fetchData();
     }
-  }, [profile, selectedYear, selectedRound]);
+  }, [profile, selectedPeriod, selectedYear, selectedRound]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -109,7 +109,7 @@ const PersonalDashboard = () => {
         surveyQuery = surveyQuery.eq('education_year', parseInt(selectedYear));
       }
 
-      if (selectedRound && selectedRound !== 'all') {
+      if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
         surveyQuery = surveyQuery.eq('education_round', parseInt(selectedRound));
       }
 
@@ -118,11 +118,24 @@ const PersonalDashboard = () => {
         .order('education_round', { ascending: false });
 
       if (surveysError) throw surveysError;
-      setSurveys(surveysData || []);
+      
+      let filteredSurveys = surveysData || [];
+      
+      // 최신 회차 필터링
+      if (selectedRound === 'latest' && filteredSurveys.length > 0) {
+        const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
+        const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
+        const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
+        filteredSurveys = filteredSurveys.filter(s => 
+          s.education_year === latestYear && s.education_round === latestRound
+        );
+      }
+
+      setSurveys(filteredSurveys);
 
       // 응답들 가져오기
-      if (surveysData && surveysData.length > 0) {
-        const surveyIds = surveysData.map(s => s.id);
+      if (filteredSurveys && filteredSurveys.length > 0) {
+        const surveyIds = filteredSurveys.map(s => s.id);
         
         const { data: responsesData, error: responsesError } = await supabase
           .from('survey_responses')
@@ -176,7 +189,45 @@ const PersonalDashboard = () => {
   const getTrendData = () => {
     const satisfactionQuestions = questions.filter(q => q.satisfaction_type);
     
-    if (selectedPeriod === 'month') {
+    if (selectedPeriod === 'round') {
+      // 회차별 트렌드
+      const roundData: Record<string, { total: number; count: number; responses: number }> = {};
+      
+      surveys.forEach(survey => {
+        const roundKey = `${survey.education_year}-${survey.education_round}차`;
+        
+        if (!roundData[roundKey]) {
+          roundData[roundKey] = { total: 0, count: 0, responses: 0 };
+        }
+        
+        const surveyResponses = responses.filter(r => r.survey_id === survey.id);
+        roundData[roundKey].responses += surveyResponses.length;
+        
+        surveyResponses.forEach(response => {
+          const responseAnswers = answers.filter(a => a.response_id === response.id);
+          const satisfactionAnswers = responseAnswers.filter(a => 
+            satisfactionQuestions.some(q => q.id === a.question_id)
+          );
+          
+          satisfactionAnswers.forEach(answer => {
+            const rating = parseFloat(answer.answer_text);
+            if (!isNaN(rating)) {
+              roundData[roundKey].total += rating;
+              roundData[roundKey].count++;
+            }
+          });
+        });
+      });
+
+      return Object.entries(roundData)
+        .map(([round, data]) => ({
+          period: round,
+          average: data.count > 0 ? (data.total / data.count) : 0,
+          responses: data.responses,
+          satisfaction: data.count > 0 ? Math.round((data.total / data.count) * 20) : 0
+        }))
+        .sort((a, b) => a.period.localeCompare(b.period));
+    } else if (selectedPeriod === 'month') {
       // 월별 트렌드
       const monthlyData: Record<string, { total: number; count: number; responses: number }> = {};
       
@@ -435,6 +486,7 @@ const PersonalDashboard = () => {
             <SelectValue placeholder="기간 선택" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="round">회차별</SelectItem>
             <SelectItem value="month">월별</SelectItem>
             <SelectItem value="half">반기별</SelectItem>
             <SelectItem value="year">연도별</SelectItem>
@@ -453,17 +505,34 @@ const PersonalDashboard = () => {
           </SelectContent>
         </Select>
 
-        <Select value={selectedRound} onValueChange={setSelectedRound}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="전체 차수" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체</SelectItem>
-            {getUniqueRounds().map(round => (
-              <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {selectedPeriod !== 'round' && (
+          <Select value={selectedRound} onValueChange={setSelectedRound}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="전체 차수" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              {getUniqueRounds().map(round => (
+                <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        
+        {selectedPeriod === 'round' && (
+          <Select value={selectedRound} onValueChange={setSelectedRound}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="회차 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">최신 회차</SelectItem>
+              <SelectItem value="all">전체</SelectItem>
+              {getUniqueRounds().map(round => (
+                <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* 트렌드 분석 */}
@@ -471,7 +540,6 @@ const PersonalDashboard = () => {
         <TabsList>
           <TabsTrigger value="trend">만족도 트렌드</TabsTrigger>
           <TabsTrigger value="distribution">평점 분포</TabsTrigger>
-          <TabsTrigger value="round-stats">회차별 통계</TabsTrigger>
           <TabsTrigger value="insights">인사이트</TabsTrigger>
         </TabsList>
 
@@ -567,9 +635,6 @@ const PersonalDashboard = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="round-stats" className="space-y-4">
-          <SurveyStatsByRound instructorId={profile?.instructor_id} />
-        </TabsContent>
 
         <TabsContent value="insights" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
