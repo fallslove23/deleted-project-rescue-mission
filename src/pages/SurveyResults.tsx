@@ -595,10 +595,14 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
           {isInstructor && instructor && (
             <section aria-label="강사 정보" className="rounded-xl border bg-card p-4 sm:p-6 shadow-sm">
               <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-2 ring-primary/20">
-                  <AvatarImage src={instructor.photo_url || ''} alt={`${instructor.name} 강사 사진`} />
-                  <AvatarFallback>{(instructor.name || 'IN').slice(0, 2)}</AvatarFallback>
-                </Avatar>
+                 <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-2 ring-primary/20">
+                   <AvatarImage 
+                     src={instructor.photo_url || ''} 
+                     alt={`${instructor.name} 강사 사진`}
+                     className="object-cover"
+                   />
+                   <AvatarFallback>{(instructor.name || 'IN').slice(0, 2)}</AvatarFallback>
+                 </Avatar>
                 <div className="min-w-0">
                   <h2 className="text-xl sm:text-2xl font-bold leading-tight break-words">{instructor.name}</h2>
                   {instructor.email && (
@@ -770,36 +774,36 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                         </div>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
-                          className="touch-friendly"
-                        >
-                          <BarChart className="h-4 w-4 mr-1" />
-                          <span className="hidden sm:inline">상세 분석</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedSurvey(survey.id)}
-                          className="touch-friendly"
-                        >
-                          <FileText className="h-4 w-4" />
-                          <span className="hidden sm:inline ml-1">개별 통계</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedSurvey(survey.id);
-                            openEmailDialog();
-                          }}
-                          className="touch-friendly"
-                        >
-                          <Mail className="h-4 w-4" />
-                          <span className="hidden sm:inline ml-1">결과 송부</span>
-                        </Button>
+                         <Button
+                           variant="default"
+                           size="sm"
+                           onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
+                           className="touch-friendly bg-primary hover:bg-primary/90 text-primary-foreground"
+                         >
+                           <BarChart className="h-4 w-4 mr-1" />
+                           <span className="hidden sm:inline">상세 분석</span>
+                         </Button>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => setSelectedSurvey(survey.id)}
+                           className="touch-friendly border-2 border-muted-foreground/30 hover:border-primary hover:bg-muted/50"
+                         >
+                           <FileText className="h-4 w-4" />
+                           <span className="hidden sm:inline ml-1">개별 통계</span>
+                         </Button>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => {
+                             setSelectedSurvey(survey.id);
+                             openEmailDialog();
+                           }}
+                           className="touch-friendly border-2 border-muted-foreground/30 hover:border-primary hover:bg-muted/50"
+                         >
+                           <Mail className="h-4 w-4" />
+                           <span className="hidden sm:inline ml-1">결과 송부</span>
+                         </Button>
                       </div>
                     </div>
                   </div>
