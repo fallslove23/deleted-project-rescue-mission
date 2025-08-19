@@ -61,12 +61,17 @@ const handler = async (req: Request): Promise<Response> => {
     const explicitEmails = inputRecipients.filter((r) => emailRegex.test(String(r)));
 
     const resolvedSet = new Set<string>(explicitEmails);
+    const recipientNames = new Map<string, string>(); // 이메일 -> 이름 매핑
 
     // Include instructor email when requested or when no recipients provided (default)
     if (inputRecipients.length === 0 || roleTokens.includes("instructor")) {
       const instructorEmail = survey.instructors?.email as string | undefined;
+      const instructorName = survey.instructors?.name as string | undefined;
       if (instructorEmail && emailRegex.test(instructorEmail)) {
         resolvedSet.add(instructorEmail);
+        if (instructorName) {
+          recipientNames.set(instructorEmail, instructorName);
+        }
       }
     }
 
@@ -88,12 +93,46 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!roleErr && roleRows && roleRows.length > 0) {
         const ids = Array.from(new Set(roleRows.map((r: any) => r.user_id)));
+        
+        // 프로필과 강사 정보를 함께 가져오기
         const { data: profs } = await supabaseClient
           .from("profiles")
-          .select("email")
+          .select(`
+            email,
+            instructor_id,
+            instructors (name)
+          `)
           .in("id", ids);
+
         profs?.forEach((p: any) => {
-          if (p.email && emailRegex.test(p.email)) resolvedSet.add(p.email);
+          if (p.email && emailRegex.test(p.email)) {
+            resolvedSet.add(p.email);
+            
+            // 이름 설정: 강사 이름이 있으면 강사명, 없으면 역할명
+            let name = '';
+            if (p.instructors?.name) {
+              name = p.instructors.name;
+            } else {
+              // 해당 사용자의 역할 찾기
+              const userRoles = roleRows.filter((r: any) => 
+                profs.some((prof: any) => prof.email === p.email && ids.includes(r.user_id))
+              );
+              const roleNames = userRoles.map((r: any) => {
+                switch(r.role) {
+                  case 'admin': return '관리자';
+                  case 'operator': return '운영자';
+                  case 'director': return '조직장';
+                  case 'instructor': return '강사';
+                  default: return r.role;
+                }
+              });
+              name = roleNames.join(', ');
+            }
+            
+            if (name) {
+              recipientNames.set(p.email, name);
+            }
+          }
         });
       }
     }
@@ -282,6 +321,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         emailResults.push({
           to: email,
+          name: recipientNames.get(email) || email.split('@')[0], // 이름이 없으면 이메일 앞부분 사용
           status: 'sent',
           messageId: emailResponse.data?.id
         });
@@ -291,6 +331,7 @@ const handler = async (req: Request): Promise<Response> => {
         failedEmails.push(email);
         emailResults.push({
           to: email,
+          name: recipientNames.get(email) || email.split('@')[0],
           status: 'failed',
           error: (emailError as any)?.message ?? 'Unknown error'
         });
@@ -343,6 +384,7 @@ const handler = async (req: Request): Promise<Response> => {
         total: finalRecipients.length,
         recipients: finalRecipients,
         results: emailResults,
+        recipientNames: Object.fromEntries(recipientNames), // 이름 매핑 정보 포함
         message: failureCount === 0 
           ? '모든 수신자에게 성공적으로 전송되었습니다.'
           : successCount === 0 

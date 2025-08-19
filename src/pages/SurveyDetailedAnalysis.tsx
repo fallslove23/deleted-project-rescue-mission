@@ -325,22 +325,35 @@ const SurveyDetailedAnalysis = () => {
     setSendingResults(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-survey-results', {
-        body: { surveyId }
+        body: { 
+          surveyId,
+          recipients: ['admin', 'instructor'] // 기본적으로 관리자와 강사에게 전송
+        }
       });
 
       if (error) throw error;
 
-      const results = (data as any)?.results as Array<{ to: string; status: 'sent' | 'failed' }> | undefined;
-      const recipients = (data as any)?.recipients as string[] | undefined;
-      const sent = results?.filter(r => r.status === 'sent').map(r => r.to) || recipients || [];
-      const failed = results?.filter(r => r.status === 'failed').map(r => r.to) || [];
+      const results = (data as any)?.results as Array<{ to: string; name?: string; status: 'sent' | 'failed' }> | undefined;
+      const recipientNames = (data as any)?.recipientNames as Record<string, string> | undefined;
+      
+      const sent = results?.filter(r => r.status === 'sent') || [];
+      const failed = results?.filter(r => r.status === 'failed') || [];
+
+      // 이름 기반 메시지 생성
+      const getSentNames = () => {
+        return sent.map(r => r.name || recipientNames?.[r.to] || r.to.split('@')[0]).join(', ');
+      };
+
+      const getFailedNames = () => {
+        return failed.map(r => r.name || recipientNames?.[r.to] || r.to.split('@')[0]).join(', ');
+      };
 
       toast({
-        title: failed.length === 0 ? "✅ 이메일 전송 완료!" : "⚠️ 일부 전송 실패",
+        title: failed.length === 0 ? "✅ 결과 전송 완료!" : "⚠️ 일부 전송 실패",
         description: failed.length === 0 
-          ? `${sent.length}명에게 설문 결과가 성공적으로 전송되었습니다. 📧` 
-          : `성공 ${sent.length}건${sent.length ? `: ${sent.join(', ')}` : ''} / 실패 ${failed.length}건: ${failed.join(', ')}`,
-        duration: 5000,
+          ? `${sent.length}명에게 설문 결과가 성공적으로 전송되었습니다. 📧\n받는 분: ${getSentNames()}` 
+          : `성공 ${sent.length}건${sent.length ? `: ${getSentNames()}` : ''}\n실패 ${failed.length}건: ${getFailedNames()}`,
+        duration: 6000,
       });
     } catch (error: any) {
       console.error('Error sending results:', error);
