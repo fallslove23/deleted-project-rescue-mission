@@ -104,6 +104,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
 
   useEffect(() => {
     if (profile) {
+      fetchInstructorInfo(); // 강사 정보 로드 추가
       fetchAllInstructors();
       fetchSurveys();
       fetchAllResponses();
@@ -986,7 +987,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
           </div>
 
           {/* Enhanced Trendy Chart for Round Statistics */}
-          {roundStats.length > 0 && (
+          {roundStats.length > 0 ? (
             <Card className="border-2 border-muted-foreground/30">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -1043,10 +1044,26 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+          ) : (
+            <Card className="border-2 border-muted-foreground/30">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  차수별 만족도 트렌드
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>트렌드 데이터가 없습니다.</p>
+                  <p className="text-sm">설문 응답이 있는 경우 트렌드 차트가 표시됩니다.</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Enhanced Round Statistics Cards */}
-          {roundStats.length > 0 && (
+          {roundStats.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1100,6 +1117,22 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  차수별 통계
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>차수별 통계 데이터가 없습니다.</p>
+                  <p className="text-sm">설문 응답이 있는 경우 통계가 표시됩니다.</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* 설문조사 목록 */}
@@ -1109,61 +1142,69 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {getFilteredSurveys().map((survey) => (
-                  <div
-                    key={survey.id}
-                    className="p-3 border rounded-lg transition-colors hover:bg-muted/50"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-medium break-words">{survey.title}</h4>
-                        <p className="text-sm text-muted-foreground break-words">
-                          {survey.education_year}년 {survey.education_round}차
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant={survey.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                            {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            응답 수: {allResponses.filter(r => r.survey_id === survey.id).length}개
-                          </span>
-                        </div>
-                       </div>
-                       <div className="flex gap-2 flex-shrink-0">
-                         <Button
-                           variant="default"
-                           size="sm"
-                           onClick={() => navigate(`/dashboard/detailed-analysis/${survey.id}`)}
-                           className="touch-friendly text-xs h-9 px-3 bg-primary hover:bg-primary/90"
-                         >
-                           <Eye className="h-3 w-3 mr-1" />
-                           상세 분석
-                         </Button>
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => setSelectedSurvey(survey.id)}
-                           className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
-                         >
-                           <BarChart className="h-3 w-3 mr-1" />
-                           개별 통계
-                         </Button>
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => {
-                             setSelectedSurvey(survey.id);
-                             openEmailDialog();
-                           }}
-                           className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
-                         >
-                           <Send className="h-3 w-3 mr-1" />
-                           결과 송부
-                         </Button>
+                {getFilteredSurveys().length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>설문 결과가 없습니다.</p>
+                    <p className="text-sm">선택한 조건에 맞는 설문조사가 없습니다.</p>
+                  </div>
+                ) : (
+                  getFilteredSurveys().map((survey) => (
+                    <div
+                      key={survey.id}
+                      className="p-3 border rounded-lg transition-colors hover:bg-muted/50"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-medium break-words">{survey.title}</h4>
+                          <p className="text-sm text-muted-foreground break-words">
+                            {survey.education_year}년 {survey.education_round}차
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant={survey.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                              {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              응답 수: {allResponses.filter(r => r.survey_id === survey.id).length}개
+                            </span>
+                          </div>
+                         </div>
+                         <div className="flex gap-2 flex-shrink-0">
+                           <Button
+                             variant="default"
+                             size="sm"
+                             onClick={() => navigate(`/dashboard/detailed-analysis/${survey.id}`)}
+                             className="touch-friendly text-xs h-9 px-3 bg-primary hover:bg-primary/90"
+                           >
+                             <Eye className="h-3 w-3 mr-1" />
+                             상세 분석
+                           </Button>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => setSelectedSurvey(survey.id)}
+                             className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
+                           >
+                             <BarChart className="h-3 w-3 mr-1" />
+                             개별 통계
+                           </Button>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => {
+                               setSelectedSurvey(survey.id);
+                               openEmailDialog();
+                             }}
+                             className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
+                           >
+                             <Send className="h-3 w-3 mr-1" />
+                             결과 송부
+                           </Button>
+                         </div>
                        </div>
                      </div>
-                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
