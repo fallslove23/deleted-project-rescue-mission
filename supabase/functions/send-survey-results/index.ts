@@ -43,6 +43,68 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Survey not found");
     }
 
+    // Resolve recipients (support role tokens and defaults)
+    const inputRecipients = Array.isArray(recipients) ? recipients : [];
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const roleTokens = inputRecipients
+      .map((r) => String(r).toLowerCase())
+      .filter((r) => ["admin", "operator", "director", "instructor"].includes(r));
+    const explicitEmails = inputRecipients.filter((r) => emailRegex.test(String(r)));
+
+    const resolvedSet = new Set<string>(explicitEmails);
+
+    // Include instructor email when requested or when no recipients provided (default)
+    if (inputRecipients.length === 0 || roleTokens.includes("instructor")) {
+      const instructorEmail = survey.instructors?.email as string | undefined;
+      if (instructorEmail && emailRegex.test(instructorEmail)) {
+        resolvedSet.add(instructorEmail);
+      }
+    }
+
+    // Determine which roles to include
+    let rolesForQuery: string[] = [];
+    if (inputRecipients.length === 0) {
+      rolesForQuery = ["admin"]; // default: send to admins
+    } else {
+      ["admin", "operator", "director"].forEach((r) => {
+        if (roleTokens.includes(r)) rolesForQuery.push(r);
+      });
+    }
+
+    if (rolesForQuery.length > 0) {
+      const { data: roleRows, error: roleErr } = await supabaseClient
+        .from("user_roles")
+        .select("user_id, role")
+        .in("role", rolesForQuery as any);
+
+      if (!roleErr && roleRows && roleRows.length > 0) {
+        const ids = Array.from(new Set(roleRows.map((r: any) => r.user_id)));
+        const { data: profs } = await supabaseClient
+          .from("profiles")
+          .select("email")
+          .in("id", ids);
+        profs?.forEach((p: any) => {
+          if (p.email && emailRegex.test(p.email)) resolvedSet.add(p.email);
+        });
+      }
+    }
+
+    const finalRecipients = Array.from(resolvedSet);
+    if (finalRecipients.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error:
+            "유효한 수신자 이메일을 찾을 수 없습니다. (도메인 검증 또는 수신자 선택을 확인하세요)",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const fromAddress = Deno.env.get("RESEND_FROM") ||
+      "BS교육원 설문시스템 <onboarding@resend.dev>";
+
     // Fetch survey responses and analysis
     const { data: responses } = await supabaseClient
       .from("survey_responses")
@@ -106,7 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResults = [];
     const failedEmails = [];
 
-    for (const email of recipients) {
+    for (const email of finalRecipients) {
       try {
         let questionSummary = '';
         Object.values(questionAnalysis).forEach((qa: any) => {
@@ -136,7 +198,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
         const emailResponse = await resend.emails.send({
-          from: "BS교육원 설문시스템 <noreply@bsedu.co.kr>",
+          from: fromAddress,
           to: [email],
           subject: `📊 설문 결과 발송: ${survey.title}`,
           html: `
@@ -240,7 +302,7 @@ const handler = async (req: Request): Promise<Response> => {
         .from('email_logs')
         .insert({
           survey_id: surveyId,
-          recipients,
+          recipients: finalRecipients,
           status: logStatus,
           sent_count: successCount,
           failed_count: failureCount,
@@ -271,7 +333,8 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         sent: successCount,
         failed: failureCount,
-        total: recipients.length,
+        total: finalRecipients.length,
+        recipients: finalRecipients,
         results: emailResults,
         message: failureCount === 0 
           ? '모든 수신자에게 성공적으로 전송되었습니다.'
