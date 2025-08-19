@@ -22,6 +22,14 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { surveyId, recipients }: SendResultsRequest = await req.json();
+
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: "RESEND_API_KEY not configured" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
     
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -273,8 +281,8 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
         emailResults.push({
-          email,
-          status: 'success',
+          to: email,
+          status: 'sent',
           messageId: emailResponse.data?.id
         });
 
@@ -282,15 +290,15 @@ const handler = async (req: Request): Promise<Response> => {
         console.error(`Failed to send email to ${email}:`, emailError);
         failedEmails.push(email);
         emailResults.push({
-          email,
+          to: email,
           status: 'failed',
-          error: emailError.message
+          error: (emailError as any)?.message ?? 'Unknown error'
         });
       }
     }
 
-    const successCount = emailResults.filter(r => r.status === 'success').length;
-    const failureCount = emailResults.filter(r => r.status === 'failed').length;
+    const successCount = emailResults.filter((r: any) => r.status === 'sent').length;
+    const failureCount = emailResults.filter((r: any) => r.status === 'failed').length;
     
     // Log email sending results to database
     const logStatus = failureCount === 0 ? 'success' : 
