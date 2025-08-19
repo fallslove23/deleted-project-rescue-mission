@@ -413,6 +413,82 @@ const SurveyDetailedAnalysis = () => {
     }
   };
 
+  // 엑셀 다운로드 기능
+  const handleDownload = () => {
+    if (!survey) return;
+    
+    try {
+      const csvContent = generateCSVContent();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${survey.title}_분석결과_${survey.education_year}년_${survey.education_round}차.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "성공",
+        description: "설문 분석 결과가 CSV 파일로 다운로드되었습니다."
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "오류",
+        description: "다운로드 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const generateCSVContent = () => {
+    if (!survey) return '';
+    
+    let csvContent = '\uFEFF'; // BOM for Excel
+    
+    // 설문 기본 정보
+    csvContent += `설문명,${survey.title}\n`;
+    csvContent += `교육년도,${survey.education_year}\n`;
+    csvContent += `교육차수,${survey.education_round}\n`;
+    csvContent += `총 응답수,${responses.length}\n`;
+    csvContent += `강사명,${instructor?.name || '-'}\n\n`;
+    
+    // 과정 만족도 통계
+    const courseAvg = calculateCategoryAverage(categorizeQuestions().courseQuestions);
+    const courseAvgStr = String(courseAvg);
+    csvContent += `과정 만족도,${courseAvgStr !== '0' ? courseAvgStr : '-'}/10\n`;
+    
+    // 강사 만족도 통계  
+    const instructorAvg = calculateCategoryAverage(categorizeQuestions().instructorQuestions);
+    const instructorAvgStr = String(instructorAvg);
+    csvContent += `강사 만족도,${instructorAvgStr !== '0' ? instructorAvgStr : '-'}/10\n\n`;
+    
+    // 질문별 분석
+    csvContent += `질문,질문유형,응답수,분석결과\n`;
+    
+    const { courseQuestions, instructorQuestions } = categorizeQuestions();
+    
+    [...courseQuestions, ...instructorQuestions].forEach((question, index) => {
+      const analysis = getQuestionAnalysis([question])[0];
+      csvContent += `"${question.question_text}",${question.question_type},${analysis.totalAnswers},"`;
+      
+      if (analysis.type === 'rating') {
+        csvContent += `평균: ${analysis.average}점`;
+      } else if (analysis.type === 'chart') {
+        const topAnswer = analysis.chartData.reduce((a, b) => a.value > b.value ? a : b, {name: '', value: 0});
+        csvContent += `최다응답: ${topAnswer.name} (${topAnswer.value}명)`;
+      } else {
+        csvContent += `텍스트 응답 ${analysis.totalAnswers}개`;
+      }
+      
+      csvContent += `"\n`;
+    });
+    
+    return csvContent;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -508,7 +584,11 @@ const SurveyDetailedAnalysis = () => {
               <Mail className="h-4 w-4 mr-2" />
               {sendingResults ? '전송 중...' : '결과 전송'}
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleDownload}
+            >
               <Download className="h-4 w-4 mr-2" />
               엑셀 다운로드
             </Button>

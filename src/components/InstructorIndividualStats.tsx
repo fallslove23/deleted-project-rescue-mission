@@ -120,7 +120,7 @@ const InstructorIndividualStats = ({
   // 로그인한 사용자가 강사인 경우 자동 선택
   useEffect(() => {
     const autoSelectInstructor = async () => {
-      if (!user || selectedInstructorDetail) return;
+      if (!user || selectedInstructorDetail || instructorsWithRoles.length === 0) return;
 
       try {
         // 현재 로그인한 사용자의 프로필 조회
@@ -134,9 +134,11 @@ const InstructorIndividualStats = ({
 
         // 사용자에게 instructor_id가 있는 경우
         if (profile.instructor_id) {
-          // 해당 강사가 통계에 있는지 확인
+          // 해당 강사가 목록에 있고 설문이 있는지 확인
+          const isInstructorInList = instructorsWithRoles.some(inst => inst.id === profile.instructor_id);
           const hasInstructorSurveys = getFilteredSurveys().some(s => s.instructor_id === profile.instructor_id);
-          if (hasInstructorSurveys) {
+          
+          if (isInstructorInList && hasInstructorSurveys) {
             setSelectedInstructorDetail(profile.instructor_id);
           }
         }
@@ -145,7 +147,10 @@ const InstructorIndividualStats = ({
       }
     };
 
-    autoSelectInstructor();
+    // 강사 목록이 로드된 후에 자동 선택 실행
+    if (instructorsWithRoles.length > 0) {
+      autoSelectInstructor();
+    }
   }, [user, instructorsWithRoles, getFilteredSurveys, selectedInstructorDetail]);
 
   // 강사별 누적 평점 계산

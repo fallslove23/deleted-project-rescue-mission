@@ -521,14 +521,16 @@ const EmailLogs = () => {
                                 </div>
                               </div>
                               
-                              <div>
-                                <h4 className="font-medium mb-2">수신자 목록</h4>
-                                <div className="max-h-32 overflow-y-auto bg-muted/30 p-3 rounded text-sm">
-                                  {log.recipients.map((email, index) => (
-                                    <div key={index} className="py-1">{email}</div>
-                                  ))}
-                                </div>
-                              </div>
+                               <div>
+                                 <h4 className="font-medium mb-2">수신자 목록 ({log.recipients.length}명)</h4>
+                                 <div className="max-h-32 overflow-y-auto bg-muted/30 p-3 rounded text-sm space-y-1">
+                                   {log.recipients.map((email, index) => (
+                                     <div key={index} className="py-1 px-2 bg-background rounded border text-sm">
+                                       {email}
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
 
                               {log.error && (
                                 <div>
