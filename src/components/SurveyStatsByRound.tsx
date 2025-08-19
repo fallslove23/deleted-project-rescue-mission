@@ -60,14 +60,19 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
 
   const fetchData = async () => {
     try {
+      console.log('SurveyStatsByRound - fetchData called with instructorId:', instructorId);
+      console.log('SurveyStatsByRound - canViewAll:', canViewAll);
+      
       // 설문 데이터 가져오기
       let surveyQuery = supabase.from('surveys').select('*');
       
       // instructorId가 지정되어 있으면 해당 강사만, 없고 권한이 있으면 전체
       if (instructorId) {
+        console.log('SurveyStatsByRound - Filtering by instructor_id:', instructorId);
         surveyQuery = surveyQuery.eq('instructor_id', instructorId);
       } else if (!canViewAll) {
         // 권한이 없으면 빈 결과 반환
+        console.log('SurveyStatsByRound - No permissions, returning empty data');
         setSurveys([]);
         setResponses([]);
         setQuestions([]);
@@ -80,7 +85,11 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
       
-      if (surveyError) throw surveyError;
+      if (surveyError) {
+        console.error('SurveyStatsByRound - Survey error:', surveyError);
+        throw surveyError;
+      }
+      console.log('SurveyStatsByRound - Surveys fetched:', surveyData?.length || 0);
       setSurveys(surveyData || []);
 
       if (surveyData && surveyData.length > 0) {

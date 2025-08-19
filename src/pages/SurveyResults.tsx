@@ -104,6 +104,12 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
 
   useEffect(() => {
     if (profile) {
+      console.log('SurveyResults - Profile loaded, starting data fetch:', {
+        profile,
+        canViewAll,
+        isInstructor,
+        instructorId: profile.instructor_id
+      });
       fetchInstructorInfo(); // 강사 정보 로드 추가
       fetchAllInstructors();
       fetchSurveys();
@@ -270,9 +276,11 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
         if (insertError) {
           console.error('Error creating profile:', insertError);
         } else {
+          console.log('SurveyResults - Setting profile:', newProfile);
           setProfile(newProfile);
         }
       } else {
+        console.log('SurveyResults - Profile found:', data);
         setProfile(data);
       }
     } catch (error) {
@@ -1398,9 +1406,9 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                        )}
                      </TabsContent>
 
-                     <TabsContent value="round-stats" className="space-y-4">
-                       <SurveyStatsByRound instructorId={canViewAll ? undefined : profile?.instructor_id} />
-                     </TabsContent>
+                      <TabsContent value="round-stats" className="space-y-4">
+                        <SurveyStatsByRound instructorId={canViewAll ? undefined : profile?.instructor_id} />
+                      </TabsContent>
 
                      <TabsContent value="individual" className="space-y-4">
                        <InstructorIndividualStats 
