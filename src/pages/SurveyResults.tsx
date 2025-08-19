@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer, Mail, Filter, Calendar, User, BookOpen, ChevronDown, ChevronRight, Eye, Send, X, BarChart3 } from 'lucide-react';
+import { BarChart, FileText, TrendingUp, Users, ArrowLeft, Download, Printer, Mail, Filter, Calendar, User, BookOpen, ChevronDown, ChevronRight, Eye, Send, X, BarChart3, FileSpreadsheet, Settings } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip, Legend } from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import InstructorIndividualStats from '@/components/InstructorIndividualStats';
 import SurveyStatsByRound from '@/components/SurveyStatsByRound';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { exportResponsesAsCSV, exportSummaryAsCSV, downloadCSV, generateCSVFilename, SurveyResultData } from '@/utils/csvExport';
 
 interface Survey {
   id: string;
@@ -727,6 +728,55 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     }
   };
 
+  const handleExportCSV = (type: 'responses' | 'summary') => {
+    if (!selectedSurvey) {
+      toast({
+        title: "오류",
+        description: "내보낼 설문을 선택해주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const survey = surveys.find(s => s.id === selectedSurvey);
+    if (!survey) return;
+
+    try {
+      const exportData: SurveyResultData = {
+        survey: {
+          id: survey.id,
+          title: survey.title,
+          education_year: survey.education_year,
+          education_round: survey.education_round,
+          instructor_name: instructor?.name,
+          course_title: undefined // surveys don't have direct course relation
+        },
+        responses,
+        questions,
+        answers
+      };
+
+      const filename = generateCSVFilename(exportData.survey, type);
+      const csvContent = type === 'responses' 
+        ? exportResponsesAsCSV(exportData)
+        : exportSummaryAsCSV(exportData);
+
+      downloadCSV(csvContent, filename);
+
+      toast({
+        title: "성공",
+        description: `${type === 'responses' ? '응답 데이터' : '요약 통계'}가 CSV 파일로 다운로드되었습니다.`
+      });
+    } catch (error) {
+      console.error('CSV export error:', error);
+      toast({
+        title: "오류",
+        description: "CSV 내보내기 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const openEmailDialog = () => {
     if (!selectedSurvey) {
       toast({
@@ -749,6 +799,18 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
         : [...prev, recipientType]
     );
   };
+
+  const handleLoadFilterPreset = (filters: any) => {
+    if (filters.selectedYear !== undefined) setSelectedYear(filters.selectedYear);
+    if (filters.selectedRound !== undefined) setSelectedRound(filters.selectedRound);
+    if (filters.selectedInstructor !== undefined) setSelectedInstructor(filters.selectedInstructor);
+  };
+
+  const getCurrentFilters = () => ({
+    selectedYear,
+    selectedRound,
+    selectedInstructor
+  });
 
   if (loading) {
     return (
@@ -821,7 +883,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                   )}
                   <p className="text-xs text-muted-foreground mt-1">담당 강사의 설문 결과입니다.</p>
                 </div>
-              </div>
+          </div>
             </section>
           )}
           {/* 필터 */}
@@ -1186,7 +1248,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                     <label htmlFor="director" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       조직장
                     </label>
-                  </div>
+                      </div>
+                    </div>
                 </div>
                 
                 <div className="flex justify-end gap-2 pt-4">
@@ -1200,17 +1263,16 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                   <Button
                     onClick={handleSendResults}
                     disabled={sendingResults || selectedRecipients.length === 0}
-                  >
-                    {sendingResults ? '발송 중...' : '발송'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </main>
-    </div>
-  );
-};
+                   >
+                     {sendingResults ? '발송 중...' : '발송'}
+                   </Button>
+                 </div>
+               </DialogContent>
+             </Dialog>
+           </div>
+         </main>
+       </div>
+     );
+   };
 
-export default SurveyResults;
+   export default SurveyResults;
