@@ -102,8 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const fromAddress = Deno.env.get("RESEND_FROM") ||
-      "BS교육원 설문시스템 <onboarding@resend.dev>";
+    const fromAddress = "BS교육원 설문시스템 <onboarding@resend.dev>";
 
     // Fetch survey responses and analysis
     const { data: responses } = await supabaseClient
