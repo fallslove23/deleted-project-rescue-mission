@@ -100,7 +100,7 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
           .from('survey_questions')
           .select('*')
           .in('survey_id', surveyIds)
-          .eq('question_type', 'rating');
+          .in('question_type', ['rating', 'scale']);
         
         if (questionError) throw questionError;
         setQuestions(questionData || []);
@@ -161,15 +161,21 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
       const surveyResponses = responses.filter(r => r.survey_id === survey.id);
       roundStats[roundKey].responses += surveyResponses.length;
 
-      // 해당 설문의 평점 계산
-      const surveyQuestions = questions.filter(q => q.survey_id === survey.id);
+      // 해당 설문의 평점 계산 (rating 타입만)
+      const surveyQuestions = questions.filter(q => 
+        q.survey_id === survey.id && (q.question_type === 'rating' || q.question_type === 'scale')
+      );
       surveyQuestions.forEach(question => {
         const questionAnswers = answers.filter(a => a.question_id === question.id);
-        const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+        const ratings = questionAnswers
+          .map(a => parseInt(a.answer_text))
+          .filter(r => !isNaN(r) && r > 0);
         
         if (ratings.length > 0) {
-          roundStats[roundKey].totalRatings += ratings.reduce((sum, r) => sum + r, 0);
-          roundStats[roundKey].ratingCount += ratings.length;
+          // 5점 척도를 10점으로 변환
+          const convertedRatings = ratings.map(r => r <= 5 ? r * 2 : r);
+          roundStats[roundKey].totalRatings += convertedRatings.reduce((sum, r) => sum + r, 0);
+          roundStats[roundKey].ratingCount += convertedRatings.length;
         }
       });
     });
@@ -259,7 +265,7 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
                     height={60}
                   />
                   <YAxis 
-                    domain={[0, 5]}
+                    domain={[0, 10]}
                     tickCount={6}
                     fontSize={12}
                   />
@@ -306,10 +312,10 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{stat.averageRating}</span>
                   <Badge 
-                    variant={stat.averageRating >= 4 ? 'default' : stat.averageRating >= 3 ? 'secondary' : 'destructive'}
+                    variant={stat.averageRating >= 8 ? 'default' : stat.averageRating >= 6 ? 'secondary' : 'destructive'}
                     className="text-xs"
                   >
-                    {stat.averageRating >= 4 ? '우수' : stat.averageRating >= 3 ? '보통' : '개선필요'}
+                    {stat.averageRating >= 8 ? '우수' : stat.averageRating >= 6 ? '보통' : '개선필요'}
                   </Badge>
                 </div>
               </div>

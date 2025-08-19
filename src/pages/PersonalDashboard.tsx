@@ -97,14 +97,16 @@ const PersonalDashboard = () => {
   };
 
   const fetchData = async () => {
-    if (!profile?.instructor_id) return;
+    if (!profile?.instructor_id && !canViewPersonalStats) return;
 
     try {
-      // 본인의 설문들 가져오기
-      let surveyQuery = supabase
-        .from('surveys')
-        .select('*')
-        .eq('instructor_id', profile.instructor_id);
+      // 강사가 아닌 관리자의 경우 전체 데이터 조회
+      let surveyQuery = supabase.from('surveys').select('*');
+      
+      // 강사인 경우 본인 설문만, 관리자인 경우 전체 설문
+      if (profile?.instructor_id && isInstructor) {
+        surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
+      }
 
       if (selectedYear && selectedYear !== 'all') {
         surveyQuery = surveyQuery.eq('education_year', parseInt(selectedYear));
@@ -166,7 +168,13 @@ const PersonalDashboard = () => {
 
           if (answersError) throw answersError;
           setAnswers(answersData || []);
+        } else {
+          setAnswers([]);
         }
+      } else {
+        setResponses([]);
+        setQuestions([]);
+        setAnswers([]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -188,7 +196,10 @@ const PersonalDashboard = () => {
   };
 
   const getTrendData = () => {
-    const satisfactionQuestions = questions.filter(q => q.satisfaction_type);
+    // 평점 질문들 (rating 또는 scale 타입) 찾기
+    const ratingQuestions = questions.filter(q => 
+      q.question_type === 'rating' || q.question_type === 'scale'
+    );
     
     if (selectedPeriod === 'round') {
       // 회차별 트렌드
@@ -206,14 +217,16 @@ const PersonalDashboard = () => {
         
         surveyResponses.forEach(response => {
           const responseAnswers = answers.filter(a => a.response_id === response.id);
-          const satisfactionAnswers = responseAnswers.filter(a => 
-            satisfactionQuestions.some(q => q.id === a.question_id)
+          const ratingAnswers = responseAnswers.filter(a => 
+            ratingQuestions.some(q => q.id === a.question_id)
           );
           
-          satisfactionAnswers.forEach(answer => {
+          ratingAnswers.forEach(answer => {
             const rating = parseFloat(answer.answer_text);
-            if (!isNaN(rating)) {
-              roundData[roundKey].total += rating;
+            if (!isNaN(rating) && rating > 0) {
+              // 5점 척도를 10점 척도로 변환
+              const convertedRating = rating <= 5 ? rating * 2 : rating;
+              roundData[roundKey].total += convertedRating;
               roundData[roundKey].count++;
             }
           });
@@ -225,7 +238,7 @@ const PersonalDashboard = () => {
           period: round,
           average: data.count > 0 ? (data.total / data.count) : 0,
           responses: data.responses,
-          satisfaction: data.count > 0 ? Math.round((data.total / data.count) * 20) : 0
+          satisfaction: data.count > 0 ? Math.round((data.total / data.count) * 10) : 0
         }))
         .sort((a, b) => a.period.localeCompare(b.period));
     } else if (selectedPeriod === 'month') {
@@ -242,17 +255,18 @@ const PersonalDashboard = () => {
         monthlyData[monthKey].responses++;
         
         const responseAnswers = answers.filter(a => a.response_id === response.id);
-        const satisfactionAnswers = responseAnswers.filter(a => 
-          satisfactionQuestions.some(q => q.id === a.question_id)
+        const ratingAnswers = responseAnswers.filter(a => 
+          ratingQuestions.some(q => q.id === a.question_id)
         );
         
-        satisfactionAnswers.forEach(answer => {
-          const rating = parseFloat(answer.answer_text);
-          if (!isNaN(rating)) {
-            monthlyData[monthKey].total += rating;
-            monthlyData[monthKey].count++;
-          }
-        });
+          ratingAnswers.forEach(answer => {
+            const rating = parseFloat(answer.answer_text);
+            if (!isNaN(rating) && rating > 0) {
+              const convertedRating = rating <= 5 ? rating * 2 : rating;
+              monthlyData[monthKey].total += convertedRating;
+              monthlyData[monthKey].count++;
+            }
+          });
       });
 
       return Object.entries(monthlyData)
@@ -280,14 +294,15 @@ const PersonalDashboard = () => {
         
         surveyResponses.forEach(response => {
           const responseAnswers = answers.filter(a => a.response_id === response.id);
-          const satisfactionAnswers = responseAnswers.filter(a => 
-            satisfactionQuestions.some(q => q.id === a.question_id)
+          const ratingAnswers = responseAnswers.filter(a => 
+            ratingQuestions.some(q => q.id === a.question_id)
           );
           
-          satisfactionAnswers.forEach(answer => {
+          ratingAnswers.forEach(answer => {
             const rating = parseFloat(answer.answer_text);
-            if (!isNaN(rating)) {
-              halfYearData[halfKey].total += rating;
+            if (!isNaN(rating) && rating > 0) {
+              const convertedRating = rating <= 5 ? rating * 2 : rating;
+              halfYearData[halfKey].total += convertedRating;
               halfYearData[halfKey].count++;
             }
           });
@@ -318,14 +333,15 @@ const PersonalDashboard = () => {
         
         surveyResponses.forEach(response => {
           const responseAnswers = answers.filter(a => a.response_id === response.id);
-          const satisfactionAnswers = responseAnswers.filter(a => 
-            satisfactionQuestions.some(q => q.id === a.question_id)
+          const ratingAnswers = responseAnswers.filter(a => 
+            ratingQuestions.some(q => q.id === a.question_id)
           );
           
-          satisfactionAnswers.forEach(answer => {
+          ratingAnswers.forEach(answer => {
             const rating = parseFloat(answer.answer_text);
-            if (!isNaN(rating)) {
-              yearlyData[year].total += rating;
+            if (!isNaN(rating) && rating > 0) {
+              const convertedRating = rating <= 5 ? rating * 2 : rating;
+              yearlyData[year].total += convertedRating;
               yearlyData[year].count++;
             }
           });
@@ -348,15 +364,18 @@ const PersonalDashboard = () => {
     const totalResponses = responses.length;
     const activeSurveys = surveys.filter(s => s.status === 'active').length;
     
-    // 만족도 평균 계산
-    const satisfactionQuestions = questions.filter(q => q.satisfaction_type);
-    const satisfactionAnswers = answers.filter(a => 
-      satisfactionQuestions.some(q => q.id === a.question_id)
+    // 만족도 평균 계산 - rating 타입 질문들 사용
+    const ratingQuestions = questions.filter(q => 
+      q.question_type === 'rating' || q.question_type === 'scale'
+    );
+    const ratingAnswers = answers.filter(a => 
+      ratingQuestions.some(q => q.id === a.question_id)
     );
     
-    const validRatings = satisfactionAnswers
+    const validRatings = ratingAnswers
       .map(a => parseFloat(a.answer_text))
-      .filter(r => !isNaN(r));
+      .filter(r => !isNaN(r) && r > 0)
+      .map(r => r <= 5 ? r * 2 : r); // 5점 척도를 10점으로 변환
     
     const avgSatisfaction = validRatings.length > 0 
       ? validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length 
@@ -367,20 +386,22 @@ const PersonalDashboard = () => {
       totalResponses,
       activeSurveys,
       avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
-      satisfactionPercentage: Math.round(avgSatisfaction * 20),
+      satisfactionPercentage: Math.round(avgSatisfaction * 10),
       avgResponsesPerSurvey: totalSurveys > 0 ? Math.round(totalResponses / totalSurveys) : 0
     };
   };
 
   const getRatingDistribution = () => {
-    const satisfactionQuestions = questions.filter(q => q.satisfaction_type);
-    const satisfactionAnswers = answers.filter(a => 
-      satisfactionQuestions.some(q => q.id === a.question_id)
+    const ratingQuestions = questions.filter(q => 
+      q.question_type === 'rating' || q.question_type === 'scale'
+    );
+    const ratingAnswers = answers.filter(a => 
+      ratingQuestions.some(q => q.id === a.question_id)
     );
     
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     
-    satisfactionAnswers.forEach(answer => {
+    ratingAnswers.forEach(answer => {
       const rating = parseInt(answer.answer_text);
       if (rating >= 1 && rating <= 5) {
         distribution[rating as keyof typeof distribution]++;
@@ -390,7 +411,7 @@ const PersonalDashboard = () => {
     return Object.entries(distribution).map(([rating, count]) => ({
       name: `${rating}점`,
       value: count,
-      percentage: satisfactionAnswers.length > 0 ? Math.round((count / satisfactionAnswers.length) * 100) : 0
+      percentage: ratingAnswers.length > 0 ? Math.round((count / ratingAnswers.length) * 100) : 0
     }));
   };
 

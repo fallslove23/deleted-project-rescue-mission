@@ -172,12 +172,15 @@ const InstructorIndividualStats = ({
     const allRatings: number[] = [];
     
     instructorSurveys.forEach(survey => {
-      const surveyQuestions = questions.filter(q => q.question_type === 'rating');
+      const surveyQuestions = questions.filter(q => 
+        q.question_type === 'rating' || q.question_type === 'scale'
+      );
       surveyQuestions.forEach(question => {
         const questionAnswers = answers.filter(a => a.question_id === question.id);
         questionAnswers.forEach(answer => {
           const rating = parseInt(answer.answer_text);
-          if (!isNaN(rating)) {
+          if (!isNaN(rating) && rating > 0) {
+            // 5점 척도를 10점으로 변환하지 않고 원본 점수 사용
             allRatings.push(rating);
           }
         });
@@ -209,12 +212,14 @@ const InstructorIndividualStats = ({
         acc[year].surveys++;
         
         // 평점 계산
-        const surveyQuestions = questions.filter(q => q.question_type === 'rating');
+        const surveyQuestions = questions.filter(q => 
+          q.question_type === 'rating' || q.question_type === 'scale'
+        );
         surveyQuestions.forEach(question => {
           const questionAnswers = answers.filter(a => a.question_id === question.id);
           questionAnswers.forEach(answer => {
             const rating = parseInt(answer.answer_text);
-            if (!isNaN(rating)) {
+            if (!isNaN(rating) && rating > 0) {
               acc[year].totalRating += rating;
               acc[year].ratingCount++;
             }
@@ -251,12 +256,14 @@ const InstructorIndividualStats = ({
         acc[key].surveys++;
         
         // 평점 계산
-        const surveyQuestions = questions.filter(q => q.question_type === 'rating');
+        const surveyQuestions = questions.filter(q => 
+          q.question_type === 'rating' || q.question_type === 'scale'
+        );
         surveyQuestions.forEach(question => {
           const questionAnswers = answers.filter(a => a.question_id === question.id);
           questionAnswers.forEach(answer => {
             const rating = parseInt(answer.answer_text);
-            if (!isNaN(rating)) {
+            if (!isNaN(rating) && rating > 0) {
               acc[key].totalRating += rating;
               acc[key].ratingCount++;
             }
@@ -293,12 +300,14 @@ const InstructorIndividualStats = ({
         acc[key].surveys++;
         
         // 평점 계산
-        const surveyQuestions = questions.filter(q => q.question_type === 'rating');
+        const surveyQuestions = questions.filter(q => 
+          q.question_type === 'rating' || q.question_type === 'scale'
+        );
         surveyQuestions.forEach(question => {
           const questionAnswers = answers.filter(a => a.question_id === question.id);
           questionAnswers.forEach(answer => {
             const rating = parseInt(answer.answer_text);
-            if (!isNaN(rating)) {
+            if (!isNaN(rating) && rating > 0) {
               acc[key].totalRating += rating;
               acc[key].ratingCount++;
             }
@@ -330,12 +339,14 @@ const InstructorIndividualStats = ({
         acc[key].surveys++;
         
         // 평점 계산
-        const surveyQuestions = questions.filter(q => q.question_type === 'rating');
+        const surveyQuestions = questions.filter(q => 
+          q.question_type === 'rating' || q.question_type === 'scale'
+        );
         surveyQuestions.forEach(question => {
           const questionAnswers = answers.filter(a => a.question_id === question.id);
           questionAnswers.forEach(answer => {
             const rating = parseInt(answer.answer_text);
-            if (!isNaN(rating)) {
+            if (!isNaN(rating) && rating > 0) {
               acc[key].totalRating += rating;
               acc[key].ratingCount++;
             }
