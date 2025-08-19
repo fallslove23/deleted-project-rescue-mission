@@ -778,14 +778,20 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     }
   };
 
-  const openEmailDialog = () => {
-    if (!selectedSurvey) {
+  const openEmailDialog = (surveyId?: string) => {
+    const targetSurvey = surveyId || selectedSurvey;
+    if (!targetSurvey) {
       toast({
         title: "오류",
         description: "결과를 전송할 설문을 선택해주세요.",
         variant: "destructive"
       });
       return;
+    }
+    
+    // 설문이 전달된 경우 선택된 설문으로 설정
+    if (surveyId && surveyId !== selectedSurvey) {
+      setSelectedSurvey(surveyId);
     }
     
     // 기본적으로 관리자와 강사를 선택
