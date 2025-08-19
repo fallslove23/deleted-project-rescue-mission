@@ -260,7 +260,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const sendSurveyResults = async (surveyId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('send-survey-results', {
-        body: { surveyId }
+        body: { 
+          surveyId,
+          recipients: ['admin', 'instructor'] // 기본 수신자: 관리자와 강사
+        }
       });
 
       if (error) throw error;
