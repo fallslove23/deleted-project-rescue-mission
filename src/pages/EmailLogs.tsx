@@ -65,67 +65,31 @@ const EmailLogs = () => {
   const fetchEmailLogs = async () => {
     try {
       setLoading(true);
-      
-      // For now, create mock data based on existing surveys
-      const { data: surveys } = await supabase
-        .from('surveys')
-        .select('id, title, education_year, education_round');
 
-      // Create realistic mock logs
-      const mockLogs: EmailLog[] = [];
-      
-      if (surveys && surveys.length > 0) {
-        surveys.forEach((survey, index) => {
-          mockLogs.push({
-            id: `log-${index + 1}`,
-            survey_id: survey.id,
-            recipients: [
-              'instructor@example.com',
-              'director@example.com',
-              'admin@example.com'
-            ].slice(0, Math.floor(Math.random() * 3) + 1),
-            status: ['success', 'failed', 'partial'][Math.floor(Math.random() * 3)],
-            sent_count: Math.floor(Math.random() * 10) + 1,
-            failed_count: Math.floor(Math.random() * 3),
-            results: {
-              sent: Math.floor(Math.random() * 10) + 1,
-              failed: Math.floor(Math.random() * 3),
-              timestamp: new Date().toISOString()
-            },
-            error: Math.random() > 0.7 ? 'Some recipients failed' : '',
-            created_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
-          });
-        });
-      }
+      // 실제 이메일 로그를 DB에서 조회 (RLS: admin/operator/director만 허용)
+      const { data, error } = await supabase.rpc('get_email_logs');
+      if (error) throw error;
 
-      // Add a few more generic logs
-      const additionalLogs = [
-        {
-          id: 'log-demo-1',
-          survey_id: 'demo-survey-1',
-          recipients: ['demo@example.com'],
-          status: 'success',
-          sent_count: 1,
-          failed_count: 0,
-          results: { sent: 1, failed: 0 },
-          error: '',
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-        }
-      ];
+      const rows = (data || []) as any[];
+      const normalized: EmailLog[] = rows.map((row) => ({
+        id: row.id,
+        survey_id: row.survey_id,
+        recipients: Array.isArray(row.recipients) ? (row.recipients as string[]) : [],
+        status: row.status,
+        sent_count: row.sent_count ?? 0,
+        failed_count: row.failed_count ?? 0,
+        results: row.results ?? null,
+        error: row.error ?? '',
+        created_at: row.created_at,
+      }));
 
-      setLogs([...mockLogs, ...additionalLogs]);
-      
-      toast({
-        title: "데모 데이터 로드됨",
-        description: "실제 이메일 발송 후 실시간 로그가 표시됩니다.",
-        variant: "default"
-      });
+      setLogs(normalized);
     } catch (error) {
       console.error('Error fetching email logs:', error);
       toast({
-        title: "오류",
-        description: "이메일 로그를 불러오는 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: '오류',
+        description: '이메일 로그를 불러오는 중 오류가 발생했습니다.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
