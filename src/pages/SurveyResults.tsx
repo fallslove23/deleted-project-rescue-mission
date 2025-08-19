@@ -1223,31 +1223,203 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                     <TabsTrigger value="individual" className="text-sm">개별 통계</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="overview" className="space-y-4">
-                    <SurveyStatsByRound instructorId={canViewAll ? undefined : profile?.instructor_id} />
-                  </TabsContent>
+                     <TabsContent value="overview" className="space-y-4">
+                       {questionAnalyses.length > 0 ? (
+                         <div className="space-y-6">
+                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                             <Card>
+                               <CardContent className="pt-6">
+                                 <div className="text-2xl font-bold">{questions.length}</div>
+                                 <p className="text-xs text-muted-foreground">총 질문 수</p>
+                               </CardContent>
+                             </Card>
+                             <Card>
+                               <CardContent className="pt-6">
+                                 <div className="text-2xl font-bold">{responses.length}</div>
+                                 <p className="text-xs text-muted-foreground">총 응답 수</p>
+                               </CardContent>
+                             </Card>
+                             <Card>
+                               <CardContent className="pt-6">
+                                 <div className="text-2xl font-bold">
+                                   {responses.length > 0 ? Math.round((responses.length / (surveys.find(s => s.id === selectedSurvey)?.expected_participants || responses.length)) * 100) : 0}%
+                                 </div>
+                                 <p className="text-xs text-muted-foreground">응답률</p>
+                               </CardContent>
+                             </Card>
+                             <Card>
+                               <CardContent className="pt-6 flex items-center justify-between">
+                                 <div>
+                                   <div className="text-lg font-bold">CSV</div>
+                                   <p className="text-xs text-muted-foreground">데이터 다운로드</p>
+                                 </div>
+                                 <div className="flex gap-1">
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => handleExportCSV('responses')}
+                                     title="응답 데이터 CSV 다운로드"
+                                   >
+                                     <FileSpreadsheet className="h-4 w-4" />
+                                   </Button>
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => handleExportCSV('summary')}
+                                     title="요약 통계 CSV 다운로드"
+                                   >
+                                     <BarChart3 className="h-4 w-4" />
+                                   </Button>
+                                 </div>
+                               </CardContent>
+                             </Card>
+                           </div>
+                           
+                           <div className="space-y-4">
+                             {questionAnalyses.map((analysis, index) => (
+                               <Card key={analysis.question.id}>
+                                 <CardHeader>
+                                   <CardTitle className="text-base">
+                                     {index + 1}. {analysis.question.question_text}
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent>
+                                   {analysis.type === 'chart' && (
+                                     <div>
+                                       <div className="h-64 mb-4">
+                                         {analysis.chartData.some(d => d.value > 0) ? (
+                                           <ResponsiveContainer width="100%" height="100%">
+                                             <PieChart>
+                                               <Pie
+                                                 data={analysis.chartData}
+                                                 cx="50%"
+                                                 cy="50%"
+                                                 labelLine={false}
+                                                 label={({ name, percentage }) => `${name}: ${percentage}%`}
+                                                 outerRadius={80}
+                                                 fill="#8884d8"
+                                                 dataKey="value"
+                                               >
+                                                 {analysis.chartData.map((entry, index) => (
+                                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                 ))}
+                                               </Pie>
+                                               <Tooltip />
+                                             </PieChart>
+                                           </ResponsiveContainer>
+                                         ) : (
+                                           <div className="flex items-center justify-center h-full text-muted-foreground">
+                                             <div className="text-center">
+                                               <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                               <p>데이터가 없습니다</p>
+                                             </div>
+                                           </div>
+                                         )}
+                                       </div>
+                                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                         {analysis.chartData.map((item, idx) => (
+                                           <div key={idx} className="text-sm">
+                                             <span className="font-medium">{item.name}:</span> {item.value}개 ({item.percentage}%)
+                                           </div>
+                                         ))}
+                                       </div>
+                                     </div>
+                                   )}
+                                   
+                                   {analysis.type === 'rating' && (
+                                     <div>
+                                       <div className="mb-4">
+                                         <div className="text-center">
+                                           <div className="text-2xl font-bold text-primary">{analysis.average}</div>
+                                           <div className="text-sm text-muted-foreground">평균 점수</div>
+                                         </div>
+                                       </div>
+                                       
+                                       <div className="h-48 mb-4">
+                                         {analysis.chartData.some(d => d.value > 0) ? (
+                                           <ResponsiveContainer width="100%" height="100%">
+                                             <RechartsBarChart data={analysis.chartData}>
+                                               <CartesianGrid strokeDasharray="3 3" />
+                                               <XAxis dataKey="name" />
+                                               <YAxis />
+                                               <Tooltip />
+                                               <Bar dataKey="value" fill="#8884d8" />
+                                             </RechartsBarChart>
+                                           </ResponsiveContainer>
+                                         ) : (
+                                           <div className="flex items-center justify-center h-full text-muted-foreground">
+                                             <div className="text-center">
+                                               <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                               <p>데이터가 없습니다</p>
+                                             </div>
+                                           </div>
+                                         )}
+                                       </div>
+                                       
+                                       <div className="space-y-2">
+                                         {analysis.chartData.map((item, idx) => (
+                                           <div key={idx} className="flex items-center gap-3">
+                                             <span className="text-sm font-medium w-8">{item.name}</span>
+                                             <Progress value={item.percentage} className="flex-1" />
+                                             <span className="text-sm text-muted-foreground w-16">{item.value}개 ({item.percentage}%)</span>
+                                           </div>
+                                         ))}
+                                       </div>
+                                     </div>
+                                   )}
+                                   
+                                   {analysis.type === 'text' && (
+                                     <div>
+                                       <div className="text-sm text-muted-foreground mb-3">
+                                         총 {analysis.totalAnswers}개의 응답
+                                       </div>
+                                       {analysis.answers && analysis.answers.length > 0 ? (
+                                         <div className="space-y-2 max-h-60 overflow-y-auto">
+                                           {analysis.answers.map((answer, idx) => (
+                                             <div key={idx} className="p-3 bg-muted/30 rounded-lg">
+                                               <div className="text-sm">{answer.answer_text}</div>
+                                               <div className="text-xs text-muted-foreground mt-1">
+                                                 {new Date(answer.created_at).toLocaleDateString('ko-KR')}
+                                               </div>
+                                             </div>
+                                           ))}
+                                         </div>
+                                       ) : (
+                                         <div className="text-center py-4 text-muted-foreground">
+                                           <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                           <p>텍스트 응답이 없습니다</p>
+                                         </div>
+                                       )}
+                                     </div>
+                                   )}
+                                 </CardContent>
+                               </Card>
+                             ))}
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="text-center py-8 text-muted-foreground">
+                           <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                           <p>선택된 설문의 분석 데이터가 없습니다.</p>
+                           <p className="text-sm">설문을 선택하고 응답이 있는 경우 분석 결과가 표시됩니다.</p>
+                         </div>
+                       )}
+                     </TabsContent>
 
-                  <TabsContent value="round-stats" className="space-y-4">
-                    <SurveyStatsByRound instructorId={canViewAll ? undefined : profile?.instructor_id} />
-                  </TabsContent>
+                     <TabsContent value="round-stats" className="space-y-4">
+                       <SurveyStatsByRound instructorId={canViewAll ? undefined : profile?.instructor_id} />
+                     </TabsContent>
 
-                  <TabsContent value="individual" className="space-y-4">
-                    {canViewAll && (
-                      <InstructorIndividualStats 
-                        allInstructors={allInstructors}
-                        getFilteredSurveys={getFilteredSurveys}
-                        setSelectedSurvey={setSelectedSurvey}
-                        selectedSurvey={selectedSurvey}
-                        answers={answers}
-                        questions={questions}
-                      />
-                    )}
-                    {!canViewAll && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        개별 통계는 관리자 권한이 필요합니다.
-                      </div>
-                    )}
-                  </TabsContent>
+                     <TabsContent value="individual" className="space-y-4">
+                       <InstructorIndividualStats 
+                         allInstructors={allInstructors}
+                         getFilteredSurveys={getFilteredSurveys}
+                         setSelectedSurvey={setSelectedSurvey}
+                         selectedSurvey={selectedSurvey}
+                         answers={allAnswers}
+                         questions={allQuestions}
+                       />
+                     </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>

@@ -450,14 +450,23 @@ const EmailLogs = () => {
                         <div className="truncate">{getSurveyTitle(log.survey_id)}</div>
                       </TableCell>
                       <TableCell>{getStatusBadge(log.status)}</TableCell>
-                      <TableCell className="max-w-xs">
-                        <div className="truncate">
-                          {log.recipients.length > 1 
-                            ? `${log.recipients[0]} 외 ${log.recipients.length - 1}명`
-                            : log.recipients[0] || '없음'
-                          }
-                        </div>
-                      </TableCell>
+                       <TableCell className="max-w-xs">
+                         <div className="space-y-1">
+                           {log.recipients.length > 0 ? (
+                             <>
+                               <div className="text-sm font-medium">
+                                 {log.recipients.length}명
+                               </div>
+                               <div className="text-xs text-muted-foreground truncate">
+                                 {log.recipients.slice(0, 2).join(', ')}
+                                 {log.recipients.length > 2 && ` 외 ${log.recipients.length - 2}명`}
+                               </div>
+                             </>
+                           ) : (
+                             <div className="text-sm text-muted-foreground">없음</div>
+                           )}
+                         </div>
+                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           <span className="text-green-600 font-medium">{log.sent_count}</span>
