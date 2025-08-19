@@ -123,8 +123,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     try {
       let query = supabase.from('survey_responses').select('*');
       
-      // 관리자/운영자/조직장인 경우 전체 응답 조회, 강사 역할만 있는 경우에만 자신의 강의 설문에 대한 응답만 조회
-      if (isInstructor && profile.instructor_id && !canViewAll) {
+      // 강사인 경우 자신의 강의 설문에 대한 응답만 조회, 관리자/운영자/조직장인 경우 전체 응답 조회
+      if (isInstructor && profile?.instructor_id && !canViewAll) {
         const { data: instructorSurveys } = await supabase
           .from('surveys')
           .select('id')
@@ -150,7 +150,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     try {
       let surveyQuery = supabase.from('surveys').select('id');
       
-      // 권한에 따라 설문 필터링
+      // 강사인 경우 자신의 설문만 필터링, 관리자/운영자/조직장인 경우 전체 설문 조회
       if (isInstructor && profile?.instructor_id && !canViewAll) {
         surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
       }
@@ -349,18 +349,24 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     try {
       let query = supabase.from('surveys').select('*');
       
-      // 관리자/운영자/조직장인 경우 전체 설문 조회, 강사 역할만 있는 경우에만 자신의 강의 설문만 조회
-      if (isInstructor && profile.instructor_id && !canViewAll) {
+      // 강사인 경우 자신의 강의 설문만 조회, 관리자/운영자/조직장인 경우 전체 설문 조회
+      if (isInstructor && profile?.instructor_id && !canViewAll) {
         query = query.eq('instructor_id', profile.instructor_id);
       }
       
       const { data, error } = await query.order('education_year', { ascending: false })
                                       .order('education_round', { ascending: false });
       
-      if (error) throw error;
-      setSurveys(data || []);
+      if (error) {
+        console.error('Error fetching surveys:', error);
+        // 에러가 발생해도 빈 배열로 설정하여 UI가 깨지지 않도록 함
+        setSurveys([]);
+      } else {
+        setSurveys(data || []);
+      }
     } catch (error) {
       console.error('Error fetching surveys:', error);
+      setSurveys([]);
     } finally {
       setLoading(false);
     }

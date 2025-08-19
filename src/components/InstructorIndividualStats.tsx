@@ -178,10 +178,16 @@ const InstructorIndividualStats = ({
       surveyQuestions.forEach(question => {
         const questionAnswers = answers.filter(a => a.question_id === question.id);
         questionAnswers.forEach(answer => {
-          const rating = parseInt(answer.answer_text);
+          let rating = parseInt(answer.answer_text);
+          if (isNaN(rating) && answer.answer_value !== null) {
+            rating = parseInt(answer.answer_value);
+          }
           if (!isNaN(rating) && rating > 0) {
-            // 5점 척도를 10점으로 변환하지 않고 원본 점수 사용
-            allRatings.push(rating);
+            // 5점 척도인 경우 10점으로 변환
+            const maxRating = Math.max(...questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale')
+              .map(q => q.options?.max || 10));
+            const convertedRating = maxRating <= 5 ? rating * 2 : rating;
+            allRatings.push(convertedRating);
           }
         });
       });
@@ -218,9 +224,16 @@ const InstructorIndividualStats = ({
         surveyQuestions.forEach(question => {
           const questionAnswers = answers.filter(a => a.question_id === question.id);
           questionAnswers.forEach(answer => {
-            const rating = parseInt(answer.answer_text);
+            let rating = parseInt(answer.answer_text);
+            if (isNaN(rating) && answer.answer_value !== null) {
+              rating = parseInt(answer.answer_value);
+            }
             if (!isNaN(rating) && rating > 0) {
-              acc[year].totalRating += rating;
+              // 5점 척도인 경우 10점으로 변환
+              const maxRating = Math.max(...questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale')
+                .map(q => q.options?.max || 10));
+              const convertedRating = maxRating <= 5 ? rating * 2 : rating;
+              acc[year].totalRating += convertedRating;
               acc[year].ratingCount++;
             }
           });
