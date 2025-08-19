@@ -135,11 +135,22 @@ const InstructorIndividualStats = ({
         // 사용자에게 instructor_id가 있는 경우
         if (profile.instructor_id) {
           // 해당 강사가 목록에 있고 설문이 있는지 확인
-          const isInstructorInList = instructorsWithRoles.some(inst => inst.id === profile.instructor_id);
+          const targetInstructor = instructorsWithRoles.find(inst => inst.id === profile.instructor_id);
           const hasInstructorSurveys = getFilteredSurveys().some(s => s.instructor_id === profile.instructor_id);
           
-          if (isInstructorInList && hasInstructorSurveys) {
+          if (targetInstructor && hasInstructorSurveys) {
+            console.log('Auto-selecting instructor:', targetInstructor.name, targetInstructor.id);
             setSelectedInstructorDetail(profile.instructor_id);
+          }
+        } else {
+          // instructor_id가 없는 경우 설문이 있는 첫 번째 강사 선택
+          const firstInstructorWithSurveys = instructorsWithRoles.find(inst => 
+            getFilteredSurveys().some(s => s.instructor_id === inst.id)
+          );
+          
+          if (firstInstructorWithSurveys) {
+            console.log('Auto-selecting first instructor with surveys:', firstInstructorWithSurveys.name);
+            setSelectedInstructorDetail(firstInstructorWithSurveys.id);
           }
         }
       } catch (error) {
@@ -147,9 +158,11 @@ const InstructorIndividualStats = ({
       }
     };
 
-    // 강사 목록이 로드된 후에 자동 선택 실행
-    if (instructorsWithRoles.length > 0) {
-      autoSelectInstructor();
+    // 강사 목록과 설문 목록이 모두 로드된 후에 자동 선택 실행
+    if (instructorsWithRoles.length > 0 && getFilteredSurveys().length > 0) {
+      setTimeout(() => {
+        autoSelectInstructor();
+      }, 100); // 약간의 딜레이 추가
     }
   }, [user, instructorsWithRoles, getFilteredSurveys, selectedInstructorDetail]);
 
@@ -384,25 +397,27 @@ const InstructorIndividualStats = ({
               <SelectValue placeholder="강사를 선택하세요" />
             </SelectTrigger>
             <SelectContent className="bg-background z-50">
-              {instructorsWithRoles
-                .filter(instructor => 
-                  instructor.roles?.includes('instructor') &&
-                  getFilteredSurveys().some(s => s.instructor_id === instructor.id)
-                )
-                .map(instructor => (
-                  <SelectItem key={instructor.id} value={instructor.id} className="break-words">
-                    {instructor.name} {instructor.email && `(${instructor.email})`}
-                    <div className="text-xs text-muted-foreground ml-2">
-                      {instructor.roles?.map(role => 
-                        role === 'instructor' ? '강사' : 
-                        role === 'admin' ? '관리자' : 
-                        role === 'director' ? '조직장' : 
-                        role === 'operator' ? '운영' : role
-                      ).join(', ')}
-                    </div>
-                  </SelectItem>
-                ))
-              }
+              {instructorsWithRoles.length > 0 ? (
+                instructorsWithRoles
+                  .filter(instructor => getFilteredSurveys().some(s => s.instructor_id === instructor.id))
+                  .map(instructor => (
+                    <SelectItem key={instructor.id} value={instructor.id} className="break-words">
+                      {instructor.name} {instructor.email && `(${instructor.email})`}
+                      <div className="text-xs text-muted-foreground ml-2">
+                        {instructor.roles?.map(role => 
+                          role === 'instructor' ? '강사' : 
+                          role === 'admin' ? '관리자' : 
+                          role === 'director' ? '조직장' : 
+                          role === 'operator' ? '운영' : role
+                        ).join(', ')}
+                      </div>
+                    </SelectItem>
+                  ))
+              ) : (
+                <SelectItem value="no-data" disabled>
+                  설문을 진행한 강사가 없습니다
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
         </CardContent>

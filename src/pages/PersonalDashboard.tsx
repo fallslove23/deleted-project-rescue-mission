@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CalendarDays, TrendingUp, Users, Award, BarChart3 } from 'lucide-react';
@@ -393,6 +394,32 @@ const PersonalDashboard = () => {
     }));
   };
 
+  // CSV 내보내기 함수
+  const generatePersonalStatsCSV = () => {
+    let csvContent = '\uFEFF'; // BOM for Excel
+    
+    const stats = getSummaryStats();
+    const trendData = getTrendData();
+    
+    // 기본 통계
+    csvContent += '개인 통계 요약\n';
+    csvContent += `총 설문,${stats.totalSurveys}\n`;
+    csvContent += `총 응답,${stats.totalResponses}\n`;
+    csvContent += `활성 설문,${stats.activeSurveys}\n`;
+    csvContent += `평균 만족도,${stats.avgSatisfaction}\n`;
+    csvContent += `만족도 백분율,${stats.satisfactionPercentage}%\n`;
+    csvContent += `설문당 평균 응답,${stats.avgResponsesPerSurvey}\n\n`;
+    
+    // 트렌드 데이터
+    csvContent += '기간별 트렌드\n';
+    csvContent += '기간,평균 만족도,응답 수,만족도(%)\n';
+    trendData.forEach(item => {
+      csvContent += `${item.period},${item.average.toFixed(1)},${item.responses},${item.satisfaction}%\n`;
+    });
+    
+    return csvContent;
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">로딩 중...</div>;
   }
@@ -477,6 +504,41 @@ const PersonalDashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* 액션 버튼들 */}
+      <div className="flex gap-2 mb-4">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => window.print()}
+          className="gap-2"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a1 1 0 001-1v-4a1 1 0 00-1-1H9a1 1 0 00-1 1v4a1 1 0 001 1zm3-5h2m-2-2h2m-2-2h2" />
+          </svg>
+          인쇄
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => {
+            const element = document.createElement('a');
+            const csvContent = generatePersonalStatsCSV();
+            const file = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+            element.href = URL.createObjectURL(file);
+            element.download = `개인통계_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+          }}
+          className="gap-2"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          </svg>
+          CSV 다운로드
+        </Button>
       </div>
 
       {/* 필터 컨트롤 */}
