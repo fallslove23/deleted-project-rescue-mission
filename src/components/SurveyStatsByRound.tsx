@@ -161,19 +161,29 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
       const surveyResponses = responses.filter(r => r.survey_id === survey.id);
       roundStats[roundKey].responses += surveyResponses.length;
 
-      // 해당 설문의 평점 계산 (rating 타입만)
+      // 해당 설문의 평점 계산 (rating 및 scale 타입)
       const surveyQuestions = questions.filter(q => 
         q.survey_id === survey.id && (q.question_type === 'rating' || q.question_type === 'scale')
       );
+      
       surveyQuestions.forEach(question => {
         const questionAnswers = answers.filter(a => a.question_id === question.id);
         const ratings = questionAnswers
-          .map(a => parseInt(a.answer_text))
+          .map(a => {
+            // answer_text가 숫자가 아닌 경우 answer_value 확인
+            let value = parseInt(a.answer_text);
+            if (isNaN(value) && a.answer_value !== null) {
+              value = parseInt(a.answer_value);
+            }
+            return value;
+          })
           .filter(r => !isNaN(r) && r > 0);
         
         if (ratings.length > 0) {
-          // 5점 척도를 10점으로 변환
-          const convertedRatings = ratings.map(r => r <= 5 ? r * 2 : r);
+          // 최대값으로 척도 판단 (5점이면 10점으로 변환)
+          const maxRating = Math.max(...ratings);
+          const convertedRatings = maxRating <= 5 ? ratings.map(r => r * 2) : ratings;
+          
           roundStats[roundKey].totalRatings += convertedRatings.reduce((sum, r) => sum + r, 0);
           roundStats[roundKey].ratingCount += convertedRatings.length;
         }

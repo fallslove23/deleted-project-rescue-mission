@@ -496,15 +496,14 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
           surveyResponses.some(r => r.id === a.response_id)
         );
 
-        if (surveyQuestions.length === 0 || surveyAnswers.length === 0) return;
-
         // 질문 분류
-        const courseQuestions: SurveyQuestion[] = [];
-        const instructorQuestions: SurveyQuestion[] = [];
+        const courseQuestionIds: string[] = [];
+        const instructorQuestionIds: string[] = [];
 
         surveyQuestions.forEach(question => {
-          const questionText = question.question_text.toLowerCase();
+          const questionText = question.question_text?.toLowerCase() || '';
           
+          // 강사 관련 키워드
           if (questionText.includes('강사') || 
               questionText.includes('지도') || 
               questionText.includes('설명') || 
@@ -512,82 +511,58 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               questionText.includes('교수법') ||
               questionText.includes('전달력') ||
               questionText.includes('준비도')) {
-            instructorQuestions.push(question);
-          } else if (questionText.includes('과정') || 
-                     questionText.includes('교육') || 
-                     questionText.includes('내용') || 
-                     questionText.includes('커리큘럼') ||
-                     questionText.includes('시간') ||
-                     questionText.includes('교재') ||
-                     questionText.includes('환경') ||
-                     questionText.includes('시설')) {
-            courseQuestions.push(question);
-          } else {
-            courseQuestions.push(question);
+            instructorQuestionIds.push(question.id);
+          } 
+          // 과정 관련 키워드 또는 rating/scale 타입
+          else if (questionText.includes('과정') || 
+                   questionText.includes('교육') || 
+                   questionText.includes('내용') || 
+                   questionText.includes('커리큘럼') ||
+                   questionText.includes('시간') ||
+                   questionText.includes('교재') ||
+                   questionText.includes('환경') ||
+                   questionText.includes('시설') ||
+                   (question.question_type === 'rating' || question.question_type === 'scale')) {
+            courseQuestionIds.push(question.id);
           }
         });
 
         // 과정 만족도 계산
-        const courseRatingQuestions = courseQuestions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-        if (courseRatingQuestions.length > 0) {
-          let courseTotalScore = 0;
-          let courseTotalCount = 0;
-
-          courseRatingQuestions.forEach(question => {
-            const questionAnswers = surveyAnswers.filter(a => a.question_id === question.id);
-            const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
-            
-            if (ratings.length > 0) {
-              const maxScore = Math.max(...ratings);
-              let convertedRatings = ratings;
-              
-              if (maxScore <= 5) {
-                convertedRatings = ratings.map(r => r * 2);
-              }
-              
-              courseTotalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
-              courseTotalCount += convertedRatings.length;
-            }
-          });
-
-          if (courseTotalCount > 0) {
-            totalCourseSatisfaction += courseTotalScore / courseTotalCount;
-            courseCount++;
+        if (courseQuestionIds.length > 0) {
+          const courseRatings = surveyAnswers
+            .filter(a => courseQuestionIds.includes(a.question_id))
+            .map(a => parseInt(a.answer_text))
+            .filter(r => !isNaN(r) && r > 0);
+          
+          if (courseRatings.length > 0) {
+            // 5점 척도를 10점으로 변환
+            const convertedRatings = courseRatings.map(r => r <= 5 ? r * 2 : r);
+            totalCourseSatisfaction += convertedRatings.reduce((sum, r) => sum + r, 0);
+            courseCount += convertedRatings.length;
           }
         }
 
         // 강사 만족도 계산
-        const instructorRatingQuestions = instructorQuestions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-        if (instructorRatingQuestions.length > 0) {
-          let instructorTotalScore = 0;
-          let instructorTotalCount = 0;
-
-          instructorRatingQuestions.forEach(question => {
-            const questionAnswers = surveyAnswers.filter(a => a.question_id === question.id);
-            const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
-            
-            if (ratings.length > 0) {
-              const maxScore = Math.max(...ratings);
-              let convertedRatings = ratings;
-              
-              if (maxScore <= 5) {
-                convertedRatings = ratings.map(r => r * 2);
-              }
-              
-              instructorTotalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
-              instructorTotalCount += convertedRatings.length;
-            }
-          });
-
-          if (instructorTotalCount > 0) {
-            totalInstructorSatisfaction += instructorTotalScore / instructorTotalCount;
-            instructorCount++;
+        if (instructorQuestionIds.length > 0) {
+          const instructorRatings = surveyAnswers
+            .filter(a => instructorQuestionIds.includes(a.question_id))
+            .map(a => parseInt(a.answer_text))
+            .filter(r => !isNaN(r) && r > 0);
+          
+          if (instructorRatings.length > 0) {
+            // 5점 척도를 10점으로 변환
+            const convertedRatings = instructorRatings.map(r => r <= 5 ? r * 2 : r);
+            totalInstructorSatisfaction += convertedRatings.reduce((sum, r) => sum + r, 0);
+            instructorCount += convertedRatings.length;
           }
         }
       });
 
-      round.courseSatisfaction = courseCount > 0 ? totalCourseSatisfaction / courseCount : 0;
-      round.instructorSatisfaction = instructorCount > 0 ? totalInstructorSatisfaction / instructorCount : 0;
+      // 차수별 평균 계산
+      round.courseSatisfaction = courseCount > 0 ? 
+        parseFloat((totalCourseSatisfaction / courseCount).toFixed(1)) : 0;
+      round.instructorSatisfaction = instructorCount > 0 ? 
+        parseFloat((totalInstructorSatisfaction / instructorCount).toFixed(1)) : 0;
     });
 
     return Object.entries(roundStats)

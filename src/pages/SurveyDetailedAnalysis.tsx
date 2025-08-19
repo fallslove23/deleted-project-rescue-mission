@@ -185,7 +185,7 @@ const SurveyDetailedAnalysis = () => {
     const instructorQuestions: SurveyQuestion[] = [];
 
     questions.forEach(question => {
-      const questionText = question.question_text.toLowerCase();
+      const questionText = question.question_text?.toLowerCase() || '';
       
       // 강사 관련 키워드
       if (questionText.includes('강사') || 
@@ -197,7 +197,7 @@ const SurveyDetailedAnalysis = () => {
           questionText.includes('준비도')) {
         instructorQuestions.push(question);
       } 
-      // 과정 관련 키워드
+      // 과정 관련 키워드 또는 rating/scale 타입
       else if (questionText.includes('과정') || 
                questionText.includes('교육') || 
                questionText.includes('내용') || 
@@ -205,7 +205,8 @@ const SurveyDetailedAnalysis = () => {
                questionText.includes('시간') ||
                questionText.includes('교재') ||
                questionText.includes('환경') ||
-               questionText.includes('시설')) {
+               questionText.includes('시설') ||
+               (question.question_type === 'rating' || question.question_type === 'scale')) {
         courseQuestions.push(question);
       } else {
         // 기본적으로 과정 만족도로 분류
