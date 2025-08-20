@@ -65,17 +65,27 @@ const PersonalDashboard = () => {
   const canViewPersonalStats = isInstructor || userRoles.includes('admin');
 
   useEffect(() => {
+    console.log('내 피드백 - useEffect [user] 호출:', { user: !!user, userId: user?.id });
     fetchProfile();
   }, [user]);
 
   useEffect(() => {
+    console.log('내 피드백 - useEffect [profile] 호출:', { 
+      profile: !!profile, 
+      canViewPersonalStats, 
+      isInstructor,
+      userRoles 
+    });
     if (profile && canViewPersonalStats) {
       fetchData();
     }
   }, [profile, selectedPeriod, selectedYear, selectedRound]);
 
   const fetchProfile = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     
     try {
       console.log('내 피드백 - 사용자 정보:', { userId: user.id, email: user.email });
@@ -112,6 +122,8 @@ const PersonalDashboard = () => {
       console.log('내 피드백 - 권한 없음');
       return;
     }
+
+    setLoading(true);
 
     try {
       // 강사가 아닌 관리자의 경우 전체 데이터 조회
@@ -212,6 +224,8 @@ const PersonalDashboard = () => {
       }
     } catch (error) {
       console.error('내 피드백 - fetchData 오류:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -674,8 +688,8 @@ const PersonalDashboard = () => {
                   <LineChart data={trendData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="period" />
-                    <YAxis domain={[1, 5]} />
-                    <YAxis yAxisId="right" orientation="right" />
+                     <YAxis domain={[0, 10]} />
+                     <YAxis yAxisId="right" orientation="right" domain={[0, 'dataMax + 5']} />
                     <Tooltip 
                       formatter={(value: any, name: string) => [
                         name === 'average' ? `${Number(value).toFixed(1)}점` : value,
