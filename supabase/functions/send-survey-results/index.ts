@@ -21,10 +21,16 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log("Edge function called with request");
+    
     const { surveyId, recipients }: SendResultsRequest = await req.json();
+    console.log("Parsed request:", { surveyId, recipients });
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    console.log("Resend API key check:", resendApiKey ? "✓ Key found" : "✗ Key missing");
+    
     if (!resendApiKey) {
+      console.error("RESEND_API_KEY environment variable not found");
       return new Response(
         JSON.stringify({ success: false, error: "RESEND_API_KEY not configured" }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -214,8 +220,11 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResults = [];
     const failedEmails = [];
 
+    console.log("Sending emails to recipients:", finalRecipients);
+    
     for (const email of finalRecipients) {
       try {
+        console.log(`Attempting to send email to: ${email}`);
         let questionSummary = '';
         Object.values(questionAnalysis).forEach((qa: any) => {
           questionSummary += `
@@ -243,6 +252,7 @@ const handler = async (req: Request): Promise<Response> => {
           questionSummary += '</div>';
         });
 
+        console.log(`Calling Resend API for ${email}...`);
         const emailResponse = await resend.emails.send({
           from: fromAddress,
           to: [email],
@@ -319,6 +329,7 @@ const handler = async (req: Request): Promise<Response> => {
           `,
         });
 
+        console.log(`Email sent successfully to ${email}:`, emailResponse);
         emailResults.push({
           to: email,
           name: recipientNames.get(email) || email.split('@')[0], // 이름이 없으면 이메일 앞부분 사용
@@ -328,6 +339,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       } catch (emailError) {
         console.error(`Failed to send email to ${email}:`, emailError);
+        console.error("Detailed error:", JSON.stringify(emailError, null, 2));
         failedEmails.push(email);
         emailResults.push({
           to: email,
