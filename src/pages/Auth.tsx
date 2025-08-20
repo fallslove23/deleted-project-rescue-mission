@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { translateAuthError } from '@/utils/authErrorTranslator';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -53,9 +54,10 @@ const Auth = () => {
         }
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
-        title: "오류",
-        description: error.message,
+        title: "로그인 실패",
+        description: translateAuthError(error.message || '알 수 없는 오류가 발생했습니다.'),
         variant: "destructive",
       });
     } finally {
@@ -81,9 +83,10 @@ const Auth = () => {
       
       setIsResetPassword(false);
     } catch (error: any) {
+      console.error('Password reset error:', error);
       toast({
-        title: "오류",
-        description: error.message,
+        title: "비밀번호 재설정 오류",
+        description: translateAuthError(error.message || '비밀번호 재설정 중 오류가 발생했습니다.'),
         variant: "destructive",
       });
     } finally {
