@@ -19,37 +19,37 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
         <AdminSidebar />
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
           <header className="h-14 border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-            <div className="flex items-center h-full px-2 sm:px-4">
+            <div className="flex items-center h-full px-2 sm:px-4 max-w-full overflow-hidden">
               {/* Left: Sidebar Toggle */}
-              <div className="flex items-center">
+              <div className="flex items-center shrink-0">
                 <SidebarTrigger className="h-8 w-8 p-1 mr-2" />
               </div>
 
               {/* Center: Page Title */}
-              <div className="flex-1 text-center min-w-0 px-2">
+              <div className="flex-1 text-center min-w-0 px-1 sm:px-2">
                 <div className="flex items-center justify-center gap-2">
-                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-neon">
+                  <div className="h-6 w-6 sm:h-8 sm:w-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-neon shrink-0">
                     <BarChart className="h-3 w-3 sm:h-4 sm:w-4 text-primary-foreground" />
                   </div>
-                  <h1 className="text-sm sm:text-lg font-bold bg-gradient-accent bg-clip-text text-transparent break-words leading-tight">
+                  <h1 className="text-xs sm:text-sm md:text-lg font-bold bg-gradient-accent bg-clip-text text-transparent break-words leading-tight line-clamp-1">
                     {title}
                   </h1>
                 </div>
                 {description && (
-                  <p className="text-xs text-muted-foreground break-words line-clamp-1 mt-1">
+                  <p className="text-xs text-muted-foreground break-words line-clamp-1 mt-1 hidden sm:block">
                     {description}
                   </p>
                 )}
               </div>
 
               {/* Right: User Actions */}
-              <div className="flex items-center space-x-1 sm:space-x-2">
+              <div className="flex items-center space-x-1 shrink-0">
                 {/* User Email - Only on larger screens */}
                 <span className="hidden lg:block text-xs text-muted-foreground max-w-20 truncate">
                   {user?.email}
@@ -60,11 +60,11 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
                   onClick={() => navigate('/student')}
                   variant="outline"
                   size="sm"
-                  className="h-8 px-2 hidden sm:inline-flex"
+                  className="h-8 px-2 hidden md:inline-flex"
                   title="교육생 화면"
                 >
                   <Home className="h-3 w-3 sm:mr-1" />
-                  <span className="hidden sm:inline">교육생 화면</span>
+                  <span className="hidden lg:inline">교육생 화면</span>
                 </Button>
 
                 {/* Activity Popover */}
@@ -107,8 +107,10 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
           </header>
 
           {/* Main content */}
-          <main className="flex-1 p-3 md:p-6">
-            {children}
+          <main className="flex-1 p-2 sm:p-3 md:p-6 overflow-x-auto">
+            <div className="max-w-full overflow-hidden">
+              {children}
+            </div>
           </main>
         </div>
       </div>

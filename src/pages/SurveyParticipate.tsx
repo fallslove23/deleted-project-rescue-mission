@@ -472,30 +472,31 @@ const SurveyParticipate = () => {
   const currentQuestions = getCurrentStepQuestions();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center gap-4 max-w-full overflow-hidden">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate('/')}
+            className="shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-base md:text-lg font-semibold truncate break-words">{survey.title}</h1>
-            <p className="text-sm text-muted-foreground truncate">{getStepTitle()}</p>
+            <h1 className="text-sm sm:text-base md:text-lg font-semibold break-words line-clamp-1">{survey.title}</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground break-words line-clamp-1">{getStepTitle()}</p>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 max-w-2xl">
+      <main className="container mx-auto px-3 sm:px-4 py-6 max-w-2xl overflow-hidden">
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-xs md:text-sm text-muted-foreground">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               {currentStep + 1} / {totalSteps}
             </span>
-            <span className="text-xs md:text-sm text-muted-foreground">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               {Math.round(progress)}% 완료
             </span>
           </div>
@@ -505,18 +506,18 @@ const SurveyParticipate = () => {
         {/* 강의 평가 템플릿일 때만 강사 정보 버튼 표시 */}
         {isCoursEvaluation && instructor && (
           <Card className="mb-4">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
               <Dialog>
                 <DialogTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className="w-full flex items-center gap-2"
+                    className="w-full flex items-center gap-2 touch-friendly"
                   >
                     <User className="h-4 w-4" />
                     강사 정보 확인하기
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-[90vw] sm:max-w-md mx-4">
                   <InstructorInfoSection 
                     instructor={instructor} 
                     title="강사 정보"
@@ -527,9 +528,9 @@ const SurveyParticipate = () => {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>질문 {currentStep + 1}</CardTitle>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="text-base sm:text-lg break-words">질문 {currentStep + 1}</CardTitle>
             {(() => {
               // 현재 질문의 섹션 설명 표시
               const currentQuestion = questions[currentStep];
@@ -537,13 +538,13 @@ const SurveyParticipate = () => {
               
               const section = sections.find(s => s.id === currentQuestion.section_id);
               return section?.description ? (
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm break-words">
                   {section.description}
                 </p>
               ) : null;
             })()}
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
             {currentQuestions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 이 섹션에는 질문이 없습니다.
@@ -551,21 +552,23 @@ const SurveyParticipate = () => {
             ) : (
               currentQuestions.map((question) => (
                 <div key={question.id} className="space-y-3">
-                  <Label className="text-sm md:text-base break-words hyphens-auto leading-relaxed">
+                  <Label className="text-sm sm:text-base break-words hyphens-auto leading-relaxed block">
                     {question.question_text}
                     {question.is_required && <span className="text-destructive ml-1">*</span>}
                   </Label>
-                  {renderQuestion(question)}
+                  <div className="max-w-full overflow-x-auto">
+                    {renderQuestion(question)}
+                  </div>
                 </div>
               ))
             )}
 
-            <div className="flex justify-between pt-6 gap-2">
+            <div className="flex justify-between pt-6 gap-3 flex-wrap sm:flex-nowrap">
               <Button
                 variant="outline"
                 onClick={handlePrevious}
                 disabled={currentStep === 0}
-                className="touch-friendly flex-1 max-w-24"
+                className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-1"
               >
                 이전
               </Button>
@@ -574,7 +577,7 @@ const SurveyParticipate = () => {
                 <Button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="min-w-24 touch-friendly flex-1 max-w-32"
+                  className="touch-friendly flex-1 sm:flex-none sm:min-w-[120px] order-2"
                 >
                   {submitting ? (
                     "제출 중..."
@@ -586,7 +589,10 @@ const SurveyParticipate = () => {
                   )}
                 </Button>
               ) : (
-                <Button onClick={handleNext} className="touch-friendly flex-1 max-w-24">
+                <Button 
+                  onClick={handleNext} 
+                  className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-2"
+                >
                   다음
                 </Button>
               )}

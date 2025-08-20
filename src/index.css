@@ -214,12 +214,50 @@ All colors MUST be HSL.
   }
 }
 
+/* Mobile-first global styles */
 @layer base {
   * {
     @apply border-border;
+    /* Prevent horizontal scrolling on mobile */
+    max-width: 100%;
+  }
+
+  html {
+    /* Prevent zoom on form inputs on iOS */
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
   }
 
   body {
     @apply bg-background text-foreground;
+    /* Prevent horizontal overflow */
+    overflow-x: hidden;
+    /* Enable smooth scrolling */
+    scroll-behavior: smooth;
+  }
+
+  /* Container width constraints for mobile */
+  .container {
+    @apply w-full max-w-full px-4;
+  }
+
+  /* Mobile-optimized card spacing */
+  .card-mobile {
+    @apply mx-auto max-w-full;
+  }
+
+  /* Text responsiveness */
+  .text-responsive {
+    @apply text-sm md:text-base;
+  }
+
+  /* Mobile table wrapper */
+  .table-mobile {
+    @apply overflow-x-auto -mx-4 px-4;
+  }
+
+  /* Mobile button improvements */
+  .btn-mobile {
+    @apply min-h-[44px] touch-friendly px-4 py-2;
   }
 }

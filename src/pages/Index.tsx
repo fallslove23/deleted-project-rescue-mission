@@ -123,11 +123,11 @@ const Index = () => {
   const groupedSurveys = groupSurveysByRound(surveys);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Header with hamburger menu */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="absolute left-4">
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full overflow-hidden">
+          <div className="absolute left-3 sm:left-4">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
@@ -137,8 +137,8 @@ const Index = () => {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-80 p-4">
-                <div className="space-y-6 mt-6">
+               <SheetContent side="left" className="w-[280px] sm:w-80 p-4 max-w-[90vw]">
+                 <div className="space-y-6 mt-6 overflow-y-auto max-h-[calc(100vh-80px)]">
                   {user ? (
                     <>
                       <div className="border-b pb-4">
@@ -229,12 +229,12 @@ const Index = () => {
             </Sheet>
           </div>
           
-          <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-4">
-            <h1 className="text-base md:text-2xl font-bold text-primary text-center truncate">BS/SS 교육과정</h1>
-            <p className="text-xs md:text-sm text-muted-foreground text-center truncate">교육생 피드백 시스템</p>
+          <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-2 sm:px-4">
+            <h1 className="text-sm sm:text-base md:text-2xl font-bold text-primary text-center break-words max-w-full">BS/SS 교육과정</h1>
+            <p className="text-xs md:text-sm text-muted-foreground text-center break-words max-w-full">교육생 피드백 시스템</p>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <Button
               variant={!showAllSurveys ? "default" : "outline"}
               size="sm"
@@ -242,18 +242,19 @@ const Index = () => {
                 setShowAllSurveys(!showAllSurveys);
                 setLoadingSurveys(true);
               }}
-              className="text-xs px-2 py-1 h-8"
+              className="text-xs px-2 py-1 h-8 min-w-0 whitespace-nowrap"
             >
-              <FileText className="h-3 w-3 mr-1" />
-              {showAllSurveys ? "전체" : "오늘"}
+              <FileText className="h-3 w-3 mr-1 shrink-0" />
+              <span className="hidden xs:inline">{showAllSurveys ? "전체" : "오늘"}</span>
+              <span className="xs:hidden">{showAllSurveys ? "전체" : "오늘"}</span>
             </Button>
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="container mx-auto px-4 py-6 md:py-8 min-h-screen">
-        <div className="mb-6 md:mb-8 text-center">
+      <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 min-h-screen max-w-full overflow-hidden">
+        <div className="mb-6 md:mb-8 text-center px-2">
           <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">
             {showAllSurveys ? "📝 전체 설문조사" : "📝 오늘의 설문조사"}
           </h2>
@@ -267,13 +268,13 @@ const Index = () => {
             <div className="animate-pulse">📋 설문조사를 불러오는 중...</div>
           </div>
         ) : Object.keys(groupedSurveys).length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="bg-muted/30 rounded-2xl p-8 max-w-md mx-auto">
-              <Calendar className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-lg md:text-xl font-semibold mb-2">
+          <div className="text-center py-16 px-2 sm:px-4">
+            <div className="bg-muted/30 rounded-2xl p-6 sm:p-8 max-w-md mx-auto">
+              <Calendar className="h-12 sm:h-16 w-12 sm:w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h3 className="text-base sm:text-lg md:text-xl font-semibold mb-2 break-words">
                 {showAllSurveys ? "활성 설문조사가 없습니다" : "진행 중인 설문조사가 없습니다"}
               </h3>
-              <p className="text-muted-foreground text-sm md:text-base">
+              <p className="text-muted-foreground text-sm md:text-base break-words">
                 {showAllSurveys 
                   ? "현재 활성화된 설문조사가 없습니다" 
                   : "현재 진행 중인 설문조사가 없습니다"
@@ -296,66 +297,71 @@ const Index = () => {
                   </span>
                 </div>
                 
-                <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {roundSurveys.map((survey) => (
                     <Card 
                       key={survey.id} 
-                      className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-l-primary/30 hover:border-l-primary cursor-pointer"
+                      className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-l-primary/30 hover:border-l-primary cursor-pointer max-w-full overflow-hidden"
                     >
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start gap-2">
-                          <CardTitle className="text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2 break-words hyphens-auto">
-                            {survey.title}
-                          </CardTitle>
-                           <Badge variant="secondary" className="text-xs shrink-0">
-                             {showAllSurveys ? (
-                               // 전체 보기에서는 현재 시간 기준으로 상태 표시
-                               (() => {
-                                 const timeZone = 'Asia/Seoul';
-                                 const nowKST = toZonedTime(new Date(), timeZone);
-                                 const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
-                                 const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
-                                 
-                                 if (nowKST < startDateKST) return "시작 예정";
-                                 if (nowKST > endDateKST) return "종료";
-                                 return "진행중";
-                               })()
-                             ) : "진행중"}
-                           </Badge>
+                       <CardHeader className="pb-3 p-4 sm:p-6">
+                         <div className="flex justify-between items-start gap-2">
+                           <CardTitle className="text-sm sm:text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2 break-words hyphens-auto min-w-0 flex-1">
+                             {survey.title}
+                           </CardTitle>
+                            <Badge variant="secondary" className="text-xs shrink-0 ml-2">
+                              {showAllSurveys ? (
+                                // 전체 보기에서는 현재 시간 기준으로 상태 표시
+                                (() => {
+                                  const timeZone = 'Asia/Seoul';
+                                  const nowKST = toZonedTime(new Date(), timeZone);
+                                  const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
+                                  const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
+                                  
+                                  if (nowKST < startDateKST) return "시작 예정";
+                                  if (nowKST > endDateKST) return "종료";
+                                  return "진행중";
+                                })()
+                              ) : "진행중"}
+                            </Badge>
                         </div>
-                        {survey.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 mt-2 break-words hyphens-auto">
-                            {survey.description}
-                          </p>
-                        )}
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-3">
-                           <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                             <Clock className="h-4 w-4 shrink-0" />
-                             <span className="text-xs truncate break-all">
-                               {new Date(survey.start_date).toLocaleString('ko-KR', { 
-                                 year: 'numeric', 
-                                 month: 'short', 
-                                 day: 'numeric', 
-                                 hour: '2-digit', 
-                                 minute: '2-digit' 
-                               })} ~ {new Date(survey.end_date).toLocaleString('ko-KR', { 
-                                 year: 'numeric', 
-                                 month: 'short', 
-                                 day: 'numeric', 
-                                 hour: '2-digit', 
-                                 minute: '2-digit' 
-                               })}
-                             </span>
-                           </div>
-                          <Button 
-                            className="w-full group-hover:bg-primary/90 transition-colors touch-friendly"
-                            onClick={() => navigate(`/survey/${survey.id}`)}
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            설문 참여하기
-                          </Button>
+                         {survey.description && (
+                           <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-2 break-words hyphens-auto">
+                             {survey.description}
+                           </p>
+                         )}
+                       </CardHeader>
+                       <CardContent className="pt-0 p-4 sm:p-6 sm:pt-0">
+                         <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                              <span className="text-xs break-all overflow-hidden">
+                                <span className="block sm:inline">
+                                  {new Date(survey.start_date).toLocaleString('ko-KR', { 
+                                    year: 'numeric', 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </span>
+                                <span className="block sm:inline sm:before:content-['_~_']">
+                                  {new Date(survey.end_date).toLocaleString('ko-KR', { 
+                                    year: 'numeric', 
+                                    month: 'short', 
+                                    day: 'numeric', 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </span>
+                              </span>
+                            </div>
+                           <Button 
+                             className="w-full group-hover:bg-primary/90 transition-colors touch-friendly min-h-[44px] text-sm"
+                             onClick={() => navigate(`/survey/${survey.id}`)}
+                           >
+                             <FileText className="h-4 w-4 mr-2 shrink-0" />
+                             설문 참여하기
+                           </Button>
                         </div>
                       </CardContent>
                     </Card>
