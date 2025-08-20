@@ -510,325 +510,330 @@ const PersonalDashboard = () => {
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
 
   return (
-    <div className="space-y-6">
-      {/* 필터 및 통계 요약 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">총 설문</p>
-                <p className="text-2xl font-bold">{summaryStats.totalSurveys}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Users className="h-6 w-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">총 응답</p>
-                <p className="text-2xl font-bold">{summaryStats.totalResponses}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">평균 만족도</p>
-                <div className="flex items-center space-x-2">
-                  <p className="text-2xl font-bold">{summaryStats.avgSatisfaction}</p>
-                  <Badge variant={summaryStats.avgSatisfaction >= 4 ? "default" : summaryStats.avgSatisfaction >= 3 ? "secondary" : "destructive"}>
-                    {summaryStats.satisfactionPercentage}%
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-orange-500/10 rounded-lg">
-                <Award className="h-6 w-6 text-orange-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">활성 설문</p>
-                <p className="text-2xl font-bold">{summaryStats.activeSurveys}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 액션 버튼들 */}
-      <div className="flex gap-2 mb-4">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => window.print()}
-          className="gap-2"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a1 1 0 001-1v-4a1 1 0 00-1-1H9a1 1 0 00-1 1v4a1 1 0 001 1zm3-5h2m-2-2h2m-2-2h2" />
-          </svg>
-          인쇄
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => {
-            const element = document.createElement('a');
-            const csvContent = generatePersonalStatsCSV();
-            const file = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
-            element.href = URL.createObjectURL(file);
-            element.download = `개인통계_${new Date().toISOString().slice(0, 10)}.csv`;
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
-          }}
-          className="gap-2"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-          </svg>
-          CSV 다운로드
-        </Button>
-      </div>
-
-      {/* 필터 컨트롤 */}
-      <div className="flex flex-wrap gap-4">
-        <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="기간 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="round">회차별</SelectItem>
-            <SelectItem value="month">월별</SelectItem>
-            <SelectItem value="half">반기별</SelectItem>
-            <SelectItem value="year">연도별</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="전체 연도" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체</SelectItem>
-            {getUniqueYears().map(year => (
-              <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {selectedPeriod !== 'round' && (
-          <Select value={selectedRound} onValueChange={setSelectedRound}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="전체 차수" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체</SelectItem>
-              {getUniqueRounds().map(round => (
-                <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        
-        {selectedPeriod === 'round' && (
-          <Select value={selectedRound} onValueChange={setSelectedRound}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="회차 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="latest">최신 회차</SelectItem>
-              <SelectItem value="all">전체</SelectItem>
-              {getUniqueRounds().map(round => (
-                <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-
-      {/* 트렌드 분석 */}
-      <Tabs defaultValue="trend" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="trend">만족도 트렌드</TabsTrigger>
-          <TabsTrigger value="distribution">평점 분포</TabsTrigger>
-          <TabsTrigger value="insights">인사이트</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="trend" className="space-y-4">
+    <div className="h-screen flex flex-col">
+      {/* 고정 상단 헤더 영역 */}
+      <div className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 border-b space-y-4 p-4">
+        {/* 필터 및 통계 요약 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                만족도 변화 추이
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
-                     <YAxis domain={[0, 10]} />
-                     <YAxis yAxisId="right" orientation="right" domain={[0, 'dataMax + 5']} />
-                    <Tooltip 
-                      formatter={(value: any, name: string) => [
-                        name === 'average' ? `${Number(value).toFixed(1)}점` : value,
-                        name === 'average' ? '평균 만족도' : name === 'responses' ? '응답 수' : name
-                      ]}
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="average" 
-                      stroke="#8884d8" 
-                      strokeWidth={3}
-                      dot={{ r: 6 }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="responses" 
-                      stroke="#82ca9d" 
-                      strokeWidth={2}
-                      yAxisId="right"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+            <CardContent className="flex items-center p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">총 설문</p>
+                  <p className="text-xl font-bold">{summaryStats.totalSurveys}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="distribution" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardContent className="flex items-center p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <Users className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">총 응답</p>
+                  <p className="text-xl font-bold">{summaryStats.totalResponses}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-500/10 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">평균 만족도</p>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-xl font-bold">{summaryStats.avgSatisfaction}</p>
+                    <Badge variant={summaryStats.avgSatisfaction >= 4 ? "default" : summaryStats.avgSatisfaction >= 3 ? "secondary" : "destructive"}>
+                      {summaryStats.satisfactionPercentage}%
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-orange-500/10 rounded-lg">
+                  <Award className="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">활성 설문</p>
+                  <p className="text-xl font-bold">{summaryStats.activeSurveys}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 액션 버튼들 */}
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => window.print()}
+            className="gap-2"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a1 1 0 001-1v-4a1 1 0 00-1-1H9a1 1 0 00-1 1v4a1 1 0 001 1zm3-5h2m-2-2h2m-2-2h2" />
+            </svg>
+            인쇄
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              const element = document.createElement('a');
+              const csvContent = generatePersonalStatsCSV();
+              const file = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+              element.href = URL.createObjectURL(file);
+              element.download = `개인통계_${new Date().toISOString().slice(0, 10)}.csv`;
+              document.body.appendChild(element);
+              element.click();
+              document.body.removeChild(element);
+            }}
+            className="gap-2"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            </svg>
+            CSV 다운로드
+          </Button>
+        </div>
+
+        {/* 필터 컨트롤 */}
+        <div className="flex flex-wrap gap-3">
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="기간 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="round">회차별</SelectItem>
+              <SelectItem value="month">월별</SelectItem>
+              <SelectItem value="half">반기별</SelectItem>
+              <SelectItem value="year">연도별</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-28">
+              <SelectValue placeholder="전체 연도" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              {getUniqueYears().map(year => (
+                <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {selectedPeriod !== 'round' && (
+            <Select value={selectedRound} onValueChange={setSelectedRound}>
+              <SelectTrigger className="w-28">
+                <SelectValue placeholder="전체 차수" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                {getUniqueRounds().map(round => (
+                  <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          
+          {selectedPeriod === 'round' && (
+            <Select value={selectedRound} onValueChange={setSelectedRound}>
+              <SelectTrigger className="w-28">
+                <SelectValue placeholder="회차 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="latest">최신 회차</SelectItem>
+                <SelectItem value="all">전체</SelectItem>
+                {getUniqueRounds().map(round => (
+                  <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </div>
+
+      {/* 스크롤 가능한 콘텐츠 영역 */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* 트렌드 분석 */}
+        <Tabs defaultValue="trend" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="trend">만족도 트렌드</TabsTrigger>
+            <TabsTrigger value="distribution">평점 분포</TabsTrigger>
+            <TabsTrigger value="insights">인사이트</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="trend" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>평점 분포</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  만족도 변화 추이
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
+                <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={ratingDistribution}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        dataKey="value"
-                        label={({ name, percentage }) => `${name}: ${percentage}%`}
-                      >
-                        {ratingDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
+                    <LineChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="period" />
+                       <YAxis domain={[0, 10]} />
+                       <YAxis yAxisId="right" orientation="right" domain={[0, 'dataMax + 5']} />
+                      <Tooltip 
+                        formatter={(value: any, name: string) => [
+                          name === 'average' ? `${Number(value).toFixed(1)}점` : value,
+                          name === 'average' ? '평균 만족도' : name === 'responses' ? '응답 수' : name
+                        ]}
+                      />
+                      <Legend />
+                      <Line 
+                        type="monotone" 
+                        dataKey="average" 
+                        stroke="#8884d8" 
+                        strokeWidth={3}
+                        dot={{ r: 6 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="responses" 
+                        stroke="#82ca9d" 
+                        strokeWidth={2}
+                        yAxisId="right"
+                      />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>평점별 상세</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {ratingDistribution.map((item, index) => (
-                  <div key={item.name} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>{item.name}</span>
-                      <span>{item.value}개 ({item.percentage}%)</span>
-                    </div>
-                    <Progress value={item.percentage} className="h-2" />
+          <TabsContent value="distribution" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>평점 분포</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={ratingDistribution}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          dataKey="value"
+                          label={({ name, percentage }) => `${name}: ${percentage}%`}
+                        >
+                          {ratingDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                </CardContent>
+              </Card>
 
+              <Card>
+                <CardHeader>
+                  <CardTitle>평점별 상세</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {ratingDistribution.map((item, index) => (
+                    <div key={item.name} className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>{item.name}</span>
+                        <span>{item.value}개 ({item.percentage}%)</span>
+                      </div>
+                      <Progress value={item.percentage} className="h-2" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
-        <TabsContent value="insights" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5" />
-                  최근 성과
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">설문당 평균 응답</span>
-                  <span className="font-medium">{summaryStats.avgResponsesPerSurvey}개</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">만족도 수준</span>
-                  <Badge variant={summaryStats.avgSatisfaction >= 4 ? "default" : summaryStats.avgSatisfaction >= 3 ? "secondary" : "destructive"}>
-                    {summaryStats.avgSatisfaction >= 4 ? '우수' : summaryStats.avgSatisfaction >= 3 ? '보통' : '개선필요'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">응답률 트렌드</span>
-                  <span className="font-medium">
-                    {trendData.length >= 2 && trendData[trendData.length - 1].responses > trendData[trendData.length - 2].responses ? '📈 증가' : '📉 감소'}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="insights" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5" />
+                    최근 성과
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">설문당 평균 응답</span>
+                    <span className="font-medium">{summaryStats.avgResponsesPerSurvey}개</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">만족도 수준</span>
+                    <Badge variant={summaryStats.avgSatisfaction >= 4 ? "default" : summaryStats.avgSatisfaction >= 3 ? "secondary" : "destructive"}>
+                      {summaryStats.avgSatisfaction >= 4 ? '우수' : summaryStats.avgSatisfaction >= 3 ? '보통' : '개선필요'}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">응답률 트렌드</span>
+                    <span className="font-medium">
+                      {trendData.length >= 2 && trendData[trendData.length - 1].responses > trendData[trendData.length - 2].responses ? '📈 증가' : '📉 감소'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>개선 제안</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  {summaryStats.avgSatisfaction < 3 && (
-                    <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                      <p className="text-red-700 dark:text-red-300">
-                        🔴 만족도가 낮습니다. 수업 방식 개선이 필요합니다.
-                      </p>
-                    </div>
-                  )}
-                  {summaryStats.avgResponsesPerSurvey < 5 && (
-                    <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-                      <p className="text-yellow-700 dark:text-yellow-300">
-                        🟡 응답률이 낮습니다. 설문 참여 독려가 필요합니다.
-                      </p>
-                    </div>
-                  )}
-                  {summaryStats.avgSatisfaction >= 4 && (
-                    <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                      <p className="text-green-700 dark:text-green-300">
-                        🟢 높은 만족도를 유지하고 있습니다. 지속적인 관리가 필요합니다.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+              <Card>
+                <CardHeader>
+                  <CardTitle>개선 제안</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 text-sm">
+                    {summaryStats.avgSatisfaction < 3 && (
+                      <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+                        <p className="text-red-700 dark:text-red-300">
+                          🔴 만족도가 낮습니다. 수업 방식 개선이 필요합니다.
+                        </p>
+                      </div>
+                    )}
+                    {summaryStats.avgResponsesPerSurvey < 5 && (
+                      <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                        <p className="text-yellow-700 dark:text-yellow-300">
+                          🟡 응답률이 낮습니다. 설문 참여 독려가 필요합니다.
+                        </p>
+                      </div>
+                    )}
+                    {summaryStats.avgSatisfaction >= 4 && (
+                      <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                        <p className="text-green-700 dark:text-green-300">
+                          🟢 높은 만족도를 유지하고 있습니다. 지속적인 관리가 필요합니다.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };
