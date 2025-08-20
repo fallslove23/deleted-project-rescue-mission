@@ -78,6 +78,8 @@ const PersonalDashboard = () => {
     if (!user) return;
     
     try {
+      console.log('내 피드백 - 사용자 정보:', { userId: user.id, email: user.email });
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('role, instructor_id')
@@ -85,19 +87,31 @@ const PersonalDashboard = () => {
         .maybeSingle();
         
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        console.error('내 피드백 - 프로필 조회 오류:', error);
       }
       
+      console.log('내 피드백 - 프로필 데이터:', data);
       setProfile(data);
     } catch (error) {
-      console.error('Error in fetchProfile:', error);
+      console.error('내 피드백 - fetchProfile 오류:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchData = async () => {
-    if (!profile?.instructor_id && !canViewPersonalStats) return;
+    console.log('내 피드백 - fetchData 호출:', { 
+      profile, 
+      instructor_id: profile?.instructor_id, 
+      canViewPersonalStats,
+      isInstructor,
+      userRoles 
+    });
+
+    if (!canViewPersonalStats) {
+      console.log('내 피드백 - 권한 없음');
+      return;
+    }
 
     try {
       // 강사가 아닌 관리자의 경우 전체 데이터 조회
@@ -105,7 +119,23 @@ const PersonalDashboard = () => {
       
       // 강사인 경우 본인 설문만, 관리자인 경우 전체 설문
       if (profile?.instructor_id && isInstructor) {
+        console.log('내 피드백 - 강사 필터링:', profile.instructor_id);
         surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
+      } else if (isInstructor && !profile?.instructor_id) {
+        // instructor_id가 없는 강사의 경우 이메일로 매칭 시도
+        console.log('내 피드백 - 이메일로 강사 찾기:', user.email);
+        const { data: instructorData } = await supabase
+          .from('instructors')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+          
+        if (instructorData) {
+          console.log('내 피드백 - 이메일로 찾은 강사 ID:', instructorData.id);
+          surveyQuery = surveyQuery.eq('instructor_id', instructorData.id);
+        } else {
+          console.log('내 피드백 - 이메일로 강사를 찾을 수 없음');
+        }
       }
 
       if (selectedYear && selectedYear !== 'all') {
@@ -123,6 +153,7 @@ const PersonalDashboard = () => {
       if (surveysError) throw surveysError;
       
       let filteredSurveys = surveysData || [];
+      console.log('내 피드백 - 조회된 설문 데이터:', filteredSurveys);
       
       // 최신 회차 필터링
       if (selectedRound === 'latest' && filteredSurveys.length > 0) {
@@ -147,6 +178,7 @@ const PersonalDashboard = () => {
 
         if (responsesError) throw responsesError;
         setResponses(responsesData || []);
+        console.log('내 피드백 - 조회된 응답 데이터:', responsesData?.length || 0, '개');
 
         // 질문들 가져오기
         const { data: questionsData, error: questionsError } = await supabase
@@ -156,6 +188,7 @@ const PersonalDashboard = () => {
 
         if (questionsError) throw questionsError;
         setQuestions(questionsData || []);
+        console.log('내 피드백 - 조회된 질문 데이터:', questionsData?.length || 0, '개');
 
         // 답변들 가져오기
         if (responsesData && responsesData.length > 0) {
@@ -168,6 +201,7 @@ const PersonalDashboard = () => {
 
           if (answersError) throw answersError;
           setAnswers(answersData || []);
+          console.log('내 피드백 - 조회된 답변 데이터:', answersData?.length || 0, '개');
         } else {
           setAnswers([]);
         }
@@ -177,7 +211,7 @@ const PersonalDashboard = () => {
         setAnswers([]);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('내 피드백 - fetchData 오류:', error);
     }
   };
 
