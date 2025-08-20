@@ -606,7 +606,7 @@ const SurveyDetailedAnalysis = () => {
               <Download className="h-4 w-4 mr-2" />
               엑셀 다운로드
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-2" />
               인쇄
             </Button>
