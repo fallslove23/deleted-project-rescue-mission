@@ -19,12 +19,12 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="h-screen flex w-full bg-background overflow-hidden">
+      <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
         <AdminSidebar />
         
-        <div className="flex-1 flex flex-col min-w-0 h-full">
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="h-14 border-b bg-white/95 backdrop-blur-sm shrink-0 z-50 shadow-sm">
+          <header className="h-14 border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
             <div className="flex items-center h-full px-2 sm:px-4 max-w-full overflow-hidden">
               {/* Left: Sidebar Toggle */}
               <div className="flex items-center shrink-0">
@@ -107,8 +107,8 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
           </header>
 
           {/* Main content */}
-          <main className="flex-1 min-h-0 overflow-y-auto">
-            <div className="p-2 sm:p-3 md:p-6">
+          <main className="flex-1 p-2 sm:p-3 md:p-6 overflow-x-auto">
+            <div className="max-w-full overflow-hidden">
               {children}
             </div>
           </main>
