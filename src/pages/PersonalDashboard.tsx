@@ -118,10 +118,15 @@ const PersonalDashboard = () => {
       userRoles 
     });
 
-    if (!canViewPersonalStats) {
-      console.log('내 피드백 - 권한 없음');
-      return;
-    }
+      if (!canViewPersonalStats) {
+        console.log('내 피드백 - 권한 없음');
+        return;
+      }
+
+      if (!profile) {
+        console.log('내 피드백 - 프로필 없음');
+        return;
+      }
 
     setLoading(true);
 
@@ -179,28 +184,35 @@ const PersonalDashboard = () => {
 
       setSurveys(filteredSurveys);
 
-      // 응답들 가져오기
-      if (filteredSurveys && filteredSurveys.length > 0) {
-        const surveyIds = filteredSurveys.map(s => s.id);
-        
-        const { data: responsesData, error: responsesError } = await supabase
-          .from('survey_responses')
-          .select('*')
-          .in('survey_id', surveyIds);
+        // 응답들 가져오기
+        if (filteredSurveys && filteredSurveys.length > 0) {
+          const surveyIds = filteredSurveys.map(s => s.id);
+          console.log('내 피드백 - 조회할 설문 IDs:', surveyIds);
+          
+          const { data: responsesData, error: responsesError } = await supabase
+            .from('survey_responses')
+            .select('*')
+            .in('survey_id', surveyIds);
 
-        if (responsesError) throw responsesError;
-        setResponses(responsesData || []);
-        console.log('내 피드백 - 조회된 응답 데이터:', responsesData?.length || 0, '개');
+          if (responsesError) {
+            console.error('내 피드백 - 응답 조회 오류:', responsesError);
+            throw responsesError;
+          }
+          setResponses(responsesData || []);
+          console.log('내 피드백 - 조회된 응답 데이터:', responsesData?.length || 0, '개', responsesData);
 
-        // 질문들 가져오기
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('survey_questions')
-          .select('*')
-          .in('survey_id', surveyIds);
+          // 질문들 가져오기
+          const { data: questionsData, error: questionsError } = await supabase
+            .from('survey_questions')
+            .select('*')
+            .in('survey_id', surveyIds);
 
-        if (questionsError) throw questionsError;
-        setQuestions(questionsData || []);
-        console.log('내 피드백 - 조회된 질문 데이터:', questionsData?.length || 0, '개');
+          if (questionsError) {
+            console.error('내 피드백 - 질문 조회 오류:', questionsError);
+            throw questionsError;
+          }
+          setQuestions(questionsData || []);
+          console.log('내 피드백 - 조회된 질문 데이터:', questionsData?.length || 0, '개', questionsData);
 
         // 답변들 가져오기
         if (responsesData && responsesData.length > 0) {
@@ -490,7 +502,14 @@ const PersonalDashboard = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">로딩 중...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!canViewPersonalStats) {
@@ -508,6 +527,21 @@ const PersonalDashboard = () => {
   const summaryStats = getSummaryStats();
   const ratingDistribution = getRatingDistribution();
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
+
+  // 데이터가 없을 때 표시할 메시지
+  if (surveys.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">표시할 설문 데이터가 없습니다.</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            {isInstructor ? "아직 생성된 설문이 없거나 권한이 없습니다." : "설문 데이터를 확인해주세요."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
