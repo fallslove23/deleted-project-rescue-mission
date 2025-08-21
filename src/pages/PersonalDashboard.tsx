@@ -58,7 +58,7 @@ const PersonalDashboard = () => {
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('round');
   const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [selectedRound, setSelectedRound] = useState<string>('latest');
+  const [selectedRound, setSelectedRound] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
@@ -184,15 +184,15 @@ const PersonalDashboard = () => {
 
       setSurveys(filteredSurveys);
 
-        // 응답들 가져오기
-        if (filteredSurveys && filteredSurveys.length > 0) {
-          const surveyIds = filteredSurveys.map(s => s.id);
-          console.log('내 피드백 - 조회할 설문 IDs:', surveyIds);
+        // 응답들 가져오기 - 전체 설문에 대해 조회
+        if (surveysData && surveysData.length > 0) {
+          const allSurveyIds = surveysData.map(s => s.id);
+          console.log('내 피드백 - 모든 설문 IDs:', allSurveyIds);
           
           const { data: responsesData, error: responsesError } = await supabase
             .from('survey_responses')
             .select('*')
-            .in('survey_id', surveyIds);
+            .in('survey_id', allSurveyIds);
 
           if (responsesError) {
             console.error('내 피드백 - 응답 조회 오류:', responsesError);
@@ -201,11 +201,11 @@ const PersonalDashboard = () => {
           setResponses(responsesData || []);
           console.log('내 피드백 - 조회된 응답 데이터:', responsesData?.length || 0, '개', responsesData);
 
-          // 질문들 가져오기
+          // 질문들 가져오기 - 전체 설문에 대해 조회
           const { data: questionsData, error: questionsError } = await supabase
             .from('survey_questions')
             .select('*')
-            .in('survey_id', surveyIds);
+            .in('survey_id', allSurveyIds);
 
           if (questionsError) {
             console.error('내 피드백 - 질문 조회 오류:', questionsError);
@@ -261,11 +261,30 @@ const PersonalDashboard = () => {
       q.question_type === 'rating' || q.question_type === 'scale'
     );
     
+    // 현재 필터에 맞는 설문들만 사용
+    let filteredSurveys = surveys;
+    if (selectedYear && selectedYear !== 'all') {
+      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
+    }
+    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
+      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
+    }
+    
+    // 최신 회차 필터링
+    if (selectedRound === 'latest' && filteredSurveys.length > 0) {
+      const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
+      const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
+      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
+      filteredSurveys = filteredSurveys.filter(s => 
+        s.education_year === latestYear && s.education_round === latestRound
+      );
+    }
+    
     if (selectedPeriod === 'round') {
       // 회차별 트렌드
       const roundData: Record<string, { total: number; count: number; responses: number }> = {};
       
-      surveys.forEach(survey => {
+      filteredSurveys.forEach(survey => {
         const roundKey = `${survey.education_year}-${survey.education_round}차`;
         
         if (!roundData[roundKey]) {
@@ -284,9 +303,8 @@ const PersonalDashboard = () => {
           ratingAnswers.forEach(answer => {
             const rating = parseFloat(answer.answer_text);
             if (!isNaN(rating) && rating > 0) {
-              // 5점 척도를 10점 척도로 변환
-              const convertedRating = rating <= 5 ? rating * 2 : rating;
-              roundData[roundKey].total += convertedRating;
+              // 이미 10점 척도로 저장되어 있으므로 변환하지 않음
+              roundData[roundKey].total += rating;
               roundData[roundKey].count++;
             }
           });
@@ -302,10 +320,14 @@ const PersonalDashboard = () => {
         }))
         .sort((a, b) => a.period.localeCompare(b.period));
     } else if (selectedPeriod === 'month') {
-      // 월별 트렌드
+      // 월별 트렌드 - 필터링된 설문의 응답만 사용
       const monthlyData: Record<string, { total: number; count: number; responses: number }> = {};
       
-      responses.forEach(response => {
+      const filteredResponses = responses.filter(r => 
+        filteredSurveys.some(s => s.id === r.survey_id)
+      );
+      
+      filteredResponses.forEach(response => {
         const date = new Date(response.submitted_at);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         
@@ -319,14 +341,13 @@ const PersonalDashboard = () => {
           ratingQuestions.some(q => q.id === a.question_id)
         );
         
-          ratingAnswers.forEach(answer => {
-            const rating = parseFloat(answer.answer_text);
-            if (!isNaN(rating) && rating > 0) {
-              const convertedRating = rating <= 5 ? rating * 2 : rating;
-              monthlyData[monthKey].total += convertedRating;
-              monthlyData[monthKey].count++;
-            }
-          });
+        ratingAnswers.forEach(answer => {
+          const rating = parseFloat(answer.answer_text);
+          if (!isNaN(rating) && rating > 0) {
+            monthlyData[monthKey].total += rating;
+            monthlyData[monthKey].count++;
+          }
+        });
       });
 
       return Object.entries(monthlyData)
@@ -334,7 +355,7 @@ const PersonalDashboard = () => {
           period: month,
           average: data.count > 0 ? (data.total / data.count) : 0,
           responses: data.responses,
-          satisfaction: data.count > 0 ? Math.round((data.total / data.count) * 20) : 0
+          satisfaction: data.count > 0 ? Math.round((data.total / data.count) * 10) : 0
         }))
         .sort((a, b) => a.period.localeCompare(b.period));
     } else if (selectedPeriod === 'half') {
@@ -420,22 +441,44 @@ const PersonalDashboard = () => {
   };
 
   const getSummaryStats = () => {
-    const totalSurveys = surveys.length;
-    const totalResponses = responses.length;
-    const activeSurveys = surveys.filter(s => s.status === 'active').length;
+    // 현재 필터에 맞는 설문들만 사용
+    let filteredSurveys = surveys;
+    if (selectedYear && selectedYear !== 'all') {
+      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
+    }
+    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
+      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
+    }
+    
+    // 최신 회차 필터링
+    if (selectedRound === 'latest' && filteredSurveys.length > 0) {
+      const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
+      const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
+      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
+      filteredSurveys = filteredSurveys.filter(s => 
+        s.education_year === latestYear && s.education_round === latestRound
+      );
+    }
+    
+    const totalSurveys = filteredSurveys.length;
+    const filteredResponses = responses.filter(r => 
+      filteredSurveys.some(s => s.id === r.survey_id)
+    );
+    const totalResponses = filteredResponses.length;
+    const activeSurveys = filteredSurveys.filter(s => s.status === 'active').length;
     
     // 만족도 평균 계산 - rating 타입 질문들 사용
     const ratingQuestions = questions.filter(q => 
       q.question_type === 'rating' || q.question_type === 'scale'
     );
     const ratingAnswers = answers.filter(a => 
-      ratingQuestions.some(q => q.id === a.question_id)
+      ratingQuestions.some(q => q.id === a.question_id) &&
+      filteredResponses.some(r => r.id === a.response_id)
     );
     
     const validRatings = ratingAnswers
       .map(a => parseFloat(a.answer_text))
-      .filter(r => !isNaN(r) && r > 0)
-      .map(r => r <= 5 ? r * 2 : r); // 5점 척도를 10점으로 변환
+      .filter(r => !isNaN(r) && r > 0);
     
     const avgSatisfaction = validRatings.length > 0 
       ? validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length 
@@ -690,7 +733,6 @@ const PersonalDashboard = () => {
               <SelectValue placeholder="회차 선택" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="latest">최신 회차</SelectItem>
               <SelectItem value="all">전체</SelectItem>
               {getUniqueRounds().map(round => (
                 <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
