@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 
@@ -652,17 +652,27 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     </div>
                   </div>
                   
-                  {/* Action buttons */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/survey-builder/${survey.id}`)}
-                      className="touch-friendly text-xs h-9 px-2"
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">편집</span>
-                    </Button>
+                   {/* Action buttons */}
+                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => navigate(`/survey-builder/${survey.id}`)}
+                       className="touch-friendly text-xs h-9 px-2"
+                     >
+                       <Edit className="h-3 w-3 mr-1" />
+                       <span className="hidden sm:inline">편집</span>
+                     </Button>
+                     
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => navigate(`/survey-preview/${survey.id}`)}
+                       className="touch-friendly text-xs h-9 px-2"
+                     >
+                       <Eye className="h-3 w-3 mr-1" />
+                       <span className="hidden sm:inline">미리보기</span>
+                     </Button>
                     
                     <Button
                       variant="outline"
