@@ -142,13 +142,24 @@ const SurveyPreview = () => {
         .order('order_index');
 
       if (questionsError) throw questionsError;
+      
+      console.log('Preview Questions Data:', questionsData);
+      console.log('Questions Length:', questionsData?.length || 0);
+      
       setQuestions(questionsData || []);
+      
+      // currentStep 초기화 (질문이 있을 때만)
+      if (questionsData && questionsData.length > 0) {
+        setCurrentStep(0);
+      }
 
       // 답변 초기화
       const initialAnswers = (questionsData || []).map(q => ({
         questionId: q.id,
         answer: q.question_type === 'multiple_choice_multiple' ? [] : ''
       }));
+      
+      console.log('Preview Initial Answers:', initialAnswers);
       setAnswers(initialAnswers);
 
     } catch (error) {
@@ -192,6 +203,7 @@ const SurveyPreview = () => {
   };
 
   const getTotalSteps = () => {
+    console.log('Preview getTotalSteps - questions.length:', questions.length);
     return questions.length; // 전체 질문 수
   };
 
@@ -377,6 +389,8 @@ const SurveyPreview = () => {
   }
 
   const totalSteps = getTotalSteps();
+  
+  console.log('Preview Render - currentStep:', currentStep, 'totalSteps:', totalSteps, 'questions:', questions);
   
   // 진행률 계산: 현재 문항 위치 기반
   const progress = totalSteps > 0 ? ((currentStep + 1) / totalSteps) * 100 : 0;
