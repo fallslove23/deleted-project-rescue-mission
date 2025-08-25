@@ -155,7 +155,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const fromAddress = "BS교육원 설문시스템 <onboarding@resend.dev>";
+    const DEFAULT_FROM = "BS교육원 설문시스템 <onboarding@resend.dev>";
+    const envFrom = Deno.env.get("RESEND_FROM_ADDRESS");
+    const fromAddress = envFrom && envFrom.includes("@")
+      ? `BS교육원 설문시스템 <${envFrom}>`
+      : DEFAULT_FROM;
 
     // Fetch survey responses and analysis
     const { data: responses } = await supabaseClient
@@ -329,13 +333,26 @@ const handler = async (req: Request): Promise<Response> => {
           `,
         });
 
-        console.log(`Email sent successfully to ${email}:`, emailResponse);
-        emailResults.push({
-          to: email,
-          name: recipientNames.get(email) || email.split('@')[0], // 이름이 없으면 이메일 앞부분 사용
-          status: 'sent',
-          messageId: emailResponse.data?.id
-        });
+        console.log(`Resend API response for ${email}:`, emailResponse);
+        if ((emailResponse as any)?.error) {
+          const err: any = (emailResponse as any).error;
+          console.error(`Resend reported an error for ${email}:`, err);
+          failedEmails.push(email);
+          emailResults.push({
+            to: email,
+            name: recipientNames.get(email) || email.split('@')[0],
+            status: 'failed',
+            error: err?.message || 'Unknown Resend error',
+            errorCode: err?.statusCode
+          });
+        } else {
+          emailResults.push({
+            to: email,
+            name: recipientNames.get(email) || email.split('@')[0], // 이름이 없으면 이메일 앞부분 사용
+            status: 'sent',
+            messageId: (emailResponse as any)?.data?.id
+          });
+        }
 
       } catch (emailError) {
         console.error(`Failed to send email to ${email}:`, emailError);
@@ -390,7 +407,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: logStatus === 'success',
         sent: successCount,
         failed: failureCount,
         total: finalRecipients.length,
