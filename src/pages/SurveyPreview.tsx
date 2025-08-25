@@ -41,6 +41,7 @@ interface Question {
   is_required: boolean;
   order_index: number;
   section_id?: string;
+  satisfaction_type?: string;
 }
 
 interface Section {
@@ -441,8 +442,9 @@ const SurveyPreview = () => {
           <Progress value={progress} className="h-2 mb-4" />
         </div>
 
-        {/* 강사 정보 (강의평가인 경우) */}
-        {isCourseEvaluation && instructor && (
+        {/* 강사 정보 (강사 만족도 질문일 때만 표시) */}
+        {isCourseEvaluation && instructor && currentQuestions.length > 0 && 
+         currentQuestions[0].satisfaction_type === 'instructor' && (
           <div className="mb-6">
             <InstructorInfoSection instructor={instructor} />
           </div>
