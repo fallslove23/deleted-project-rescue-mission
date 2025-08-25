@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.auto-send-survey-results]
 verify_jwt = false
+
+[functions.refresh-dashboard-cache]
+verify_jwt = false
