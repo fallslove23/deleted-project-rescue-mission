@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 
@@ -652,102 +653,96 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     </div>
                   </div>
                   
-                   {/* Action buttons */}
-                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                   {/* Action buttons - 개선된 UI */}
+                   <div className="flex items-center gap-2 flex-wrap">
+                     {/* 주요 액션 - 항상 표시 */}
                      <Button
                        variant="outline"
                        size="sm"
                        onClick={() => navigate(`/survey-builder/${survey.id}`)}
-                       className="touch-friendly text-xs h-9 px-2"
+                       className="touch-friendly text-xs h-9 px-3"
                      >
-                       <Edit className="h-3 w-3 mr-1" />
-                       <span className="hidden sm:inline">편집</span>
+                       <Edit className="h-4 w-4 mr-1" />
+                       편집
                      </Button>
                      
                      <Button
                        variant="outline"
                        size="sm"
                        onClick={() => navigate(`/survey-preview/${survey.id}`)}
-                       className="touch-friendly text-xs h-9 px-2"
+                       className="touch-friendly text-xs h-9 px-3"
                      >
-                       <Eye className="h-3 w-3 mr-1" />
-                       <span className="hidden sm:inline">미리보기</span>
+                       <Eye className="h-4 w-4 mr-1" />
+                       미리보기
                      </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => duplicateSurvey(survey)}
-                      className="touch-friendly text-xs h-9 px-2"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">복사</span>
-                    </Button>
-                    
-                    {survey.status === 'draft' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateSurveyStatus(survey.id, 'active')}
-                        className="touch-friendly text-xs h-9 px-2"
-                      >
-                        <Play className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">시작</span>
-                      </Button>
-                    )}
-                    
-                    {survey.status === 'active' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateSurveyStatus(survey.id, 'completed')}
-                        className="touch-friendly text-xs h-9 px-2"
-                      >
-                        <Square className="h-3 w-3 mr-1" />
-                        <span className="hidden sm:inline">종료</span>
-                      </Button>
-                    )}
-                    
+                     
                      <Button
                        variant="outline"
                        size="sm"
-                       onClick={() => navigate(`/dashboard/results`)}
-                       className="touch-friendly text-xs h-9 px-2"
+                       onClick={() => handleShare(survey)}
+                       className="touch-friendly text-xs h-9 px-3"
                      >
-                       <FileText className="h-3 w-3 mr-1" />
-                       <span className="hidden sm:inline">결과</span>
+                       <Share2 className="h-4 w-4 mr-1" />
+                       공유
                      </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleShare(survey)}
-                      className="touch-friendly text-xs h-9 px-2"
-                    >
-                      <Share2 className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">공유</span>
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => sendSurveyResults(survey.id)}
-                      className="touch-friendly text-xs h-9 px-2"
-                    >
-                      <Mail className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">전송</span>
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteSurvey(survey.id)}
-                      className="touch-friendly text-xs h-9 px-2 col-span-2 sm:col-span-1"
-                    >
-                      <Trash2 className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">삭제</span>
-                    </Button>
-                  </div>
+
+                     {/* 더보기 드롭다운 */}
+                     <DropdownMenu>
+                       <DropdownMenuTrigger asChild>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           className="touch-friendly text-xs h-9 px-3"
+                         >
+                           <MoreHorizontal className="h-4 w-4 mr-1" />
+                           더보기
+                         </Button>
+                       </DropdownMenuTrigger>
+                       <DropdownMenuContent align="end" className="w-48">
+                         <DropdownMenuItem onClick={() => duplicateSurvey(survey)}>
+                           <Copy className="h-4 w-4 mr-2" />
+                           복사하기
+                         </DropdownMenuItem>
+                         
+                         <DropdownMenuItem onClick={() => navigate(`/dashboard/results`)}>
+                           <FileText className="h-4 w-4 mr-2" />
+                           결과 보기
+                         </DropdownMenuItem>
+                         
+                         <DropdownMenuItem onClick={() => sendSurveyResults(survey.id)}>
+                           <Mail className="h-4 w-4 mr-2" />
+                           이메일 전송
+                         </DropdownMenuItem>
+                         
+                         <DropdownMenuSeparator />
+                         
+                         {survey.status === 'draft' && (
+                           <DropdownMenuItem onClick={() => updateSurveyStatus(survey.id, 'active')}>
+                             <Play className="h-4 w-4 mr-2" />
+                             설문 시작
+                           </DropdownMenuItem>
+                         )}
+                         
+                         {survey.status === 'active' && (
+                           <DropdownMenuItem onClick={() => updateSurveyStatus(survey.id, 'completed')}>
+                             <Square className="h-4 w-4 mr-2" />
+                             설문 종료
+                           </DropdownMenuItem>
+                         )}
+                       </DropdownMenuContent>
+                     </DropdownMenu>
+
+                     {/* 삭제 버튼 - 위험한 액션으로 분리 */}
+                     <Button
+                       variant="outline"
+                       size="sm"
+                       onClick={() => deleteSurvey(survey.id)}
+                       className="touch-friendly text-xs h-9 px-3 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                     >
+                       <Trash2 className="h-4 w-4 mr-1" />
+                       삭제
+                     </Button>
+                   </div>
                 </div>
               </CardHeader>
             </Card>
