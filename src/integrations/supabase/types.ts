@@ -827,6 +827,26 @@ export type Database = {
           survey_id: string
         }[]
       }
+      get_instructor_stats_optimized: {
+        Args: { education_year_param?: number; instructor_id_param?: string }
+        Returns: {
+          avg_satisfaction: number
+          education_round: number
+          education_year: number
+          instructor_id: string
+          survey_count: number
+          total_responses: number
+        }[]
+      }
+      get_survey_responses_by_date_range: {
+        Args: { end_date?: string; start_date?: string }
+        Returns: {
+          respondent_email: string
+          response_id: string
+          submitted_at: string
+          survey_id: string
+        }[]
+      }
       get_user_profile: {
         Args: { user_id: string }
         Returns: {
