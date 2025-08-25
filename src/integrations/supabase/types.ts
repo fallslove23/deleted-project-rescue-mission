@@ -299,6 +299,13 @@ export type Database = {
             foreignKeyName: "survey_analysis_comments_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_analysis_comments_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -353,6 +360,13 @@ export type Database = {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -378,6 +392,13 @@ export type Database = {
           survey_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
           {
             foreignKeyName: "survey_responses_survey_id_fkey"
             columns: ["survey_id"]
@@ -416,6 +437,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "survey_sections_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
           {
             foreignKeyName: "survey_sections_survey_id_fkey"
             columns: ["survey_id"]
@@ -661,7 +689,78 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mv_course_satisfaction: {
+        Row: {
+          avg_course_satisfaction: number | null
+          course_id: string | null
+          education_round: number | null
+          education_year: number | null
+          survey_count: number | null
+          total_responses: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mv_instructor_satisfaction: {
+        Row: {
+          avg_instructor_satisfaction: number | null
+          education_round: number | null
+          education_year: number | null
+          instructor_id: string | null
+          survey_count: number | null
+          total_responses: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mv_recent_activity: {
+        Row: {
+          activity_date: string | null
+          activity_type: string | null
+          description: string | null
+          record_id: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      mv_survey_stats: {
+        Row: {
+          education_round: number | null
+          education_year: number | null
+          end_date: string | null
+          expected_participants: number | null
+          instructor_id: string | null
+          response_count: number | null
+          response_rate: number | null
+          start_date: string | null
+          status: string | null
+          survey_id: string | null
+          title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_link_profile_to_instructor: {
@@ -769,6 +868,10 @@ export type Database = {
       is_user_admin: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      refresh_dashboard_materialized_views: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
