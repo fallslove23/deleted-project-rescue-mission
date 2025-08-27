@@ -209,16 +209,16 @@ const DashboardOverview = () => {
     >
       <div className="space-y-6">
         {/* 주요 통계 카드들 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
           <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">전체 설문조사</CardTitle>
-              <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80">
-                <FileText className="h-4 w-4 text-primary-foreground" />
+            <CardHeader className="flex flex-col items-center space-y-0 pb-2 p-4 md:p-6 text-center">
+              <div className="h-6 w-6 md:h-8 md:w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80 mb-2">
+                <FileText className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
               </div>
+              <CardTitle className="text-xs md:text-sm font-medium">전체 설문조사</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.totalSurveys}</div>
+            <CardContent className="text-center p-4 md:p-6 pt-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">{stats.totalSurveys}</div>
               <p className="text-xs text-muted-foreground">
                 {isAdmin ? '전체 시스템' : '담당 강의'}
               </p>
@@ -226,14 +226,14 @@ const DashboardOverview = () => {
           </Card>
 
           <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">진행중인 설문</CardTitle>
-              <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80">
-                <TrendingUp className="h-4 w-4 text-primary-foreground" />
+            <CardHeader className="flex flex-col items-center space-y-0 pb-2 p-4 md:p-6 text-center">
+              <div className="h-6 w-6 md:h-8 md:w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80 mb-2">
+                <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
               </div>
+              <CardTitle className="text-xs md:text-sm font-medium">진행중인 설문</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.activeSurveys}</div>
+            <CardContent className="text-center p-4 md:p-6 pt-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">{stats.activeSurveys}</div>
               <p className="text-xs text-muted-foreground">
                 현재 응답 가능
               </p>
@@ -241,14 +241,14 @@ const DashboardOverview = () => {
           </Card>
 
           <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">총 응답수</CardTitle>
-              <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80">
-                <BarChart className="h-4 w-4 text-primary-foreground" />
+            <CardHeader className="flex flex-col items-center space-y-0 pb-2 p-4 md:p-6 text-center">
+              <div className="h-6 w-6 md:h-8 md:w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80 mb-2">
+                <BarChart className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
               </div>
+              <CardTitle className="text-xs md:text-sm font-medium">총 응답수</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.totalResponses}</div>
+            <CardContent className="text-center p-4 md:p-6 pt-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">{stats.totalResponses}</div>
               <p className="text-xs text-muted-foreground">
                 누적 응답 수
               </p>
@@ -256,14 +256,14 @@ const DashboardOverview = () => {
           </Card>
 
           <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">최근 7일 응답</CardTitle>
-              <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80">
-                <Clock className="h-4 w-4 text-primary-foreground" />
+            <CardHeader className="flex flex-col items-center space-y-0 pb-2 p-4 md:p-6 text-center">
+              <div className="h-6 w-6 md:h-8 md:w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80 mb-2">
+                <Clock className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
               </div>
+              <CardTitle className="text-xs md:text-sm font-medium">최근 7일 응답</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stats.recentResponsesCount}</div>
+            <CardContent className="text-center p-4 md:p-6 pt-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">{stats.recentResponsesCount}</div>
               <p className="text-xs text-muted-foreground">
                 최근 활동
               </p>
@@ -273,16 +273,16 @@ const DashboardOverview = () => {
 
         {/* 관리자 전용 통계 */}
         {isAdmin && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
             <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">전체 강사수</CardTitle>
-                <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80">
-                  <Users className="h-4 w-4 text-primary-foreground" />
+              <CardHeader className="flex flex-col items-center space-y-0 pb-2 p-4 md:p-6 text-center">
+                <div className="h-6 w-6 md:h-8 md:w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80 mb-2">
+                  <Users className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                 </div>
+                <CardTitle className="text-xs md:text-sm font-medium">전체 강사수</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{stats.totalInstructors}</div>
+              <CardContent className="text-center p-4 md:p-6 pt-0">
+                <div className="text-xl md:text-2xl font-bold text-foreground">{stats.totalInstructors}</div>
                 <p className="text-xs text-muted-foreground">
                   등록된 강사
                 </p>
@@ -290,14 +290,14 @@ const DashboardOverview = () => {
             </Card>
 
             <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">전체 강좌수</CardTitle>
-                <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80">
-                  <BookOpen className="h-4 w-4 text-primary-foreground" />
+              <CardHeader className="flex flex-col items-center space-y-0 pb-2 p-4 md:p-6 text-center">
+                <div className="h-6 w-6 md:h-8 md:w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80 mb-2">
+                  <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                 </div>
+                <CardTitle className="text-xs md:text-sm font-medium">전체 강좌수</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{stats.totalCourses}</div>
+              <CardContent className="text-center p-4 md:p-6 pt-0">
+                <div className="text-xl md:text-2xl font-bold text-foreground">{stats.totalCourses}</div>
                 <p className="text-xs text-muted-foreground">
                   개설된 강좌
                 </p>
@@ -305,14 +305,14 @@ const DashboardOverview = () => {
             </Card>
 
             <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">완료된 설문</CardTitle>
-                <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80">
-                  <BarChart className="h-4 w-4 text-primary-foreground" />
+              <CardHeader className="flex flex-col items-center space-y-0 pb-2 p-4 md:p-6 text-center">
+                <div className="h-6 w-6 md:h-8 md:w-8 bg-gradient-primary rounded-lg flex items-center justify-center opacity-80 mb-2">
+                  <BarChart className="h-3 w-3 md:h-4 md:w-4 text-primary-foreground" />
                 </div>
+                <CardTitle className="text-xs md:text-sm font-medium">완료된 설문</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{stats.completedSurveys}</div>
+              <CardContent className="text-center p-4 md:p-6 pt-0">
+                <div className="text-xl md:text-2xl font-bold text-foreground">{stats.completedSurveys}</div>
                 <p className="text-xs text-muted-foreground">
                   설문 완료
                 </p>

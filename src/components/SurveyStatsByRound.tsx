@@ -308,7 +308,7 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
       </Card>
 
       {/* 회차별 상세 통계 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {(roundStats as any[]).map((stat: any, index) => (
           <Card key={index}>
             <CardHeader className="pb-2">
