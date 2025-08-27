@@ -589,65 +589,49 @@ const PersonalDashboard = () => {
   return (
     <div className="space-y-6">
       {/* 필터 및 통계 요약 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">총 설문</p>
-                <p className="text-2xl font-bold">{summaryStats.totalSurveys}</p>
-              </div>
+          <CardContent className="flex flex-col items-center text-center p-4 md:p-6 aspect-square">
+            <div className="p-2 bg-primary/10 rounded-lg mb-2">
+              <BarChart3 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+            </div>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1">총 설문</p>
+            <p className="text-xl md:text-2xl font-bold">{summaryStats.totalSurveys}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex flex-col items-center text-center p-4 md:p-6 aspect-square">
+            <div className="p-2 bg-blue-500/10 rounded-lg mb-2">
+              <Users className="h-5 w-5 md:h-6 md:w-6 text-blue-500" />
+            </div>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1">총 응답</p>
+            <p className="text-xl md:text-2xl font-bold">{summaryStats.totalResponses}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex flex-col items-center text-center p-4 md:p-6 aspect-square">
+            <div className="p-2 bg-green-500/10 rounded-lg mb-2">
+              <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-green-500" />
+            </div>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1">평균 만족도</p>
+            <div className="flex flex-col items-center space-y-1">
+              <p className="text-xl md:text-2xl font-bold">{summaryStats.avgSatisfaction}</p>
+              <Badge variant={summaryStats.avgSatisfaction >= 4 ? "default" : summaryStats.avgSatisfaction >= 3 ? "secondary" : "destructive"} className="text-xs">
+                {summaryStats.satisfactionPercentage}%
+              </Badge>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Users className="h-6 w-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">총 응답</p>
-                <p className="text-2xl font-bold">{summaryStats.totalResponses}</p>
-              </div>
+          <CardContent className="flex flex-col items-center text-center p-4 md:p-6 aspect-square">
+            <div className="p-2 bg-orange-500/10 rounded-lg mb-2">
+              <Award className="h-5 w-5 md:h-6 md:w-6 text-orange-500" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">평균 만족도</p>
-                <div className="flex items-center space-x-2">
-                  <p className="text-2xl font-bold">{summaryStats.avgSatisfaction}</p>
-                  <Badge variant={summaryStats.avgSatisfaction >= 4 ? "default" : summaryStats.avgSatisfaction >= 3 ? "secondary" : "destructive"}>
-                    {summaryStats.satisfactionPercentage}%
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <div className="flex items-center space-x-4">
-              <div className="p-2 bg-orange-500/10 rounded-lg">
-                <Award className="h-6 w-6 text-orange-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">활성 설문</p>
-                <p className="text-2xl font-bold">{summaryStats.activeSurveys}</p>
-              </div>
-            </div>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground mb-1">활성 설문</p>
+            <p className="text-xl md:text-2xl font-bold">{summaryStats.activeSurveys}</p>
           </CardContent>
         </Card>
       </div>
