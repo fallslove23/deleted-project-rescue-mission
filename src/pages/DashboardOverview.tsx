@@ -136,8 +136,11 @@ const DashboardOverview = () => {
         surveyCount({ status: 'completed' }),
         (responsesBase() ?? Promise.resolve({ count: 0 } as any)),
         isAdmin ? supabase
-          .from('instructors')
-          .select('id', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
+          .from('profiles')
+          .select('id', { count: 'exact' })
+          .eq('role', 'instructor')
+          .not('instructor_id', 'is', null)
+          : Promise.resolve({ count: 0 } as any),
         isAdmin ? supabase.from('courses').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
         (() => {
           const base = responsesBase();
