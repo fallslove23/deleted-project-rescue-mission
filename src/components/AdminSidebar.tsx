@@ -1,4 +1,4 @@
-import { Users, FileText, BarChart, BookOpen, Home, Star, Mail } from "lucide-react"
+import { Users, FileText, BarChart, BookOpen, Home, Star, Mail, ScrollText } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 
@@ -23,6 +23,7 @@ const allItems = [
   { title: "과목관리", url: "/dashboard/courses", icon: BookOpen, roles: ["admin", "operator"] },
   { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen, roles: ["admin", "operator"] },
   { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator", "director"] },
+  { title: "시스템 로그", url: "/dashboard/system-logs", icon: ScrollText, roles: ["admin", "operator"] },
 ]
 
 export function AdminSidebar() {
@@ -46,7 +47,8 @@ export function AdminSidebar() {
 const sections = [
   { label: "대시보드", keys: ["/dashboard"] },
   { label: "설문", keys: ["/dashboard/results", "/dashboard/my-stats"] },
-  { label: "관리", keys: ["/dashboard/surveys", "/dashboard/instructors", "/dashboard/courses", "/dashboard/templates", "/dashboard/email-logs"] },
+  { label: "관리", keys: ["/dashboard/surveys", "/dashboard/instructors", "/dashboard/courses", "/dashboard/templates"] },
+  { label: "기록", keys: ["/dashboard/email-logs", "/dashboard/system-logs"] },
 ]
 
 
