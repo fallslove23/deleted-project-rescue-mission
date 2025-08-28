@@ -17,6 +17,7 @@ import DashboardTemplateManagement from "./pages/DashboardTemplateManagement";
 import DashboardMyStats from "./pages/DashboardMyStats";
 import DashboardEmailLogs from "./pages/DashboardEmailLogs";
 import DashboardSystemLogs from "./pages/DashboardSystemLogs";
+import DashboardUserManagement from "./pages/DashboardUserManagement";
 import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
@@ -160,6 +161,11 @@ const App = () => (
             <Route path="/dashboard/system-logs" element={
               <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardSystemLogs />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/users" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <DashboardUserManagement />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
