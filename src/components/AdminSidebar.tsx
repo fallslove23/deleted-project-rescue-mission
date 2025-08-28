@@ -24,16 +24,16 @@ import {
 import { Button } from "@/components/ui/button"
 
 const allItems = [
-  { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator"] },
-  { title: "내 피드백", url: "/dashboard/my-stats", icon: Star, roles: ["instructor", "admin", "operator", "director"] },
+  { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator", "director"] },
+  { title: "피드백", url: "/dashboard/my-stats", icon: Star, roles: ["instructor", "admin", "operator", "director"] },
   { title: "결과분석", url: "/dashboard/results", icon: BarChart, roles: ["admin", "operator", "instructor", "director"] },
   { title: "설문관리", url: "/dashboard/surveys", icon: FileText, roles: ["admin", "operator"] },
   { title: "강사관리", url: "/dashboard/instructors", icon: Users, roles: ["admin", "operator"] },
   { title: "사용자관리", url: "/dashboard/users", icon: Users, roles: ["admin"] },
   { title: "과목관리", url: "/dashboard/courses", icon: BookOpen, roles: ["admin", "operator"] },
   { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen, roles: ["admin", "operator"] },
-  { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator", "director"] },
-  { title: "시스템 로그", url: "/dashboard/system-logs", icon: ScrollText, roles: ["admin", "operator"] },
+  { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator"] },
+  { title: "시스템 로그", url: "/dashboard/system-logs", icon: ScrollText, roles: ["admin"] },
 ]
 
 export function AdminSidebar() {
