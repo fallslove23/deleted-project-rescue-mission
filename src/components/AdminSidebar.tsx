@@ -1,6 +1,7 @@
-import { Users, FileText, BarChart, BookOpen, Home, Star, Mail, ScrollText } from "lucide-react"
+import { Users, FileText, BarChart, BookOpen, Home, Star, Mail, ScrollText, UserCheck } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
+import { useState } from "react"
 
 import {
   Sidebar,
@@ -11,8 +12,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
 
 const allItems = [
   { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator"] },
@@ -32,10 +41,12 @@ export function AdminSidebar() {
   const { userRoles } = useAuth()
   const location = useLocation()
   const currentPath = location.pathname
+  const [viewAsRole, setViewAsRole] = useState<string | null>(null)
 
-  // 사용자 역할에 따라 필터링된 메뉴 항목
+  // 사용자 역할에 따라 필터링된 메뉴 항목 (권한별 뷰가 활성화된 경우 해당 권한으로 필터링)
+  const effectiveRoles = viewAsRole ? [viewAsRole] : userRoles
   const items = allItems.filter((item) =>
-    item.roles.some((role) => userRoles.includes(role))
+    item.roles.some((role) => effectiveRoles.includes(role))
   )
 
   const isActive = (path: string) => {
@@ -96,6 +107,55 @@ const sections = [
           </SidebarGroup>
         ))}
       </SidebarContent>
+      
+      {userRoles.includes('admin') && (
+        <SidebarFooter className="p-2 border-t border-border/50">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  {state === "expanded" && (
+                    <span className="text-xs">
+                      {viewAsRole ? `${viewAsRole} 권한으로 보기` : "관리자 뷰"}
+                    </span>
+                  )}
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem 
+                onClick={() => setViewAsRole(null)}
+                className={!viewAsRole ? "bg-accent" : ""}
+              >
+                관리자 (기본)
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setViewAsRole('operator')}
+                className={viewAsRole === 'operator' ? "bg-accent" : ""}
+              >
+                운영자 권한으로 보기
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setViewAsRole('instructor')}
+                className={viewAsRole === 'instructor' ? "bg-accent" : ""}
+              >
+                강사 권한으로 보기
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setViewAsRole('director')}
+                className={viewAsRole === 'director' ? "bg-accent" : ""}
+              >
+                책임자 권한으로 보기
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarFooter>
+      )}
     </Sidebar>
   )
 }
