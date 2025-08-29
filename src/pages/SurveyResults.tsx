@@ -1179,15 +1179,24 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                              <Eye className="h-3 w-3 mr-1" />
                              상세 분석
                            </Button>
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => setSelectedSurvey(survey.id)}
-                             className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
-                           >
-                             <BarChart className="h-3 w-3 mr-1" />
-                             개별 통계
-                           </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSurvey(survey.id);
+                                // Use setTimeout to ensure the selectedSurvey state is updated
+                                setTimeout(() => {
+                                  const individualTab = document.querySelector('[value="individual"]');
+                                  if (individualTab) {
+                                    (individualTab as HTMLElement).click();
+                                  }
+                                }, 100);
+                              }}
+                              className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
+                            >
+                              <BarChart className="h-3 w-3 mr-1" />
+                              개별 통계
+                            </Button>
                            <Button
                              variant="outline"
                              size="sm"

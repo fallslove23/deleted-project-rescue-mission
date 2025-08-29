@@ -307,7 +307,11 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
   const handleShare = async (survey: Survey) => {
     setSelectedSurveyForShare(survey);
-    const shareUrl = `${window.location.origin}/survey/${survey.id}`;
+    // Generate the complete survey participation URL
+    const baseUrl = window.location.origin;
+    const shareUrl = `${baseUrl}/survey/${survey.id}`;
+    
+    console.log('Generated QR code URL:', shareUrl); // Debug log
     
     try {
       const qrCodeUrl = await QRCode.toDataURL(shareUrl, {
@@ -317,6 +321,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
           dark: '#000000',
           light: '#FFFFFF',
         },
+        errorCorrectionLevel: 'M'
       });
       setQrCodeDataUrl(qrCodeUrl);
       setShareDialogOpen(true);
