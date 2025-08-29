@@ -150,6 +150,7 @@ const SurveyBuilder = () => {
     description: '',
     education_year: new Date().getFullYear(),
     education_round: 1,
+    course_name: '',
     start_date: '',
     end_date: '',
     status: 'draft'
@@ -192,6 +193,7 @@ const SurveyBuilder = () => {
         description: surveyData.description || '',
         education_year: surveyData.education_year || new Date().getFullYear(),
         education_round: surveyData.education_round || 1,
+        course_name: surveyData.course_name || '',
         start_date: surveyData.start_date ? (() => { const d = new Date(surveyData.start_date); const off = d.getTimezoneOffset(); const local = new Date(d.getTime() - off * 60000); return local.toISOString().slice(0,16); })() : '',
         end_date: surveyData.end_date ? (() => { const d = new Date(surveyData.end_date); const off = d.getTimezoneOffset(); const local = new Date(d.getTime() - off * 60000); return local.toISOString().slice(0,16); })() : '',
         status: surveyData.status || 'draft'
@@ -511,6 +513,7 @@ const SurveyBuilder = () => {
           description: surveyForm.description,
           education_year: surveyForm.education_year,
           education_round: surveyForm.education_round,
+          course_name: surveyForm.course_name,
           start_date: surveyForm.start_date ? new Date(surveyForm.start_date).toISOString() : null,
           end_date: surveyForm.end_date ? new Date(surveyForm.end_date).toISOString() : null,
           status: surveyForm.status
@@ -1104,6 +1107,16 @@ const SurveyBuilder = () => {
                             max="10"
                           />
                         </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="course_name">과정명</Label>
+                        <Input
+                          id="course_name"
+                          value={surveyForm.course_name}
+                          onChange={(e) => setSurveyForm(prev => ({ ...prev, course_name: e.target.value }))}
+                          placeholder="예: BS SW 업무 과정"
+                        />
                       </div>
 
                       <div>
