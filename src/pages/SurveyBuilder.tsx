@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Trash2, Edit, GripVertical, FileText, FolderPlus, ArrowUp, ArrowDown } from 'lucide-react';
@@ -276,10 +276,20 @@ const SurveyBuilder = () => {
         .select('*')
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('템플릿 조회 오류:', error);
+        throw error;
+      }
+      
+      console.log('Templates loaded:', data?.length || 0);
       setTemplates(data || []);
     } catch (error) {
       console.error('Error fetching templates:', error);
+      toast({
+        title: "오류",
+        description: "템플릿 목록을 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -598,9 +608,19 @@ const SurveyBuilder = () => {
   };
 
   const handleLoadTemplate = async (templateId: string) => {
+    if (!templateId) {
+      toast({
+        title: "오류",
+        description: "템플릿 ID가 유효하지 않습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (!window.confirm('템플릿을 불러오면 기존 질문들이 삭제됩니다. 계속하시겠습니까?')) return;
 
     try {
+      console.log('Loading template:', templateId);
       // 기존 질문 삭제
       await supabase
         .from('survey_questions')
@@ -681,11 +701,17 @@ const SurveyBuilder = () => {
 
       setIsTemplateDialogOpen(false);
       fetchSurveyData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading template:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code
+      });
       toast({
         title: "오류",
-        description: "템플릿 불러오기 중 오류가 발생했습니다.",
+        description: `템플릿 불러오기 중 오류가 발생했습니다: ${error?.message || '알 수 없는 오류'}`,
         variant: "destructive"
       });
     }
@@ -1061,6 +1087,9 @@ const SurveyBuilder = () => {
                   <DialogContent className="max-w-md">
                     <DialogHeader>
                       <DialogTitle>설문조사 정보 수정</DialogTitle>
+                      <DialogDescription>
+                        설문조사의 기본 정보를 수정할 수 있습니다.
+                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleUpdateSurveyInfo} className="space-y-4">
                       <div>
@@ -1193,6 +1222,9 @@ const SurveyBuilder = () => {
                     <DialogContent className="max-w-md">
                       <DialogHeader>
                         <DialogTitle>강사 변경</DialogTitle>
+                        <DialogDescription>
+                          설문조사를 담당할 강사를 변경할 수 있습니다.
+                        </DialogDescription>
                       </DialogHeader>
                       <form onSubmit={handleUpdateInstructor} className="space-y-4">
                         <div>
@@ -1274,6 +1306,9 @@ const SurveyBuilder = () => {
                     <DialogContent className="max-w-md">
                       <DialogHeader>
                         <DialogTitle>과목 변경</DialogTitle>
+                        <DialogDescription>
+                          설문조사에 연결된 과목을 변경할 수 있습니다.
+                        </DialogDescription>
                       </DialogHeader>
                       <form onSubmit={handleUpdateCourse} className="space-y-4">
                         <div>
@@ -1384,25 +1419,34 @@ const SurveyBuilder = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>템플릿 선택</DialogTitle>
+                      <DialogDescription>
+                        설문조사에 적용할 템플릿을 선택하세요. 기존 질문들은 삭제되고 선택한 템플릿의 질문들로 대체됩니다.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-2">
-                      {templates.map((template) => (
-                        <Card key={template.id} className="cursor-pointer hover:shadow-md" onClick={() => handleLoadTemplate(template.id)}>
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h3 className="font-medium">{template.name}</h3>
-                                {template.description && (
-                                  <p className="text-sm text-muted-foreground">{template.description}</p>
+                      {templates.length === 0 ? (
+                        <div className="text-center py-4 text-muted-foreground">
+                          사용 가능한 템플릿이 없습니다.
+                        </div>
+                      ) : (
+                        templates.map((template) => (
+                          <Card key={template.id} className="cursor-pointer hover:shadow-md" onClick={() => handleLoadTemplate(template.id)}>
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <h3 className="font-medium">{template.name}</h3>
+                                  {template.description && (
+                                    <p className="text-sm text-muted-foreground">{template.description}</p>
+                                  )}
+                                </div>
+                                {template.is_course_evaluation && (
+                                  <Badge>강의평가</Badge>
                                 )}
                               </div>
-                              {template.is_course_evaluation && (
-                                <Badge>강의평가</Badge>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                            </CardContent>
+                          </Card>
+                        ))
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -1417,6 +1461,9 @@ const SurveyBuilder = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>새 섹션 추가</DialogTitle>
+                      <DialogDescription>
+                        설문조사에 새로운 섹션을 추가합니다.
+                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleAddSection} className="space-y-4">
                       <div>
@@ -1453,6 +1500,9 @@ const SurveyBuilder = () => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>섹션 수정</DialogTitle>
+                      <DialogDescription>
+                        선택한 섹션의 정보를 수정하거나 삭제할 수 있습니다.
+                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleUpdateSection} className="space-y-4">
                       <div>
@@ -1509,6 +1559,9 @@ const SurveyBuilder = () => {
                       <DialogTitle>
                         {editingQuestion ? '질문 수정' : '새 질문 추가'}
                       </DialogTitle>
+                      <DialogDescription>
+                        {editingQuestion ? '선택한 질문의 내용을 수정할 수 있습니다.' : '설문조사에 새로운 질문을 추가합니다.'}
+                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleAddQuestion} className="space-y-4">
                       <div>
