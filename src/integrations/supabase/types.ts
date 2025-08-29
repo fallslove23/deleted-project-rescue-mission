@@ -53,6 +53,62 @@ export type Database = {
         }
         Relationships: []
       }
+      course_reports: {
+        Row: {
+          avg_course_satisfaction: number | null
+          avg_instructor_satisfaction: number | null
+          course_id: string | null
+          course_title: string
+          created_at: string
+          created_by: string | null
+          education_round: number
+          education_year: number
+          id: string
+          report_data: Json | null
+          total_responses: number | null
+          total_surveys: number | null
+          updated_at: string
+        }
+        Insert: {
+          avg_course_satisfaction?: number | null
+          avg_instructor_satisfaction?: number | null
+          course_id?: string | null
+          course_title: string
+          created_at?: string
+          created_by?: string | null
+          education_round: number
+          education_year: number
+          id?: string
+          report_data?: Json | null
+          total_responses?: number | null
+          total_surveys?: number | null
+          updated_at?: string
+        }
+        Update: {
+          avg_course_satisfaction?: number | null
+          avg_instructor_satisfaction?: number | null
+          course_id?: string | null
+          course_title?: string
+          created_at?: string
+          created_by?: string | null
+          education_round?: number
+          education_year?: number
+          id?: string
+          report_data?: Json | null
+          total_responses?: number | null
+          total_surveys?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_reports_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courses: {
         Row: {
           created_at: string

@@ -1,4 +1,4 @@
-import { Users, FileText, BarChart, BookOpen, Home, Star, Mail, ScrollText, UserCheck } from "lucide-react"
+import { Users, FileText, BarChart, BookOpen, Home, Star, Mail, ScrollText, UserCheck, TrendingUp } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 import { useState } from "react"
@@ -27,6 +27,7 @@ const allItems = [
   { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator", "director"] },
   { title: "피드백", url: "/dashboard/my-stats", icon: Star, roles: ["instructor", "admin", "operator", "director"] },
   { title: "결과분석", url: "/dashboard/results", icon: BarChart, roles: ["admin", "operator", "instructor", "director"] },
+  { title: "결과보고", url: "/dashboard/course-reports", icon: TrendingUp, roles: ["admin", "operator", "director"] },
   { title: "설문관리", url: "/dashboard/surveys", icon: FileText, roles: ["admin", "operator"] },
   { title: "강사관리", url: "/dashboard/instructors", icon: Users, roles: ["admin", "operator"] },
   { title: "사용자관리", url: "/dashboard/users", icon: Users, roles: ["admin"] },
@@ -58,7 +59,7 @@ export function AdminSidebar() {
 
 const sections = [
   { label: "대시보드", keys: ["/dashboard"] },
-  { label: "설문", keys: ["/dashboard/results", "/dashboard/my-stats"] },
+  { label: "설문", keys: ["/dashboard/results", "/dashboard/course-reports", "/dashboard/my-stats"] },
   { label: "관리", keys: ["/dashboard/surveys", "/dashboard/instructors", "/dashboard/users", "/dashboard/courses", "/dashboard/templates"] },
   { label: "기록", keys: ["/dashboard/email-logs", "/dashboard/system-logs"] },
 ]

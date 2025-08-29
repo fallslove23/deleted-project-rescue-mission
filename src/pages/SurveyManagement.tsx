@@ -134,9 +134,11 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         created_by: user?.id,
       };
 
-      const { error } = await supabase
+      const { data: newSurvey, error } = await supabase
         .from('surveys')
-        .insert([payload]);
+        .insert([payload])
+        .select()
+        .single();
 
       if (error) throw error;
 

@@ -12,6 +12,7 @@ import ChangePassword from "./pages/ChangePassword";
 import DashboardOverview from "./pages/DashboardOverview";
 import DashboardSurveyManagement from "./pages/DashboardSurveyManagement";
 import DashboardSurveyResults from "./pages/DashboardSurveyResults";
+import DashboardCourseReports from "./pages/DashboardCourseReports";
 import DashboardInstructorManagement from "./pages/DashboardInstructorManagement";
 import DashboardTemplateManagement from "./pages/DashboardTemplateManagement";
 import DashboardMyStats from "./pages/DashboardMyStats";
@@ -166,6 +167,11 @@ const App = () => (
             <Route path="/dashboard/users" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <DashboardUserManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/course-reports" element={
+              <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
+                <DashboardCourseReports />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
