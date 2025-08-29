@@ -72,6 +72,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     end_date: '',
     education_year: new Date().getFullYear(),
     education_round: 1,
+    course_name: '', // 과정명 추가
     instructor_id: '',
     course_id: '',
     expected_participants: 0
@@ -155,6 +156,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         end_date: '',
         education_year: new Date().getFullYear(),
         education_round: 1,
+        course_name: '',
         instructor_id: '',
         course_id: '',
         expected_participants: 0
@@ -531,6 +533,32 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     className="touch-friendly"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="course_name">과정명</Label>
+                  <Input
+                    id="course_name"
+                    value={formData.course_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, course_name: e.target.value }))}
+                    placeholder="예: BS SW 업무 과정"
+                    required
+                    className="touch-friendly"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="expected_participants">예상 설문 인원 수</Label>
+                  <Input
+                    id="expected_participants"
+                    type="number"
+                    min="1"
+                    value={formData.expected_participants}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expected_participants: parseInt(e.target.value) || 0 }))}
+                    placeholder="예상 참여자 수"
+                    className="touch-friendly"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div>
                    <Label htmlFor="start_date">시작일시</Label>
                    <Input
@@ -598,18 +626,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 />
               </div>
 
-              <div>
-                <Label htmlFor="expected_participants">예상 설문 인원 수</Label>
-                <Input
-                  id="expected_participants"
-                  type="number"
-                  min="1"
-                  value={formData.expected_participants}
-                  onChange={(e) => setFormData(prev => ({ ...prev, expected_participants: parseInt(e.target.value) || 0 }))}
-                  placeholder="예상되는 설문 참여자 수를 입력하세요"
-                  className="touch-friendly"
-                />
-              </div>
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>

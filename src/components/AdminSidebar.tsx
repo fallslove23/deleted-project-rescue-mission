@@ -58,8 +58,8 @@ export function AdminSidebar() {
   }
 
 const sections = [
-  { label: "대시보드", keys: ["/dashboard"] },
-  { label: "설문", keys: ["/dashboard/results", "/dashboard/course-reports", "/dashboard/my-stats"] },
+  { label: "대시보드", keys: ["/dashboard", "/dashboard/course-reports"] },
+  { label: "설문", keys: ["/dashboard/results", "/dashboard/my-stats"] },
   { label: "관리", keys: ["/dashboard/surveys", "/dashboard/instructors", "/dashboard/users", "/dashboard/courses", "/dashboard/templates"] },
   { label: "기록", keys: ["/dashboard/email-logs", "/dashboard/system-logs"] },
 ]

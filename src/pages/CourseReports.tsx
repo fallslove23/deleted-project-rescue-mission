@@ -3,11 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import { GaugeChart } from '@/components/charts/GaugeChart';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { DonutChart } from '@/components/charts/DonutChart';
-import { ChevronRight, TrendingUp, Users, Star, BookOpen } from 'lucide-react';
+import { HeatmapChart } from '@/components/charts/HeatmapChart';
+import { RadarChart } from '@/components/charts/RadarChart';
+import { ChevronRight, TrendingUp, Users, Star, BookOpen, Target, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface CourseReport {
