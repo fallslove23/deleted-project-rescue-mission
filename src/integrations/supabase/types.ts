@@ -539,6 +539,7 @@ export type Database = {
       surveys: {
         Row: {
           course_id: string | null
+          course_name: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -556,6 +557,7 @@ export type Database = {
         }
         Insert: {
           course_id?: string | null
+          course_name?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -573,6 +575,7 @@ export type Database = {
         }
         Update: {
           course_id?: string | null
+          course_name?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null

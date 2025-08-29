@@ -37,26 +37,80 @@ interface InstructorStats {
 const CourseReports = () => {
   const [reports, setReports] = useState<CourseReport[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<{year: number, round: number, course_name: string, key: string}[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchReports();
+    fetchAvailableCourses();
   }, [selectedYear]);
 
-  const fetchReports = async () => {
+  useEffect(() => {
+    if (selectedCourse) {
+      fetchReports();
+    }
+  }, [selectedCourse]);
+
+  const fetchAvailableCourses = async () => {
     setLoading(true);
     try {
-      // 과정별 요약 데이터 조회
+      const { data: surveys, error } = await supabase
+        .from('surveys')
+        .select('education_year, education_round, course_name')
+        .eq('education_year', selectedYear)
+        .eq('status', 'completed')
+        .not('course_name', 'is', null);
+
+      if (error) throw error;
+
+      // 중복 제거 및 과정별 그룹화
+      const uniqueCourses = Array.from(
+        new Map(
+          surveys?.map(s => [`${s.education_year}-${s.education_round}-${s.course_name}`, s])
+        ).values()
+      ).map(s => ({
+        year: s.education_year,
+        round: s.education_round,
+        course_name: s.course_name,
+        key: `${s.education_year}-${s.education_round}-${s.course_name}`
+      }));
+
+      setAvailableCourses(uniqueCourses);
+      
+      // 첫 번째 과정을 자동 선택
+      if (uniqueCourses.length > 0 && !selectedCourse) {
+        setSelectedCourse(uniqueCourses[0].key);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      toast({
+        title: "오류",
+        description: "과정 목록을 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchReports = async () => {
+    if (!selectedCourse) return;
+    
+    const [year, round, courseName] = selectedCourse.split('-');
+    
+    setLoading(true);
+    try {
+      // 선택된 과정의 모든 설문조사 데이터 조회
       const { data: surveys, error: surveysError } = await supabase
         .from('surveys')
         .select(`
           id,
           education_year,
           education_round,
+          course_name,
           title,
           course_id,
           instructor_id,
@@ -71,40 +125,26 @@ const CourseReports = () => {
             )
           )
         `)
-        .eq('education_year', selectedYear)
+        .eq('education_year', parseInt(year))
+        .eq('education_round', parseInt(round))
+        .eq('course_name', courseName)
         .eq('status', 'completed');
 
       if (surveysError) throw surveysError;
 
       // 데이터 집계
-      const reportsMap = new Map();
       const instructorStatsMap = new Map();
+      let totalSurveys = 0;
+      let totalResponses = 0;
+      let allInstructorSatisfactions: number[] = [];
+      let allCourseSatisfactions: number[] = [];
+      let allOperationSatisfactions: number[] = [];
 
       surveys?.forEach(survey => {
-        const key = `${survey.education_year}-${survey.education_round}`;
-        
-        if (!reportsMap.has(key)) {
-          reportsMap.set(key, {
-            id: key,
-            education_year: survey.education_year,
-            education_round: survey.education_round,
-            course_title: survey.courses?.title || survey.title,
-            total_surveys: 0,
-            total_responses: 0,
-            instructor_satisfactions: [],
-            course_satisfactions: [],
-            instructors: new Set()
-          });
-        }
-
-        const report = reportsMap.get(key);
-        report.total_surveys += 1;
-        report.total_responses += survey.survey_responses?.length || 0;
+        totalSurveys += 1;
+        totalResponses += survey.survey_responses?.length || 0;
 
         if (survey.instructor_id) {
-          report.instructors.add(survey.instructor_id);
-          
-          // 강사별 통계 수집
           if (!instructorStatsMap.has(survey.instructor_id)) {
             instructorStatsMap.set(survey.instructor_id, {
               instructor_id: survey.instructor_id,
@@ -128,38 +168,56 @@ const CourseReports = () => {
                            Number(answer.answer_value);
               
               if (answer.survey_questions.satisfaction_type === 'instructor') {
-                report.instructor_satisfactions.push(score);
+                allInstructorSatisfactions.push(score);
                 if (survey.instructor_id) {
                   instructorStatsMap.get(survey.instructor_id).satisfactions.push(score);
                 }
               } else if (answer.survey_questions.satisfaction_type === 'course') {
-                report.course_satisfactions.push(score);
+                allCourseSatisfactions.push(score);
+              } else if (answer.survey_questions.satisfaction_type === 'operation') {
+                allOperationSatisfactions.push(score);
               }
             }
           });
         });
       });
 
-      // 평균 계산 및 최종 데이터 변환
-      const finalReports = Array.from(reportsMap.values()).map(report => ({
-        ...report,
-        avg_instructor_satisfaction: report.instructor_satisfactions.length > 0 
-          ? report.instructor_satisfactions.reduce((a, b) => a + b, 0) / report.instructor_satisfactions.length
-          : 0,
-        avg_course_satisfaction: report.course_satisfactions.length > 0
-          ? report.course_satisfactions.reduce((a, b) => a + b, 0) / report.course_satisfactions.length
-          : 0,
-        instructor_count: report.instructors.size
-      }));
-
       const finalInstructorStats = Array.from(instructorStatsMap.values()).map(stat => ({
         ...stat,
         avg_satisfaction: stat.satisfactions.length > 0
-          ? stat.satisfactions.reduce((a, b) => a + b, 0) / stat.satisfactions.length
+          ? stat.satisfactions.reduce((a: number, b: number) => a + b, 0) / stat.satisfactions.length
           : 0
       }));
 
-      setReports(finalReports);
+      // 종합 통계 생성
+      const courseReport: CourseReport = {
+        id: selectedCourse,
+        education_year: parseInt(year),
+        education_round: parseInt(round),
+        course_title: courseName,
+        total_surveys: totalSurveys,
+        total_responses: totalResponses,
+        avg_instructor_satisfaction: allInstructorSatisfactions.length > 0 
+          ? allInstructorSatisfactions.reduce((a, b) => a + b, 0) / allInstructorSatisfactions.length 
+          : 0,
+        avg_course_satisfaction: allCourseSatisfactions.length > 0
+          ? allCourseSatisfactions.reduce((a, b) => a + b, 0) / allCourseSatisfactions.length
+          : 0,
+        report_data: {
+          operation_satisfaction: allOperationSatisfactions.length > 0
+            ? allOperationSatisfactions.reduce((a, b) => a + b, 0) / allOperationSatisfactions.length
+            : 0,
+          instructor_count: finalInstructorStats.length,
+          satisfaction_distribution: {
+            instructor: allInstructorSatisfactions,
+            course: allCourseSatisfactions,
+            operation: allOperationSatisfactions
+          }
+        },
+        created_at: new Date().toISOString()
+      };
+
+      setReports([courseReport]);
       setInstructorStats(finalInstructorStats);
     } catch (error) {
       console.error('Error fetching reports:', error);
@@ -178,170 +236,266 @@ const CourseReports = () => {
   };
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
-  const rounds = [...new Set(reports.map(r => r.education_round))].sort((a, b) => a - b);
+  
+  const currentReport = reports[0];
 
-  const filteredReports = selectedRound 
-    ? reports.filter(r => r.education_round === selectedRound)
-    : reports;
+  // 차트 데이터 준비
+  const satisfactionChartData = currentReport ? [
+    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, color: '#8884d8' },
+    { name: '과목 만족도', value: currentReport.avg_course_satisfaction, color: '#82ca9d' },
+    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, color: '#ffc658' }
+  ] : [];
 
-  const totalSurveys = filteredReports.reduce((sum, r) => sum + r.total_surveys, 0);
-  const totalResponses = filteredReports.reduce((sum, r) => sum + r.total_responses, 0);
-  const avgInstructorSatisfaction = filteredReports.length > 0
-    ? filteredReports.reduce((sum, r) => sum + r.avg_instructor_satisfaction, 0) / filteredReports.length
-    : 0;
-  const avgCourseSatisfaction = filteredReports.length > 0
-    ? filteredReports.reduce((sum, r) => sum + r.avg_course_satisfaction, 0) / filteredReports.length
-    : 0;
+  const instructorComparisonData = instructorStats.map((stat, index) => ({
+    name: stat.instructor_name,
+    satisfaction: stat.avg_satisfaction,
+    responseCount: stat.response_count
+  }));
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">과정별 결과 보고</h1>
+        <h1 className="text-3xl font-bold">과정 운영 결과 보고</h1>
         <p className="text-muted-foreground mt-2">
-          교육 과정별 만족도 조사 결과를 확인하고 분석할 수 있습니다.
+          과정별 종합적인 만족도 조사 결과와 강사별 통계를 확인할 수 있습니다.
         </p>
       </div>
 
       {/* 필터 */}
       <Card>
         <CardHeader>
-          <CardTitle>필터</CardTitle>
+          <CardTitle>과정 선택</CardTitle>
         </CardHeader>
         <CardContent className="flex gap-4">
           <div>
             <label className="text-sm font-medium">교육 연도</label>
-            <select 
-              value={selectedYear} 
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="ml-2 p-2 border rounded"
-            >
-              {years.map(year => (
-                <option key={year} value={year}>{year}년</option>
-              ))}
-            </select>
+            <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map(year => (
+                  <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div>
-            <label className="text-sm font-medium">차수</label>
-            <select 
-              value={selectedRound || ''} 
-              onChange={(e) => setSelectedRound(e.target.value ? Number(e.target.value) : null)}
-              className="ml-2 p-2 border rounded"
-            >
-              <option value="">전체</option>
-              {rounds.map(round => (
-                <option key={round} value={round}>{round}차</option>
-              ))}
-            </select>
+          <div className="flex-1">
+            <label className="text-sm font-medium">과정</label>
+            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <SelectTrigger>
+                <SelectValue placeholder="분석할 과정을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCourses.map(course => (
+                  <SelectItem key={course.key} value={course.key}>
+                    {course.year}년 {course.round}차 - {course.course_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* 전체 통계 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 설문 수</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalSurveys}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 응답 수</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalResponses}</div>
-          </CardContent>
-        </Card>
+      {currentReport && (
+        <>
+          {/* 전체 통계 요약 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">총 설문 수</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currentReport.total_surveys}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">총 응답 수</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currentReport.total_responses}</div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">강사 평균 만족도</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{avgInstructorSatisfaction.toFixed(1)}</div>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">참여 강사 수</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currentReport.report_data?.instructor_count || 0}</div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">과정 평균 만족도</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{avgCourseSatisfaction.toFixed(1)}</div>
-          </CardContent>
-        </Card>
-      </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">전체 평균 만족도</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {((currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* 차수별 결과 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>차수별 결과</CardTitle>
-          <CardDescription>
-            각 차수별 설문조사 결과를 확인할 수 있습니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {filteredReports.map((report) => (
-              <div key={report.id} className="border rounded-lg p-4 hover:bg-muted/50">
-                <div className="flex justify-between items-start">
+          {/* 만족도 차트 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>영역별 만족도</CardTitle>
+                <CardDescription>강사, 과목, 운영 만족도 비교</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DonutChart data={satisfactionChartData} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>만족도 점수 분포</CardTitle>
+                <CardDescription>각 영역별 세부 점수</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {satisfactionChartData.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold">{item.value.toFixed(1)}</span>
+                        <span className="text-sm text-muted-foreground">/ 5.0</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 강사별 통계 */}
+          {instructorStats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>강사별 만족도 통계</CardTitle>
+                <CardDescription>
+                  각 강사별 평균 만족도와 응답 수를 확인할 수 있습니다. 클릭하면 상세 정보를 볼 수 있습니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 mb-6">
+                  {instructorStats.map((stat) => (
+                    <div 
+                      key={stat.instructor_id}
+                      className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => handleInstructorClick(stat.instructor_id)}
+                    >
+                      <div>
+                        <h4 className="font-medium">{stat.instructor_name}</h4>
+                        <div className="text-sm text-muted-foreground">
+                          설문 {stat.survey_count}개 · 응답 {stat.response_count}개
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-xl font-bold">{stat.avg_satisfaction.toFixed(1)}</div>
+                          <div className="text-xs text-muted-foreground">평균 만족도</div>
+                        </div>
+                        <ChevronRight className="h-4 w-4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {instructorStats.length > 1 && (
                   <div>
-                    <h3 className="font-semibold text-lg">
-                      {report.education_year}년 {report.education_round}차 - {report.course_title}
-                    </h3>
-                    <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                      <span>설문 수: {report.total_surveys}</span>
-                      <span>응답 수: {report.total_responses}</span>
-                      <span>강사 만족도: {report.avg_instructor_satisfaction.toFixed(1)}</span>
-                      <span>과정 만족도: {report.avg_course_satisfaction.toFixed(1)}</span>
+                    <h4 className="font-medium mb-4">강사별 만족도 비교</h4>
+                    <AreaChart 
+                      data={instructorComparisonData}
+                      dataKeys={[
+                        { key: 'satisfaction', label: '만족도', color: 'hsl(var(--primary))' }
+                      ]}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 과정 요약 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>과정 요약</CardTitle>
+              <CardDescription>
+                {currentReport.education_year}년 {currentReport.education_round}차 {currentReport.course_title} 결과 요약
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-2">주요 지표</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>총 설문조사:</span>
+                      <span className="font-medium">{currentReport.total_surveys}개</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>총 응답자:</span>
+                      <span className="font-medium">{currentReport.total_responses}명</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>참여 강사:</span>
+                      <span className="font-medium">{currentReport.report_data?.instructor_count || 0}명</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>평균 응답률:</span>
+                      <span className="font-medium">
+                        {currentReport.total_surveys > 0 
+                          ? Math.round((currentReport.total_responses / currentReport.total_surveys) * 100) / 100
+                          : 0}명/설문
+                      </span>
                     </div>
                   </div>
-                  <Badge variant="outline">
-                    {report.education_round}차
-                  </Badge>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 강사별 통계 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>강사별 통계</CardTitle>
-          <CardDescription>
-            강사별 만족도 및 진행 현황을 확인할 수 있습니다. 클릭하면 상세 정보를 볼 수 있습니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {instructorStats.map((stat) => (
-              <div 
-                key={stat.instructor_id}
-                className="flex justify-between items-center p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                onClick={() => handleInstructorClick(stat.instructor_id)}
-              >
                 <div>
-                  <h4 className="font-medium">{stat.instructor_name}</h4>
-                  <div className="text-sm text-muted-foreground">
-                    설문 {stat.survey_count}개 · 응답 {stat.response_count}개 · 
-                    평균 만족도 {stat.avg_satisfaction.toFixed(1)}
+                  <h4 className="font-medium mb-2">만족도 평가</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>강사 만족도:</span>
+                      <span className="font-medium">{currentReport.avg_instructor_satisfaction.toFixed(1)}/5.0</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>과목 만족도:</span>
+                      <span className="font-medium">{currentReport.avg_course_satisfaction.toFixed(1)}/5.0</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>운영 만족도:</span>
+                      <span className="font-medium">{(currentReport.report_data?.operation_satisfaction || 0).toFixed(1)}/5.0</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="font-medium">종합 만족도:</span>
+                      <span className="font-bold text-primary">
+                        {((currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}/5.0
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4" />
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 };
