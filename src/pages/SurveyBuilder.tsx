@@ -655,7 +655,10 @@ const SurveyBuilder = () => {
 
         const { data: createdSections, error: createSectionsError } = await supabase
           .from('survey_sections')
-          .insert(newSections)
+          .insert(newSections.map(section => ({
+            ...section,
+            survey_id: surveyId
+          })))
           .select();
 
         if (createSectionsError) throw createSectionsError;

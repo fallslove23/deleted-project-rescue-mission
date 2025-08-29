@@ -302,11 +302,11 @@ const CourseReports = () => {
   
   const currentReport = showSampleData ? sampleReport : reports[0];
 
-  // 차트 데이터 준비 - 트렌디한 색상으로 변경
+  // 차트 데이터 준비 - 통일된 색상 테마
   const satisfactionChartData = currentReport ? [
-    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, color: '#3B82F6', fill: '#3B82F6' },
-    { name: '과목 만족도', value: currentReport.avg_course_satisfaction, color: '#10B981', fill: '#10B981' },
-    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, color: '#F59E0B', fill: '#F59E0B' }
+    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, color: 'hsl(var(--primary))', fill: 'hsl(var(--primary))' },
+    { name: '과목 만족도', value: currentReport.avg_course_satisfaction, color: 'hsl(var(--primary) / 0.8)', fill: 'hsl(var(--primary) / 0.8)' },
+    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, color: 'hsl(var(--primary) / 0.6)', fill: 'hsl(var(--primary) / 0.6)' }
   ] : [];
 
   // 트렌드 차트 데이터
@@ -385,61 +385,57 @@ const CourseReports = () => {
         <>
           {/* 전체 통계 요약 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">총 설문 수</CardTitle>
-                <div className="h-8 w-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <BookOpen className="h-4 w-4 text-blue-600" />
+                <CardTitle className="text-sm font-medium text-primary">총 설문 수</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <BookOpen className="h-4 w-4 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-700 dark:text-blue-400">{currentReport.total_surveys}</div>
-                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">개의 설문 진행</p>
+                <div className="text-3xl font-bold text-primary">{currentReport.total_surveys}</div>
+                <p className="text-xs text-muted-foreground mt-1">개의 설문 진행</p>
               </CardContent>
             </Card>
             
-            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">총 응답 수</CardTitle>
-                <div className="h-8 w-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-green-600" />
+                <CardTitle className="text-sm font-medium text-primary">총 응답 수</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-green-700 dark:text-green-400">{currentReport.total_responses}</div>
-                <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">명이 응답 참여</p>
+                <div className="text-3xl font-bold text-primary">{currentReport.total_responses}</div>
+                <p className="text-xs text-muted-foreground mt-1">명이 응답 참여</p>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-400">참여 강사 수</CardTitle>
-                <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-purple-600" />
+                <CardTitle className="text-sm font-medium text-primary">참여 강사 수</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-purple-700 dark:text-purple-400">{currentReport.report_data?.instructor_count || 0}</div>
-                <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">명의 강사 참여</p>
+                <div className="text-3xl font-bold text-primary">{currentReport.report_data?.instructor_count || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">명의 강사 참여</p>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/20 dark:to-amber-900/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">전체 평균 만족도</CardTitle>
-                <div className="h-8 w-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                  <Star className="h-4 w-4 text-amber-600" />
+                <CardTitle className="text-sm font-medium text-primary">전체 평균 만족도</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Star className="h-4 w-4 text-primary" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-amber-700 dark:text-amber-400">
+                <div className="text-3xl font-bold text-primary">
                   {((currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}
                 </div>
-                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">점 / 10점 만점</p>
+                <p className="text-xs text-muted-foreground mt-1">점 / 10점 만점</p>
               </CardContent>
             </Card>
           </div>
@@ -499,9 +495,9 @@ const CourseReports = () => {
                 <AreaChart 
                   data={trendChartData}
                   dataKeys={[
-                    { key: 'instructor', label: '강사 만족도', color: '#3B82F6' },
-                    { key: 'course', label: '과목 만족도', color: '#10B981' },
-                    { key: 'operation', label: '운영 만족도', color: '#F59E0B' }
+                    { key: 'instructor', label: '강사 만족도', color: 'hsl(var(--primary))' },
+                    { key: 'course', label: '과목 만족도', color: 'hsl(var(--primary) / 0.8)' },
+                    { key: 'operation', label: '운영 만족도', color: 'hsl(var(--primary) / 0.6)' }
                   ]}
                 />
               </CardContent>
@@ -551,34 +547,32 @@ const CourseReports = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   {(showSampleData ? sampleInstructorStats : instructorStats).map((stat, index) => (
                     <div 
                       key={stat.instructor_id}
-                      className="flex justify-between items-center p-4 rounded-lg border-l-4 hover:bg-muted/30 cursor-pointer transition-all duration-200 group"
-                      style={{ borderLeftColor: `hsl(${200 + index * 20}, 70%, 60%)` }}
+                      className="flex justify-between items-center p-3 rounded-lg border hover:bg-muted/30 cursor-pointer transition-all duration-200 group"
                       onClick={() => !showSampleData && handleInstructorClick(stat.instructor_id)}
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <div 
-                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
-                          style={{ backgroundColor: `hsl(${200 + index * 20}, 70%, 60%)` }}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm bg-primary"
                         >
                           {stat.instructor_name.charAt(0)}
                         </div>
                         <div>
-                          <h4 className="font-semibold text-lg">{stat.instructor_name}</h4>
-                          <div className="text-sm text-muted-foreground">
+                          <h4 className="font-medium text-sm">{stat.instructor_name}</h4>
+                          <div className="text-xs text-muted-foreground">
                             설문 {stat.survey_count}개 · 응답 {stat.response_count}개
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-primary">{stat.avg_satisfaction.toFixed(1)}</div>
-                          <div className="text-xs text-muted-foreground">평균 만족도</div>
+                          <div className="text-lg font-bold text-primary">{stat.avg_satisfaction.toFixed(1)}</div>
+                          <div className="text-xs text-muted-foreground">만족도</div>
                         </div>
-                        {!showSampleData && <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />}
+                        {!showSampleData && <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
                       </div>
                     </div>
                   ))}
