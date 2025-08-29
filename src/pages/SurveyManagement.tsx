@@ -163,7 +163,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       console.error('Error creating survey:', error);
       toast({
         title: "오류",
-        description: "설문조사 생성 중 오류가 발생했습니다.",
+        description: `설문조사 생성 실패: ${(error as any)?.message || '권한 또는 유효성 문제'}`,
         variant: "destructive"
       });
     }

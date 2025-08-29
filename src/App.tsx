@@ -154,12 +154,12 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/dashboard/email-logs" element={
-              <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
+              <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardEmailLogs />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/system-logs" element={
-              <ProtectedRoute allowedRoles={["admin", "operator"]}>
+              <ProtectedRoute allowedRoles={["admin"]}>
                 <DashboardSystemLogs />
               </ProtectedRoute>
             } />
