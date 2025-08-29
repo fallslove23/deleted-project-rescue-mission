@@ -41,8 +41,62 @@ const CourseReports = () => {
   const [loading, setLoading] = useState(true);
   const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
   const [availableCourses, setAvailableCourses] = useState<{year: number, round: number, course_name: string, key: string}[]>([]);
+  const [showSampleData, setShowSampleData] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // 샘플 데이터
+  const sampleReport: CourseReport = {
+    id: 'sample-2025-7',
+    education_year: 2025,
+    education_round: 7,
+    course_title: 'BS Basic 교육 과정',
+    total_surveys: 12,
+    total_responses: 178,
+    avg_instructor_satisfaction: 9.6,
+    avg_course_satisfaction: 9.3,
+    report_data: {
+      operation_satisfaction: 9.7,
+      instructor_count: 8,
+      satisfaction_distribution: {
+        instructor: [9.5, 9.6, 9.7, 9.4, 9.8, 9.3, 9.6, 9.5],
+        course: [9.2, 9.3, 9.4, 9.1, 9.5, 9.2, 9.3, 9.4],
+        operation: [9.6, 9.7, 9.8, 9.5, 9.9, 9.4, 9.7, 9.6]
+      },
+      trend_data: [
+        { period: '24-9차', instructor: 9.4, course: 9.1, operation: 9.5 },
+        { period: '24-10차', instructor: 9.5, course: 9.2, operation: 9.6 },
+        { period: '24-11차', instructor: 9.3, course: 9.0, operation: 9.4 },
+        { period: '25-1차', instructor: 9.7, course: 9.3, operation: 9.8 },
+        { period: '25-2차', instructor: 9.6, course: 9.2, operation: 9.7 },
+        { period: '25-3차', instructor: 9.5, course: 9.4, operation: 9.6 },
+        { period: '25-4차', instructor: 9.6, course: 9.3, operation: 9.7 },
+        { period: '25-5차', instructor: 9.7, course: 9.2, operation: 9.8 },
+        { period: '25-6차', instructor: 9.6, course: 9.3, operation: 9.7 },
+        { period: '25-7차', instructor: 9.6, course: 9.3, operation: 9.7 }
+      ],
+      improvement_suggestions: [
+        "강의실의 더 나은 음향설비",
+        "SM7 명령어 교육확대요망",
+        "OneIct DLP 실습을 1회 정도 늘려줌",
+        "교재 인쇄 품질이 더 좋았으면 합니다",
+        "실습 시간이 조금 더 길면 좋겠어요",
+        "최신 기술 트렌드 관련 추가 내용"
+      ]
+    },
+    created_at: new Date().toISOString()
+  };
+
+  const sampleInstructorStats: InstructorStats[] = [
+    { instructor_id: '1', instructor_name: '김영희 강사', survey_count: 2, response_count: 24, avg_satisfaction: 9.6 },
+    { instructor_id: '2', instructor_name: '박철수 강사', survey_count: 2, response_count: 22, avg_satisfaction: 9.5 },
+    { instructor_id: '3', instructor_name: '이정민 강사', survey_count: 1, response_count: 18, avg_satisfaction: 9.4 },
+    { instructor_id: '4', instructor_name: '최영수 강사', survey_count: 2, response_count: 26, avg_satisfaction: 9.6 },
+    { instructor_id: '5', instructor_name: '이태윤 강사', survey_count: 1, response_count: 20, avg_satisfaction: 9.5 },
+    { instructor_id: '6', instructor_name: '최영일 강사', survey_count: 2, response_count: 24, avg_satisfaction: 9.4 },
+    { instructor_id: '7', instructor_name: '김기현 강사', survey_count: 1, response_count: 22, avg_satisfaction: 9.3 },
+    { instructor_id: '8', instructor_name: '송준기 강사', survey_count: 1, response_count: 22, avg_satisfaction: 9.5 }
+  ];
 
   useEffect(() => {
     fetchAvailableCourses();
@@ -51,8 +105,13 @@ const CourseReports = () => {
   useEffect(() => {
     if (selectedCourse) {
       fetchReports();
+    } else if (showSampleData) {
+      // 샘플 데이터 표시
+      setReports([sampleReport]);
+      setInstructorStats(sampleInstructorStats);
+      setLoading(false);
     }
-  }, [selectedCourse]);
+  }, [selectedCourse, showSampleData]);
 
   const fetchAvailableCourses = async () => {
     setLoading(true);
@@ -80,9 +139,13 @@ const CourseReports = () => {
 
       setAvailableCourses(uniqueCourses);
       
-      // 첫 번째 과정을 자동 선택
-      if (uniqueCourses.length > 0 && !selectedCourse) {
+      // 데이터가 없으면 샘플 데이터 옵션 표시
+      if (uniqueCourses.length === 0) {
+        setShowSampleData(true);
+        setSelectedCourse('sample-2025-7');
+      } else if (uniqueCourses.length > 0 && !selectedCourse) {
         setSelectedCourse(uniqueCourses[0].key);
+        setShowSampleData(false);
       }
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -97,7 +160,7 @@ const CourseReports = () => {
   };
 
   const fetchReports = async () => {
-    if (!selectedCourse) return;
+    if (!selectedCourse || selectedCourse === 'sample-2025-7') return;
     
     const [year, round, courseName] = selectedCourse.split('-');
     
@@ -237,34 +300,49 @@ const CourseReports = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
   
-  const currentReport = reports[0];
+  const currentReport = showSampleData ? sampleReport : reports[0];
 
-  // 차트 데이터 준비
+  // 차트 데이터 준비 - 트렌디한 색상으로 변경
   const satisfactionChartData = currentReport ? [
-    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, color: '#8884d8' },
-    { name: '과목 만족도', value: currentReport.avg_course_satisfaction, color: '#82ca9d' },
-    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, color: '#ffc658' }
+    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, color: '#3B82F6', fill: '#3B82F6' },
+    { name: '과목 만족도', value: currentReport.avg_course_satisfaction, color: '#10B981', fill: '#10B981' },
+    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, color: '#F59E0B', fill: '#F59E0B' }
   ] : [];
 
-  const instructorComparisonData = instructorStats.map((stat, index) => ({
+  // 트렌드 차트 데이터
+  const trendChartData = currentReport?.report_data?.trend_data || [];
+
+  // 강사별 차트 데이터
+  const instructorComparisonData = (showSampleData ? sampleInstructorStats : instructorStats).map((stat, index) => ({
     name: stat.instructor_name,
     satisfaction: stat.avg_satisfaction,
-    responseCount: stat.response_count
+    responseCount: stat.response_count,
+    fill: `hsl(${200 + index * 20}, 70%, 60%)`
   }));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">과정 운영 결과 보고</h1>
-        <p className="text-muted-foreground mt-2">
+      <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-xl p-6 border border-primary/20">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+            <TrendingUp className="h-4 w-4 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+            과정 운영 결과 보고
+          </h1>
+        </div>
+        <p className="text-muted-foreground">
           과정별 종합적인 만족도 조사 결과와 강사별 통계를 확인할 수 있습니다.
         </p>
       </div>
 
       {/* 필터 */}
-      <Card>
+      <Card className="shadow-lg border-0 bg-gradient-to-r from-card to-card/50">
         <CardHeader>
-          <CardTitle>과정 선택</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            과정 선택
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex gap-4">
           <div>
@@ -292,6 +370,11 @@ const CourseReports = () => {
                     {course.year}년 {course.round}차 - {course.course_name}
                   </SelectItem>
                 ))}
+                {showSampleData && (
+                  <SelectItem value="sample-2025-7">
+                    🎯 2025년 7차 - BS Basic 교육 과정 (샘플 데이터)
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -301,46 +384,62 @@ const CourseReports = () => {
       {currentReport && (
         <>
           {/* 전체 통계 요약 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">총 설문 수</CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">총 설문 수</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                  <BookOpen className="h-4 w-4 text-blue-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currentReport.total_surveys}</div>
+                <div className="text-3xl font-bold text-blue-700 dark:text-blue-400">{currentReport.total_surveys}</div>
+                <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">개의 설문 진행</p>
               </CardContent>
             </Card>
             
-            <Card>
+            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20">
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">총 응답 수</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">총 응답 수</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-green-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currentReport.total_responses}</div>
+                <div className="text-3xl font-bold text-green-700 dark:text-green-400">{currentReport.total_responses}</div>
+                <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-1">명이 응답 참여</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">참여 강사 수</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-400">참여 강사 수</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-purple-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currentReport.report_data?.instructor_count || 0}</div>
+                <div className="text-3xl font-bold text-purple-700 dark:text-purple-400">{currentReport.report_data?.instructor_count || 0}</div>
+                <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">명의 강사 참여</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/20 dark:to-amber-900/20">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">전체 평균 만족도</CardTitle>
-                <Star className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">전체 평균 만족도</CardTitle>
+                <div className="h-8 w-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <Star className="h-4 w-4 text-amber-600" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold text-amber-700 dark:text-amber-400">
                   {((currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}
                 </div>
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-1">점 / 10점 만점</p>
               </CardContent>
             </Card>
           </div>
@@ -375,7 +474,7 @@ const CourseReports = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-2xl font-bold">{item.value.toFixed(1)}</span>
-                        <span className="text-sm text-muted-foreground">/ 5.0</span>
+                        <span className="text-sm text-muted-foreground">/ 10.0</span>
                       </div>
                     </div>
                   ))}
@@ -384,43 +483,113 @@ const CourseReports = () => {
             </Card>
           </div>
 
-          {/* 강사별 통계 */}
-          {instructorStats.length > 0 && (
-            <Card>
+          {/* 차수별 트렌드 분석 */}
+          {trendChartData.length > 0 && (
+            <Card className="shadow-lg border-0">
               <CardHeader>
-                <CardTitle>강사별 만족도 통계</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  차수별 전체 평균 만족도 변화 추이
+                </CardTitle>
+                <CardDescription>
+                  최근 차수별 만족도 변화를 확인할 수 있습니다 (10점 만점)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AreaChart 
+                  data={trendChartData}
+                  dataKeys={[
+                    { key: 'instructor', label: '강사 만족도', color: '#3B82F6' },
+                    { key: 'course', label: '과목 만족도', color: '#10B981' },
+                    { key: 'operation', label: '운영 만족도', color: '#F59E0B' }
+                  ]}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 설문 개선사항 */}
+          {currentReport.report_data?.improvement_suggestions && (
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  설문 개선사항 (열린 주관식 의견)
+                </CardTitle>
+                <CardDescription>
+                  교육 참여자들이 제안한 개선사항을 확인할 수 있습니다.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {currentReport.report_data.improvement_suggestions.map((suggestion: string, index: number) => (
+                    <div 
+                      key={index} 
+                      className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-shrink-0 w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-medium">
+                        {index + 1}
+                      </div>
+                      <p className="text-sm leading-relaxed">{suggestion}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 강사별 통계 */}
+          {(showSampleData ? sampleInstructorStats : instructorStats).length > 0 && (
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  강사별 만족도 통계 (10점 만점)
+                </CardTitle>
                 <CardDescription>
                   각 강사별 평균 만족도와 응답 수를 확인할 수 있습니다. 클릭하면 상세 정보를 볼 수 있습니다.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4 mb-6">
-                  {instructorStats.map((stat) => (
+                  {(showSampleData ? sampleInstructorStats : instructorStats).map((stat, index) => (
                     <div 
                       key={stat.instructor_id}
-                      className="flex justify-between items-center p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => handleInstructorClick(stat.instructor_id)}
+                      className="flex justify-between items-center p-4 rounded-lg border-l-4 hover:bg-muted/30 cursor-pointer transition-all duration-200 group"
+                      style={{ borderLeftColor: `hsl(${200 + index * 20}, 70%, 60%)` }}
+                      onClick={() => !showSampleData && handleInstructorClick(stat.instructor_id)}
                     >
-                      <div>
-                        <h4 className="font-medium">{stat.instructor_name}</h4>
-                        <div className="text-sm text-muted-foreground">
-                          설문 {stat.survey_count}개 · 응답 {stat.response_count}개
+                      <div className="flex items-center gap-4">
+                        <div 
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                          style={{ backgroundColor: `hsl(${200 + index * 20}, 70%, 60%)` }}
+                        >
+                          {stat.instructor_name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-lg">{stat.instructor_name}</h4>
+                          <div className="text-sm text-muted-foreground">
+                            설문 {stat.survey_count}개 · 응답 {stat.response_count}개
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <div className="text-right">
-                          <div className="text-xl font-bold">{stat.avg_satisfaction.toFixed(1)}</div>
+                          <div className="text-2xl font-bold text-primary">{stat.avg_satisfaction.toFixed(1)}</div>
                           <div className="text-xs text-muted-foreground">평균 만족도</div>
                         </div>
-                        <ChevronRight className="h-4 w-4" />
+                        {!showSampleData && <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {instructorStats.length > 1 && (
-                  <div>
-                    <h4 className="font-medium mb-4">강사별 만족도 비교</h4>
+                {(showSampleData ? sampleInstructorStats : instructorStats).length > 1 && (
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold mb-4 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      강사별 만족도 비교
+                    </h4>
                     <AreaChart 
                       data={instructorComparisonData}
                       dataKeys={[
@@ -434,66 +603,86 @@ const CourseReports = () => {
           )}
 
           {/* 과정 요약 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>과정 요약</CardTitle>
-              <CardDescription>
-                {currentReport.education_year}년 {currentReport.education_round}차 {currentReport.course_title} 결과 요약
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-2">주요 지표</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>총 설문조사:</span>
-                      <span className="font-medium">{currentReport.total_surveys}개</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>총 응답자:</span>
-                      <span className="font-medium">{currentReport.total_responses}명</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>참여 강사:</span>
-                      <span className="font-medium">{currentReport.report_data?.instructor_count || 0}명</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>평균 응답률:</span>
-                      <span className="font-medium">
-                        {currentReport.total_surveys > 0 
-                          ? Math.round((currentReport.total_responses / currentReport.total_surveys) * 100) / 100
-                          : 0}명/설문
-                      </span>
-                    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/20 dark:to-slate-800/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  {currentReport.education_year}년 {currentReport.education_round}차 주요 지표
+                </CardTitle>
+                <CardDescription>
+                  {currentReport.course_title} 기본 통계
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
+                    <span className="font-medium">총 설문조사</span>
+                    <span className="text-xl font-bold text-primary">{currentReport.total_surveys}개</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
+                    <span className="font-medium">총 응답자</span>
+                    <span className="text-xl font-bold text-green-600">{currentReport.total_responses}명</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
+                    <span className="font-medium">참여 강사</span>
+                    <span className="text-xl font-bold text-purple-600">{currentReport.report_data?.instructor_count || 0}명</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
+                    <span className="font-medium">평균 응답률</span>
+                    <span className="text-xl font-bold text-amber-600">
+                      {currentReport.total_surveys > 0 
+                        ? Math.round((currentReport.total_responses / currentReport.total_surveys) * 100) / 100
+                        : 0}명/설문
+                    </span>
                   </div>
                 </div>
-                <div>
-                  <h4 className="font-medium mb-2">만족도 평가</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>강사 만족도:</span>
-                      <span className="font-medium">{currentReport.avg_instructor_satisfaction.toFixed(1)}/5.0</span>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-primary/10">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  만족도 종합 평가
+                </CardTitle>
+                <CardDescription>
+                  영역별 세부 만족도 점수 (10점 만점)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                      <span className="font-medium">강사 만족도</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>과목 만족도:</span>
-                      <span className="font-medium">{currentReport.avg_course_satisfaction.toFixed(1)}/5.0</span>
+                    <span className="text-xl font-bold text-blue-600">{currentReport.avg_instructor_satisfaction.toFixed(1)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      <span className="font-medium">과목 만족도</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>운영 만족도:</span>
-                      <span className="font-medium">{(currentReport.report_data?.operation_satisfaction || 0).toFixed(1)}/5.0</span>
+                    <span className="text-xl font-bold text-green-600">{currentReport.avg_course_satisfaction.toFixed(1)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                      <span className="font-medium">운영 만족도</span>
                     </div>
-                    <div className="flex justify-between border-t pt-2">
-                      <span className="font-medium">종합 만족도:</span>
-                      <span className="font-bold text-primary">
-                        {((currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}/5.0
-                      </span>
-                    </div>
+                    <span className="text-xl font-bold text-amber-600">{(currentReport.report_data?.operation_satisfaction || 0).toFixed(1)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
+                    <span className="font-bold text-lg">종합 만족도</span>
+                    <span className="text-2xl font-bold text-primary">
+                      {((currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}
+                    </span>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
     </div>
