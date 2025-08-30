@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useSurveyFilters } from '@/hooks/useSurveyFilters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,9 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
+import CourseSelector from '@/components/course-reports/CourseSelector';
 
 interface Survey {
   id: string;
@@ -58,6 +60,19 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 필터링 훅 사용
+  const {
+    selectedYear,
+    selectedCourse,
+    availableCourses,
+    filteredSurveys,
+    loading: filterLoading,
+    setSelectedYear,
+    setSelectedCourse,
+    fetchAvailableCourses,
+    fetchSurveys: fetchFilteredSurveys
+  } = useSurveyFilters();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
@@ -80,7 +95,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
   useEffect(() => {
     fetchData();
+    fetchFilteredSurveys();
   }, []);
+
+  useEffect(() => {
+    fetchAvailableCourses();
+  }, [selectedYear]);
 
   useEffect(() => {
     if (selectedInstructor) {
@@ -163,6 +183,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       });
       setSelectedInstructor('');
       fetchData();
+      fetchFilteredSurveys();
     } catch (error) {
       console.error('Error creating survey:', error);
       toast({
@@ -188,6 +209,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       });
 
       fetchData();
+      fetchFilteredSurveys();
     } catch (error) {
       console.error('Error updating survey status:', error);
       toast({
@@ -223,6 +245,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       });
 
       fetchData();
+      fetchFilteredSurveys();
     } catch (error) {
       console.error('Error duplicating survey:', error);
       toast({
@@ -252,6 +275,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       });
 
       fetchData();
+      fetchFilteredSurveys();
     } catch (error) {
       console.error('Error deleting survey:', error);
       toast({
@@ -486,9 +510,52 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
           </div>
             </CardContent>
           </Card>
+          {/* 과정 선택 필터 */}
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-card to-card/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                과정별 설문 검색
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-4">
+              <div>
+                <label className="text-sm font-medium">교육 연도</label>
+                <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium">과정</label>
+                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 설문 보기 (선택 시 필터링)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">전체 설문 보기</SelectItem>
+                    {availableCourses.map(course => (
+                      <SelectItem key={course.key} value={course.key}>
+                        {course.year}년 {course.round}차 - {course.course_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-lg sm:text-xl font-bold break-words">설문조사 목록</h2>
+          <h2 className="text-lg sm:text-xl font-bold break-words">
+            설문조사 목록 {selectedCourse && `(${availableCourses.find(c => c.key === selectedCourse)?.course_name})`}
+          </h2>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="touch-friendly text-sm w-full sm:w-auto">
@@ -644,7 +711,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         </div>
 
       <div className="grid gap-4">
-        {surveys.map((survey) => {
+        {(selectedCourse ? filteredSurveys : surveys).map((survey) => {
           const surveyInstructor = instructors.find(i => i.id === survey.instructor_id);
           const surveyCourse = courses.find(c => c.id === survey.course_id);
           

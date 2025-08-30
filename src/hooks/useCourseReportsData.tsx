@@ -47,7 +47,7 @@ export const useCourseReportsData = (selectedYear: number, selectedCourse: strin
         .from('surveys')
         .select('education_year, education_round, course_name')
         .eq('education_year', selectedYear)
-        .eq('status', 'completed')
+        .in('status', ['completed', 'active']) // active와 completed 둘 다 포함
         .not('course_name', 'is', null);
 
       if (error) throw error;
