@@ -92,7 +92,7 @@ export const DataTable = ({
 
   // 필터 처리
   const handleFilter = (columnKey: string, value: string) => {
-    setFilters({ ...filters, [columnKey]: value });
+    setFilters({ ...filters, [columnKey]: value === 'all' ? '' : value });
     setCurrentPage(1);
   };
 
@@ -141,14 +141,14 @@ export const DataTable = ({
               .map(col => (
                 <Select
                   key={col.key}
-                  value={filters[col.key] || ''}
+                  value={filters[col.key] || 'all'}
                   onValueChange={(value) => handleFilter(col.key, value)}
                 >
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder={`${col.label} 필터`} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">전체</SelectItem>
+                    <SelectItem value="all">전체</SelectItem>
                     {getUniqueValues(col.key).map(value => (
                       <SelectItem key={value} value={value}>
                         {value}
