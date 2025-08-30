@@ -26,6 +26,7 @@ interface Survey {
   education_round: number;
   status: string;
   instructor_id: string;
+  course_name: string;
   expected_participants?: number;
 }
 
@@ -84,6 +85,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<string>('');
+  const [selectedCourse, setSelectedCourse] = useState<string>('');
+  const [availableCourses, setAvailableCourses] = useState<{year: number, round: number, course_name: string, key: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -112,6 +115,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       });
       fetchInstructorInfo(); // 강사 정보 로드 추가
       fetchAllInstructors();
+      fetchAvailableCourses();
       fetchSurveys();
       fetchAllResponses();
       fetchAllQuestionsAndAnswers(); // 모든 질문과 답변 데이터 로드
@@ -402,6 +406,43 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     return years.sort((a, b) => b - a);
   };
 
+  const fetchAvailableCourses = async () => {
+    try {
+      let query = supabase
+        .from('surveys')
+        .select('education_year, education_round, course_name')
+        .not('course_name', 'is', null)
+        .in('status', ['completed', 'active']);
+
+      // 강사인 경우 자신의 설문만 필터링
+      if (isInstructor && profile?.instructor_id && !canViewAll) {
+        query = query.eq('instructor_id', profile.instructor_id);
+      }
+
+      const { data: surveys, error } = await query;
+
+      if (error) throw error;
+
+      // 중복 제거 및 과정별 그룹화
+      const uniqueCourses = Array.from(
+        new Map(
+          surveys?.map(s => [`${s.education_year}-${s.education_round}-${s.course_name}`, s])
+        ).values()
+      ).map(s => ({
+        year: s.education_year,
+        round: s.education_round,
+        course_name: s.course_name,
+        key: `${s.education_year}-${s.education_round}-${s.course_name}`
+      }));
+
+      setAvailableCourses(uniqueCourses.sort((a, b) => 
+        b.year - a.year || b.round - a.round
+      ));
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
+
   const getUniqueRounds = () => {
     let filteredSurveys = surveys;
     if (selectedYear && selectedYear !== '') {
@@ -418,6 +459,14 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     }
     if (selectedRound && selectedRound !== '') {
       filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
+    }
+    if (selectedCourse && selectedCourse !== '') {
+      const [year, round, courseName] = selectedCourse.split('-');
+      filtered = filtered.filter(s => 
+        s.education_year.toString() === year &&
+        s.education_round.toString() === round &&
+        s.course_name === courseName
+      );
     }
     if (canViewAll && selectedInstructor !== 'all') {
       filtered = filtered.filter(s => s.instructor_id === selectedInstructor);
@@ -811,12 +860,14 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   const handleLoadFilterPreset = (filters: any) => {
     if (filters.selectedYear !== undefined) setSelectedYear(filters.selectedYear);
     if (filters.selectedRound !== undefined) setSelectedRound(filters.selectedRound);
+    if (filters.selectedCourse !== undefined) setSelectedCourse(filters.selectedCourse);
     if (filters.selectedInstructor !== undefined) setSelectedInstructor(filters.selectedInstructor);
   };
 
   const getCurrentFilters = () => ({
     selectedYear,
     selectedRound,
+    selectedCourse,
     selectedInstructor
   });
 
@@ -937,13 +988,28 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               </Select>
             )}
 
-            {(selectedYear || selectedRound || (canViewAll && selectedInstructor !== 'all')) && (
+            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <SelectTrigger className="w-40 sm:w-64 touch-friendly">
+                <SelectValue placeholder="전체 과정" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                <SelectItem value="">전체 과정</SelectItem>
+                {availableCourses.map(course => (
+                  <SelectItem key={course.key} value={course.key} className="break-words">
+                    {course.year}년 {course.round}차 - {course.course_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(selectedYear || selectedRound || selectedCourse || (canViewAll && selectedInstructor !== 'all')) && (
               <Button 
                 variant="outline" 
                 className="touch-friendly text-sm border-2 border-muted-foreground/30 hover:border-primary hover:bg-muted/50"
                 onClick={() => {
                   setSelectedYear('');
                   setSelectedRound('');
+                  setSelectedCourse('');
                   setSelectedInstructor('all');
                 }}
               >
