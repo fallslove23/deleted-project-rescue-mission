@@ -988,12 +988,12 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               </Select>
             )}
 
-            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+            <Select value={selectedCourse || 'all'} onValueChange={(value) => setSelectedCourse(value === 'all' ? '' : value)}>
               <SelectTrigger className="w-40 sm:w-64 touch-friendly">
                 <SelectValue placeholder="전체 과정" />
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
-                <SelectItem value="">전체 과정</SelectItem>
+                <SelectItem value="all">전체 과정</SelectItem>
                 {availableCourses.map(course => (
                   <SelectItem key={course.key} value={course.key} className="break-words">
                     {course.year}년 {course.round}차 - {course.course_name}

@@ -534,12 +534,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
               </div>
               <div className="flex-1">
                 <label className="text-sm font-medium">과정</label>
-                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                <Select value={selectedCourse || 'all'} onValueChange={(value) => setSelectedCourse(value === 'all' ? '' : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="전체 설문 보기 (선택 시 필터링)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">전체 설문 보기</SelectItem>
+                    <SelectItem value="all">전체 설문 보기</SelectItem>
                     {availableCourses.map(course => (
                       <SelectItem key={course.key} value={course.key}>
                         {course.year}년 {course.round}차 - {course.course_name}
