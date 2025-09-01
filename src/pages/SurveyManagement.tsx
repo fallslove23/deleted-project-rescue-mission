@@ -76,6 +76,8 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     fetchSurveys: fetchFilteredSurveys
   } = useSurveyFilters();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingSurvey, setEditingSurvey] = useState<Survey | null>(null);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -125,9 +127,18 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         .map(ic => ic.course_id);
       const filtered = courses.filter(course => instructorCourseIds.includes(course.id));
       setFilteredCourses(filtered);
-      setFormData(prev => ({ ...prev, instructor_id: selectedInstructor, course_id: '' }));
+      
+      // 기존 선택된 과목이 강사의 과목 목록에 있는지 확인
+      const currentCourseValid = instructorCourseIds.includes(formData.course_id);
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        instructor_id: selectedInstructor,
+        // 현재 선택된 과목이 유효하지 않을 때만 course_id를 리셋
+        course_id: currentCourseValid ? prev.course_id : ''
+      }));
     }
-  }, [selectedInstructor, courses, instructorCourses]);
+  }, [selectedInstructor, courses, instructorCourses, formData.course_id]);
 
   const fetchData = async () => {
     try {
@@ -205,6 +216,77 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       toast({
         title: "오류",
         description: `설문조사 생성 실패: ${(error as any)?.message || '권한 또는 유효성 문제'}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditSurvey = (survey: Survey) => {
+    setEditingSurvey(survey);
+    setFormData({
+      title: survey.title,
+      description: survey.description || '',
+      start_date: survey.start_date ? new Date(survey.start_date).toISOString().slice(0, 16) : '',
+      end_date: survey.end_date ? new Date(survey.end_date).toISOString().slice(0, 16) : '',
+      education_year: survey.education_year,
+      education_round: survey.education_round,
+      education_day: survey.education_day || 1,
+      course_name: survey.course_name || '',
+      instructor_id: survey.instructor_id,
+      course_id: survey.course_id,
+      expected_participants: 0
+    });
+    setSelectedInstructor(survey.instructor_id);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateSurvey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingSurvey) return;
+    
+    try {
+      const payload = {
+        ...formData,
+        start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
+        end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
+      };
+
+      const { error } = await supabase
+        .from('surveys')
+        .update(payload)
+        .eq('id', editingSurvey.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "설문조사가 수정되었습니다."
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingSurvey(null);
+      setFormData({
+        title: '',
+        description: '',
+        start_date: '',
+        end_date: '',
+        education_year: new Date().getFullYear(),
+        education_round: 1,
+        education_day: 1,
+        course_name: '',
+        instructor_id: '',
+        course_id: '',
+        expected_participants: 0
+      });
+      setSelectedInstructor('');
+      fetchData();
+      fetchFilteredSurveys();
+    } catch (error) {
+      console.error('Error updating survey:', error);
+      toast({
+        title: "오류",
+        description: `설문조사 수정 실패: ${(error as any)?.message || '권한 또는 유효성 문제'}`,
         variant: "destructive"
       });
     }
@@ -838,15 +920,25 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                    {/* Action buttons - 개선된 UI */}
                    <div className="flex items-center gap-2 flex-wrap">
                      {/* 주요 액션 - 항상 표시 */}
-                     <Button
-                       variant="outline"
-                       size="sm"
-                       onClick={() => navigate(`/survey-builder/${survey.id}`)}
-                       className="touch-friendly text-xs h-9 px-3"
-                     >
-                       <Edit className="h-4 w-4 mr-1" />
-                       편집
-                     </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditSurvey(survey)}
+                        className="touch-friendly text-xs h-9 px-3"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        정보수정
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/survey-builder/${survey.id}`)}
+                        className="touch-friendly text-xs h-9 px-3"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        질문편집
+                      </Button>
                      
                      <Button
                        variant="outline"
@@ -1000,6 +1092,207 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Survey Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>설문조사 정보 수정</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateSurvey} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_course_selection">과목 선택</Label>
+                <Select 
+                  value={formData.course_id} 
+                  onValueChange={(value) => {
+                    const selectedCourse = courses.find(c => c.id === value);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      course_id: value,
+                      title: selectedCourse ? selectedCourse.title : prev.title
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="과목을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses.map((course) => (
+                      <SelectItem key={course.id} value={course.id}>
+                        {course.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit_education_year">교육 연도</Label>
+                <Input
+                  id="edit_education_year"
+                  type="number"
+                  value={formData.education_year}
+                  onChange={(e) => setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
+                  required
+                  className="touch-friendly"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="edit_education_round">차수</Label>
+                <Input
+                  id="edit_education_round"
+                  type="number"
+                  min="1"
+                  value={formData.education_round}
+                  onChange={(e) => setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
+                  required
+                  className="touch-friendly"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_education_day">일차</Label>
+                <Input
+                  id="edit_education_day"
+                  type="number"
+                  min="1"
+                  value={formData.education_day}
+                  onChange={(e) => setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }))}
+                  required
+                  className="touch-friendly"
+                  placeholder="1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  전체 교육과정 중 몇 번째 날 (예: 2일차)
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="edit_course_type">과정</Label>
+                <Select 
+                  value={formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name} 
+                  onValueChange={(value) => {
+                    const selectedCourse = courses.find(c => c.id === formData.course_id);
+                    const subjectName = selectedCourse?.title || '';
+                    const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
+                    setFormData(prev => ({ ...prev, course_name: newCourseName }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="과정 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BS Basic">BS Basic</SelectItem>
+                    <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                    <SelectItem value="300 점검방법">300 점검방법</SelectItem>
+                    <SelectItem value="400 조치방법">400 조치방법</SelectItem>
+                    <SelectItem value="500 관리방법">500 관리방법</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit_expected_participants">예상 설문 인원 수</Label>
+                <Input
+                  id="edit_expected_participants"
+                  type="number"
+                  min="1"
+                  value={formData.expected_participants}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expected_participants: parseInt(e.target.value) || 0 }))}
+                  placeholder="예상 참여자 수"
+                  className="touch-friendly"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_start_date">시작일시</Label>
+                <Input
+                  id="edit_start_date"
+                  type="datetime-local"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                  required
+                  className="touch-friendly"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_end_date">종료일시</Label>
+                <Input
+                  id="edit_end_date"
+                  type="datetime-local"
+                  value={formData.end_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                  required
+                  className="touch-friendly"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Label htmlFor="edit_instructor">강사 선택</Label>
+                <Select 
+                  value={selectedInstructor} 
+                  onValueChange={setSelectedInstructor}
+                  disabled={!formData.course_id}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.course_id ? "강사를 선택하세요" : "먼저 과목을 선택해주세요"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.course_id && instructorCourses
+                      .filter(ic => ic.course_id === formData.course_id)
+                      .map(ic => {
+                        const instructor = instructors.find(i => i.id === ic.instructor_id);
+                        return instructor ? (
+                          <SelectItem key={instructor.id} value={instructor.id}>
+                            {instructor.name}
+                          </SelectItem>
+                        ) : null;
+                      })
+                    }
+                  </SelectContent>
+                </Select>
+                {formData.course_id && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    선택한 과목을 담당하는 강사만 표시됩니다
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit_title">설문 제목</Label>
+              <Input
+                id="edit_title"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                required
+                className="touch-friendly"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="edit_description">설명</Label>
+              <Textarea
+                id="edit_description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                취소
+              </Button>
+              <Button type="submit">수정 완료</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
