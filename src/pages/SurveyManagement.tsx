@@ -612,7 +612,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="education_round">차수</Label>
                   <Input
@@ -623,6 +623,19 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     onChange={(e) => setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
                     required
                     className="touch-friendly"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="education_day">일차</Label>
+                  <Input
+                    id="education_day"
+                    type="number"
+                    min="1"
+                    value={formData.education_day}
+                    onChange={(e) => setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }))}
+                    required
+                    className="touch-friendly"
+                    placeholder="1"
                   />
                 </div>
                 <div>
@@ -776,7 +789,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                         </span>
                       )}
                     </p>
-                    <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차</p>
+                    <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차 {survey.education_day ? `${survey.education_day}일차` : ''}</p>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3 w-3 flex-shrink-0" />
                       <span className="break-all">{survey.start_date.slice(0, 10)} ~ {survey.end_date.slice(0, 10)}</span>

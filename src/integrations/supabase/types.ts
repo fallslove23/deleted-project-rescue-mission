@@ -543,6 +543,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          education_day: number | null
           education_round: number | null
           education_year: number | null
           end_date: string | null
@@ -561,6 +562,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          education_day?: number | null
           education_round?: number | null
           education_year?: number | null
           end_date?: string | null
@@ -579,6 +581,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          education_day?: number | null
           education_round?: number | null
           education_year?: number | null
           end_date?: string | null
