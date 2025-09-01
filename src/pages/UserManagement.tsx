@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ interface Instructor {
 }
 
 const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -52,7 +54,7 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
   const fetchData = async () => {
     try {
       const [usersRes, instructorsRes] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.rpc('get_all_profiles_for_admin', { requesting_user_id: user?.id || '' }),
         supabase.from('instructors').select('id, name, email, photo_url')
       ]);
 
