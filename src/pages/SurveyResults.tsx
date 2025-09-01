@@ -62,6 +62,7 @@ interface SurveyQuestion {
   id: string;
   question_text: string;
   question_type: string;
+  satisfaction_type?: string;
   options: any;
   is_required: boolean;
   survey_id: string;
@@ -155,7 +156,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     }
   };
 
-  // 모든 설문의 질문과 답변 데이터 로드 (차수별 통계용)
+  // 모든 설문의 질문과 답변 데이터 로드 (과정별 통계용)
   const fetchAllQuestionsAndAnswers = async () => {
     try {
       let surveyQuery = supabase.from('surveys').select('id');
@@ -499,8 +500,8 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     };
   };
 
-  // 차수별 통계 계산 (페이지네이션 고려)
-  const getRoundStatistics = () => {
+  // 과정별 통계 계산 (페이지네이션 고려)
+  const getCourseStatistics = () => {
     const relevantSurveys = canViewAll ? getFilteredSurveys() : getFilteredSurveys().filter(s => 
       profile?.instructor_id && s.instructor_id === profile.instructor_id
     );
@@ -511,47 +512,53 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       s.education_year >= currentYear - 1
     );
     
-    const roundStats: Record<string, {
+    const courseStats: Record<string, {
       surveys: Survey[];
       responses: number;
       year: number;
       round: number;
-      courseSatisfaction: number;
+      courseName: string;
+      subjectSatisfaction: number;
       instructorSatisfaction: number;
+      operationSatisfaction: number;
       responseRate: number;
     }> = {};
 
     recentSurveys.forEach(survey => {
-      const key = `${survey.education_year}-${survey.education_round}`;
-      if (!roundStats[key]) {
-        roundStats[key] = {
+      const key = `${survey.education_year}-${survey.education_round}-${survey.course_name}`;
+      if (!courseStats[key]) {
+        courseStats[key] = {
           surveys: [],
           responses: 0,
           year: survey.education_year,
           round: survey.education_round,
-          courseSatisfaction: 0,
+          courseName: survey.course_name,
+          subjectSatisfaction: 0,
           instructorSatisfaction: 0,
+          operationSatisfaction: 0,
           responseRate: 0
         };
       }
-      roundStats[key].surveys.push(survey);
+      courseStats[key].surveys.push(survey);
       const surveyResponses = allResponses.filter(r => r.survey_id === survey.id).length;
-      roundStats[key].responses += surveyResponses;
+      courseStats[key].responses += surveyResponses;
       
       // 응답률 계산 (예상 참가자 수가 있는 경우)
       if (survey.expected_participants && survey.expected_participants > 0) {
-        roundStats[key].responseRate = Math.round((surveyResponses / survey.expected_participants) * 100);
+        courseStats[key].responseRate = Math.round((surveyResponses / survey.expected_participants) * 100);
       }
     });
 
-    // 각 차수별 만족도 계산 (현재 로드된 데이터 기반)
-    Object.values(roundStats).forEach(round => {
-      let totalCourseSatisfaction = 0;
+    // 각 과정별 만족도 계산 (현재 로드된 데이터 기반)
+    Object.values(courseStats).forEach(course => {
+      let totalSubjectSatisfaction = 0;
       let totalInstructorSatisfaction = 0;
-      let courseCount = 0;
+      let totalOperationSatisfaction = 0;
+      let subjectCount = 0;
       let instructorCount = 0;
+      let operationCount = 0;
 
-      round.surveys.forEach(survey => {
+      course.surveys.forEach(survey => {
         // 전체 로드된 questions와 answers에서 해당 설문 데이터 찾기
         const surveyQuestions = allQuestions.filter(q => q.survey_id === survey.id);
         const surveyResponses = allResponses.filter(r => r.survey_id === survey.id);
@@ -559,84 +566,69 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
           surveyResponses.some(r => r.id === a.response_id)
         );
 
-        // 질문 분류
-        const courseQuestionIds: string[] = [];
-        const instructorQuestionIds: string[] = [];
-
+        // 만족도 타입별 질문 분류
         surveyQuestions.forEach(question => {
-          const questionText = question.question_text?.toLowerCase() || '';
+          const satisfactionType = question.satisfaction_type;
           
-          // 강사 관련 키워드
-          if (questionText.includes('강사') || 
-              questionText.includes('지도') || 
-              questionText.includes('설명') || 
-              questionText.includes('질문응답') ||
-              questionText.includes('교수법') ||
-              questionText.includes('전달력') ||
-              questionText.includes('준비도')) {
-            instructorQuestionIds.push(question.id);
-          } 
-          // 과정 관련 키워드 또는 rating/scale 타입
-          else if (questionText.includes('과정') || 
-                   questionText.includes('교육') || 
-                   questionText.includes('내용') || 
-                   questionText.includes('커리큘럼') ||
-                   questionText.includes('시간') ||
-                   questionText.includes('교재') ||
-                   questionText.includes('환경') ||
-                   questionText.includes('시설') ||
-                   (question.question_type === 'rating' || question.question_type === 'scale')) {
-            courseQuestionIds.push(question.id);
+          if (satisfactionType === 'subject') {
+            // 과목 만족도
+            const answers = surveyAnswers
+              .filter(a => a.question_id === question.id)
+              .map(a => parseInt(a.answer_text))
+              .filter(r => !isNaN(r) && r > 0);
+            
+            if (answers.length > 0) {
+              const convertedAnswers = answers.map(r => r <= 5 ? r * 2 : r);
+              totalSubjectSatisfaction += convertedAnswers.reduce((sum, r) => sum + r, 0);
+              subjectCount += convertedAnswers.length;
+            }
+          } else if (satisfactionType === 'instructor') {
+            // 강사 만족도
+            const answers = surveyAnswers
+              .filter(a => a.question_id === question.id)
+              .map(a => parseInt(a.answer_text))
+              .filter(r => !isNaN(r) && r > 0);
+            
+            if (answers.length > 0) {
+              const convertedAnswers = answers.map(r => r <= 5 ? r * 2 : r);
+              totalInstructorSatisfaction += convertedAnswers.reduce((sum, r) => sum + r, 0);
+              instructorCount += convertedAnswers.length;
+            }
+          } else if (satisfactionType === 'operation') {
+            // 운영 만족도
+            const answers = surveyAnswers
+              .filter(a => a.question_id === question.id)
+              .map(a => parseInt(a.answer_text))
+              .filter(r => !isNaN(r) && r > 0);
+            
+            if (answers.length > 0) {
+              const convertedAnswers = answers.map(r => r <= 5 ? r * 2 : r);
+              totalOperationSatisfaction += convertedAnswers.reduce((sum, r) => sum + r, 0);
+              operationCount += convertedAnswers.length;
+            }
           }
         });
-
-        // 과정 만족도 계산
-        if (courseQuestionIds.length > 0) {
-          const courseRatings = surveyAnswers
-            .filter(a => courseQuestionIds.includes(a.question_id))
-            .map(a => parseInt(a.answer_text))
-            .filter(r => !isNaN(r) && r > 0);
-          
-          if (courseRatings.length > 0) {
-            // 5점 척도를 10점으로 변환
-            const convertedRatings = courseRatings.map(r => r <= 5 ? r * 2 : r);
-            totalCourseSatisfaction += convertedRatings.reduce((sum, r) => sum + r, 0);
-            courseCount += convertedRatings.length;
-          }
-        }
-
-        // 강사 만족도 계산
-        if (instructorQuestionIds.length > 0) {
-          const instructorRatings = surveyAnswers
-            .filter(a => instructorQuestionIds.includes(a.question_id))
-            .map(a => parseInt(a.answer_text))
-            .filter(r => !isNaN(r) && r > 0);
-          
-          if (instructorRatings.length > 0) {
-            // 5점 척도를 10점으로 변환
-            const convertedRatings = instructorRatings.map(r => r <= 5 ? r * 2 : r);
-            totalInstructorSatisfaction += convertedRatings.reduce((sum, r) => sum + r, 0);
-            instructorCount += convertedRatings.length;
-          }
-        }
       });
 
-      // 차수별 평균 계산
-      round.courseSatisfaction = courseCount > 0 ? 
-        parseFloat((totalCourseSatisfaction / courseCount).toFixed(1)) : 0;
-      round.instructorSatisfaction = instructorCount > 0 ? 
+      // 과정별 평균 계산
+      course.subjectSatisfaction = subjectCount > 0 ? 
+        parseFloat((totalSubjectSatisfaction / subjectCount).toFixed(1)) : 0;
+      course.instructorSatisfaction = instructorCount > 0 ? 
         parseFloat((totalInstructorSatisfaction / instructorCount).toFixed(1)) : 0;
+      course.operationSatisfaction = operationCount > 0 ? 
+        parseFloat((totalOperationSatisfaction / operationCount).toFixed(1)) : 0;
     });
 
-    return Object.entries(roundStats)
+    return Object.entries(courseStats)
       .map(([key, data]) => ({
         key,
         ...data,
-        displayName: `${data.year}년 ${data.round}차`
+        displayName: `${data.year}년 ${data.round}차 - ${data.courseName}`
       }))
       .sort((a, b) => {
         if (a.year !== b.year) return b.year - a.year;
-        return b.round - a.round;
+        if (a.round !== b.round) return b.round - a.round;
+        return a.courseName.localeCompare(b.courseName);
       });
   };
 
@@ -880,7 +872,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   }
 
   const stats = getStatistics();
-  const roundStats = getRoundStatistics();
+  const courseStats = getCourseStatistics();
 
   return (
     <div className="min-h-screen bg-background">
@@ -1052,18 +1044,18 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
             </Card>
           </div>
 
-          {/* Enhanced Trendy Chart for Round Statistics */}
-          {roundStats.length > 0 ? (
+          {/* Enhanced Trendy Chart for Course Statistics */}
+          {courseStats.length > 0 ? (
             <Card className="border-2 border-muted-foreground/30">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  차수별 만족도 트렌드
+                  과정별 만족도 트렌드
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <RechartsBarChart data={roundStats.slice(0, 8).reverse()}>
+                  <RechartsBarChart data={courseStats.slice(0, 8).reverse()}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" opacity={0.3} />
                     <XAxis 
                       dataKey="displayName"
@@ -1128,40 +1120,40 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
             </Card>
           )}
 
-          {/* Enhanced Round Statistics Cards */}
-          {roundStats.length > 0 ? (
+          {/* Enhanced Course Statistics Cards */}
+          {courseStats.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  차수별 통계
+                  과정별 통계
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {roundStats.map((round) => (
-                    <Card key={round.key} className="border-2 border-muted-foreground/30 hover:border-primary transition-colors bg-gradient-to-br from-background to-muted/20">
+                  {courseStats.map((course) => (
+                    <Card key={course.key} className="border-2 border-muted-foreground/30 hover:border-primary transition-colors bg-gradient-to-br from-background to-muted/20">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
-                          {round.displayName}
+                          {course.displayName}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-muted-foreground">진행중인 설문</span>
-                          <span className="font-semibold text-primary">{round.surveys.length}개</span>
+                          <span className="font-semibold text-primary">{course.surveys.length}개</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-muted-foreground">총 응답 수</span>
-                          <span className="font-semibold text-primary">{round.responses}개</span>
+                          <span className="font-semibold text-primary">{course.responses}개</span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">과정 만족도</span>
+                          <span className="text-sm text-muted-foreground">과목 만족도</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">{round.courseSatisfaction > 0 ? `${round.courseSatisfaction.toFixed(1)}/10` : '-'}</span>
-                            {round.courseSatisfaction > 0 && (
-                              <Badge variant={round.courseSatisfaction >= 8 ? 'default' : round.courseSatisfaction >= 6 ? 'secondary' : 'destructive'}>
-                                {round.courseSatisfaction >= 8 ? '우수' : round.courseSatisfaction >= 6 ? '보통' : '개선필요'}
+                            <span className="font-semibold">{course.subjectSatisfaction > 0 ? `${course.subjectSatisfaction.toFixed(1)}/10` : '-'}</span>
+                            {course.subjectSatisfaction > 0 && (
+                              <Badge variant={course.subjectSatisfaction >= 8 ? 'default' : course.subjectSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                {course.subjectSatisfaction >= 8 ? '우수' : course.subjectSatisfaction >= 6 ? '보통' : '개선필요'}
                               </Badge>
                             )}
                           </div>
@@ -1169,10 +1161,21 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-muted-foreground">강사 만족도</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">{round.instructorSatisfaction > 0 ? `${round.instructorSatisfaction.toFixed(1)}/10` : '-'}</span>
-                            {round.instructorSatisfaction > 0 && (
-                              <Badge variant={round.instructorSatisfaction >= 8 ? 'default' : round.instructorSatisfaction >= 6 ? 'secondary' : 'destructive'}>
-                                {round.instructorSatisfaction >= 8 ? '우수' : round.instructorSatisfaction >= 6 ? '보통' : '개선필요'}
+                            <span className="font-semibold">{course.instructorSatisfaction > 0 ? `${course.instructorSatisfaction.toFixed(1)}/10` : '-'}</span>
+                            {course.instructorSatisfaction > 0 && (
+                              <Badge variant={course.instructorSatisfaction >= 8 ? 'default' : course.instructorSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                {course.instructorSatisfaction >= 8 ? '우수' : course.instructorSatisfaction >= 6 ? '보통' : '개선필요'}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">운영 만족도</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{course.operationSatisfaction > 0 ? `${course.operationSatisfaction.toFixed(1)}/10` : '-'}</span>
+                            {course.operationSatisfaction > 0 && (
+                              <Badge variant={course.operationSatisfaction >= 8 ? 'default' : course.operationSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                {course.operationSatisfaction >= 8 ? '우수' : course.operationSatisfaction >= 6 ? '보통' : '개선필요'}
                               </Badge>
                             )}
                           </div>
@@ -1188,13 +1191,13 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  차수별 통계
+                  과정별 통계
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8 text-muted-foreground">
                   <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>차수별 통계 데이터가 없습니다.</p>
+                  <p>과정별 통계 데이터가 없습니다.</p>
                   <p className="text-sm">설문 응답이 있는 경우 통계가 표시됩니다.</p>
                 </div>
               </CardContent>

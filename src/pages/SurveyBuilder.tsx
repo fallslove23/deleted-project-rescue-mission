@@ -1628,8 +1628,9 @@ const SurveyBuilder = () => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">태그 없음</SelectItem>
-                            <SelectItem value="course">과정 만족도</SelectItem>
+                            <SelectItem value="subject">과목 만족도</SelectItem>
                             <SelectItem value="instructor">강사 만족도</SelectItem>
+                            <SelectItem value="operation">운영 만족도</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
