@@ -913,11 +913,14 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                      <p className="break-words">
                        <strong>과목:</strong> {surveyCourse?.title || 'Unknown'}
                      </p>
-                     {survey.course_name && survey.course_name.includes('-') && (
+                     {survey.course_name && (
                        <p className="break-words">
                          <strong>과정명:</strong> 
                          <span className="ml-1 text-primary font-medium">
-                           {survey.course_name.split('-')[1]?.trim()}
+                           {survey.course_name.includes('-') 
+                             ? survey.course_name.split('-')[1]?.trim()
+                             : survey.course_name
+                           }
                          </span>
                        </p>
                      )}
