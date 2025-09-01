@@ -243,7 +243,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
        course_name: survey.course_name || '',
        instructor_id: survey.instructor_id || '',
        course_id: survey.course_id || '',
-       expected_participants: 0
+       expected_participants: (survey as any).expected_participants || 0
      });
      setSelectedInstructor(survey.instructor_id || '');
     setIsEditDialogOpen(true);
@@ -785,18 +785,25 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="expected_participants">예상 설문 인원 수</Label>
-                  <Input
-                    id="expected_participants"
-                    type="number"
-                    min="1"
-                    value={formData.expected_participants}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expected_participants: parseInt(e.target.value) || 0 }))}
-                    placeholder="예상 참여자 수"
-                    className="touch-friendly"
-                  />
-                </div>
+                 <div>
+                   <Label htmlFor="expected_participants">예상 설문 인원 수</Label>
+                   <Input
+                     id="expected_participants"
+                     type="number"
+                     min="1"
+                     value={formData.expected_participants || ''}
+                     onChange={(e) => {
+                       const value = e.target.value;
+                       setFormData(prev => ({ 
+                         ...prev, 
+                         expected_participants: value === '' ? 0 : parseInt(value) || 0 
+                       }));
+                     }}
+                     onFocus={(e) => e.target.select()}
+                     placeholder="예상 참여자 수"
+                     className="touch-friendly"
+                   />
+                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1197,18 +1204,25 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="edit_expected_participants">예상 설문 인원 수</Label>
-                <Input
-                  id="edit_expected_participants"
-                  type="number"
-                  min="1"
-                  value={formData.expected_participants}
-                  onChange={(e) => setFormData(prev => ({ ...prev, expected_participants: parseInt(e.target.value) || 0 }))}
-                  placeholder="예상 참여자 수"
-                  className="touch-friendly"
-                />
-              </div>
+               <div>
+                 <Label htmlFor="edit_expected_participants">예상 설문 인원 수</Label>
+                 <Input
+                   id="edit_expected_participants"
+                   type="number"
+                   min="1"
+                   value={formData.expected_participants || ''}
+                   onChange={(e) => {
+                     const value = e.target.value;
+                     setFormData(prev => ({ 
+                       ...prev, 
+                       expected_participants: value === '' ? 0 : parseInt(value) || 0 
+                     }));
+                   }}
+                   onFocus={(e) => e.target.select()}
+                   placeholder="예상 참여자 수"
+                   className="touch-friendly"
+                 />
+               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
