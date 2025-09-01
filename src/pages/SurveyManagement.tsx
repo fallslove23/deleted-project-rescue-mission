@@ -179,13 +179,16 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    try {
-      const payload = {
-        ...formData,
-        start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
-        end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
-        created_by: user?.id,
-      };
+     try {
+       const payload = {
+         ...formData,
+         // UUID 필드는 빈 문자열을 null로 변환
+         instructor_id: formData.instructor_id || null,
+         course_id: formData.course_id || null,
+         start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
+         end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
+         created_by: user?.id,
+       };
 
       const { data: newSurvey, error } = await supabase
         .from('surveys')
@@ -229,20 +232,20 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
   const handleEditSurvey = (survey: Survey) => {
     setEditingSurvey(survey);
-    setFormData({
-      title: survey.title,
-      description: survey.description || '',
-      start_date: survey.start_date ? new Date(survey.start_date).toISOString().slice(0, 16) : '',
-      end_date: survey.end_date ? new Date(survey.end_date).toISOString().slice(0, 16) : '',
-      education_year: survey.education_year,
-      education_round: survey.education_round,
-      education_day: survey.education_day || 1,
-      course_name: survey.course_name || '',
-      instructor_id: survey.instructor_id,
-      course_id: survey.course_id,
-      expected_participants: 0
-    });
-    setSelectedInstructor(survey.instructor_id);
+     setFormData({
+       title: survey.title,
+       description: survey.description || '',
+       start_date: survey.start_date ? new Date(survey.start_date).toISOString().slice(0, 16) : '',
+       end_date: survey.end_date ? new Date(survey.end_date).toISOString().slice(0, 16) : '',
+       education_year: survey.education_year,
+       education_round: survey.education_round,
+       education_day: survey.education_day || 1,
+       course_name: survey.course_name || '',
+       instructor_id: survey.instructor_id || '',
+       course_id: survey.course_id || '',
+       expected_participants: 0
+     });
+     setSelectedInstructor(survey.instructor_id || '');
     setIsEditDialogOpen(true);
   };
 
@@ -251,12 +254,15 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     
     if (!editingSurvey) return;
     
-    try {
-      const payload = {
-        ...formData,
-        start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
-        end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
-      };
+     try {
+       const payload = {
+         ...formData,
+         // UUID 필드는 빈 문자열을 null로 변환
+         instructor_id: formData.instructor_id || null,
+         course_id: formData.course_id || null,
+         start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
+         end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
+       };
 
       const { error } = await supabase
         .from('surveys')
