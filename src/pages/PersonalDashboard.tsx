@@ -697,70 +697,67 @@ const PersonalDashboard = () => {
       </div>
 
       {/* 필터 컨트롤 */}
-      <div className="flex flex-wrap gap-4">
-        <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="기간 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="round">회차별</SelectItem>
-            <SelectItem value="month">월별</SelectItem>
-            <SelectItem value="half">반기별</SelectItem>
-            <SelectItem value="year">연도별</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label className="text-sm font-medium mb-2 block">기간</label>
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="기간 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="round">회차별</SelectItem>
+              <SelectItem value="month">월별</SelectItem>
+              <SelectItem value="half">반기별</SelectItem>
+              <SelectItem value="year">연도별</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="전체 연도" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체</SelectItem>
-            {getUniqueYears().map(year => (
-              <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {selectedPeriod !== 'round' && (
-          <Select value={selectedRound} onValueChange={setSelectedRound}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="전체 차수" />
+        <div>
+          <label className="text-sm font-medium mb-2 block">연도</label>
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="전체" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
+              {getUniqueYears().map(year => (
+                <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium mb-2 block">차수</label>
+          <Select value={selectedRound} onValueChange={setSelectedRound}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="전체" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              {selectedPeriod === 'round' && <SelectItem value="latest">최신</SelectItem>}
               {getUniqueRounds().map(round => (
                 <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        )}
-        
-        {selectedPeriod === 'round' && (
-          <Select value={selectedRound} onValueChange={setSelectedRound}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="회차 선택" />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium mb-2 block">과정</label>
+          <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="전체" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
-              {getUniqueRounds().map(round => (
-                <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+              {getUniqueCourses().map(course => (
+                <SelectItem key={course} value={course}>{course}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        )}
-
-        <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="전체 과정" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">전체</SelectItem>
-            {getUniqueCourses().map(course => (
-              <SelectItem key={course} value={course}>{course}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        </div>
       </div>
 
       {/* 트렌드 분석 */}
