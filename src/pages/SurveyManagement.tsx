@@ -26,6 +26,7 @@ interface Survey {
   end_date: string;
   education_year: number;
   education_round: number;
+  education_day?: number; // 일차 필드 추가
   status: string;
   instructor_id: string;
   course_id: string;
@@ -88,6 +89,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     end_date: '',
     education_year: new Date().getFullYear(),
     education_round: 1,
+    education_day: 1, // 일차 추가
     course_name: '', // 과정명 추가
     instructor_id: '',
     course_id: '',
@@ -177,6 +179,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         end_date: '',
         education_year: new Date().getFullYear(),
         education_round: 1,
+        education_day: 1,
         course_name: '',
         instructor_id: '',
         course_id: '',
@@ -232,6 +235,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
           end_date: survey.end_date,
           education_year: survey.education_year,
           education_round: survey.education_round,
+          education_day: survey.education_day,
           instructor_id: survey.instructor_id,
           course_id: survey.course_id,
           status: 'draft',
