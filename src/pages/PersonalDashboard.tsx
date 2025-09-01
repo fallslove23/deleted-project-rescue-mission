@@ -19,6 +19,7 @@ interface Survey {
   status: string;
   instructor_id: string;
   created_at: string;
+  course_name?: string;
 }
 
 interface SurveyResponse {
@@ -59,6 +60,7 @@ const PersonalDashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('round');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
+  const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
@@ -79,7 +81,7 @@ const PersonalDashboard = () => {
     if (profile && canViewPersonalStats) {
       fetchData();
     }
-  }, [profile, selectedPeriod, selectedYear, selectedRound]);
+  }, [profile, selectedPeriod, selectedYear, selectedRound, selectedCourse]);
 
   const fetchProfile = async () => {
     if (!user) {
@@ -161,6 +163,10 @@ const PersonalDashboard = () => {
 
       if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
         surveyQuery = surveyQuery.eq('education_round', parseInt(selectedRound));
+      }
+
+      if (selectedCourse && selectedCourse !== 'all') {
+        surveyQuery = surveyQuery.eq('course_name', selectedCourse);
       }
 
       const { data: surveysData, error: surveysError } = await surveyQuery
@@ -255,6 +261,18 @@ const PersonalDashboard = () => {
     return rounds.sort((a, b) => a - b);
   };
 
+  const getUniqueCourses = () => {
+    let filteredSurveys = surveys;
+    if (selectedYear && selectedYear !== 'all') {
+      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
+    }
+    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
+      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
+    }
+    const courses = [...new Set(filteredSurveys.map(s => s.course_name).filter(Boolean))];
+    return courses.sort();
+  };
+
   const getTrendData = () => {
     // 평점 질문들 (rating 또는 scale 타입) 찾기
     const ratingQuestions = questions.filter(q => 
@@ -268,6 +286,9 @@ const PersonalDashboard = () => {
     }
     if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
+    }
+    if (selectedCourse && selectedCourse !== 'all') {
+      filteredSurveys = filteredSurveys.filter(s => s.course_name === selectedCourse);
     }
     
     // 최신 회차 필터링
@@ -448,6 +469,9 @@ const PersonalDashboard = () => {
     }
     if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
+    }
+    if (selectedCourse && selectedCourse !== 'all') {
+      filteredSurveys = filteredSurveys.filter(s => s.course_name === selectedCourse);
     }
     
     // 최신 회차 필터링
@@ -724,6 +748,18 @@ const PersonalDashboard = () => {
             </SelectContent>
           </Select>
         )}
+
+        <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="전체 과정" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">전체</SelectItem>
+            {getUniqueCourses().map(course => (
+              <SelectItem key={course} value={course}>{course}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* 트렌드 분석 */}
