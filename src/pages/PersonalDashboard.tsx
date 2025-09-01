@@ -167,7 +167,9 @@ const PersonalDashboard = () => {
       }
 
       if (selectedCourse && selectedCourse !== 'all') {
-        surveyQuery = surveyQuery.ilike('course_name', `%${selectedCourse}%`);
+        // 과정 타입으로 필터링 (예: "BS Basic", "300 점검방법")
+        const coursePattern = `%- ${selectedCourse}%`;
+        surveyQuery = surveyQuery.ilike('course_name', coursePattern);
       }
 
       if (selectedSubject && selectedSubject !== 'all') {
@@ -327,7 +329,12 @@ const PersonalDashboard = () => {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
     }
     if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(s => s.course_name === selectedCourse);
+      filteredSurveys = filteredSurveys.filter(survey => {
+        if (!survey.course_name) return false;
+        const match = survey.course_name.match(/.*?-\s*(.+)$/);
+        const courseType = match ? match[1].trim() : survey.course_name;
+        return courseType === selectedCourse;
+      });
     }
     
     // 최신 회차 필터링
