@@ -1626,7 +1626,7 @@ const SurveyBuilder = () => {
                           <SelectTrigger>
                             <SelectValue placeholder="만족도 태그 선택 (선택사항)" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-background z-50">
                             <SelectItem value="none">태그 없음</SelectItem>
                             <SelectItem value="subject">과목 만족도</SelectItem>
                             <SelectItem value="instructor">강사 만족도</SelectItem>
