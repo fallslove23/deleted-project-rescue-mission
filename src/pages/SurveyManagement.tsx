@@ -608,7 +608,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="education_round">차수</Label>
                   <Input
@@ -626,9 +626,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   <Select 
                     value={formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name} 
                     onValueChange={(value) => {
-                      // 기존 과목명이 있으면 과정명을 업데이트
-                      const existingSubject = formData.course_name.includes('-') ? formData.course_name.split('-')[0]?.trim() : '';
-                      const newCourseName = existingSubject ? `${existingSubject} - ${value}` : value;
+                      // 선택한 과목과 과정명을 결합
+                      const selectedCourse = courses.find(c => c.id === formData.course_id);
+                      const subjectName = selectedCourse?.title || '';
+                      const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
                       setFormData(prev => ({ ...prev, course_name: newCourseName }));
                     }}
                   >
@@ -643,21 +644,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                       <SelectItem value="500 관리방법">500 관리방법</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="subject_name">과목명</Label>
-                  <Input
-                    id="subject_name"
-                    value={formData.course_name.includes('-') ? formData.course_name.split('-')[0]?.trim() : ''}
-                    onChange={(e) => {
-                      const courseType = formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name;
-                      const newCourseName = courseType ? `${e.target.value} - ${courseType}` : e.target.value;
-                      setFormData(prev => ({ ...prev, course_name: newCourseName }));
-                    }}
-                    placeholder="예: T2 사용법 실습"
-                    required
-                    className="touch-friendly"
-                  />
                 </div>
                 <div>
                   <Label htmlFor="expected_participants">예상 설문 인원 수</Label>
