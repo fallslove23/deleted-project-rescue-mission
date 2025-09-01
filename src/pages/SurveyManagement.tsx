@@ -571,14 +571,29 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="title">제목</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    required
-                    className="touch-friendly"
-                  />
+                  <Label htmlFor="course_selection">과목 선택</Label>
+                  <Select 
+                    value={formData.course_id} 
+                    onValueChange={(value) => {
+                      const selectedCourse = courses.find(c => c.id === value);
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        course_id: value,
+                        title: selectedCourse ? `${selectedCourse.title} 강의 만족도 조사` : ''
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="과목을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id}>
+                          {course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="education_year">교육 연도</Label>
@@ -683,36 +698,36 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                  </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label htmlFor="instructor">강사 선택</Label>
-                  <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
+                  <Select 
+                    value={selectedInstructor} 
+                    onValueChange={setSelectedInstructor}
+                    disabled={!formData.course_id}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="강사를 선택하세요" />
+                      <SelectValue placeholder={formData.course_id ? "강사를 선택하세요" : "먼저 과목을 선택해주세요"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {instructors.map((instructor) => (
-                        <SelectItem key={instructor.id} value={instructor.id}>
-                          {instructor.name}
-                        </SelectItem>
-                      ))}
+                      {formData.course_id && instructorCourses
+                        .filter(ic => ic.course_id === formData.course_id)
+                        .map(ic => {
+                          const instructor = instructors.find(i => i.id === ic.instructor_id);
+                          return instructor ? (
+                            <SelectItem key={instructor.id} value={instructor.id}>
+                              {instructor.name}
+                            </SelectItem>
+                          ) : null;
+                        })
+                      }
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="course">강의 선택</Label>
-                  <Select value={formData.course_id} onValueChange={(value) => setFormData(prev => ({ ...prev, course_id: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="강의를 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredCourses.map((course) => (
-                        <SelectItem key={course.id} value={course.id}>
-                          {course.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {formData.course_id && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      선택한 과목을 담당하는 강사만 표시됩니다
+                    </p>
+                  )}
                 </div>
               </div>
 
