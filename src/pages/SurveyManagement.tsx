@@ -145,9 +145,11 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     }
   }, [selectedInstructor, courses, instructorCourses]);
 
-  // 제목 자동 업데이트를 위한 useEffect
+  // 제목 자동 업데이트를 위한 useEffect (생성 및 편집 모드 모두 적용)
   useEffect(() => {
-    updateTitle();
+    if (formData.course_id && formData.education_year && formData.education_round && formData.education_day) {
+      updateTitle();
+    }
   }, [formData.education_year, formData.education_round, formData.education_day, formData.course_name, formData.course_id, courses]);
 
   const fetchData = async () => {
@@ -1126,13 +1128,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 <Select 
                   value={formData.course_id} 
                    onValueChange={(value) => {
-                     const selectedCourse = courses.find(c => c.id === value);
                      setFormData(prev => ({ 
                        ...prev, 
                        course_id: value
                      }));
-                     // 제목 자동 업데이트 (다음 렌더링 후)
-                     setTimeout(() => updateTitle(), 100);
                    }}
                 >
                   <SelectTrigger>
@@ -1155,8 +1154,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   value={formData.education_year}
                    onChange={(e) => {
                      setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }));
-                     // 제목 자동 업데이트
-                     setTimeout(() => updateTitle(), 100);
                    }}
                   required
                   className="touch-friendly"
@@ -1174,8 +1171,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   value={formData.education_round}
                    onChange={(e) => {
                      setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }));
-                     // 제목 자동 업데이트
-                     setTimeout(() => updateTitle(), 100);
                    }}
                   required
                   className="touch-friendly"
@@ -1190,8 +1185,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   value={formData.education_day}
                    onChange={(e) => {
                      setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }));
-                     // 제목 자동 업데이트
-                     setTimeout(() => updateTitle(), 100);
                    }}
                   required
                   className="touch-friendly"
@@ -1210,8 +1203,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                      const subjectName = selectedCourse?.title || '';
                      const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
                      setFormData(prev => ({ ...prev, course_name: newCourseName }));
-                     // 제목 자동 업데이트
-                     setTimeout(() => updateTitle(), 100);
                    }}
                 >
                   <SelectTrigger>
