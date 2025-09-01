@@ -29,6 +29,7 @@ interface Survey {
   status: string;
   instructor_id: string;
   course_id: string;
+  course_name?: string; // 과정명 필드 추가
   created_at: string;
 }
 
@@ -762,7 +763,14 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   {/* Info section */}
                   <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
                     <p className="break-words"><strong>강사:</strong> {surveyInstructor?.name || 'Unknown'}</p>
-                    <p className="break-words"><strong>과목:</strong> {surveyCourse?.title || 'Unknown'}</p>
+                    <p className="break-words">
+                      <strong>과목:</strong> {survey.course_name || surveyCourse?.title || 'Unknown'}
+                      {survey.course_name && survey.course_name.includes('-') && (
+                        <span className="ml-2 text-primary font-medium">
+                          [{survey.course_name.split('-')[1]?.trim()}]
+                        </span>
+                      )}
+                    </p>
                     <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차</p>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3 w-3 flex-shrink-0" />
