@@ -592,7 +592,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="education_round">차수</Label>
                   <Input
@@ -606,12 +606,39 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   />
                 </div>
                 <div>
-                  <Label htmlFor="course_name">과정명</Label>
+                  <Label htmlFor="course_type">과정</Label>
+                  <Select 
+                    value={formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name} 
+                    onValueChange={(value) => {
+                      // 기존 과목명이 있으면 과정명을 업데이트
+                      const existingSubject = formData.course_name.includes('-') ? formData.course_name.split('-')[0]?.trim() : '';
+                      const newCourseName = existingSubject ? `${existingSubject} - ${value}` : value;
+                      setFormData(prev => ({ ...prev, course_name: newCourseName }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="과정 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BS Basic">BS Basic</SelectItem>
+                      <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                      <SelectItem value="300 점검방법">300 점검방법</SelectItem>
+                      <SelectItem value="400 조치방법">400 조치방법</SelectItem>
+                      <SelectItem value="500 관리방법">500 관리방법</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="subject_name">과목명</Label>
                   <Input
-                    id="course_name"
-                    value={formData.course_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, course_name: e.target.value }))}
-                    placeholder="예: BS SW 업무 과정"
+                    id="subject_name"
+                    value={formData.course_name.includes('-') ? formData.course_name.split('-')[0]?.trim() : ''}
+                    onChange={(e) => {
+                      const courseType = formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name;
+                      const newCourseName = courseType ? `${e.target.value} - ${courseType}` : e.target.value;
+                      setFormData(prev => ({ ...prev, course_name: newCourseName }));
+                    }}
+                    placeholder="예: T2 사용법 실습"
                     required
                     className="touch-friendly"
                   />
