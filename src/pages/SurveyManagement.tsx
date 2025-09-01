@@ -8,12 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target, ChevronsUpDown, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 import CourseSelector from '@/components/course-reports/CourseSelector';
@@ -62,6 +65,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
   
   // 필터링 훅 사용
   const {
@@ -1125,26 +1129,55 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edit_course_selection">과목 선택</Label>
-                <Select 
-                  value={formData.course_id} 
-                   onValueChange={(value) => {
-                     setFormData(prev => ({ 
-                       ...prev, 
-                       course_id: value
-                     }));
-                   }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="과목을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.id}>
-                        {course.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      className="w-full justify-between"
+                    >
+                      {formData.course_id
+                        ? courses.find(course => course.id === formData.course_id)?.title
+                        : "과목을 선택하세요"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="과목 검색..." />
+                      <CommandList>
+                        <CommandEmpty>검색 결과가 없습니다.</CommandEmpty>
+                        <CommandGroup>
+                          {courses.map(course => (
+                            <CommandItem
+                              key={course.id}
+                              value={course.title}
+                              onSelect={(currentValue) => {
+                                const selectedCourse = courses.find(c => c.title === currentValue);
+                                if (selectedCourse) {
+                                  setFormData(prev => ({ 
+                                    ...prev, 
+                                    course_id: selectedCourse.id
+                                  }));
+                                }
+                                setOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.course_id === course.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {course.title}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label htmlFor="edit_education_year">교육 연도</Label>
