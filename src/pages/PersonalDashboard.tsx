@@ -61,6 +61,7 @@ const PersonalDashboard = () => {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
@@ -81,7 +82,7 @@ const PersonalDashboard = () => {
     if (profile && canViewPersonalStats) {
       fetchData();
     }
-  }, [profile, selectedPeriod, selectedYear, selectedRound, selectedCourse]);
+  }, [profile, selectedPeriod, selectedYear, selectedRound, selectedCourse, selectedSubject]);
 
   const fetchProfile = async () => {
     if (!user) {
@@ -166,7 +167,11 @@ const PersonalDashboard = () => {
       }
 
       if (selectedCourse && selectedCourse !== 'all') {
-        surveyQuery = surveyQuery.eq('course_name', selectedCourse);
+        surveyQuery = surveyQuery.ilike('course_name', `%${selectedCourse}%`);
+      }
+
+      if (selectedSubject && selectedSubject !== 'all') {
+        surveyQuery = surveyQuery.eq('course_name', selectedSubject);
       }
 
       const { data: surveysData, error: surveysError } = await surveyQuery
@@ -261,7 +266,29 @@ const PersonalDashboard = () => {
     return rounds.sort((a, b) => a - b);
   };
 
+  // 고유 과정 목록 가져오기 (BS Basic, BS Advanced 등)
   const getUniqueCourses = () => {
+    let filteredSurveys = surveys;
+    if (selectedYear && selectedYear !== 'all') {
+      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
+    }
+    
+    console.log('All surveys for courses:', filteredSurveys);
+    const courses = filteredSurveys
+      .map(survey => {
+        if (!survey.course_name) return null;
+        // "2025년 1차 - BS Basic" 형태에서 "BS Basic" 추출
+        const match = survey.course_name.match(/.*?-\s*(.+)$/);
+        return match ? match[1].trim() : survey.course_name;
+      })
+      .filter((course, index, self) => course && self.indexOf(course) === index)
+      .sort();
+    console.log('Unique course types:', courses);
+    return courses;
+  };
+
+  // 고유 과목 목록 가져오기 (전체 course_name)
+  const getUniqueSubjects = () => {
     let filteredSurveys = surveys;
     if (selectedYear && selectedYear !== 'all') {
       filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
@@ -269,9 +296,20 @@ const PersonalDashboard = () => {
     if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
     }
-    const courses = [...new Set(filteredSurveys.map(s => s.course_name).filter(name => name && name.trim() !== ''))];
-    console.log('피드백 - 과정 목록:', courses, 'from surveys:', filteredSurveys);
-    return courses.sort();
+    if (selectedCourse && selectedCourse !== 'all') {
+      filteredSurveys = filteredSurveys.filter(survey => {
+        if (!survey.course_name) return false;
+        const match = survey.course_name.match(/.*?-\s*(.+)$/);
+        const courseType = match ? match[1].trim() : survey.course_name;
+        return courseType === selectedCourse;
+      });
+    }
+    
+    const subjects = filteredSurveys
+      .map(survey => survey.course_name)
+      .filter((subject, index, self) => subject && self.indexOf(subject) === index)
+      .sort();
+    return subjects;
   };
 
   const getTrendData = () => {
@@ -697,7 +735,7 @@ const PersonalDashboard = () => {
       </div>
 
       {/* 필터 컨트롤 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div>
           <label className="text-sm font-medium mb-2 block">기간</label>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -729,6 +767,21 @@ const PersonalDashboard = () => {
         </div>
 
         <div>
+          <label className="text-sm font-medium mb-2 block">과정</label>
+          <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="전체" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              {getUniqueCourses().map(course => (
+                <SelectItem key={course} value={course}>{course}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <label className="text-sm font-medium mb-2 block">차수</label>
           <Select value={selectedRound} onValueChange={setSelectedRound}>
             <SelectTrigger className="w-full">
@@ -745,15 +798,15 @@ const PersonalDashboard = () => {
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-2 block">과정</label>
-          <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+          <label className="text-sm font-medium mb-2 block">과목</label>
+          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="전체" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
-              {getUniqueCourses().map(course => (
-                <SelectItem key={course} value={course}>{course}</SelectItem>
+              {getUniqueSubjects().map(subject => (
+                <SelectItem key={subject} value={subject}>{subject}</SelectItem>
               ))}
             </SelectContent>
           </Select>
