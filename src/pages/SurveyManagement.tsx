@@ -1121,14 +1121,16 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 <Label htmlFor="edit_course_selection">과목 선택</Label>
                 <Select 
                   value={formData.course_id} 
-                  onValueChange={(value) => {
-                    const selectedCourse = courses.find(c => c.id === value);
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      course_id: value,
-                      title: selectedCourse ? selectedCourse.title : prev.title
-                    }));
-                  }}
+                   onValueChange={(value) => {
+                     const selectedCourse = courses.find(c => c.id === value);
+                     setFormData(prev => ({ 
+                       ...prev, 
+                       course_id: value,
+                       title: selectedCourse ? selectedCourse.title : prev.title
+                     }));
+                     // 제목 자동 업데이트
+                     setTimeout(() => updateTitle(), 0);
+                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="과목을 선택하세요" />
@@ -1148,7 +1150,11 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   id="edit_education_year"
                   type="number"
                   value={formData.education_year}
-                  onChange={(e) => setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
+                   onChange={(e) => {
+                     setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }));
+                     // 제목 자동 업데이트
+                     setTimeout(() => updateTitle(), 0);
+                   }}
                   required
                   className="touch-friendly"
                 />
@@ -1163,7 +1169,11 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   type="number"
                   min="1"
                   value={formData.education_round}
-                  onChange={(e) => setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
+                   onChange={(e) => {
+                     setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }));
+                     // 제목 자동 업데이트
+                     setTimeout(() => updateTitle(), 0);
+                   }}
                   required
                   className="touch-friendly"
                 />
@@ -1175,7 +1185,11 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   type="number"
                   min="1"
                   value={formData.education_day}
-                  onChange={(e) => setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }))}
+                   onChange={(e) => {
+                     setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }));
+                     // 제목 자동 업데이트
+                     setTimeout(() => updateTitle(), 0);
+                   }}
                   required
                   className="touch-friendly"
                   placeholder="1"
@@ -1188,12 +1202,14 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 <Label htmlFor="edit_course_type">과정</Label>
                 <Select 
                   value={formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name} 
-                  onValueChange={(value) => {
-                    const selectedCourse = courses.find(c => c.id === formData.course_id);
-                    const subjectName = selectedCourse?.title || '';
-                    const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
-                    setFormData(prev => ({ ...prev, course_name: newCourseName }));
-                  }}
+                   onValueChange={(value) => {
+                     const selectedCourse = courses.find(c => c.id === formData.course_id);
+                     const subjectName = selectedCourse?.title || '';
+                     const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
+                     setFormData(prev => ({ ...prev, course_name: newCourseName }));
+                     // 제목 자동 업데이트
+                     setTimeout(() => updateTitle(), 0);
+                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="과정 선택" />
