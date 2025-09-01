@@ -96,6 +96,18 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     expected_participants: 0
   });
 
+  // 제목 자동 업데이트 함수
+  const updateTitle = () => {
+    const selectedCourse = courses.find(c => c.id === formData.course_id);
+    const courseName = formData.course_name?.split('-')[1]?.trim() || '';
+    
+    if (formData.education_year && formData.education_round && formData.education_day && courseName && selectedCourse) {
+      const titlePrefix = `(${formData.education_year}년-${formData.education_round}차 ${courseName} ${formData.education_day}일차)`;
+      const newTitle = `${titlePrefix} ${selectedCourse.title}`;
+      setFormData(prev => ({ ...prev, title: newTitle }));
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchFilteredSurveys();
@@ -576,16 +588,23 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="course_selection">과목 선택</Label>
-                  <Select 
-                    value={formData.course_id} 
-                    onValueChange={(value) => {
-                      const selectedCourse = courses.find(c => c.id === value);
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        course_id: value,
-                        title: selectedCourse ? `${selectedCourse.title} 강의 만족도 조사` : ''
-                      }));
-                    }}
+                   <Select 
+                     value={formData.course_id} 
+                     onValueChange={(value) => {
+                       const selectedCourse = courses.find(c => c.id === value);
+                       // 제목 자동 생성: (년도-차수 과정명 일차) 과목명
+                       const titlePrefix = formData.education_year && formData.education_round && formData.education_day
+                         ? `(${formData.education_year}년-${formData.education_round}차 ${formData.course_name?.split('-')[1]?.trim() || ''} ${formData.education_day}일차)`
+                         : '';
+                       const title = selectedCourse 
+                         ? `${titlePrefix} ${selectedCourse.title}`.trim()
+                         : '';
+                       setFormData(prev => ({ 
+                         ...prev, 
+                         course_id: value,
+                         title: title
+                       }));
+                     }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="과목을 선택하세요" />
@@ -599,56 +618,73 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="education_year">교육 연도</Label>
-                  <Input
-                    id="education_year"
-                    type="number"
-                    value={formData.education_year}
-                    onChange={(e) => setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
-                    required
-                    className="touch-friendly"
-                  />
-                </div>
+                 <div>
+                   <Label htmlFor="education_year">교육 연도</Label>
+                   <Input
+                     id="education_year"
+                     type="number"
+                     value={formData.education_year}
+                     onChange={(e) => {
+                       setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }));
+                       // 제목 업데이트
+                       updateTitle();
+                     }}
+                     required
+                     className="touch-friendly"
+                   />
+                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <Label htmlFor="education_round">차수</Label>
-                  <Input
-                    id="education_round"
-                    type="number"
-                    min="1"
-                    value={formData.education_round}
-                    onChange={(e) => setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
-                    required
-                    className="touch-friendly"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="education_day">일차</Label>
-                  <Input
-                    id="education_day"
-                    type="number"
-                    min="1"
-                    value={formData.education_day}
-                    onChange={(e) => setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }))}
-                    required
-                    className="touch-friendly"
-                    placeholder="1"
-                  />
-                </div>
+                 <div>
+                   <Label htmlFor="education_round">차수</Label>
+                   <Input
+                     id="education_round"
+                     type="number"
+                     min="1"
+                     value={formData.education_round}
+                     onChange={(e) => {
+                       setFormData(prev => ({ ...prev, education_round: parseInt(e.target.value) }));
+                       // 제목 업데이트
+                       updateTitle();
+                     }}
+                     required
+                     className="touch-friendly"
+                   />
+                 </div>
+                 <div>
+                   <Label htmlFor="education_day">교육 일차</Label>
+                   <Input
+                     id="education_day"
+                     type="number"
+                     min="1"
+                     value={formData.education_day}
+                     onChange={(e) => {
+                       setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }));
+                       // 제목 업데이트
+                       updateTitle();
+                     }}
+                     required
+                     className="touch-friendly"
+                     placeholder="1"
+                   />
+                   <p className="text-xs text-muted-foreground mt-1">
+                     전체 교육과정 중 몇 번째 날인지 입력 (예: 10일 과정 중 2일차)
+                   </p>
+                 </div>
                 <div>
                   <Label htmlFor="course_type">과정</Label>
-                  <Select 
-                    value={formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name} 
-                    onValueChange={(value) => {
-                      // 선택한 과목과 과정명을 결합
-                      const selectedCourse = courses.find(c => c.id === formData.course_id);
-                      const subjectName = selectedCourse?.title || '';
-                      const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
-                      setFormData(prev => ({ ...prev, course_name: newCourseName }));
-                    }}
+                   <Select 
+                     value={formData.course_name.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name} 
+                     onValueChange={(value) => {
+                       // 선택한 과목과 과정명을 결합
+                       const selectedCourse = courses.find(c => c.id === formData.course_id);
+                       const subjectName = selectedCourse?.title || '';
+                       const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
+                       setFormData(prev => ({ ...prev, course_name: newCourseName }));
+                       // 제목 업데이트
+                       updateTitle();
+                     }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="과정 선택" />
@@ -781,14 +817,17 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   {/* Info section */}
                   <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
                     <p className="break-words"><strong>강사:</strong> {surveyInstructor?.name || 'Unknown'}</p>
-                    <p className="break-words">
-                      <strong>과목:</strong> {survey.course_name || surveyCourse?.title || 'Unknown'}
-                      {survey.course_name && survey.course_name.includes('-') && (
-                        <span className="ml-2 text-primary font-medium">
-                          [{survey.course_name.split('-')[1]?.trim()}]
-                        </span>
-                      )}
-                    </p>
+                     <p className="break-words">
+                       <strong>과목:</strong> {surveyCourse?.title || 'Unknown'}
+                     </p>
+                     {survey.course_name && survey.course_name.includes('-') && (
+                       <p className="break-words">
+                         <strong>과정명:</strong> 
+                         <span className="ml-1 text-primary font-medium">
+                           {survey.course_name.split('-')[1]?.trim()}
+                         </span>
+                       </p>
+                     )}
                     <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차 {survey.education_day ? `${survey.education_day}일차` : ''}</p>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3 w-3 flex-shrink-0" />
