@@ -104,7 +104,8 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     const courseName = formData.course_name?.split('-')[1]?.trim() || '';
     
     if (formData.education_year && formData.education_round && formData.education_day && courseName && selectedCourse) {
-      const titlePrefix = `(${formData.education_year}년-${formData.education_round}차 ${courseName} ${formData.education_day}일차)`;
+      const year = formData.education_year.toString().slice(-2); // 25로 변환
+      const titlePrefix = `(${year}-${formData.education_round}차 ${courseName} ${formData.education_day}일차)`;
       const newTitle = `${titlePrefix} ${selectedCourse.title}`;
       setFormData(prev => ({ ...prev, title: newTitle }));
     }
@@ -138,7 +139,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         course_id: currentCourseValid ? prev.course_id : ''
       }));
     }
-  }, [selectedInstructor, courses, instructorCourses, formData.course_id]);
+  }, [selectedInstructor, courses, instructorCourses]);
+
+  // 제목 자동 업데이트를 위한 useEffect
+  useEffect(() => {
+    updateTitle();
+  }, [formData.education_year, formData.education_round, formData.education_day, formData.course_name, formData.course_id, courses]);
 
   const fetchData = async () => {
     try {
@@ -674,20 +680,13 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                      value={formData.course_id} 
                      onValueChange={(value) => {
                        const selectedCourse = courses.find(c => c.id === value);
-                       // 제목 자동 생성: (년도-차수 과정명 일차) 과목명
-                       const titlePrefix = formData.education_year && formData.education_round && formData.education_day
-                         ? `(${formData.education_year}년-${formData.education_round}차 ${formData.course_name?.split('-')[1]?.trim() || ''} ${formData.education_day}일차)`
-                         : '';
-                       const title = selectedCourse 
-                         ? `${titlePrefix} ${selectedCourse.title}`.trim()
-                         : '';
                        setFormData(prev => ({ 
                          ...prev, 
-                         course_id: value,
-                         title: title
+                         course_id: value
                        }));
+                       // updateTitle은 useEffect에서 자동으로 호출됨
                      }}
-                  >
+                    >
                     <SelectTrigger>
                       <SelectValue placeholder="과목을 선택하세요" />
                     </SelectTrigger>
@@ -861,7 +860,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   rows={3}
                 />
               </div>
-
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -1266,14 +1264,17 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
             </div>
 
             <div>
-              <Label htmlFor="edit_title">설문 제목</Label>
+              <Label htmlFor="edit_title">설문 제목 (자동 생성)</Label>
               <Input
                 id="edit_title"
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                required
-                className="touch-friendly"
+                readOnly
+                className="touch-friendly bg-muted"
+                placeholder="과목과 과정 정보를 입력하면 자동으로 생성됩니다"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                제목은 (yy-n차 과정명 n일차) 과목명 형식으로 자동 생성됩니다
+              </p>
             </div>
 
             <div>
