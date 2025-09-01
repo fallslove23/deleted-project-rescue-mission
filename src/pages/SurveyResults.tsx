@@ -628,7 +628,10 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       .sort((a, b) => {
         if (a.year !== b.year) return b.year - a.year;
         if (a.round !== b.round) return b.round - a.round;
-        return a.courseName.localeCompare(b.courseName);
+        // Handle null/undefined courseName values safely
+        const courseNameA = a.courseName || '';
+        const courseNameB = b.courseName || '';
+        return courseNameA.localeCompare(courseNameB);
       });
   };
 
