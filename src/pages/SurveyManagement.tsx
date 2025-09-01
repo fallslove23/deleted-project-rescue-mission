@@ -653,7 +653,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                    />
                  </div>
                  <div>
-                   <Label htmlFor="education_day">교육 일차</Label>
+                   <Label htmlFor="education_day">일차</Label>
                    <Input
                      id="education_day"
                      type="number"
@@ -669,7 +669,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                      placeholder="1"
                    />
                    <p className="text-xs text-muted-foreground mt-1">
-                     전체 교육과정 중 몇 번째 날인지 입력 (예: 10일 과정 중 2일차)
+                     전체 교육과정 중 몇 번째 날 (예: 2일차)
                    </p>
                  </div>
                 <div>
@@ -828,7 +828,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                          </span>
                        </p>
                      )}
-                    <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차 {survey.education_day ? `${survey.education_day}일차` : ''}</p>
+                    <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차 {survey.education_day}일차</p>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3 w-3 flex-shrink-0" />
                       <span className="break-all">{survey.start_date.slice(0, 10)} ~ {survey.end_date.slice(0, 10)}</span>
