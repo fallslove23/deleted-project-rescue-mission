@@ -910,7 +910,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                          </span>
                        </p>
                      )}
-                    <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차 {survey.education_day}일차</p>
+                    <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차 {survey.education_day || 1}일차</p>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3 w-3 flex-shrink-0" />
                       <span className="break-all">{survey.start_date.slice(0, 10)} ~ {survey.end_date.slice(0, 10)}</span>
