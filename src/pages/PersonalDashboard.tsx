@@ -269,7 +269,8 @@ const PersonalDashboard = () => {
     if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
     }
-    const courses = [...new Set(filteredSurveys.map(s => s.course_name).filter(Boolean))];
+    const courses = [...new Set(filteredSurveys.map(s => s.course_name).filter(name => name && name.trim() !== ''))];
+    console.log('피드백 - 과정 목록:', courses, 'from surveys:', filteredSurveys);
     return courses.sort();
   };
 
