@@ -1110,7 +1110,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  차수별 만족도 트렌드
+                  과정별 만족도 트렌드
                 </CardTitle>
               </CardHeader>
               <CardContent>

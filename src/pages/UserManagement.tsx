@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Edit, Search, UserX, Shield } from 'lucide-react';
+import { Users, Edit, Search, UserX, Shield, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
@@ -149,6 +149,28 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
     }
   };
 
+  const handleResetPassword = async (user: UserProfile) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/change-password`
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: `${user.email}에 비밀번호 재설정 이메일을 발송했습니다.`
+      });
+    } catch (error) {
+      console.error('Error sending password reset:', error);
+      toast({
+        title: "오류",
+        description: "비밀번호 재설정 이메일 발송 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const searchLower = searchQuery.toLowerCase();
     const instructor = getUserInstructor(user.id);
@@ -250,6 +272,14 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
                         첫 로그인 대기
                       </Badge>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleResetPassword(user)}
+                    >
+                      <Key className="h-4 w-4 mr-1" />
+                      비밀번호 초기화
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
