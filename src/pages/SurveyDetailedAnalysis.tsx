@@ -181,8 +181,9 @@ const SurveyDetailedAnalysis = () => {
   };
 
   const categorizeQuestions = () => {
-    const courseQuestions: SurveyQuestion[] = [];
+    const subjectQuestions: SurveyQuestion[] = [];
     const instructorQuestions: SurveyQuestion[] = [];
+    const operationQuestions: SurveyQuestion[] = [];
 
     questions.forEach(question => {
       const questionText = question.question_text?.toLowerCase() || '';
@@ -196,25 +197,34 @@ const SurveyDetailedAnalysis = () => {
           questionText.includes('전달력') ||
           questionText.includes('준비도')) {
         instructorQuestions.push(question);
-      } 
-      // 과정 관련 키워드 또는 rating/scale 타입
+      }
+      // 운영 관련 키워드
+      else if (questionText.includes('환경') ||
+               questionText.includes('시설') ||
+               questionText.includes('운영') ||
+               questionText.includes('서비스') ||
+               questionText.includes('지원') ||
+               questionText.includes('관리') ||
+               questionText.includes('시간') ||
+               questionText.includes('일정')) {
+        operationQuestions.push(question);
+      }
+      // 과목 관련 키워드 또는 rating/scale 타입
       else if (questionText.includes('과정') || 
+               questionText.includes('과목') ||
                questionText.includes('교육') || 
                questionText.includes('내용') || 
                questionText.includes('커리큘럼') ||
-               questionText.includes('시간') ||
                questionText.includes('교재') ||
-               questionText.includes('환경') ||
-               questionText.includes('시설') ||
                (question.question_type === 'rating' || question.question_type === 'scale')) {
-        courseQuestions.push(question);
+        subjectQuestions.push(question);
       } else {
-        // 기본적으로 과정 만족도로 분류
-        courseQuestions.push(question);
+        // 기본적으로 과목 만족도로 분류
+        subjectQuestions.push(question);
       }
     });
 
-    return { courseQuestions, instructorQuestions };
+    return { subjectQuestions, instructorQuestions, operationQuestions };
   };
 
   const getQuestionAnalysis = (questionList: SurveyQuestion[]) => {
@@ -469,22 +479,27 @@ const SurveyDetailedAnalysis = () => {
     csvContent += `총 응답수,${responses.length}\n`;
     csvContent += `강사명,${instructor?.name || '-'}\n\n`;
     
-    // 과정 만족도 통계
-    const courseAvg = calculateCategoryAverage(categorizeQuestions().courseQuestions);
-    const courseAvgStr = String(courseAvg);
-    csvContent += `과정 만족도,${courseAvgStr !== '0' ? courseAvgStr : '-'}/10\n`;
+    // 과목 만족도 통계
+    const subjectAvg = calculateCategoryAverage(categorizeQuestions().subjectQuestions);
+    const subjectAvgStr = String(subjectAvg);
+    csvContent += `과목 만족도,${subjectAvgStr !== '0' ? subjectAvgStr : '-'}/10\n`;
     
     // 강사 만족도 통계  
     const instructorAvg = calculateCategoryAverage(categorizeQuestions().instructorQuestions);
     const instructorAvgStr = String(instructorAvg);
-    csvContent += `강사 만족도,${instructorAvgStr !== '0' ? instructorAvgStr : '-'}/10\n\n`;
+    csvContent += `강사 만족도,${instructorAvgStr !== '0' ? instructorAvgStr : '-'}/10\n`;
+    
+    // 운영 만족도 통계
+    const operationAvg = calculateCategoryAverage(categorizeQuestions().operationQuestions);
+    const operationAvgStr = String(operationAvg);
+    csvContent += `운영 만족도,${operationAvgStr !== '0' ? operationAvgStr : '-'}/10\n\n`;
     
     // 질문별 분석
     csvContent += `질문,질문유형,응답수,분석결과\n`;
     
-    const { courseQuestions, instructorQuestions } = categorizeQuestions();
+    const { subjectQuestions, instructorQuestions, operationQuestions } = categorizeQuestions();
     
-    [...courseQuestions, ...instructorQuestions].forEach((question, index) => {
+    [...subjectQuestions, ...instructorQuestions, ...operationQuestions].forEach((question, index) => {
       const analysis = getQuestionAnalysis([question])[0];
       csvContent += `"${question.question_text}",${question.question_type},${analysis.totalAnswers},"`;
       
@@ -519,11 +534,13 @@ const SurveyDetailedAnalysis = () => {
     );
   }
 
-  const { courseQuestions, instructorQuestions } = categorizeQuestions();
-  const courseAnalyses = getQuestionAnalysis(courseQuestions);
+  const { subjectQuestions, instructorQuestions, operationQuestions } = categorizeQuestions();
+  const subjectAnalyses = getQuestionAnalysis(subjectQuestions);
   const instructorAnalyses = getQuestionAnalysis(instructorQuestions);
-  const courseAverage = calculateCategoryAverage(courseQuestions);
+  const operationAnalyses = getQuestionAnalysis(operationQuestions);
+  const subjectAverage = calculateCategoryAverage(subjectQuestions);
   const instructorAverage = calculateCategoryAverage(instructorQuestions);
+  const operationAverage = calculateCategoryAverage(operationQuestions);
 
   return (
     <div className="min-h-screen bg-background">
@@ -613,20 +630,20 @@ const SurveyDetailedAnalysis = () => {
           </div>
 
           {/* 종합 만족도 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-blue-500" />
-                  과정 만족도
+                  과목 만족도
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-500">{courseAverage}</div>
+                  <div className="text-3xl font-bold text-blue-500">{subjectAverage}</div>
                   <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {courseQuestions.length}개 질문 기준
+                    {subjectQuestions.length}개 질문 기준
                   </div>
                 </div>
               </CardContent>
@@ -649,22 +666,43 @@ const SurveyDetailedAnalysis = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-500" />
+                  운영 만족도
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-500">{operationAverage}</div>
+                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {operationQuestions.length}개 질문 기준
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* 상세 분석 탭 */}
-          <Tabs defaultValue="course" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="course" className="text-sm touch-friendly">
-                과정 만족도 ({courseQuestions.length})
+          <Tabs defaultValue="subject" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="subject" className="text-sm touch-friendly">
+                과목 만족도 ({subjectQuestions.length})
               </TabsTrigger>
               <TabsTrigger value="instructor" className="text-sm touch-friendly">
                 강사 만족도 ({instructorQuestions.length})
               </TabsTrigger>
+              <TabsTrigger value="operation" className="text-sm touch-friendly">
+                운영 만족도 ({operationQuestions.length})
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="course" className="space-y-4">
-              {courseAnalyses.length > 0 ? (
-                courseAnalyses.map((analysis, index) => (
+            <TabsContent value="subject" className="space-y-4">
+              {subjectAnalyses.length > 0 ? (
+                subjectAnalyses.map((analysis, index) => (
                   <Card key={analysis.question.id}>
                     <CardHeader>
                       <CardTitle className="text-lg">
@@ -782,7 +820,7 @@ const SurveyDetailedAnalysis = () => {
               ) : (
                 <Card>
                   <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">과정 관련 질문이 없습니다.</p>
+                    <p className="text-muted-foreground">과목 관련 질문이 없습니다.</p>
                   </CardContent>
                 </Card>
               )}
@@ -909,6 +947,132 @@ const SurveyDetailedAnalysis = () => {
                 <Card>
                   <CardContent className="text-center py-8">
                     <p className="text-muted-foreground">강사 관련 질문이 없습니다.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="operation" className="space-y-4">
+              {operationAnalyses.length > 0 ? (
+                operationAnalyses.map((analysis, index) => (
+                  <Card key={analysis.question.id}>
+                    <CardHeader>
+                      <CardTitle className="text-lg">
+                        Q{index + 1}. {analysis.question.question_text}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        총 응답 수: {analysis.totalAnswers}개
+                        {analysis.question.is_required && (
+                          <Badge variant="secondary" className="ml-2">필수</Badge>
+                        )}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {analysis.type === 'chart' && (
+                        <div className="space-y-4">
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={analysis.chartData}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={40}
+                                  outerRadius={80}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                                >
+                                  {analysis.chartData.map((entry, idx) => (
+                                    <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, name]} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {analysis.chartData.map((item, idx) => (
+                              <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <div 
+                                    className="w-4 h-4 rounded-full" 
+                                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                                  />
+                                  <span className="text-sm">{item.name}</span>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-medium">{item.value}개</p>
+                                  <p className="text-xs text-muted-foreground">{item.percentage}%</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {analysis.type === 'rating' && (
+                        <div className="space-y-4">
+                          <div className="text-center">
+                            <div className="text-3xl font-bold text-primary">{analysis.average}</div>
+                            <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
+                          </div>
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RechartsBarChart data={analysis.chartData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
+                                <Bar dataKey="value" fill="#8884d8" />
+                              </RechartsBarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          <div className="space-y-2">
+                            {analysis.chartData.map((item, idx) => (
+                              <div key={item.name} className="flex items-center gap-4">
+                                <span className="text-sm w-12">{item.name}</span>
+                                <div className="flex-1">
+                                  <Progress value={item.percentage} className="h-2" />
+                                </div>
+                                <span className="text-sm text-muted-foreground w-16">
+                                  {item.value}개 ({item.percentage}%)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {analysis.type === 'text' && (
+                        <div className="space-y-3">
+                          {analysis.answers && analysis.answers.length > 0 ? (
+                            analysis.answers.map((answer, idx) => (
+                              <div key={answer.id} className="p-3 border rounded-lg">
+                                <p className="text-sm">{answer.answer_text}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {new Date(answer.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-muted-foreground text-center py-8">
+                              아직 응답이 없습니다.
+                            </p>
+                          )}
+                          {analysis.totalAnswers > 10 && (
+                            <p className="text-sm text-muted-foreground text-center">
+                              총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <Card>
+                  <CardContent className="text-center py-8">
+                    <p className="text-muted-foreground">운영 관련 질문이 없습니다.</p>
                   </CardContent>
                 </Card>
               )}

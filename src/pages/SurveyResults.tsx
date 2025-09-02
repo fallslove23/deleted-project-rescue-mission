@@ -570,7 +570,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
         surveyQuestions.forEach(question => {
           const satisfactionType = question.satisfaction_type;
           
-          if (satisfactionType === 'subject') {
+          if (satisfactionType === 'course' || satisfactionType === 'subject') {
             // 과목 만족도
             const answers = surveyAnswers
               .filter(a => a.question_id === question.id)
