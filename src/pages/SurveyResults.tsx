@@ -1053,7 +1053,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  과정별 만족도 트렌드
+                   과목별 만족도 트렌드
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1078,29 +1078,39 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                         borderRadius: '8px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                       }}
-                      formatter={(value: any, name: string) => [
-                        `${value.toFixed(1)}/10`, 
-                        name === 'courseSatisfaction' ? '과정 만족도' : '강사 만족도'
-                      ]}
-                      labelFormatter={(label) => `${label}`}
+                       formatter={(value: any, name: string) => [
+                         `${value.toFixed(1)}/10`, 
+                         name === 'subjectSatisfaction' ? '과목 만족도' : 
+                         name === 'instructorSatisfaction' ? '강사 만족도' : '운영 만족도'
+                       ]}
+                       labelFormatter={(label) => `${label}`}
+                     />
+                     <Legend 
+                       formatter={(value) => 
+                         value === 'subjectSatisfaction' ? '과목 만족도' : 
+                         value === 'instructorSatisfaction' ? '강사 만족도' : '운영 만족도'}
                     />
-                    <Legend 
-                      formatter={(value) => value === 'courseSatisfaction' ? '과정 만족도' : '강사 만족도'}
-                    />
-                    <Bar 
-                      dataKey="courseSatisfaction" 
-                      name="courseSatisfaction"
-                      fill="hsl(var(--chart-primary))" 
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={60}
-                    />
-                    <Bar 
-                      dataKey="instructorSatisfaction" 
-                      name="instructorSatisfaction"
-                      fill="hsl(var(--chart-secondary))" 
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={60}
-                    />
+                     <Bar 
+                       dataKey="subjectSatisfaction" 
+                       name="subjectSatisfaction"
+                       fill="hsl(var(--chart-primary))" 
+                       radius={[4, 4, 0, 0]}
+                       maxBarSize={40}
+                     />
+                     <Bar 
+                       dataKey="instructorSatisfaction" 
+                       name="instructorSatisfaction"
+                       fill="hsl(var(--chart-secondary))" 
+                       radius={[4, 4, 0, 0]}
+                       maxBarSize={40}
+                     />
+                     <Bar 
+                       dataKey="operationSatisfaction" 
+                       name="operationSatisfaction"
+                       fill="hsl(var(--chart-accent))" 
+                       radius={[4, 4, 0, 0]}
+                       maxBarSize={40}
+                     />
                   </RechartsBarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -1110,7 +1120,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  과정별 만족도 트렌드
+                  과목별 만족도 트렌드
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1129,7 +1139,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  과정별 통계
+                   과목별 통계
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1194,13 +1204,13 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  과정별 통계
+                   과목별 통계
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-8 text-muted-foreground">
                   <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>과정별 통계 데이터가 없습니다.</p>
+                  <p>과목별 통계 데이터가 없습니다.</p>
                   <p className="text-sm">설문 응답이 있는 경우 통계가 표시됩니다.</p>
                 </div>
               </CardContent>
