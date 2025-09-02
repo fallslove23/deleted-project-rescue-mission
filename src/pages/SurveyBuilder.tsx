@@ -1098,148 +1098,150 @@ const SurveyBuilder = () => {
           {/* Survey Header */}
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-center break-words hyphens-auto">
-                    {survey.title}
-                  </CardTitle>
-                  <p className="text-center text-sm text-muted-foreground break-words hyphens-auto">
-                    {survey.description}
-                  </p>
-                  <div className="flex justify-center gap-4 mt-4 text-sm text-muted-foreground">
-                    <span>교육년도: {survey.education_year}년</span>
-                    <span>차수: {survey.education_round}차</span>
-                    <Badge variant={survey.status === 'active' ? 'default' : survey.status === 'completed' ? 'secondary' : 'outline'}>
-                      {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
-                    </Badge>
+              <div className="space-y-4">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-left break-words hyphens-auto">
+                      {survey.title}
+                    </CardTitle>
+                    <p className="text-left text-sm text-muted-foreground break-words hyphens-auto mt-2">
+                      {survey.description}
+                    </p>
                   </div>
-                  {(survey.start_date || survey.end_date) && (
-                    <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
-                      {survey.start_date && <span>시작: {new Date(survey.start_date).toLocaleString()}</span>}
-                      {survey.end_date && <span>종료: {new Date(survey.end_date).toLocaleString()}</span>}
-                    </div>
-                  )}
+                  <Dialog open={isSurveyInfoDialogOpen} onOpenChange={setIsSurveyInfoDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="flex-shrink-0">
+                        <Edit className="h-4 w-4 mr-2" />
+                        설문정보 수정
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>설문조사 정보 수정</DialogTitle>
+                        <DialogDescription>
+                          설문조사의 기본 정보를 수정할 수 있습니다.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={handleUpdateSurveyInfo} className="space-y-4">
+                        <div>
+                          <Label htmlFor="survey_title">설문 제목</Label>
+                          <Input
+                            id="survey_title"
+                            value={surveyForm.title}
+                            onChange={(e) => setSurveyForm(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="설문 제목을 입력하세요"
+                            required
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="survey_description">설문 설명</Label>
+                          <Textarea
+                            id="survey_description"
+                            value={surveyForm.description}
+                            onChange={(e) => setSurveyForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="설문 설명을 입력하세요"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="education_year">교육년도</Label>
+                            <Input
+                              id="education_year"
+                              type="number"
+                              value={surveyForm.education_year}
+                              onChange={(e) => setSurveyForm(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
+                              min="2020"
+                              max="2030"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="education_round">차수</Label>
+                            <Input
+                              id="education_round"
+                              type="number"
+                              value={surveyForm.education_round}
+                              onChange={(e) => setSurveyForm(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
+                              min="1"
+                              max="10"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="course_name">과정명</Label>
+                          <Input
+                            id="course_name"
+                            value={surveyForm.course_name}
+                            onChange={(e) => setSurveyForm(prev => ({ ...prev, course_name: e.target.value }))}
+                            placeholder="예: BS SW 업무 과정"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="survey_status">상태</Label>
+                          <Select 
+                            value={surveyForm.status} 
+                            onValueChange={(value) => setSurveyForm(prev => ({ ...prev, status: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">초안</SelectItem>
+                              <SelectItem value="active">진행중</SelectItem>
+                              <SelectItem value="completed">완료</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="start_date">시작일시</Label>
+                            <Input
+                              id="start_date"
+                              type="datetime-local"
+                              value={surveyForm.start_date}
+                              onChange={(e) => setSurveyForm(prev => ({ ...prev, start_date: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="end_date">종료일시</Label>
+                            <Input
+                              id="end_date"
+                              type="datetime-local"
+                              value={surveyForm.end_date}
+                              onChange={(e) => setSurveyForm(prev => ({ ...prev, end_date: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" onClick={() => setIsSurveyInfoDialogOpen(false)}>
+                            취소
+                          </Button>
+                          <Button type="submit">
+                            수정 완료
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-                <Dialog open={isSurveyInfoDialogOpen} onOpenChange={setIsSurveyInfoDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4 mr-2" />
-                      설문정보 수정
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>설문조사 정보 수정</DialogTitle>
-                      <DialogDescription>
-                        설문조사의 기본 정보를 수정할 수 있습니다.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleUpdateSurveyInfo} className="space-y-4">
-                      <div>
-                        <Label htmlFor="survey_title">설문 제목</Label>
-                        <Input
-                          id="survey_title"
-                          value={surveyForm.title}
-                          onChange={(e) => setSurveyForm(prev => ({ ...prev, title: e.target.value }))}
-                          placeholder="설문 제목을 입력하세요"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="survey_description">설문 설명</Label>
-                        <Textarea
-                          id="survey_description"
-                          value={surveyForm.description}
-                          onChange={(e) => setSurveyForm(prev => ({ ...prev, description: e.target.value }))}
-                          placeholder="설문 설명을 입력하세요"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="education_year">교육년도</Label>
-                          <Input
-                            id="education_year"
-                            type="number"
-                            value={surveyForm.education_year}
-                            onChange={(e) => setSurveyForm(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
-                            min="2020"
-                            max="2030"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="education_round">차수</Label>
-                          <Input
-                            id="education_round"
-                            type="number"
-                            value={surveyForm.education_round}
-                            onChange={(e) => setSurveyForm(prev => ({ ...prev, education_round: parseInt(e.target.value) }))}
-                            min="1"
-                            max="10"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="course_name">과정명</Label>
-                        <Input
-                          id="course_name"
-                          value={surveyForm.course_name}
-                          onChange={(e) => setSurveyForm(prev => ({ ...prev, course_name: e.target.value }))}
-                          placeholder="예: BS SW 업무 과정"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="survey_status">상태</Label>
-                        <Select 
-                          value={surveyForm.status} 
-                          onValueChange={(value) => setSurveyForm(prev => ({ ...prev, status: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">초안</SelectItem>
-                            <SelectItem value="active">진행중</SelectItem>
-                            <SelectItem value="completed">완료</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4">
-                        <div>
-                          <Label htmlFor="start_date">시작일시</Label>
-                          <Input
-                            id="start_date"
-                            type="datetime-local"
-                            value={surveyForm.start_date}
-                            onChange={(e) => setSurveyForm(prev => ({ ...prev, start_date: e.target.value }))}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="end_date">종료일시</Label>
-                          <Input
-                            id="end_date"
-                            type="datetime-local"
-                            value={surveyForm.end_date}
-                            onChange={(e) => setSurveyForm(prev => ({ ...prev, end_date: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => setIsSurveyInfoDialogOpen(false)}>
-                          취소
-                        </Button>
-                        <Button type="submit">
-                          수정 완료
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                <div className="flex justify-start gap-4 mt-4 text-sm text-muted-foreground">
+                  <span>교육년도: {survey.education_year}년</span>
+                  <span>차수: {survey.education_round}차</span>
+                  <Badge variant={survey.status === 'active' ? 'default' : survey.status === 'completed' ? 'secondary' : 'outline'}>
+                    {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
+                  </Badge>
+                </div>
+                {(survey.start_date || survey.end_date) && (
+                  <div className="flex justify-start gap-4 mt-2 text-xs text-muted-foreground">
+                    {survey.start_date && <span>시작: {new Date(survey.start_date).toLocaleString()}</span>}
+                    {survey.end_date && <span>종료: {new Date(survey.end_date).toLocaleString()}</span>}
+                  </div>
+                )}
               </div>
             </CardHeader>
           </Card>
