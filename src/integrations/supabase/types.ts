@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      anon_sessions: {
+        Row: {
+          anon_id: string
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          user_agent_hash: string | null
+        }
+        Insert: {
+          anon_id?: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          user_agent_hash?: string | null
+        }
+        Update: {
+          anon_id?: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          user_agent_hash?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -367,6 +391,52 @@ export type Database = {
           },
         ]
       }
+      survey_completions: {
+        Row: {
+          anon_id: string
+          completed_at: string
+          id: string
+          ip_address: unknown | null
+          survey_id: string
+        }
+        Insert: {
+          anon_id: string
+          completed_at?: string
+          id?: string
+          ip_address?: unknown | null
+          survey_id: string
+        }
+        Update: {
+          anon_id?: string
+          completed_at?: string
+          id?: string
+          ip_address?: unknown | null
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_survey_completions_anon_id"
+            columns: ["anon_id"]
+            isOneToOne: false
+            referencedRelation: "anon_sessions"
+            referencedColumns: ["anon_id"]
+          },
+          {
+            foreignKeyName: "fk_survey_completions_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "fk_survey_completions_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       survey_questions: {
         Row: {
           created_at: string
@@ -535,6 +605,58 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      survey_tokens: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          survey_id: string
+          used_at: string | null
+          used_by_anon_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          survey_id: string
+          used_at?: string | null
+          used_by_anon_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          survey_id?: string
+          used_at?: string | null
+          used_by_anon_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_survey_tokens_anon_id"
+            columns: ["used_by_anon_id"]
+            isOneToOne: false
+            referencedRelation: "anon_sessions"
+            referencedColumns: ["anon_id"]
+          },
+          {
+            foreignKeyName: "fk_survey_tokens_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "fk_survey_tokens_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       surveys: {
         Row: {
@@ -857,6 +979,10 @@ export type Database = {
           instructor_id_param: string
           instructor_password: string
         }
+        Returns: string
+      }
+      generate_survey_code: {
+        Args: { length?: number }
         Returns: string
       }
       get_all_profiles_for_admin: {

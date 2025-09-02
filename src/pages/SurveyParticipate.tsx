@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAnonymousSession } from '@/hooks/useAnonymousSession';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Send, User } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, Send, User, KeyRound, AlertCircle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
@@ -59,7 +61,9 @@ interface Answer {
 const SurveyParticipate = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const { session, loading: sessionLoading, checkSurveyCompletion, markSurveyCompleted, validateToken } = useAnonymousSession();
   
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
@@ -69,13 +73,71 @@ const SurveyParticipate = () => {
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
-  const [isCoursEvaluation, setIsCourseEvaluation] = useState(false);
+  const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
+  const [tokenCode, setTokenCode] = useState('');
+  const [needsToken, setNeedsToken] = useState(false);
+  const [tokenValidated, setTokenValidated] = useState(false);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
 
+  // Check completion status and token requirements
   useEffect(() => {
-    if (surveyId) {
+    const checkAccess = async () => {
+      if (!surveyId || !session || sessionLoading) return;
+
+      // Check if already completed
+      const isCompleted = await checkSurveyCompletion(surveyId);
+      if (isCompleted) {
+        setAlreadyCompleted(true);
+        setLoading(false);
+        return;
+      }
+
+      // Check for token in URL
+      const urlToken = searchParams.get('code');
+      if (urlToken) {
+        const isValid = await validateToken(surveyId, urlToken);
+        if (isValid) {
+          setTokenValidated(true);
+          setTokenCode(urlToken);
+          fetchSurveyData();
+        } else {
+          setNeedsToken(true);
+          setLoading(false);
+          toast({
+            variant: "destructive",
+            title: "유효하지 않은 코드",
+            description: "코드가 만료되었거나 이미 사용된 코드입니다."
+          });
+        }
+      } else {
+        // For now, allow access without token (can be changed based on survey settings)
+        fetchSurveyData();
+      }
+    };
+
+    checkAccess();
+  }, [surveyId, session, sessionLoading, searchParams, checkSurveyCompletion, validateToken]);
+
+  const handleTokenSubmit = async () => {
+    if (!tokenCode.trim() || !surveyId) return;
+
+    const isValid = await validateToken(surveyId, tokenCode.trim());
+    if (isValid) {
+      setTokenValidated(true);
+      setNeedsToken(false);
       fetchSurveyData();
+      toast({
+        title: "코드 확인됨",
+        description: "설문에 참여할 수 있습니다."
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "유효하지 않은 코드",
+        description: "코드를 다시 확인해주세요."
+      });
     }
-  }, [surveyId]);
+  };
 
   const fetchSurveyData = async () => {
     try {
@@ -302,6 +364,11 @@ const SurveyParticipate = () => {
         if (answersError) throw answersError;
       }
 
+      // Mark survey as completed in anonymous session
+      if (session) {
+        await markSurveyCompleted(surveyId);
+      }
+
       toast({
         title: "설문 참여 완료!",
         description: "소중한 의견을 주셔서 감사합니다.",
@@ -447,18 +514,94 @@ const SurveyParticipate = () => {
     }
   };
 
-  if (loading) {
+  if (sessionLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div>설문을 불러오는 중...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">설문을 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (alreadyCompleted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold">이미 참여 완료</h1>
+          <p className="text-muted-foreground">이 설문에 이미 참여하셨습니다.</p>
+          <Button onClick={() => navigate('/')}>
+            홈으로 돌아가기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <KeyRound className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle>참여 코드 입력</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              설문 참여를 위해 코드를 입력해주세요
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="token">참여 코드</Label>
+              <Input
+                id="token"
+                placeholder="예: ABC123XY"
+                value={tokenCode}
+                onChange={(e) => setTokenCode(e.target.value.toUpperCase())}
+                className="text-center font-mono"
+              />
+            </div>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                강사님께서 공유해주신 8자리 참여 코드를 입력해주세요.
+              </AlertDescription>
+            </Alert>
+            <Button 
+              onClick={handleTokenSubmit} 
+              className="w-full"
+              disabled={!tokenCode.trim()}
+            >
+              확인
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/')} 
+              className="w-full"
+            >
+              취소
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (!survey) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div>설문을 찾을 수 없습니다.</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">설문을 찾을 수 없습니다</h1>
+          <p className="text-muted-foreground mb-4">요청하신 설문이 존재하지 않거나 삭제되었습니다.</p>
+          <Button onClick={() => navigate('/')}>
+            홈으로 돌아가기
+          </Button>
+        </div>
       </div>
     );
   }
@@ -504,7 +647,7 @@ const SurveyParticipate = () => {
         </div>
 
         {/* 강의 평가 템플릿일 때만 강사 정보 버튼 표시 */}
-        {isCoursEvaluation && instructor && (
+        {isCourseEvaluation && instructor && (
           <Card className="mb-4">
             <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
               <Dialog>
