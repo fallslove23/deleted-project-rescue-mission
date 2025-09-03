@@ -1,4 +1,3 @@
-// src/pages/Index.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,17 +9,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Menu,
-  Calendar,
-  Clock,
-  BarChart,
-  FileText,
-  Users,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle,
-} from 'lucide-react';
+import { Menu, Calendar, Clock, BarChart, FileText, Users, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
 import { toZonedTime } from 'date-fns-tz';
 
 interface Survey {
@@ -31,10 +20,12 @@ interface Survey {
   end_date: string;
   education_year: number;
   education_round: number;
-  course_name?: string;
+  course_name?: string | null;
   status: string;
-  // ⬇️ 추가 필드
+
+  // 새 필드
   round_label?: string | null;
+  is_combined?: boolean | null;
   combined_round_start?: number | null;
   combined_round_end?: number | null;
 }
@@ -53,37 +44,24 @@ const Index = () => {
   useEffect(() => {
     const checkCompletions = async () => {
       if (!session || sessionLoading || surveys.length === 0) return;
-
       const completions = await Promise.all(
-        surveys.map(async (survey) => {
-          const isCompleted = await checkSurveyCompletion(survey.id);
-          return { surveyId: survey.id, isCompleted };
-        })
+        surveys.map(async (s) => ({ surveyId: s.id, isCompleted: await checkSurveyCompletion(s.id) }))
       );
-
-      const completedSet = new Set(
-        completions.filter(({ isCompleted }) => isCompleted).map(({ surveyId }) => surveyId)
-      );
-
-      setCompletedSurveys(completedSet);
+      const done = new Set(completions.filter((c) => c.isCompleted).map((c) => c.surveyId));
+      setCompletedSurveys(done);
     };
-
     checkCompletions();
   }, [session, sessionLoading, surveys, checkSurveyCompletion]);
 
   useEffect(() => {
-    if (showAllSurveys) {
-      fetchAllSurveys();
-    } else {
-      fetchTodaysSurveys();
-    }
+    setLoadingSurveys(true);
+    showAllSurveys ? fetchAllSurveys() : fetchTodaysSurveys();
   }, [showAllSurveys]);
 
   const fetchTodaysSurveys = async () => {
     try {
       const timeZone = 'Asia/Seoul';
       const nowKST = toZonedTime(new Date(), timeZone);
-
       const { data, error } = await supabase
         .from('surveys')
         .select('*')
@@ -121,36 +99,30 @@ const Index = () => {
     }
   };
 
-  // ⬇️ 그룹 라벨 생성: round_label 우선
-  const groupSurveysByRound = (surveys: Survey[]) => {
-    const grouped = surveys.reduce((acc, survey) => {
+  // ⬇️ 라벨 우선 그룹핑
+  const groupSurveysByRound = (list: Survey[]) => {
+    const grouped = list.reduce((acc, survey) => {
       const key =
         survey.round_label?.trim() ||
         `${survey.education_year}년 ${
-          survey.course_name?.includes('Advanced') &&
-          survey.combined_round_start &&
-          survey.combined_round_end
+          survey.is_combined && survey.combined_round_start && survey.combined_round_end
             ? `${survey.combined_round_start}∼${survey.combined_round_end}`
             : survey.education_round
         }차 - ${survey.course_name || '과정'}`;
-
       if (!acc[key]) acc[key] = [];
       acc[key].push(survey);
       return acc;
     }, {} as Record<string, Survey[]>);
 
-    // 첫 그룹 자동 오픈
+    // 첫 그룹 자동 오픈(초기 한번만)
     const firstKey = Object.keys(grouped)[0];
-    if (firstKey && !openGroups[firstKey]) {
-      setOpenGroups((prev) => ({ ...prev, [firstKey]: true }));
+    if (firstKey && openGroups[firstKey] === undefined) {
+      setOpenGroups((p) => ({ ...p, [firstKey]: true }));
     }
-
     return grouped;
   };
 
-  const toggleGroup = (groupKey: string) => {
-    setOpenGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
-  };
+  const toggleGroup = (k: string) => setOpenGroups((p) => ({ ...p, [k]: !p[k] }));
 
   if (loading) {
     return (
@@ -209,13 +181,7 @@ const Index = () => {
                           템플릿 관리
                         </Button>
                       </div>
-                      <Button
-                        onClick={() => {
-                          window.location.reload();
-                        }}
-                        variant="ghost"
-                        className="w-full text-muted-foreground"
-                      >
+                      <Button onClick={() => window.location.reload()} variant="ghost" className="w-full text-muted-foreground">
                         로그아웃
                       </Button>
                     </>
@@ -236,9 +202,7 @@ const Index = () => {
           </div>
 
           <div className="flex-1 flex flex-col items-center justify-center min-w-0 px-2 sm:px-4">
-            <h1 className="text-sm sm:text-base md:text-2xl font-bold text-primary text-center break-words max-w-full">
-              BS/SS 교육과정
-            </h1>
+            <h1 className="text-sm sm:text-base md:text-2xl font-bold text-primary text-center break-words max-w-full">BS/SS 교육과정</h1>
             <p className="text-xs md:text-sm text-muted-foreground text-center break-words max-w-full">교육생 피드백 시스템</p>
           </div>
 
@@ -246,10 +210,7 @@ const Index = () => {
             <Button
               variant={!showAllSurveys ? 'default' : 'outline'}
               size="sm"
-              onClick={() => {
-                setShowAllSurveys(!showAllSurveys);
-                setLoadingSurveys(true);
-              }}
+              onClick={() => setShowAllSurveys((v) => !v)}
               className="text-xs px-2 py-1 h-8 min-w-0 whitespace-nowrap"
             >
               <FileText className="h-3 w-3 mr-1 shrink-0" />
@@ -263,9 +224,7 @@ const Index = () => {
       {/* Main */}
       <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 min-h-screen max-w-full overflow-hidden">
         <div className="mb-6 md:mb-8 text-center px-2">
-          <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">
-            {showAllSurveys ? '📝 전체 설문조사' : '📝 오늘의 설문조사'}
-          </h2>
+          <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">{showAllSurveys ? '📝 전체 설문조사' : '📝 오늘의 설문조사'}</h2>
           <p className="text-muted-foreground text-sm md:text-base break-words">
             {showAllSurveys ? '모든 활성 설문조사를 확인하세요' : '진행 중인 설문조사에 참여해 주세요'}
           </p>
@@ -324,31 +283,16 @@ const Index = () => {
                                     <CardTitle className="text-sm sm:text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2 break-words hyphens-auto">
                                       {survey.title}
                                     </CardTitle>
-                                    {completedSurveys.has(survey.id) && (
-                                      <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-                                    )}
+                                    {completedSurveys.has(survey.id) && <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />}
                                   </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-2 shrink-0">
-                                  {completedSurveys.has(survey.id) && (
+                                  {completedSurveys.has(survey.id) ? (
                                     <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
                                       완료
                                     </Badge>
-                                  )}
-                                  {!completedSurveys.has(survey.id) && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {showAllSurveys
-                                        ? (() => {
-                                            const timeZone = 'Asia/Seoul';
-                                            const nowKST = toZonedTime(new Date(), timeZone);
-                                            const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
-                                            const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
-                                            if (nowKST < startDateKST) return '시작 예정';
-                                            if (nowKST > endDateKST) return '종료';
-                                            return '진행중';
-                                          })()
-                                        : '진행중'}
-                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs">진행중</Badge>
                                   )}
                                 </div>
                               </div>
