@@ -1,226 +1,276 @@
-import React, { useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
+import * as React from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Save } from "lucide-react";
 
-interface SurveyForm {
+type SurveyEditable = {
+  id: string;
   title: string;
-  description: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
   education_year: number;
   education_round: number;
-  course_name: string;
-  // 새 필드
-  is_combined: boolean;
+  education_day: number | null;
+  course_id: string | null;
+  course_name: string | null; // "BS Basic" | "BS Advanced"
+
+  is_combined: boolean | null;
   combined_round_start: number | null;
   combined_round_end: number | null;
-  round_label: string; // 저장 시 자동 세팅되지만 미리보기를 위해 유지
-  start_date: string;
-  end_date: string;
-  status: string;
+  round_label: string | null;
+};
+
+type Course = { id: string; title: string };
+
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  survey: SurveyEditable | null;
+  courses: Course[];
+  onSaved?: () => void;
 }
 
-interface SurveyInfoEditDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  surveyForm: SurveyForm;
-  setSurveyForm: React.Dispatch<React.SetStateAction<SurveyForm>>;
-  onSubmit: (e: React.FormEvent) => void;
-  triggerButton?: React.ReactNode;
-}
+export default function SurveyInfoEditDialog({ open, onOpenChange, survey, courses, onSaved }: Props) {
+  const { toast } = useToast();
+  const [saving, setSaving] = React.useState(false);
 
-export const SurveyInfoEditDialog: React.FC<SurveyInfoEditDialogProps> = ({
-  isOpen,
-  onOpenChange,
-  surveyForm,
-  setSurveyForm,
-  onSubmit,
-  triggerButton,
-}) => {
-  const defaultTriggerButton = (
-    <Button variant="outline" size="sm" className="flex-shrink-0">
-      <Edit className="h-4 w-4 mr-2" />
-      설문정보 수정
-    </Button>
+  const [form, setForm] = React.useState<Partial<SurveyEditable>>({
+    title: "",
+    description: "",
+    start_date: "",
+    end_date: "",
+    education_year: new Date().getFullYear(),
+    education_round: 1,
+    education_day: 1,
+    course_id: "",
+    course_name: "",
+    is_combined: false,
+    combined_round_start: null,
+    combined_round_end: null,
+    round_label: "",
+  });
+
+  React.useEffect(() => {
+    if (!survey) return;
+    setForm({
+      ...survey,
+      start_date: survey.start_date ? new Date(survey.start_date).toISOString().slice(0, 16) : "",
+      end_date: survey.end_date ? new Date(survey.end_date).toISOString().slice(0, 16) : "",
+    });
+  }, [survey]);
+
+  // 제목 자동 생성
+  const courseTitle = React.useMemo(
+    () => courses.find((c) => c.id === form.course_id)?.title ?? "",
+    [courses, form.course_id]
   );
 
-  // 라벨 미리보기(메모)
-  const computedLabel = useMemo(() => {
-    const isCombined = surveyForm.is_combined && surveyForm.combined_round_start && surveyForm.combined_round_end;
-    const roundPart = isCombined
-      ? `${surveyForm.combined_round_start}∼${surveyForm.combined_round_end}`
-      : surveyForm.education_round;
-    return `${surveyForm.education_year}년 ${roundPart}차 - ${surveyForm.course_name || '과정'}`.trim();
-  }, [surveyForm.is_combined, surveyForm.combined_round_start, surveyForm.combined_round_end, surveyForm.education_year, surveyForm.education_round, surveyForm.course_name]);
+  React.useEffect(() => {
+    const yy = String(form.education_year ?? "").slice(-2);
+    const r = form.education_round ?? 1;
+    const d = form.education_day ?? 1;
+    const prog = form.course_name || "";
+    if (yy && r && d && prog && courseTitle) {
+      const prefix = `(${yy}-${r}차 ${prog} ${d}일차)`;
+      setForm((prev) => ({ ...prev, title: `${prefix} ${courseTitle}` }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.education_year, form.education_round, form.education_day, form.course_name, form.course_id, courseTitle]);
+
+  // 합반 라벨 자동
+  React.useEffect(() => {
+    if (form.course_name !== "BS Advanced" || !form.is_combined) return;
+    const year = form.education_year;
+    const s = form.combined_round_start;
+    const e = form.combined_round_end;
+    if (year && s && e && s > 0 && e >= s) {
+      const auto = `${year}년 ${s}∼${e}차 - BS Advanced`;
+      setForm((prev) => ({ ...prev, round_label: prev.round_label?.trim() ? prev.round_label : auto }));
+    }
+  }, [form.course_name, form.is_combined, form.education_year, form.combined_round_start, form.combined_round_end]);
+
+  const onChange = <K extends keyof SurveyEditable>(k: K, v: any) => setForm((p) => ({ ...p, [k]: v }));
+
+  const save = async () => {
+    if (!survey) return;
+    setSaving(true);
+    try {
+      if (form.course_name === "BS Advanced" && form.is_combined) {
+        if (!form.combined_round_start || !form.combined_round_end) {
+          throw new Error("합반 시작/종료 차수를 입력하세요.");
+        }
+        if (Number(form.combined_round_start) > Number(form.combined_round_end)) {
+          throw new Error("합반 차수의 시작은 종료보다 클 수 없습니다.");
+        }
+      }
+
+      let round_label = (form.round_label ?? "").trim();
+      if (form.course_name === "BS Advanced" && form.is_combined && !round_label) {
+        round_label = `${form.education_year}년 ${form.combined_round_start}∼${form.combined_round_end}차 - BS Advanced`;
+      }
+
+      const payload = {
+        title: form.title,
+        description: form.description ?? "",
+        start_date: form.start_date ? new Date(String(form.start_date) + ":00+09:00").toISOString() : null,
+        end_date: form.end_date ? new Date(String(form.end_date) + ":00+09:00").toISOString() : null,
+        education_year: Number(form.education_year),
+        education_round: Number(form.education_round),
+        education_day: Number(form.education_day) || 1,
+        course_id: form.course_id || null,
+        course_name: form.course_name || null,
+
+        is_combined: !!form.is_combined,
+        combined_round_start: form.is_combined ? Number(form.combined_round_start) : null,
+        combined_round_end: form.is_combined ? Number(form.combined_round_end) : null,
+        round_label: form.is_combined ? round_label : null,
+      };
+
+      const { error } = await supabase.from("surveys").update(payload).eq("id", survey.id);
+      if (error) throw error;
+
+      toast({ title: "수정 완료", description: "설문 정보가 업데이트되었습니다." });
+      onOpenChange(false);
+      onSaved?.();
+    } catch (e: any) {
+      toast({ title: "저장 실패", description: e.message || "정보 저장 중 오류", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>{triggerButton || defaultTriggerButton}</DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>설문조사 정보 수정</DialogTitle>
-          <DialogDescription>설문조사의 기본 정보를 수정할 수 있습니다.</DialogDescription>
-        </DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader><DialogTitle>설문 정보 수정</DialogTitle></DialogHeader>
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="survey_title">설문 제목</Label>
-            <Input
-              id="survey_title"
-              value={surveyForm.title}
-              onChange={(e) => setSurveyForm((p) => ({ ...p, title: e.target.value }))}
-              placeholder="설문 제목을 입력하세요"
-            />
-            <p className="text-xs text-muted-foreground mt-1">저장 시 라벨/과목 정보로 자동 보정될 수 있습니다.</p>
-          </div>
+        {!survey ? (
+          <div className="p-4 text-sm text-muted-foreground">설문을 선택하세요.</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>과목</Label>
+                <Select value={String(form.course_id || "")} onValueChange={(v) => onChange("course_id", v)}>
+                  <SelectTrigger><SelectValue placeholder="과목 선택" /></SelectTrigger>
+                  <SelectContent>
+                    {courses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div>
-            <Label htmlFor="survey_description">설문 설명</Label>
-            <Textarea
-              id="survey_description"
-              value={surveyForm.description}
-              onChange={(e) => setSurveyForm((p) => ({ ...p, description: e.target.value }))}
-              placeholder="설문 설명을 입력하세요"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="education_year">교육년도</Label>
-              <Input
-                id="education_year"
-                type="number"
-                value={surveyForm.education_year}
-                onChange={(e) => setSurveyForm((p) => ({ ...p, education_year: parseInt(e.target.value || '0') }))}
-                min={2020}
-                max={2035}
-              />
-            </div>
-            <div>
-              <Label htmlFor="education_round">차수(기본)</Label>
-              <Input
-                id="education_round"
-                type="number"
-                value={surveyForm.education_round}
-                onChange={(e) => setSurveyForm((p) => ({ ...p, education_round: parseInt(e.target.value || '1') }))}
-                min={1}
-                max={100}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="course_name">과정명</Label>
-            <Input
-              id="course_name"
-              value={surveyForm.course_name}
-              onChange={(e) => setSurveyForm((p) => ({ ...p, course_name: e.target.value }))}
-              placeholder="예: BS Basic / BS Advanced …"
-            />
-          </div>
-
-          {/* 합반 설정 */}
-          <div className="border rounded-md p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="font-medium">합반(범위 차수) 사용</Label>
-              <Switch
-                checked={!!surveyForm.is_combined}
-                onCheckedChange={(v) => setSurveyForm((p) => ({
-                  ...p,
-                  is_combined: v,
-                  combined_round_start: v ? (p.combined_round_start ?? p.education_round) : null,
-                  combined_round_end: v ? (p.combined_round_end ?? p.education_round) : null,
-                }))}
-              />
+              <div>
+                <Label>과정 (프로그램)</Label>
+                <Select value={String(form.course_name || "")} onValueChange={(v) => onChange("course_name", v)}>
+                  <SelectTrigger><SelectValue placeholder="과정 선택" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BS Basic">BS Basic</SelectItem>
+                    <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {surveyForm.is_combined && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="combined_round_start">시작 차수</Label>
-                  <Input
-                    id="combined_round_start"
-                    type="number"
-                    min={1}
-                    value={surveyForm.combined_round_start ?? ''}
-                    onChange={(e) =>
-                      setSurveyForm((p) => ({ ...p, combined_round_start: parseInt(e.target.value || '0') }))
-                    }
-                    placeholder="예: 6"
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label>교육 연도</Label>
+                <Input type="number" value={form.education_year ?? ""} onChange={(e) => onChange("education_year", Number(e.target.value))} />
+              </div>
+              <div>
+                <Label>차수</Label>
+                <Input type="number" value={form.education_round ?? 1} onChange={(e) => onChange("education_round", Number(e.target.value))} />
+              </div>
+              <div>
+                <Label>일차</Label>
+                <Input type="number" value={form.education_day ?? 1} onChange={(e) => onChange("education_day", Number(e.target.value))} />
+              </div>
+              <div>
+                <Label>제목 (자동)</Label>
+                <Input value={form.title ?? ""} readOnly />
+              </div>
+            </div>
+
+            {/* ✅ 합반 입력 (BS Advanced 전용) */}
+            {form.course_name === "BS Advanced" && (
+              <div className="space-y-3 border rounded-md p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="is_combined_edit"
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={!!form.is_combined}
+                    onChange={(e) => onChange("is_combined", e.target.checked)}
                   />
+                  <Label htmlFor="is_combined_edit">합반(여러 차수를 묶어 동일 설문으로 운영)</Label>
                 </div>
-                <div>
-                  <Label htmlFor="combined_round_end">종료 차수</Label>
-                  <Input
-                    id="combined_round_end"
-                    type="number"
-                    min={surveyForm.combined_round_start ?? 1}
-                    value={surveyForm.combined_round_end ?? ''}
-                    onChange={(e) =>
-                      setSurveyForm((p) => ({ ...p, combined_round_end: parseInt(e.target.value || '0') }))
-                    }
-                    placeholder="예: 9"
-                  />
-                </div>
+
+                {form.is_combined && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>시작 차수</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={form.combined_round_start ?? ""}
+                        onChange={(e) => onChange("combined_round_start", Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label>종료 차수</Label>
+                      <Input
+                        type="number"
+                        min={form.combined_round_start ?? 1}
+                        value={form.combined_round_end ?? ""}
+                        onChange={(e) => onChange("combined_round_end", Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <Label>합반 라벨(선택)</Label>
+                      <Input
+                        placeholder="미입력 시 자동 생성"
+                        value={form.round_label ?? ""}
+                        onChange={(e) => onChange("round_label", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>시작일시</Label>
+                <Input type="datetime-local" value={String(form.start_date || "")} onChange={(e) => onChange("start_date", e.target.value)} />
+              </div>
+              <div>
+                <Label>종료일시</Label>
+                <Input type="datetime-local" value={String(form.end_date || "")} onChange={(e) => onChange("end_date", e.target.value)} />
+              </div>
+            </div>
+
             <div>
-              <Label>라벨 미리보기</Label>
-              <Input value={computedLabel} readOnly className="bg-muted" />
-              <p className="text-xs text-muted-foreground mt-1">
-                저장 시 <strong>round_label</strong> 컬럼으로 기록됩니다. (예: “2025년 7차 - BS Basic”, “2025년 6∼9차 - BS Advanced”)
-              </p>
+              <Label>설명</Label>
+              <Textarea value={form.description ?? ""} onChange={(e) => onChange("description", e.target.value)} rows={3} />
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={save} disabled={saving}>
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? "저장 중…" : "수정 완료"}
+              </Button>
             </div>
           </div>
-
-          <div>
-            <Label htmlFor="survey_status">상태</Label>
-            <Select value={surveyForm.status} onValueChange={(v) => setSurveyForm((p) => ({ ...p, status: v }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="상태 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">초안</SelectItem>
-                <SelectItem value="active">진행중</SelectItem>
-                <SelectItem value="completed">완료</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="start_date">시작일시</Label>
-              <Input
-                id="start_date"
-                type="datetime-local"
-                value={surveyForm.start_date}
-                onChange={(e) => setSurveyForm((p) => ({ ...p, start_date: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="end_date">종료일시</Label>
-              <Input
-                id="end_date"
-                type="datetime-local"
-                value={surveyForm.end_date}
-                onChange={(e) => setSurveyForm((p) => ({ ...p, end_date: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              취소
-            </Button>
-            <Button type="submit">수정 완료</Button>
-          </div>
-        </form>
+        )}
       </DialogContent>
     </Dialog>
   );
-};
+}
