@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+// src/pages/Index.tsx
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAnonymousSession } from '@/hooks/useAnonymousSession';
@@ -8,8 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-// 내부 스크롤 방지: ScrollArea 미사용
-// import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Menu,
   Calendar,
@@ -33,13 +33,16 @@ interface Survey {
   education_round: number;
   course_name?: string;
   status: string;
+  // ⬇️ 추가 필드
+  round_label?: string | null;
+  combined_round_start?: number | null;
+  combined_round_end?: number | null;
 }
 
 const Index = () => {
   const { user, loading } = useAuth();
   const { session, loading: sessionLoading, checkSurveyCompletion } = useAnonymousSession();
   const navigate = useNavigate();
-
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loadingSurveys, setLoadingSurveys] = useState(true);
   const [showAllSurveys, setShowAllSurveys] = useState(false);
@@ -55,11 +58,11 @@ const Index = () => {
         surveys.map(async (survey) => {
           const isCompleted = await checkSurveyCompletion(survey.id);
           return { surveyId: survey.id, isCompleted };
-        }),
+        })
       );
 
       const completedSet = new Set(
-        completions.filter(({ isCompleted }) => isCompleted).map(({ surveyId }) => surveyId),
+        completions.filter(({ isCompleted }) => isCompleted).map(({ surveyId }) => surveyId)
       );
 
       setCompletedSurveys(completedSet);
@@ -74,7 +77,6 @@ const Index = () => {
     } else {
       fetchTodaysSurveys();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAllSurveys]);
 
   const fetchTodaysSurveys = async () => {
@@ -119,30 +121,35 @@ const Index = () => {
     }
   };
 
-  /** 순수 함수: 그룹 만들기 (상태 변경 없음) */
-  const groupSurveysByRound = (list: Survey[]) => {
-    return list.reduce((acc, survey) => {
-      const courseName = survey.course_name || '과정명 없음';
-      const key = `${survey.education_year}년 ${survey.education_round}차 - ${courseName}`;
+  // ⬇️ 그룹 라벨 생성: round_label 우선
+  const groupSurveysByRound = (surveys: Survey[]) => {
+    const grouped = surveys.reduce((acc, survey) => {
+      const key =
+        survey.round_label?.trim() ||
+        `${survey.education_year}년 ${
+          survey.course_name?.includes('Advanced') &&
+          survey.combined_round_start &&
+          survey.combined_round_end
+            ? `${survey.combined_round_start}∼${survey.combined_round_end}`
+            : survey.education_round
+        }차 - ${survey.course_name || '과정'}`;
+
       if (!acc[key]) acc[key] = [];
       acc[key].push(survey);
       return acc;
     }, {} as Record<string, Survey[]>);
+
+    // 첫 그룹 자동 오픈
+    const firstKey = Object.keys(grouped)[0];
+    if (firstKey && !openGroups[firstKey]) {
+      setOpenGroups((prev) => ({ ...prev, [firstKey]: true }));
+    }
+
+    return grouped;
   };
 
-  /** 그룹 계산 메모이즈 */
-  const groupedSurveys = useMemo(() => groupSurveysByRound(surveys), [surveys]);
-
-  /** 첫 그룹만 기본으로 열기: openGroups가 비어있을 때 1회 초기화 */
-  useEffect(() => {
-    if (Object.keys(openGroups).length === 0) {
-      const firstKey = Object.keys(groupedSurveys)[0];
-      if (firstKey) setOpenGroups({ [firstKey]: true });
-    }
-  }, [groupedSurveys]); // surveys 변경 → groupedSurveys 변경 → 초기화 1회
-
-  const toggleGroup = (groupKey: string, isOpen: boolean) => {
-    setOpenGroups((prev) => ({ ...prev, [groupKey]: isOpen }));
+  const toggleGroup = (groupKey: string) => {
+    setOpenGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
 
   if (loading) {
@@ -153,23 +160,19 @@ const Index = () => {
     );
   }
 
+  const groupedSurveys = groupSurveysByRound(surveys);
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        {/* overflow-hidden 제거 */}
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full">
-          {/* 왼쪽 햄버거: 래퍼는 이벤트 제거, 버튼만 이벤트 허용 */}
-          <div className="absolute left-3 sm:left-4 top-0 pointer-events-none">
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full overflow-hidden">
+          <div className="absolute left-3 sm:left-4">
             <Sheet>
               <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative h-8 w-8 md:h-10 md:w-10 pointer-events-auto"
-                >
+                <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
                   <Menu className="h-5 w-5 md:h-6 md:w-6" />
-                  {user && <div className="absolute -top-1 -right-1 h-2 w-2 md:h-3 md:w-3 bg-primary rounded-full" />}
+                  {user && <div className="absolute -top-1 -right-1 h-2 w-2 md:h-3 md:w-3 bg-primary rounded-full"></div>}
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[280px] sm:w-80 p-4 max-w-[90vw]">
@@ -185,19 +188,11 @@ const Index = () => {
                           <BarChart className="h-4 w-4 mr-2" />
                           관리 대시보드
                         </Button>
-                        <Button
-                          onClick={() => navigate('/dashboard/instructors')}
-                          className="w-full justify-start"
-                          variant="outline"
-                        >
+                        <Button onClick={() => navigate('/dashboard/instructors')} className="w-full justify-start" variant="outline">
                           <Users className="h-4 w-4 mr-2" />
                           강사 관리
                         </Button>
-                        <Button
-                          onClick={() => navigate('/dashboard/surveys')}
-                          className="w-full justify-start"
-                          variant="outline"
-                        >
+                        <Button onClick={() => navigate('/dashboard/surveys')} className="w-full justify-start" variant="outline">
                           <FileText className="h-4 w-4 mr-2" />
                           설문조사 관리
                         </Button>
@@ -209,11 +204,7 @@ const Index = () => {
                           <FileText className="h-4 w-4 mr-2" />
                           설문 리스트
                         </Button>
-                        <Button
-                          onClick={() => navigate('/dashboard/templates')}
-                          className="w-full justify-start"
-                          variant="outline"
-                        >
+                        <Button onClick={() => navigate('/dashboard/templates')} className="w-full justify-start" variant="outline">
                           <FileText className="h-4 w-4 mr-2" />
                           템플릿 관리
                         </Button>
@@ -258,8 +249,6 @@ const Index = () => {
               onClick={() => {
                 setShowAllSurveys(!showAllSurveys);
                 setLoadingSurveys(true);
-                // 그룹 열림 상태 초기화 (보기 전환 시)
-                setOpenGroups({});
               }}
               className="text-xs px-2 py-1 h-8 min-w-0 whitespace-nowrap"
             >
@@ -271,8 +260,8 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main: 문서(body)가 스크롤 주체 */}
-      <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 max-w-full">
+      {/* Main */}
+      <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 min-h-screen max-w-full overflow-hidden">
         <div className="mb-6 md:mb-8 text-center px-2">
           <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">
             {showAllSurveys ? '📝 전체 설문조사' : '📝 오늘의 설문조사'}
@@ -304,10 +293,7 @@ const Index = () => {
           <div className="space-y-4">
             {Object.entries(groupedSurveys).map(([roundTitle, roundSurveys]) => (
               <div key={roundTitle} className="animate-fade-in">
-                <Collapsible
-                  open={openGroups[roundTitle] || false}
-                  onOpenChange={(isOpen) => toggleGroup(roundTitle, isOpen)}
-                >
+                <Collapsible open={openGroups[roundTitle] || false} onOpenChange={() => toggleGroup(roundTitle)}>
                   <CollapsibleTrigger asChild>
                     <div className="flex items-center gap-3 mb-4 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors">
                       <Badge variant="default" className="text-sm px-3 py-1">
@@ -324,106 +310,106 @@ const Index = () => {
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
-                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-1">
-                      {roundSurveys.map((survey) => (
-                        <Card
-                          key={survey.id}
-                          className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-l-primary/30 hover:border-l-primary cursor-pointer max-w-full"
-                        >
-                          <CardHeader className="pb-3 p-4 sm:p-6">
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="space-y-1 flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <CardTitle className="text-sm sm:text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2 break-words hyphens-auto">
-                                    {survey.title}
-                                  </CardTitle>
+                    <ScrollArea className="h-auto max-h-[400px] w-full">
+                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-1">
+                        {roundSurveys.map((survey) => (
+                          <Card
+                            key={survey.id}
+                            className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-l-primary/30 hover:border-l-primary cursor-pointer max-w-full overflow-hidden"
+                          >
+                            <CardHeader className="pb-3 p-4 sm:p-6">
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="space-y-1 flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <CardTitle className="text-sm sm:text-base md:text-lg group-hover:text-primary transition-colors line-clamp-2 break-words hyphens-auto">
+                                      {survey.title}
+                                    </CardTitle>
+                                    {completedSurveys.has(survey.id) && (
+                                      <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-2 shrink-0">
                                   {completedSurveys.has(survey.id) && (
-                                    <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+                                    <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
+                                      완료
+                                    </Badge>
+                                  )}
+                                  {!completedSurveys.has(survey.id) && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {showAllSurveys
+                                        ? (() => {
+                                            const timeZone = 'Asia/Seoul';
+                                            const nowKST = toZonedTime(new Date(), timeZone);
+                                            const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
+                                            const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
+                                            if (nowKST < startDateKST) return '시작 예정';
+                                            if (nowKST > endDateKST) return '종료';
+                                            return '진행중';
+                                          })()
+                                        : '진행중'}
+                                    </Badge>
                                   )}
                                 </div>
                               </div>
-                              <div className="flex flex-col items-end gap-2 shrink-0">
-                                {completedSurveys.has(survey.id) && (
-                                  <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
-                                    완료
-                                  </Badge>
-                                )}
-                                {!completedSurveys.has(survey.id) && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {showAllSurveys
-                                      ? (() => {
-                                          const timeZone = 'Asia/Seoul';
-                                          const nowKST = toZonedTime(new Date(), timeZone);
-                                          const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
-                                          const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
-                                          if (nowKST < startDateKST) return '시작 예정';
-                                          if (nowKST > endDateKST) return '종료';
-                                          return '진행중';
-                                        })()
-                                      : '진행중'}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            {survey.description && (
-                              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-2 break-words hyphens-auto">
-                                {survey.description}
-                              </p>
-                            )}
-                          </CardHeader>
-
-                          <CardContent className="pt-0 p-4 sm:p-6 sm:pt-0">
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                                <span className="text-xs break-all overflow-hidden">
-                                  <span className="block sm:inline">
-                                    {new Date(survey.start_date).toLocaleString('ko-KR', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
+                              {survey.description && (
+                                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-2 break-words hyphens-auto">
+                                  {survey.description}
+                                </p>
+                              )}
+                            </CardHeader>
+                            <CardContent className="pt-0 p-4 sm:p-6 sm:pt-0">
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                                  <span className="text-xs break-all overflow-hidden">
+                                    <span className="block sm:inline">
+                                      {new Date(survey.start_date).toLocaleString('ko-KR', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                    <span className="block sm:inline sm:before:content-['_~_']">
+                                      {new Date(survey.end_date).toLocaleString('ko-KR', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
                                   </span>
-                                  <span className="block sm:inline sm:before:content-['_~_']">
-                                    {new Date(survey.end_date).toLocaleString('ko-KR', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </span>
-                                </span>
+                                </div>
+                                {(() => {
+                                  const now = new Date();
+                                  const startDate = new Date(survey.start_date);
+                                  const endDate = new Date(survey.end_date);
+                                  const isActive = now >= startDate && now <= endDate;
+                                  const isUpcoming = now < startDate;
+                                  const isCompleted = completedSurveys.has(survey.id);
+
+                                  return (
+                                    <Button
+                                      className="w-full group-hover:bg-primary/90 transition-colors touch-friendly min-h-[44px] text-sm"
+                                      onClick={() => navigate(`/survey/${survey.id}`)}
+                                      disabled={!isActive || isCompleted}
+                                      variant={isCompleted ? 'outline' : 'default'}
+                                    >
+                                      {isCompleted && <CheckCircle className="h-4 w-4 mr-2 text-green-500" />}
+                                      <FileText className="h-4 w-4 mr-2 shrink-0" />
+                                      {isCompleted ? '참여 완료' : isActive ? '설문 참여하기' : isUpcoming ? '시작 전' : '마감됨'}
+                                    </Button>
+                                  );
+                                })()}
                               </div>
-
-                              {(() => {
-                                const now = new Date();
-                                const startDate = new Date(survey.start_date);
-                                const endDate = new Date(survey.end_date);
-                                const isActive = now >= startDate && now <= endDate;
-                                const isUpcoming = now < startDate;
-                                const isDone = completedSurveys.has(survey.id);
-
-                                return (
-                                  <Button
-                                    className="w-full group-hover:bg-primary/90 transition-colors touch-friendly min-h-[44px] text-sm"
-                                    onClick={() => navigate(`/survey/${survey.id}`)}
-                                    disabled={!isActive || isDone}
-                                    variant={isDone ? 'outline' : 'default'}
-                                  >
-                                    {isDone && <CheckCircle className="h-4 w-4 mr-2 text-green-500" />}
-                                    <FileText className="h-4 w-4 mr-2 shrink-0" />
-                                    {isDone ? '참여 완료' : isActive ? '설문 참여하기' : isUpcoming ? '시작 전' : '마감됨'}
-                                  </Button>
-                                );
-                              })()}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </CollapsibleContent>
                 </Collapsible>
               </div>
