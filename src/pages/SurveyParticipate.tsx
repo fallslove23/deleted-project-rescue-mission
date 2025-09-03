@@ -64,7 +64,6 @@ const SurveyParticipate = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  // ✅ 세션이 있으면 쓰고, 없어도 흐름 막지 않도록 사용
   const { session, loading: sessionLoading, checkSurveyCompletion, markSurveyCompleted, validateToken } =
     useAnonymousSession();
 
@@ -82,15 +81,12 @@ const SurveyParticipate = () => {
   const [tokenValidated, setTokenValidated] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
 
-  // 🔑 로컬스토리지 키(세션 없어도 “이미 참여” 보호)
   const completedKey = surveyId ? `survey_completed_${surveyId}` : '';
 
   useEffect(() => {
     const checkAccess = async () => {
-      // ❗ 세션 유무와 무관하게 진행(로딩 중만 리턴)
       if (!surveyId || sessionLoading) return;
 
-      // 1) 로컬스토리지로 먼저 중복 방지
       const lsCompleted = completedKey && localStorage.getItem(completedKey) === '1';
       if (lsCompleted) {
         setAlreadyCompleted(true);
@@ -98,7 +94,6 @@ const SurveyParticipate = () => {
         return;
       }
 
-      // 2) 세션이 있을 때만 서버측 완료 체크(있으면 이중 보호)
       if (session) {
         try {
           const isCompleted = await checkSurveyCompletion(surveyId);
@@ -107,12 +102,11 @@ const SurveyParticipate = () => {
             setLoading(false);
             return;
           }
-        } catch (_) {
-          // 실패해도 흐름 막지 않음
+        } catch {
+          /* no-op */
         }
       }
 
-      // 3) URL 토큰 처리(유효/무효와 무관하게 참여 허용)
       const urlToken = searchParams.get('code');
       if (urlToken) {
         try {
@@ -127,11 +121,10 @@ const SurveyParticipate = () => {
           setTokenValidated(true);
           setTokenCode(urlToken);
         } catch {
-          // 검증 실패해도 설문은 로드
+          /* 검증 실패해도 설문은 로드 */
         }
       }
 
-      // 4) 설문/질문 로드
       await fetchSurveyData();
     };
 
@@ -154,7 +147,6 @@ const SurveyParticipate = () => {
 
   const fetchSurveyData = async () => {
     try {
-      // 설문 정보(+템플릿 요약)
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
         .select(
@@ -181,7 +173,7 @@ const SurveyParticipate = () => {
         return;
       }
 
-      // 기간 제한 미적용(요청사항 반영)
+      // 기간 제한 미적용
       const timeZone = 'Asia/Seoul';
       const nowKST = toZonedTime(new Date(), timeZone);
       void nowKST;
@@ -271,7 +263,6 @@ const SurveyParticipate = () => {
 
     setSubmitting(true);
     try {
-      // 응답 헤더 저장(익명 허용)
       const { data: responseData, error: responseError } = await supabase
         .from('survey_responses')
         .insert({ survey_id: surveyId, respondent_email: null })
@@ -280,7 +271,6 @@ const SurveyParticipate = () => {
 
       if (responseError) throw responseError;
 
-      // 문항별 답변 저장
       const validAnswers = answers.filter((a) =>
         Array.isArray(a.answer) ? a.answer.length > 0 : String(a.answer || '').trim() !== ''
       );
@@ -296,11 +286,10 @@ const SurveyParticipate = () => {
         if (answersError) throw answersError;
       }
 
-      // 완료 마킹(세션 있으면 서버, 항상 로컬)
       if (session) {
         try {
           await markSurveyCompleted(surveyId!);
-        } catch (_) {}
+        } catch {}
       }
       if (completedKey) localStorage.setItem(completedKey, '1');
 
@@ -515,7 +504,7 @@ const SurveyParticipate = () => {
       default:
         return (
           <Input
-            value={(answer?.answer as string) || ''}
+            value {(answer?.answer as string) || ''}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             placeholder="답변을 입력해 주세요"
           />
@@ -525,6 +514,7 @@ const SurveyParticipate = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      {/* sticky 헤더 */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center gap-4 max-w-full overflow-hidden">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
@@ -539,7 +529,8 @@ const SurveyParticipate = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-6 max-w-2xl overflow-hidden">
+      {/* ⬇️ 여기: 스크롤 허용 */}
+      <main className="container mx-auto px-3 sm:px-4 py-6 max-w-2xl overflow-x-hidden overflow-y-auto">
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs sm:text-sm text-muted-foreground">{currentStep + 1} / {totalSteps}</span>
@@ -566,7 +557,8 @@ const SurveyParticipate = () => {
           </Card>
         )}
 
-        <Card className="max-w-full overflow-hidden">
+        {/* ⬇️ 여기: overflow-hidden 제거 */}
+        <Card className="max-w-full">
           <CardHeader className="px-4 sm:px-6">
             <CardTitle className="text-base sm:text-lg break-words">질문 {currentStep + 1}</CardTitle>
             {(() => {
