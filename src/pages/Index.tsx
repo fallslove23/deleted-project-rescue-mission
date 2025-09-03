@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAnonymousSession } from '@/hooks/useAnonymousSession';
@@ -39,6 +39,7 @@ const Index = () => {
   const { user, loading } = useAuth();
   const { session, loading: sessionLoading, checkSurveyCompletion } = useAnonymousSession();
   const navigate = useNavigate();
+
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loadingSurveys, setLoadingSurveys] = useState(true);
   const [showAllSurveys, setShowAllSurveys] = useState(false);
@@ -118,25 +119,30 @@ const Index = () => {
     }
   };
 
+  /** 순수 함수: 그룹 만들기 (상태 변경 없음) */
   const groupSurveysByRound = (list: Survey[]) => {
-    const grouped = list.reduce((acc, survey) => {
+    return list.reduce((acc, survey) => {
       const courseName = survey.course_name || '과정명 없음';
       const key = `${survey.education_year}년 ${survey.education_round}차 - ${courseName}`;
       if (!acc[key]) acc[key] = [];
       acc[key].push(survey);
       return acc;
     }, {} as Record<string, Survey[]>);
-
-    const firstKey = Object.keys(grouped)[0];
-    if (firstKey && !openGroups[firstKey]) {
-      setOpenGroups((prev) => ({ ...prev, [firstKey]: true }));
-    }
-
-    return grouped;
   };
 
-  const toggleGroup = (groupKey: string) => {
-    setOpenGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
+  /** 그룹 계산 메모이즈 */
+  const groupedSurveys = useMemo(() => groupSurveysByRound(surveys), [surveys]);
+
+  /** 첫 그룹만 기본으로 열기: openGroups가 비어있을 때 1회 초기화 */
+  useEffect(() => {
+    if (Object.keys(openGroups).length === 0) {
+      const firstKey = Object.keys(groupedSurveys)[0];
+      if (firstKey) setOpenGroups({ [firstKey]: true });
+    }
+  }, [groupedSurveys]); // surveys 변경 → groupedSurveys 변경 → 초기화 1회
+
+  const toggleGroup = (groupKey: string, isOpen: boolean) => {
+    setOpenGroups((prev) => ({ ...prev, [groupKey]: isOpen }));
   };
 
   if (loading) {
@@ -147,15 +153,13 @@ const Index = () => {
     );
   }
 
-  const groupedSurveys = groupSurveysByRound(surveys);
-
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        {/* ⬇️ overflow-hidden 제거 */}
+        {/* overflow-hidden 제거 */}
         <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full">
-          {/* ⬇️ 래퍼는 이벤트 비활성화, 버튼에만 이벤트 허용 */}
+          {/* 왼쪽 햄버거: 래퍼는 이벤트 제거, 버튼만 이벤트 허용 */}
           <div className="absolute left-3 sm:left-4 top-0 pointer-events-none">
             <Sheet>
               <SheetTrigger asChild>
@@ -254,6 +258,8 @@ const Index = () => {
               onClick={() => {
                 setShowAllSurveys(!showAllSurveys);
                 setLoadingSurveys(true);
+                // 그룹 열림 상태 초기화 (보기 전환 시)
+                setOpenGroups({});
               }}
               className="text-xs px-2 py-1 h-8 min-w-0 whitespace-nowrap"
             >
@@ -265,7 +271,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main: 바디가 스크롤 주체가 되도록 내부 스크롤/숨김 제거 */}
+      {/* Main: 문서(body)가 스크롤 주체 */}
       <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 max-w-full">
         <div className="mb-6 md:mb-8 text-center px-2">
           <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">
@@ -298,7 +304,10 @@ const Index = () => {
           <div className="space-y-4">
             {Object.entries(groupedSurveys).map(([roundTitle, roundSurveys]) => (
               <div key={roundTitle} className="animate-fade-in">
-                <Collapsible open={openGroups[roundTitle] || false} onOpenChange={() => toggleGroup(roundTitle)}>
+                <Collapsible
+                  open={openGroups[roundTitle] || false}
+                  onOpenChange={(isOpen) => toggleGroup(roundTitle, isOpen)}
+                >
                   <CollapsibleTrigger asChild>
                     <div className="flex items-center gap-3 mb-4 p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors">
                       <Badge variant="default" className="text-sm px-3 py-1">
