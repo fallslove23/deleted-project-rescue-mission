@@ -1,3 +1,4 @@
+// src/pages/SurveyManagement.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,14 +13,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
 import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target, ChevronsUpDown, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
-import CourseSelector from '@/components/course-reports/CourseSelector';
 
 interface Survey {
   id: string;
@@ -31,9 +31,16 @@ interface Survey {
   education_round: number;
   education_day?: number;
   status: string;
-  instructor_id: string;
-  course_id: string;
-  course_name?: string;
+  instructor_id: string | null;
+  course_id: string | null;
+  course_name?: string | null; // 과정명(코스) 표시용
+
+  // ⬇️ 합반 관련/레이블(신규 컬럼)
+  round_label?: string | null;
+  is_combined?: boolean | null;
+  combined_round_start?: number | null;
+  combined_round_end?: number | null;
+
   created_at: string;
 }
 
@@ -67,6 +74,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
+  // 필터 훅
   const {
     selectedYear,
     selectedCourse,
@@ -88,6 +96,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const [selectedSurveyForShare, setSelectedSurveyForShare] = useState<Survey | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
+  // 생성/수정 폼 상태
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -96,21 +105,31 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     education_year: new Date().getFullYear(),
     education_round: 1,
     education_day: 1,
-    course_name: '', // ✅ 과정명은 프로그램명만: "BS Basic" | "BS Advanced"
+    course_name: '',
     instructor_id: '',
     course_id: '',
-    expected_participants: 0
+    expected_participants: 0,
+
+    // ⬇️ 합반 필드
+    round_label: '',
+    is_combined: false,
+    combined_round_start: null as number | null,
+    combined_round_end: null as number | null,
   });
 
-  // 제목 자동 업데이트 함수 (과정명 = 프로그램명만 사용)
+  // 제목 자동 업데이트
   const updateTitle = () => {
-    const selectedCourse = courses.find(c => c.id === formData.course_id);
-    const courseName = formData.course_name?.trim() || ''; // "BS Basic" | "BS Advanced"
+    const selected = courses.find(c => c.id === formData.course_id);
+    const courseName = formData.course_name?.includes('-')
+      ? formData.course_name.split('-')[1]?.trim()
+      : formData.course_name?.trim() || '';
 
-    if (formData.education_year && formData.education_round && formData.education_day && selectedCourse && courseName) {
-      const year = formData.education_year.toString().slice(-2); // e.g. 2025 -> "25"
-      const titlePrefix = `(${year}-${formData.education_round}차 ${courseName} ${formData.education_day}일차)`;
-      const newTitle = `${titlePrefix} ${selectedCourse.title}`; // 과목명은 course.title
+    if (formData.education_year && formData.education_round && formData.education_day && selected) {
+      const yy = formData.education_year.toString().slice(-2);
+      const titlePrefix = courseName
+        ? `(${yy}-${formData.education_round}차 ${courseName} ${formData.education_day}일차)`
+        : `(${yy}-${formData.education_round}차 ${formData.education_day}일차)`;
+      const newTitle = `${titlePrefix} ${selected.title}`;
       setFormData(prev => ({ ...prev, title: newTitle }));
     }
   };
@@ -141,11 +160,19 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     }
   }, [selectedInstructor, courses, instructorCourses]);
 
+  // 제목 자동 업데이트 트리거
   useEffect(() => {
     if (formData.course_id && formData.education_year && formData.education_round && formData.education_day) {
       updateTitle();
     }
-  }, [formData.education_year, formData.education_round, formData.education_day, formData.course_name, formData.course_id, courses]);
+  }, [
+    formData.education_year,
+    formData.education_round,
+    formData.education_day,
+    formData.course_name,
+    formData.course_id,
+    courses
+  ]);
 
   const fetchData = async () => {
     try {
@@ -161,21 +188,40 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       if (coursesRes.error) throw coursesRes.error;
       if (instructorCoursesRes.error) throw instructorCoursesRes.error;
 
-      setSurveys(surveysRes.data || []);
+      setSurveys((surveysRes.data as Survey[]) || []);
       setInstructors(instructorsRes.data || []);
       setCourses(coursesRes.data || []);
       setInstructorCourses(instructorCoursesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
-        title: "오류",
-        description: "데이터를 불러오는 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: '오류',
+        description: '데이터를 불러오는 중 오류가 발생했습니다.',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
   };
+
+  const resetForm = () =>
+    setFormData({
+      title: '',
+      description: '',
+      start_date: '',
+      end_date: '',
+      education_year: new Date().getFullYear(),
+      education_round: 1,
+      education_day: 1,
+      course_name: '',
+      instructor_id: '',
+      course_id: '',
+      expected_participants: 0,
+      round_label: '',
+      is_combined: false,
+      combined_round_start: null,
+      combined_round_end: null
+    });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,41 +234,34 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
         end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
         created_by: user?.id,
+
+        // 합반 전송값 정리
+        is_combined: !!formData.is_combined,
+        combined_round_start: formData.is_combined ? formData.combined_round_start : null,
+        combined_round_end: formData.is_combined ? formData.combined_round_end : null,
+        round_label:
+          (formData.round_label && formData.round_label.trim().length > 0)
+            ? formData.round_label.trim()
+            : null
       };
 
-      const { data: newSurvey, error } = await supabase
-        .from('surveys')
-        .insert([payload])
-        .select()
-        .single();
+      const { error } = await supabase.from('surveys').insert([payload]);
 
       if (error) throw error;
 
-      toast({ title: "성공", description: "설문조사가 생성되었습니다." });
+      toast({ title: '성공', description: '설문조사가 생성되었습니다.' });
 
       setIsDialogOpen(false);
-      setFormData({
-        title: '',
-        description: '',
-        start_date: '',
-        end_date: '',
-        education_year: new Date().getFullYear(),
-        education_round: 1,
-        education_day: 1,
-        course_name: '',
-        instructor_id: '',
-        course_id: '',
-        expected_participants: 0
-      });
+      resetForm();
       setSelectedInstructor('');
       fetchData();
       fetchFilteredSurveys();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating survey:', error);
       toast({
-        title: "오류",
-        description: `설문조사 생성 실패: ${(error as any)?.message || '권한 또는 유효성 문제'}`,
-        variant: "destructive"
+        title: '오류',
+        description: `설문조사 생성 실패: ${error?.message || '권한 또는 유효성 문제'}`,
+        variant: 'destructive'
       });
     }
   };
@@ -230,7 +269,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const handleEditSurvey = (survey: Survey) => {
     setEditingSurvey(survey);
     setFormData({
-      title: survey.title,
+      title: survey.title || '',
       description: survey.description || '',
       start_date: survey.start_date ? new Date(survey.start_date).toISOString().slice(0, 16) : '',
       end_date: survey.end_date ? new Date(survey.end_date).toISOString().slice(0, 16) : '',
@@ -240,7 +279,13 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       course_name: survey.course_name || '',
       instructor_id: survey.instructor_id || '',
       course_id: survey.course_id || '',
-      expected_participants: (survey as any).expected_participants || 0
+      expected_participants: (survey as any).expected_participants || 0,
+
+      // 합반 필드
+      round_label: survey.round_label || '',
+      is_combined: !!survey.is_combined,
+      combined_round_start: survey.combined_round_start ?? null,
+      combined_round_end: survey.combined_round_end ?? null
     });
     setSelectedInstructor(survey.instructor_id || '');
     setIsEditDialogOpen(true);
@@ -257,6 +302,15 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         course_id: formData.course_id || null,
         start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
         end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
+
+        // 합반 전송값 정리
+        is_combined: !!formData.is_combined,
+        combined_round_start: formData.is_combined ? formData.combined_round_start : null,
+        combined_round_end: formData.is_combined ? formData.combined_round_end : null,
+        round_label:
+          (formData.round_label && formData.round_label.trim().length > 0)
+            ? formData.round_label.trim()
+            : null
       };
 
       const { error } = await supabase
@@ -266,32 +320,20 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
       if (error) throw error;
 
-      toast({ title: "성공", description: "설문조사가 수정되었습니다." });
+      toast({ title: '성공', description: '설문조사가 수정되었습니다.' });
 
       setIsEditDialogOpen(false);
       setEditingSurvey(null);
-      setFormData({
-        title: '',
-        description: '',
-        start_date: '',
-        end_date: '',
-        education_year: new Date().getFullYear(),
-        education_round: 1,
-        education_day: 1,
-        course_name: '',
-        instructor_id: '',
-        course_id: '',
-        expected_participants: 0
-      });
+      resetForm();
       setSelectedInstructor('');
       fetchData();
       fetchFilteredSurveys();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating survey:', error);
       toast({
-        title: "오류",
-        description: `설문조사 수정 실패: ${(error as any)?.message || '권한 또는 유효성 문제'}`,
-        variant: "destructive"
+        title: '오류',
+        description: `설문조사 수정 실패: ${error?.message || '권한 또는 유효성 문제'}`,
+        variant: 'destructive'
       });
     }
   };
@@ -306,7 +348,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       if (error) throw error;
 
       toast({
-        title: "성공",
+        title: '성공',
         description: `설문조사가 ${newStatus === 'active' ? '시작' : '종료'}되었습니다.`
       });
 
@@ -315,43 +357,47 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     } catch (error) {
       console.error('Error updating survey status:', error);
       toast({
-        title: "오류",
-        description: "설문조사 상태 변경 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: '오류',
+        description: '설문조사 상태 변경 중 오류가 발생했습니다.',
+        variant: 'destructive'
       });
     }
   };
 
   const duplicateSurvey = async (survey: Survey) => {
     try {
-      const { error } = await supabase
-        .from('surveys')
-        .insert([{
-          title: `${survey.title} (복사본)`,
-          description: survey.description,
-          start_date: survey.start_date,
-          end_date: survey.end_date,
-          education_year: survey.education_year,
-          education_round: survey.education_round,
-          education_day: survey.education_day,
-          instructor_id: survey.instructor_id,
-          course_id: survey.course_id,
-          status: 'draft',
-          created_by: user?.id
-        }]);
+      const { error } = await supabase.from('surveys').insert([{
+        title: `${survey.title} (복사본)`,
+        description: survey.description,
+        start_date: survey.start_date,
+        end_date: survey.end_date,
+        education_year: survey.education_year,
+        education_round: survey.education_round,
+        education_day: survey.education_day || null,
+        instructor_id: survey.instructor_id,
+        course_id: survey.course_id,
+        course_name: survey.course_name || null,
+        status: 'draft',
+        created_by: user?.id,
+
+        // 합반 필드 복제
+        round_label: survey.round_label || null,
+        is_combined: !!survey.is_combined,
+        combined_round_start: survey.combined_round_start ?? null,
+        combined_round_end: survey.combined_round_end ?? null
+      }]);
 
       if (error) throw error;
 
-      toast({ title: "성공", description: "설문조사가 복제되었습니다." });
-
+      toast({ title: '성공', description: '설문조사가 복제되었습니다.' });
       fetchData();
       fetchFilteredSurveys();
     } catch (error) {
       console.error('Error duplicating survey:', error);
       toast({
-        title: "오류",
-        description: "설문조사 복제 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: '오류',
+        description: '설문조사 복제 중 오류가 발생했습니다.',
+        variant: 'destructive'
       });
     }
   };
@@ -360,22 +406,18 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     if (!window.confirm('정말로 이 설문을 삭제하시겠습니까?')) return;
 
     try {
-      const { error } = await supabase
-        .from('surveys')
-        .delete()
-        .eq('id', surveyId);
-
+      const { error } = await supabase.from('surveys').delete().eq('id', surveyId);
       if (error) throw error;
 
-      toast({ title: "성공", description: "설문조사가 삭제되었습니다." });
+      toast({ title: '성공', description: '설문조사가 삭제되었습니다.' });
       fetchData();
       fetchFilteredSurveys();
     } catch (error) {
       console.error('Error deleting survey:', error);
       toast({
-        title: "오류",
-        description: "설문조사 삭제 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: '오류',
+        description: '설문조사 삭제 중 오류가 발생했습니다.',
+        variant: 'destructive'
       });
     }
   };
@@ -385,7 +427,6 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       const { data, error } = await supabase.functions.invoke('send-survey-results', {
         body: { surveyId, recipients: ['admin', 'instructor'] }
       });
-
       if (error) throw error;
 
       const results = (data as any)?.results as Array<{ to: string; name?: string; status: 'sent' | 'failed' }> | undefined;
@@ -398,18 +439,19 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       const getFailedNames = () => failed.map(r => r.name || recipientNames?.[r.to] || r.to.split('@')[0]).join(', ');
 
       toast({
-        title: failed.length === 0 ? "✅ 이메일 전송 완료!" : "⚠️ 일부 전송 실패",
-        description: failed.length === 0
-          ? `${sent.length}명에게 설문 결과가 성공적으로 전송되었습니다. 📧\n받는 분: ${getSentNames()}`
-          : `성공 ${sent.length}건${sent.length ? `: ${getSentNames()}` : ''}\n실패 ${failed.length}건: ${getFailedNames()}`,
-        duration: 6000,
+        title: failed.length === 0 ? '✅ 이메일 전송 완료!' : '⚠️ 일부 전송 실패',
+        description:
+          failed.length === 0
+            ? `${sent.length}명에게 설문 결과가 성공적으로 전송되었습니다. 📧\n받는 분: ${getSentNames()}`
+            : `성공 ${sent.length}건${sent.length ? `: ${getSentNames()}` : ''}\n실패 ${failed.length}건: ${getFailedNames()}`,
+        duration: 6000
       });
     } catch (error: any) {
       console.error('Error sending survey results:', error);
       toast({
-        title: "오류",
-        description: error.message || "이메일 전송 중 오류가 발생했습니다.",
-        variant: "destructive"
+        title: '오류',
+        description: error.message || '이메일 전송 중 오류가 발생했습니다.',
+        variant: 'destructive'
       });
     }
   };
@@ -430,16 +472,24 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       setShareDialogOpen(true);
     } catch (error) {
       console.error('Error generating QR code:', error);
-      toast({ title: "오류", description: "QR 코드 생성 중 오류가 발생했습니다.", variant: "destructive" });
+      toast({
+        title: '오류',
+        description: 'QR 코드 생성 중 오류가 발생했습니다.',
+        variant: 'destructive'
+      });
     }
   };
 
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast({ title: "성공", description: "링크가 클립보드에 복사되었습니다." });
+      toast({ title: '성공', description: '링크가 클립보드에 복사되었습니다.' });
     } catch {
-      toast({ title: "오류", description: "클립보드 복사에 실패했습니다.", variant: "destructive" });
+      toast({
+        title: '오류',
+        description: '클립보드 복사에 실패했습니다.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -453,6 +503,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     document.body.removeChild(link);
   };
 
+  // 상태 뱃지
   const getStatusBadge = (survey: Survey) => {
     const timeZone = 'Asia/Seoul';
     const nowKST = toZonedTime(new Date(), timeZone);
@@ -464,21 +515,41 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
     if (survey.status === 'active') {
       if (nowKST < startDateKST) {
-        displayLabel = '시작 예정'; variant = 'secondary';
+        displayLabel = '시작 예정';
+        variant = 'secondary';
       } else if (nowKST >= startDateKST && nowKST <= endDateKST) {
-        displayLabel = '진행중'; variant = 'default';
+        displayLabel = '진행중';
+        variant = 'default';
       } else {
-        displayLabel = '종료'; variant = 'outline';
+        displayLabel = '종료';
+        variant = 'outline';
       }
     } else if (survey.status === 'draft') {
-      displayLabel = '초안'; variant = 'secondary';
+      displayLabel = '초안';
+      variant = 'secondary';
     } else if (survey.status === 'completed') {
-      displayLabel = '완료'; variant = 'outline';
+      displayLabel = '완료';
+      variant = 'outline';
     } else {
-      displayLabel = survey.status; variant = 'secondary';
+      displayLabel = survey.status;
+      variant = 'secondary';
     }
 
     return <Badge variant={variant}>{displayLabel}</Badge>;
+  };
+
+  // 표시용 라벨 (목록/카드에 사용)
+  const displayRoundLabel = (s: Survey) => {
+    if (s.round_label && s.round_label.trim().length > 0) return s.round_label;
+    if (s.is_combined && s.combined_round_start && s.combined_round_end) {
+      // 예: 2025년 6∼9차 - BS Advanced
+      const course = s.course_name || '';
+      const label = `${s.education_year}년 ${s.combined_round_start}∼${s.combined_round_end}차 - ${course}`;
+      return label;
+    }
+    // 기본
+    const course = s.course_name || '';
+    return `${s.education_year}년 ${s.education_round}차 - ${course}`;
   };
 
   if (loading) {
@@ -508,7 +579,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
       <main className="container mx-auto px-4 py-6">
         <div className="space-y-6">
-          {/* Survey Guide */}
+          {/* Guide */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -598,13 +669,13 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
             </CardContent>
           </Card>
 
+          {/* 상단 액션 + 생성 다이얼로그 */}
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h2 className="text-lg sm:text-xl font-bold break-words">
                 설문조사 목록 {selectedCourse && `(${availableCourses.find(c => c.key === selectedCourse)?.course_name})`}
               </h2>
 
-              {/* 새 설문조사 생성 */}
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="touch-friendly text-sm w-full sm:w-auto">
@@ -612,6 +683,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     <span className="break-words">새 설문조사</span>
                   </Button>
                 </DialogTrigger>
+
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>새 설문조사 만들기</DialogTitle>
@@ -682,14 +754,15 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                         <p className="text-xs text-muted-foreground mt-1">전체 교육과정 중 몇 번째 날 (예: 2일차)</p>
                       </div>
 
-                      {/* ✅ 과정(프로그램) 선택: BS Basic / BS Advanced만 */}
                       <div>
                         <Label htmlFor="course_type">과정</Label>
                         <Select
-                          value={formData.course_name}
+                          value={formData.course_name?.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name}
                           onValueChange={(value) => {
-                            setFormData(prev => ({ ...prev, course_name: value }));
-                            updateTitle();
+                            const selectedCourse = courses.find(c => c.id === formData.course_id);
+                            const subjectName = selectedCourse?.title || '';
+                            const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
+                            setFormData(prev => ({ ...prev, course_name: newCourseName }));
                           }}
                         >
                           <SelectTrigger>
@@ -698,6 +771,9 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                           <SelectContent>
                             <SelectItem value="BS Basic">BS Basic</SelectItem>
                             <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                            <SelectItem value="300 점검방법">300 점검방법</SelectItem>
+                            <SelectItem value="400 조치방법">400 조치방법</SelectItem>
+                            <SelectItem value="500 관리방법">500 관리방법</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -720,6 +796,73 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                           placeholder="예상 참여자 수"
                           className="touch-friendly"
                         />
+                      </div>
+                    </div>
+
+                    {/* ⬇️ 합반 입력 (BS Advanced 선택 시 노출) */}
+                    {formData.course_name?.includes('BS Advanced') && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            id="is_combined"
+                            type="checkbox"
+                            checked={!!formData.is_combined}
+                            onChange={(e) => setFormData(prev => ({ ...prev, is_combined: e.target.checked }))}
+                          />
+                          <Label htmlFor="is_combined">합반 여부</Label>
+                        </div>
+                        {formData.is_combined && (
+                          <>
+                            <div>
+                              <Label htmlFor="combined_round_start">합반 시작 차수</Label>
+                              <Input
+                                id="combined_round_start"
+                                type="number"
+                                min={1}
+                                value={formData.combined_round_start ?? ''}
+                                onChange={(e) =>
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    combined_round_start: e.target.value === '' ? null : parseInt(e.target.value) || null
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="combined_round_end">합반 종료 차수</Label>
+                              <Input
+                                id="combined_round_end"
+                                type="number"
+                                min={(formData.combined_round_start || 1)}
+                                value={formData.combined_round_end ?? ''}
+                                onChange={(e) =>
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    combined_round_end: e.target.value === '' ? null : parseInt(e.target.value) || null
+                                  }))
+                                }
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label htmlFor="round_label">표시 라벨(선택)</Label>
+                        <Input
+                          id="round_label"
+                          placeholder={`예: ${formData.education_year}년 ${formData.is_combined && formData.combined_round_start && formData.combined_round_end
+                            ? `${formData.combined_round_start}∼${formData.combined_round_end}`
+                            : `${formData.education_round}`
+                            }차 - ${formData.course_name || '과정명'}`}
+                          value={formData.round_label}
+                          onChange={(e) => setFormData(prev => ({ ...prev, round_label: e.target.value }))}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          직접 표시문구를 고정하고 싶다면 입력 (비우면 자동 생성 규칙으로 표시)
+                        </p>
                       </div>
                     </div>
 
@@ -757,7 +900,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                           disabled={!formData.course_id}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={formData.course_id ? "강사를 선택하세요" : "먼저 과목을 선택해주세요"} />
+                            <SelectValue placeholder={formData.course_id ? '강사를 선택하세요' : '먼저 과목을 선택해주세요'} />
                           </SelectTrigger>
                           <SelectContent>
                             {formData.course_id && instructorCourses
@@ -769,8 +912,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                                     {instructor.name}
                                   </SelectItem>
                                 ) : null;
-                              })
-                            }
+                              })}
                           </SelectContent>
                         </Select>
                         {formData.course_id && (
@@ -790,8 +932,18 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     </div>
 
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>취소</Button>
-                      <Button type="submit">생성</Button>
+                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                        취소
+                      </Button>
+                      <Button
+                        type="submit"
+                        onClick={() => {
+                          // instructor_id 동기화
+                          setFormData(prev => ({ ...prev, instructor_id: selectedInstructor }));
+                        }}
+                      >
+                        생성
+                      </Button>
                     </div>
                   </form>
                 </DialogContent>
@@ -808,10 +960,13 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   <Card key={survey.id} className="transition-shadow hover:shadow-md">
                     <CardHeader className="p-4 sm:p-6">
                       <div className="space-y-4">
+                        {/* Header */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                              <CardTitle className="text-base sm:text-lg break-words line-clamp-2">{survey.title}</CardTitle>
+                              <CardTitle className="text-base sm:text-lg break-words line-clamp-2">
+                                {survey.title}
+                              </CardTitle>
                               {getStatusBadge(survey)}
                             </div>
                             <p className="text-sm text-muted-foreground break-words line-clamp-2">
@@ -820,18 +975,30 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                           </div>
                         </div>
 
+                        {/* Info */}
                         <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+                          <p className="break-words"><strong>표시:</strong> {displayRoundLabel(survey)}</p>
                           <p className="break-words"><strong>강사:</strong> {surveyInstructor?.name || 'Unknown'}</p>
                           <p className="break-words"><strong>과목:</strong> {surveyCourse?.title || 'Unknown'}</p>
                           {survey.course_name && (
                             <p className="break-words">
-                              <strong>과정명:</strong>
+                              <strong>과정명:</strong>{' '}
                               <span className="ml-1 text-primary font-medium">
-                                {survey.course_name}
+                                {survey.course_name.includes('-')
+                                  ? survey.course_name.split('-')[1]?.trim()
+                                  : survey.course_name}
                               </span>
                             </p>
                           )}
-                          <p><strong>교육기간:</strong> {survey.education_year}년 {survey.education_round}차 {survey.education_day || 1}일차</p>
+                          <p>
+                            <strong>교육기간:</strong>{' '}
+                            {survey.education_year}년 {survey.education_round}차 {survey.education_day || 1}일차
+                            {survey.is_combined && survey.combined_round_start && survey.combined_round_end && (
+                              <span className="ml-2">
+                                (합반 {survey.combined_round_start}∼{survey.combined_round_end}차)
+                              </span>
+                            )}
+                          </p>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-3 w-3 flex-shrink-0" />
                             <span className="break-all">
@@ -844,49 +1011,84 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                           </div>
                         </div>
 
-                        {/* 액션 */}
+                        {/* Actions */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Button variant="outline" size="sm" onClick={() => handleEditSurvey(survey)} className="touch-friendly text-xs h-9 px-3">
-                            <Edit className="h-4 w-4 mr-1" />정보수정
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditSurvey(survey)}
+                            className="touch-friendly text-xs h-9 px-3"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            정보수정
                           </Button>
 
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/survey-builder/${survey.id}`)} className="touch-friendly text-xs h-9 px-3">
-                            <Edit className="h-4 w-4 mr-1" />질문편집
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/survey-builder/${survey.id}`)}
+                            className="touch-friendly text-xs h-9 px-3"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            질문편집
                           </Button>
 
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/survey-preview/${survey.id}`)} className="touch-friendly text-xs h-9 px-3">
-                            <Eye className="h-4 w-4 mr-1" />미리보기
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/survey-preview/${survey.id}`)}
+                            className="touch-friendly text-xs h-9 px-3"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            미리보기
                           </Button>
 
-                          <Button variant="outline" size="sm" onClick={() => handleShare(survey)} className="touch-friendly text-xs h-9 px-3">
-                            <Share2 className="h-4 w-4 mr-1" />공유
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleShare(survey)}
+                            className="touch-friendly text-xs h-9 px-3"
+                          >
+                            <Share2 className="h-4 w-4 mr-1" />
+                            공유
                           </Button>
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="outline" size="sm" className="touch-friendly text-xs h-9 px-3">
-                                <MoreHorizontal className="h-4 w-4 mr-1" />더보기
+                                <MoreHorizontal className="h-4 w-4 mr-1" />
+                                더보기
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem onClick={() => duplicateSurvey(survey)}>
-                                <Copy className="h-4 w-4 mr-2" />복사하기
+                                <Copy className="h-4 w-4 mr-2" />
+                                복사하기
                               </DropdownMenuItem>
+
                               <DropdownMenuItem onClick={() => navigate(`/dashboard/results`)}>
-                                <FileText className="h-4 w-4 mr-2" />결과 보기
+                                <FileText className="h-4 w-4 mr-2" />
+                                결과 보기
                               </DropdownMenuItem>
+
                               <DropdownMenuItem onClick={() => sendSurveyResults(survey.id)}>
-                                <Mail className="h-4 w-4 mr-2" />이메일 전송
+                                <Mail className="h-4 w-4 mr-2" />
+                                이메일 전송
                               </DropdownMenuItem>
+
                               <DropdownMenuSeparator />
+
                               {survey.status === 'draft' && (
                                 <DropdownMenuItem onClick={() => updateSurveyStatus(survey.id, 'active')}>
-                                  <Play className="h-4 w-4 mr-2" />설문 시작
+                                  <Play className="h-4 w-4 mr-2" />
+                                  설문 시작
                                 </DropdownMenuItem>
                               )}
+
                               {survey.status === 'active' && (
                                 <DropdownMenuItem onClick={() => updateSurveyStatus(survey.id, 'completed')}>
-                                  <Square className="h-4 w-4 mr-2" />설문 종료
+                                  <Square className="h-4 w-4 mr-2" />
+                                  설문 종료
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -912,7 +1114,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         </div>
       </main>
 
-      {/* Share Dialog */}
+      {/* 공유 다이얼로그 */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -923,7 +1125,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
               <div>
                 <h3 className="font-medium text-sm mb-2">{selectedSurveyForShare.title}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {selectedSurveyForShare.education_year}년 {selectedSurveyForShare.education_round}차
+                  {displayRoundLabel(selectedSurveyForShare)}
                 </p>
               </div>
 
@@ -931,8 +1133,15 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 <div>
                   <Label className="text-sm font-medium">공유 링크</Label>
                   <div className="flex gap-2 mt-1">
-                    <Input value={`${window.location.origin}/survey/${selectedSurveyForShare.id}`} readOnly className="text-xs" />
-                    <Button size="sm" onClick={() => copyToClipboard(`${window.location.origin}/survey/${selectedSurveyForShare.id}`)}>
+                    <Input
+                      value={`${window.location.origin}/survey/${selectedSurveyForShare.id}`}
+                      readOnly
+                      className="text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => copyToClipboard(`${window.location.origin}/survey/${selectedSurveyForShare.id}`)}
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -962,12 +1171,13 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         </DialogContent>
       </Dialog>
 
-      {/* Edit Survey Dialog */}
+      {/* 수정 다이얼로그 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>설문조사 정보 수정</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleUpdateSurvey} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -975,7 +1185,9 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-                      {formData.course_id ? courses.find(course => course.id === formData.course_id)?.title : "과목을 선택하세요"}
+                      {formData.course_id
+                        ? courses.find(course => course.id === formData.course_id)?.title
+                        : '과목을 선택하세요'}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -997,7 +1209,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                                 setOpen(false);
                               }}
                             >
-                              <Check className={cn("mr-2 h-4 w-4", formData.course_id === course.id ? "opacity-100" : "opacity-0")} />
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  formData.course_id === course.id ? 'opacity-100' : 'opacity-0'
+                                )}
+                              />
                               {course.title}
                             </CommandItem>
                           ))}
@@ -1050,14 +1267,15 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 <p className="text-xs text-muted-foreground mt-1">전체 교육과정 중 몇 번째 날 (예: 2일차)</p>
               </div>
 
-              {/* ✅ 과정(프로그램) 선택: BS Basic / BS Advanced만 */}
               <div>
                 <Label htmlFor="edit_course_type">과정</Label>
                 <Select
-                  value={formData.course_name}
+                  value={formData.course_name?.includes('-') ? formData.course_name.split('-')[1]?.trim() : formData.course_name}
                   onValueChange={(value) => {
-                    setFormData(prev => ({ ...prev, course_name: value }));
-                    updateTitle();
+                    const selectedCourse = courses.find(c => c.id === formData.course_id);
+                    const subjectName = selectedCourse?.title || '';
+                    const newCourseName = subjectName ? `${subjectName} - ${value}` : value;
+                    setFormData(prev => ({ ...prev, course_name: newCourseName }));
                   }}
                 >
                   <SelectTrigger>
@@ -1066,6 +1284,9 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   <SelectContent>
                     <SelectItem value="BS Basic">BS Basic</SelectItem>
                     <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                    <SelectItem value="300 점검방법">300 점검방법</SelectItem>
+                    <SelectItem value="400 조치방법">400 조치방법</SelectItem>
+                    <SelectItem value="500 관리방법">500 관리방법</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1087,6 +1308,67 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   onFocus={(e) => e.target.select()}
                   placeholder="예상 참여자 수"
                   className="touch-friendly"
+                />
+              </div>
+            </div>
+
+            {/* ⬇️ 합반 입력 (BS Advanced 선택 시 노출) */}
+            {formData.course_name?.includes('BS Advanced') && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="edit_is_combined"
+                    type="checkbox"
+                    checked={!!formData.is_combined}
+                    onChange={(e) => setFormData(prev => ({ ...prev, is_combined: e.target.checked }))}
+                  />
+                  <Label htmlFor="edit_is_combined">합반 여부</Label>
+                </div>
+                {formData.is_combined && (
+                  <>
+                    <div>
+                      <Label htmlFor="edit_combined_round_start">합반 시작 차수</Label>
+                      <Input
+                        id="edit_combined_round_start"
+                        type="number"
+                        min={1}
+                        value={formData.combined_round_start ?? ''}
+                        onChange={(e) =>
+                          setFormData(prev => ({
+                            ...prev,
+                            combined_round_start: e.target.value === '' ? null : parseInt(e.target.value) || null
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit_combined_round_end">합반 종료 차수</Label>
+                      <Input
+                        id="edit_combined_round_end"
+                        type="number"
+                        min={(formData.combined_round_start || 1)}
+                        value={formData.combined_round_end ?? ''}
+                        onChange={(e) =>
+                          setFormData(prev => ({
+                            ...prev,
+                            combined_round_end: e.target.value === '' ? null : parseInt(e.target.value) || null
+                          }))
+                        }
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Label htmlFor="edit_round_label">표시 라벨(선택)</Label>
+                <Input
+                  id="edit_round_label"
+                  value={formData.round_label}
+                  onChange={(e) => setFormData(prev => ({ ...prev, round_label: e.target.value }))}
+                  placeholder="예: 2025년 6∼9차 - BS Advanced"
                 />
               </div>
             </div>
@@ -1125,7 +1407,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   disabled={!formData.course_id}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={formData.course_id ? "강사를 선택하세요" : "먼저 과목을 선택해주세요"} />
+                    <SelectValue placeholder={formData.course_id ? '강사를 선택하세요' : '먼저 과목을 선택해주세요'} />
                   </SelectTrigger>
                   <SelectContent>
                     {formData.course_id && instructorCourses
@@ -1137,8 +1419,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                             {instructor.name}
                           </SelectItem>
                         ) : null;
-                      })
-                    }
+                      })}
                   </SelectContent>
                 </Select>
                 {formData.course_id && (
@@ -1149,18 +1430,40 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
             <div>
               <Label htmlFor="edit_title">설문 제목 (자동 생성)</Label>
-              <Input id="edit_title" value={formData.title} readOnly className="touch-friendly bg-muted" placeholder="과목과 과정 정보를 입력하면 자동으로 생성됩니다" />
-              <p className="text-xs text-muted-foreground mt-1">제목은 (yy-n차 과정명 n일차) 과목명 형식으로 자동 생성됩니다</p>
+              <Input
+                id="edit_title"
+                value={formData.title}
+                readOnly
+                className="touch-friendly bg-muted"
+                placeholder="과목과 과정 정보를 입력하면 자동으로 생성됩니다"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                제목은 (yy-n차 과정명 n일차) 과목명 형식으로 자동 생성됩니다
+              </p>
             </div>
 
             <div>
               <Label htmlFor="edit_description">설명</Label>
-              <Textarea id="edit_description" value={formData.description} onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))} rows={3} />
+              <Textarea
+                id="edit_description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>취소</Button>
-              <Button type="submit">수정 완료</Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                취소
+              </Button>
+              <Button
+                type="submit"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, instructor_id: selectedInstructor }));
+                }}
+              >
+                수정 완료
+              </Button>
             </div>
           </form>
         </DialogContent>
