@@ -1,3 +1,12 @@
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  overflow-y: auto;                 /* 전역 스크롤 허용 */
+  -webkit-overflow-scrolling: touch;/* iOS 부드러운 스크롤 */
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
