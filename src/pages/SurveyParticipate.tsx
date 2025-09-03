@@ -254,6 +254,7 @@ const SurveyParticipate = () => {
   };
 
   const handleAnswerChange = (questionId: string, value: string | string[]) => {
+    console.log('Answer changed:', { questionId, value });
     setAnswers(prev => prev.map(answer => 
       answer.questionId === questionId ? { ...answer, answer: value } : answer
     ));
@@ -298,7 +299,12 @@ const SurveyParticipate = () => {
   };
 
   const handleNext = () => {
-    if (!validateCurrentStep()) {
+    console.log('Next button clicked - validating current step');
+    const isValid = validateCurrentStep();
+    console.log('Validation result:', isValid);
+    
+    if (!isValid) {
+      console.log('Validation failed');
       toast({
         title: "필수 항목을 완성해 주세요",
         description: "모든 필수 질문에 답변해 주세요.",
@@ -307,6 +313,7 @@ const SurveyParticipate = () => {
       return;
     }
     
+    console.log('Moving to next step');
     setCurrentStep(prev => prev + 1);
   };
 
@@ -485,21 +492,25 @@ const SurveyParticipate = () => {
               <span className="break-words">전혀 그렇지 않다</span>
               <span className="break-words">매우 그렇다</span>
             </div>
-            <RadioGroup
-              value={answer?.answer as string || ''}
-              onValueChange={(value) => handleAnswerChange(question.id, value)}
-              className="grid grid-cols-5 sm:flex sm:items-center sm:justify-between gap-2"
-            >
+            <div className="grid grid-cols-5 sm:flex sm:items-center sm:justify-between gap-2">
               {Array.from({ length: max - min + 1 }, (_, i) => {
                 const value = min + i;
                 return (
                   <div key={value} className="flex flex-col items-center space-y-1 touch-friendly">
                     <span className="text-xs sm:text-sm font-medium">{value}</span>
-                    <RadioGroupItem value={String(value)} id={`${question.id}-${value}`} className="touch-friendly" />
+                    <Button
+                      type="button"
+                      variant={answer?.answer === String(value) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleAnswerChange(question.id, String(value))}
+                      className="touch-friendly w-10 h-10"
+                    >
+                      {value}
+                    </Button>
                   </div>
                 );
               })}
-            </RadioGroup>
+            </div>
           </div>
         );
         
