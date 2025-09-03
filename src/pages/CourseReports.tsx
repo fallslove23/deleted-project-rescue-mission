@@ -163,7 +163,7 @@ const CourseReports = () => {
             <Card>
               <CardHeader>
                 <CardTitle>영역별 만족도</CardTitle>
-                <CardDescription>강사, 과목, 운영 만족도 비교</CardDescription>
+                <CardDescription>강사, 과정, 운영 만족도 비교</CardDescription>
               </CardHeader>
               <CardContent>
                 <DonutChart data={satisfactionChartData} />
@@ -199,7 +199,7 @@ const CourseReports = () => {
 
           {/* 강사별 통계 - 스크롤 개선 */}
           {instructorStats.length > 0 && (
-            <div className="max-h-[600px] overflow-y-auto">
+            <div className="max-h-[400px] overflow-y-auto border rounded-lg">
               <InstructorStatsSection
                 instructorStats={instructorStats}
                 onInstructorClick={handleInstructorClick}

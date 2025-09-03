@@ -163,18 +163,22 @@ export const useCourseReportsData = (
         totalSurveys += 1;
         totalResponses += survey.survey_responses?.length || 0;
 
-        if (survey.instructor_id && survey.instructors) {
-          if (!instructorStatsMap.has(survey.instructor_id)) {
-            instructorStatsMap.set(survey.instructor_id, {
-              instructor_id: survey.instructor_id,
-              instructor_name: survey.instructors?.name || '알 수 없음',
+        // 강사 정보 처리 개선
+        const instructorId = survey.instructor_id;
+        const instructorName = survey.instructors?.name || '알 수 없음';
+        
+        if (instructorId) {
+          if (!instructorStatsMap.has(instructorId)) {
+            instructorStatsMap.set(instructorId, {
+              instructor_id: instructorId,
+              instructor_name: instructorName,
               survey_count: 0,
               response_count: 0,
               satisfactions: []
             });
           }
           
-          const instructorStat = instructorStatsMap.get(survey.instructor_id);
+          const instructorStat = instructorStatsMap.get(instructorId);
           instructorStat.survey_count += 1;
           instructorStat.response_count += survey.survey_responses?.length || 0;
         }
@@ -194,14 +198,14 @@ export const useCourseReportsData = (
               }
 
               // 5점 척도를 10점으로 변환
-              if (score <= 5) {
+              if (score <= 5 && score > 0) {
                 score = score * 2;
               }
               
               if (answer.survey_questions.satisfaction_type === 'instructor') {
                 allInstructorSatisfactions.push(score);
-                if (survey.instructor_id) {
-                  instructorStatsMap.get(survey.instructor_id).satisfactions.push(score);
+                if (instructorId && instructorStatsMap.has(instructorId)) {
+                  instructorStatsMap.get(instructorId).satisfactions.push(score);
                 }
               } else if (answer.survey_questions.satisfaction_type === 'course') {
                 allCourseSatisfactions.push(score);
@@ -218,7 +222,7 @@ export const useCourseReportsData = (
         avg_satisfaction: stat.satisfactions.length > 0
           ? stat.satisfactions.reduce((a: number, b: number) => a + b, 0) / stat.satisfactions.length
           : 0
-      }));
+      })).filter(stat => stat.survey_count > 0); // 실제 데이터가 있는 강사만 포함
 
       // 종합 통계 생성
       const courseReport: CourseReport = {

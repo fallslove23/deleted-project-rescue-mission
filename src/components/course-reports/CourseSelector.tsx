@@ -38,10 +38,10 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="h-5 w-5 text-primary" />
-          과정 선택
+          과정별 결과 필터
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className="text-sm font-medium">교육 연도</label>
           <Select value={selectedYear.toString()} onValueChange={onYearChange}>
@@ -56,7 +56,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
           </Select>
         </div>
         <div>
-          <label className="text-sm font-medium">과정</label>
+          <label className="text-sm font-medium">과정명</label>
           <Select value={selectedCourse} onValueChange={onCourseChange}>
             <SelectTrigger>
               <SelectValue placeholder="과정 선택" />
@@ -71,7 +71,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
           </Select>
         </div>
         <div>
-          <label className="text-sm font-medium">차수</label>
+          <label className="text-sm font-medium">교육 차수</label>
           <Select value={selectedRound?.toString() || ''} onValueChange={onRoundChange}>
             <SelectTrigger>
               <SelectValue placeholder="차수 선택" />
@@ -85,7 +85,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
           </Select>
         </div>
         <div>
-          <label className="text-sm font-medium">강사</label>
+          <label className="text-sm font-medium">담당 강사</label>
           <Select value={selectedInstructor} onValueChange={onInstructorChange}>
             <SelectTrigger>
               <SelectValue placeholder="강사 선택" />
