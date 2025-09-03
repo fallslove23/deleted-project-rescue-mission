@@ -1,27 +1,31 @@
+// src/hooks/useAnonymousSession.ts
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// ✅ 스키마(테이블) 의존성 제거 버전
 export function useAnonymousSession() {
-  const [session, setSession] = useState<null | any>(null);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
+
         if (!mounted) return;
 
         if (!data.session) {
+          // 익명 로그인 켜져 있으면 성공, 꺼져 있어도 앱 흐름은 유지
           try {
-            // 익명 로그인이 켜져 있으면 성공, 꺼져 있으면 throw
             await supabase.auth.signInAnonymously();
-            const { data: after } = await supabase.auth.getSession();
+            const after = await supabase.auth.getSession();
             if (!mounted) return;
-            setSession(after.session ?? null);
-          } catch (e) {
-            console.warn('anonymous sign-in skipped:', e);
-            setSession(null); // ❗없어도 앱은 동작
+            setSession(after.data.session ?? null);
+          } catch {
+            // 익명 로그인 미사용/실패 → 세션 없이 진행
+            setSession(null);
           }
         } else {
           setSession(data.session);
@@ -31,40 +35,38 @@ export function useAnonymousSession() {
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+    });
+
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
   }, []);
 
-  // 서버 측 중복 제출 체크(옵션: 세션 없으면 false 반환)
+  // ✅ 세션 없이도 동작: 로컬스토리지로 "이미 참여" 판단
+  const lsKey = (surveyId: string) => `survey_completed_${surveyId}`;
+
   const checkSurveyCompletion = useCallback(async (surveyId: string) => {
-    if (!session) return false;
-    const { data, error } = await supabase
-      .from('survey_completion')
-      .select('survey_id')
-      .eq('survey_id', surveyId)
-      .limit(1);
-    if (error) return false;
-    return (data?.length ?? 0) > 0;
-  }, [session]);
+    try {
+      return localStorage.getItem(lsKey(surveyId)) === '1';
+    } catch {
+      return false;
+    }
+  }, []);
 
   const markSurveyCompleted = useCallback(async (surveyId: string) => {
-    if (!session) return;
-    await supabase.from('survey_completion').upsert({ survey_id: surveyId });
-  }, [session]);
+    try {
+      localStorage.setItem(lsKey(surveyId), '1');
+    } catch {
+      /* noop */
+    }
+  }, []);
 
-  const validateToken = useCallback(async (surveyId: string, code: string) => {
-    const { data, error } = await supabase
-      .from('survey_tokens')
-      .select('id, used_at, expired_at')
-      .eq('survey_id', surveyId)
-      .eq('code', code)
-      .maybeSingle();
-    if (error || !data) return false;
-    if (data.used_at || (data.expired_at && new Date(data.expired_at) < new Date())) return false;
-    return true;
+  // ✅ 토큰은 선택 사항: 코드가 있으면 true 정도만 반환(검증을 강하게 하고 싶으면 추후 서버 로직 추가)
+  const validateToken = useCallback(async (_surveyId: string, code: string) => {
+    return !!code?.trim();
   }, []);
 
   return { session, loading, checkSurveyCompletion, markSurveyCompleted, validateToken };
