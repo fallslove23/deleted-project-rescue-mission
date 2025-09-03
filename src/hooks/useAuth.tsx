@@ -74,9 +74,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
       
-      // 로컬 스토리지 정리
-      localStorage.clear();
-      sessionStorage.clear();
+      // 로컬 스토리지에서 Supabase 인증 키만 정리 (익명 설문 세션 등은 유지)
+      const ANON_KEY = 'bs-feedback-anon-session';
+      const preserveAnon = localStorage.getItem(ANON_KEY);
+
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        const isSupabaseKey = key.startsWith('sb-') || key.startsWith('supabase.');
+        if (isSupabaseKey && key !== ANON_KEY) {
+          localStorage.removeItem(key);
+        }
+      }
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (!key) continue;
+        const isSupabaseKey = key.startsWith('sb-') || key.startsWith('supabase.');
+        if (isSupabaseKey) {
+          sessionStorage.removeItem(key);
+        }
+      }
+      // 혹시 브라우저가 삭제했을 수 있으니 익명 세션 키 복구
+      if (preserveAnon && !localStorage.getItem(ANON_KEY)) {
+        localStorage.setItem(ANON_KEY, preserveAnon);
+      }
       
       // Supabase 로그아웃
       await supabase.auth.signOut({ scope: 'global' });

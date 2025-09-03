@@ -170,21 +170,36 @@ const SurveyParticipate = () => {
         return;
       }
 
-      // 한국 시간대 기준으로 날짜 검증
+      // 한국 시간대 기준으로 날짜 검증 (null-safe)
       const timeZone = 'Asia/Seoul';
       const nowKST = toZonedTime(new Date(), timeZone);
-      const startDateKST = toZonedTime(new Date(surveyData.start_date), timeZone);
-      const endDateKST = toZonedTime(new Date(surveyData.end_date), timeZone);
+      const hasStart = !!surveyData.start_date;
+      const hasEnd = !!surveyData.end_date;
+
+      let withinPeriod = true;
+      let startDateKST: Date | null = null;
+      let endDateKST: Date | null = null;
+
+      if (hasStart) {
+        startDateKST = toZonedTime(new Date(surveyData.start_date), timeZone);
+        withinPeriod = withinPeriod && nowKST >= startDateKST;
+      }
+      if (hasEnd) {
+        endDateKST = toZonedTime(new Date(surveyData.end_date), timeZone);
+        withinPeriod = withinPeriod && nowKST <= endDateKST;
+      }
       
       console.log('Survey participation time check:', {
         surveyId,
         nowKST: nowKST.toISOString(),
-        startDateKST: startDateKST.toISOString(),
-        endDateKST: endDateKST.toISOString(),
-        isWithinPeriod: nowKST >= startDateKST && nowKST <= endDateKST
+        startDateKST: startDateKST?.toISOString?.(),
+        endDateKST: endDateKST?.toISOString?.(),
+        hasStart,
+        hasEnd,
+        withinPeriod
       });
       
-      if (nowKST < startDateKST || nowKST > endDateKST) {
+      if (!withinPeriod) {
         toast({
           title: "설문 참여 기간이 아닙니다",
           description: "설문 참여 가능 기간을 확인해 주세요.",

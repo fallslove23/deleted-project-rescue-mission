@@ -72,11 +72,16 @@ export const useAnonymousSession = () => {
         }
       } catch (error) {
         console.error('Error initializing anonymous session:', error);
-        // Fallback session
-        const fallbackSession = {
-          anonId: crypto.randomUUID()
+        // Fallback session (persist locally to keep experience stable)
+        const uaHash = generateUserAgentHash(navigator.userAgent);
+        const fallbackSession: AnonymousSession = {
+          anonId: crypto.randomUUID(),
+          userAgentHash: uaHash
         };
         setSession(fallbackSession);
+        try {
+          localStorage.setItem(ANON_SESSION_KEY, JSON.stringify(fallbackSession));
+        } catch {}
       } finally {
         setLoading(false);
       }
