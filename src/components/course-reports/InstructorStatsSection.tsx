@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, BarChart3, ChevronRight } from 'lucide-react';
+import { Users, BarChart3 } from 'lucide-react';
 import { AreaChart } from '@/components/charts/AreaChart';
 
 interface InstructorStats {
@@ -36,7 +36,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
           강사별 만족도 통계 (10점 만점)
         </CardTitle>
         <CardDescription>
-          각 강사별 평균 만족도와 응답 수를 확인할 수 있습니다. 클릭하면 상세 정보를 볼 수 있습니다.
+          각 강사별 평균 만족도와 응답 수를 확인할 수 있습니다.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -44,8 +44,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
           {instructorStats.map((stat, index) => (
             <div 
               key={stat.instructor_id}
-              className="flex justify-between items-center p-3 rounded-lg border hover:bg-muted/30 cursor-pointer transition-all duration-200 group"
-              onClick={() => onInstructorClick(stat.instructor_id)}
+              className="flex justify-between items-center p-3 rounded-lg border bg-muted/10"
             >
               <div className="flex items-center gap-3">
                 <div 
@@ -65,7 +64,6 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                   <div className="text-lg font-bold text-primary">{stat.avg_satisfaction.toFixed(1)}</div>
                   <div className="text-xs text-muted-foreground">만족도</div>
                 </div>
-                <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           ))}

@@ -31,10 +31,17 @@ interface AvailableCourse {
   key: string;
 }
 
-export const useCourseReportsData = (selectedYear: number, selectedCourse: string) => {
+export const useCourseReportsData = (
+  selectedYear: number, 
+  selectedCourse: string, 
+  selectedRound: number | null, 
+  selectedInstructor: string
+) => {
   const [reports, setReports] = useState<CourseReport[]>([]);
   const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
+  const [availableRounds, setAvailableRounds] = useState<number[]>([]);
+  const [availableInstructors, setAvailableInstructors] = useState<{id: string, name: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -57,17 +64,31 @@ export const useCourseReportsData = (selectedYear: number, selectedCourse: strin
       // 중복 제거 및 과정별 그룹화
       const uniqueCourses = Array.from(
         new Map(
-          surveys?.map(s => [`${s.education_year}-${s.education_round}-${s.course_name}`, s])
+          surveys?.map(s => [s.course_name, s])
         ).values()
       ).map(s => ({
         year: s.education_year,
         round: s.education_round,
         course_name: s.course_name,
-        key: `${s.education_year}-${s.education_round}-${s.course_name}`
+        key: s.course_name
       }));
+
+      // 사용 가능한 차수 추출
+      const rounds = Array.from(new Set(surveys?.map(s => s.education_round))).sort((a, b) => a - b);
+      setAvailableRounds(rounds);
 
       setAvailableCourses(uniqueCourses);
       console.log('Available courses:', uniqueCourses);
+
+      // 강사 정보도 가져오기
+      const { data: instructors, error: instructorError } = await supabase
+        .from('instructors')
+        .select('id, name')
+        .order('name');
+
+      if (!instructorError && instructors) {
+        setAvailableInstructors(instructors);
+      }
       
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -82,16 +103,14 @@ export const useCourseReportsData = (selectedYear: number, selectedCourse: strin
   };
 
   const fetchReports = async () => {
-    if (!selectedCourse) return;
-    
-    const [year, round, courseName] = selectedCourse.split('-');
+    if (!selectedCourse && !selectedRound && !selectedInstructor) return;
     
     setLoading(true);
     try {
-      console.log('Fetching reports for:', { year, round, courseName });
+      console.log('Fetching reports for filters:', selectedYear, selectedCourse, selectedRound, selectedInstructor);
       
-      // 선택된 과정의 모든 설문조사 데이터 조회 (강사 정보도 함께)
-      const { data: surveys, error: surveysError } = await supabase
+      // 설문조사 쿼리 구성
+      let query = supabase
         .from('surveys')
         .select(`
           id,
@@ -112,10 +131,21 @@ export const useCourseReportsData = (selectedYear: number, selectedCourse: strin
             )
           )
         `)
-        .eq('education_year', parseInt(year))
-        .eq('education_round', parseInt(round))
-        .eq('course_name', courseName)
+        .eq('education_year', selectedYear)
         .eq('status', 'completed');
+
+      // 필터 적용
+      if (selectedCourse) {
+        query = query.eq('course_name', selectedCourse);
+      }
+      if (selectedRound) {
+        query = query.eq('education_round', selectedRound);
+      }
+      if (selectedInstructor) {
+        query = query.eq('instructor_id', selectedInstructor);
+      }
+
+      const { data: surveys, error: surveysError } = await query;
 
       if (surveysError) throw surveysError;
 
@@ -192,10 +222,10 @@ export const useCourseReportsData = (selectedYear: number, selectedCourse: strin
 
       // 종합 통계 생성
       const courseReport: CourseReport = {
-        id: selectedCourse,
-        education_year: parseInt(year),
-        education_round: parseInt(round),
-        course_title: courseName,
+        id: `${selectedYear}-${selectedCourse || 'all'}-${selectedRound || 'all'}-${selectedInstructor || 'all'}`,
+        education_year: selectedYear,
+        education_round: selectedRound || 0,
+        course_title: selectedCourse || '전체 과정',
         total_surveys: totalSurveys,
         total_responses: totalResponses,
         avg_instructor_satisfaction: allInstructorSatisfactions.length > 0 
@@ -239,6 +269,8 @@ export const useCourseReportsData = (selectedYear: number, selectedCourse: strin
     reports,
     instructorStats,
     availableCourses,
+    availableRounds,
+    availableInstructors,
     loading,
     fetchAvailableCourses,
     fetchReports

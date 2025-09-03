@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { AreaChart } from '@/components/charts/AreaChart';
+import { BarChart } from 'recharts';
+import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Bar, Legend } from 'recharts';
 import { TrendingUp, BookOpen, Star, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
@@ -13,26 +15,30 @@ import InstructorStatsSection from '@/components/course-reports/InstructorStatsS
 const CourseReports = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedCourse, setSelectedCourse] = useState<string>('');
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [selectedInstructor, setSelectedInstructor] = useState<string>('');
   const navigate = useNavigate();
 
   const {
     reports,
     instructorStats,
     availableCourses,
+    availableRounds,
+    availableInstructors,
     loading,
     fetchAvailableCourses,
     fetchReports
-  } = useCourseReportsData(selectedYear, selectedCourse);
+  } = useCourseReportsData(selectedYear, selectedCourse, selectedRound, selectedInstructor);
 
   useEffect(() => {
     fetchAvailableCourses();
   }, [selectedYear]);
 
   useEffect(() => {
-    if (selectedCourse) {
+    if (selectedCourse || selectedRound || selectedInstructor) {
       fetchReports();
     }
-  }, [selectedCourse]);
+  }, [selectedCourse, selectedRound, selectedInstructor]);
 
   useEffect(() => {
     // 첫 번째 과정 자동 선택
@@ -48,10 +54,17 @@ const CourseReports = () => {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
   const currentReport = reports[0];
 
-  // 차트 데이터 준비
+  // 강사 만족도 트렌드 차트 데이터 준비
+  const instructorTrendData = instructorStats.map(instructor => ({
+    name: instructor.instructor_name,
+    만족도: Number(instructor.avg_satisfaction.toFixed(1)),
+    응답수: instructor.response_count
+  }));
+
+  // 차트 데이터 준비 (과정별로 변경)
   const satisfactionChartData = currentReport ? [
     { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, color: 'hsl(var(--primary))', fill: 'hsl(var(--primary))' },
-    { name: '과목 만족도', value: currentReport.avg_course_satisfaction, color: 'hsl(var(--primary) / 0.8)', fill: 'hsl(var(--primary) / 0.8)' },
+    { name: '과정 만족도', value: currentReport.avg_course_satisfaction, color: 'hsl(var(--primary) / 0.8)', fill: 'hsl(var(--primary) / 0.8)' },
     { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, color: 'hsl(var(--primary) / 0.6)', fill: 'hsl(var(--primary) / 0.6)' }
   ] : [];
 
@@ -74,7 +87,7 @@ const CourseReports = () => {
             <TrendingUp className="h-4 w-4 text-white" />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-            과정 운영 결과 보고
+            과정별 운영 결과 보고
           </h1>
         </div>
         <p className="text-muted-foreground">
@@ -86,10 +99,16 @@ const CourseReports = () => {
       <CourseSelector
         selectedYear={selectedYear}
         selectedCourse={selectedCourse}
+        selectedRound={selectedRound}
+        selectedInstructor={selectedInstructor}
         availableCourses={availableCourses}
+        availableRounds={availableRounds}
+        availableInstructors={availableInstructors}
         years={years}
         onYearChange={(value) => setSelectedYear(Number(value))}
         onCourseChange={setSelectedCourse}
+        onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
+        onInstructorChange={setSelectedInstructor}
       />
 
       {currentReport ? (
@@ -101,6 +120,43 @@ const CourseReports = () => {
             instructorCount={currentReport.report_data?.instructor_count || 0}
             avgSatisfaction={(currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3}
           />
+
+          {/* 강사 만족도 트렌드 차트 */}
+          {instructorTrendData.length > 0 && (
+            <Card className="col-span-full">
+              <CardHeader>
+                <CardTitle>강사 만족도 트렌드</CardTitle>
+                <CardDescription>필터 설정에 따른 강사별 평균 만족도</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={instructorTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--card-foreground))'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="만족도" fill="hsl(var(--primary))" name="평균 만족도" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
 
           {/* 만족도 차트 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -141,12 +197,14 @@ const CourseReports = () => {
             </Card>
           </div>
 
-          {/* 강사별 통계 */}
+          {/* 강사별 통계 - 스크롤 개선 */}
           {instructorStats.length > 0 && (
-            <InstructorStatsSection
-              instructorStats={instructorStats}
-              onInstructorClick={handleInstructorClick}
-            />
+            <div className="max-h-[600px] overflow-y-auto">
+              <InstructorStatsSection
+                instructorStats={instructorStats}
+                onInstructorClick={handleInstructorClick}
+              />
+            </div>
           )}
 
           {/* 과정 요약 */}
@@ -201,7 +259,7 @@ const CourseReports = () => {
                   <div className="flex justify-between items-center p-3 bg-white/50 dark:bg-white/5 rounded-lg">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                      <span className="font-medium">과목 만족도</span>
+                      <span className="font-medium">과정 만족도</span>
                     </div>
                     <span className="text-xl font-bold text-green-600">{currentReport.avg_course_satisfaction.toFixed(1)}</span>
                   </div>

@@ -7,19 +7,31 @@ import { Target } from 'lucide-react';
 interface CourseSelectorProps {
   selectedYear: number;
   selectedCourse: string;
+  selectedRound: number | null;
+  selectedInstructor: string;
   availableCourses: {year: number, round: number, course_name: string, key: string}[];
+  availableRounds: number[];
+  availableInstructors: {id: string, name: string}[];
   years: number[];
   onYearChange: (year: string) => void;
   onCourseChange: (course: string) => void;
+  onRoundChange: (round: string) => void;
+  onInstructorChange: (instructor: string) => void;
 }
 
 const CourseSelector: React.FC<CourseSelectorProps> = ({
   selectedYear,
   selectedCourse,
+  selectedRound,
+  selectedInstructor,
   availableCourses,
+  availableRounds,
+  availableInstructors,
   years,
   onYearChange,
-  onCourseChange
+  onCourseChange,
+  onRoundChange,
+  onInstructorChange
 }) => {
   return (
     <Card className="shadow-lg border-0 bg-gradient-to-r from-card to-card/50">
@@ -29,11 +41,11 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
           과정 선택
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex gap-4">
+      <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="text-sm font-medium">교육 연도</label>
           <Select value={selectedYear.toString()} onValueChange={onYearChange}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -43,17 +55,45 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex-1">
+        <div>
           <label className="text-sm font-medium">과정</label>
           <Select value={selectedCourse} onValueChange={onCourseChange}>
             <SelectTrigger>
-              <SelectValue placeholder="분석할 과정을 선택하세요" />
+              <SelectValue placeholder="과정 선택" />
             </SelectTrigger>
             <SelectContent>
               {availableCourses.map(course => (
                 <SelectItem key={course.key} value={course.key}>
-                  {course.year}년 {course.round}차 - {course.course_name}
+                  {course.course_name}
                 </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium">차수</label>
+          <Select value={selectedRound?.toString() || ''} onValueChange={onRoundChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="차수 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">전체</SelectItem>
+              {availableRounds.map(round => (
+                <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium">강사</label>
+          <Select value={selectedInstructor} onValueChange={onInstructorChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="강사 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">전체</SelectItem>
+              {availableInstructors.map(instructor => (
+                <SelectItem key={instructor.id} value={instructor.id}>{instructor.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
