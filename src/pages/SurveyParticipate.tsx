@@ -92,25 +92,22 @@ const SurveyParticipate = () => {
         return;
       }
 
-      // Check for token in URL
+      // Check for token in URL (코드가 유효하지 않더라도 참여 가능하도록 완화)
       const urlToken = searchParams.get('code');
       if (urlToken) {
         const isValid = await validateToken(surveyId, urlToken);
-        if (isValid) {
-          setTokenValidated(true);
-          setTokenCode(urlToken);
-          fetchSurveyData();
-        } else {
-          setNeedsToken(true);
-          setLoading(false);
+        if (!isValid) {
           toast({
             variant: "destructive",
             title: "유효하지 않은 코드",
-            description: "코드가 만료되었거나 이미 사용된 코드입니다."
+            description: "코드가 만료되었거나 이미 사용된 코드입니다. 계속 진행합니다."
           });
         }
+        setTokenValidated(true);
+        setTokenCode(urlToken);
+        fetchSurveyData();
       } else {
-        // For now, allow access without token (can be changed based on survey settings)
+        // 토큰 없이도 참여 허용
         fetchSurveyData();
       }
     };
@@ -155,7 +152,6 @@ const SurveyParticipate = () => {
           )
         `)
         .eq('id', surveyId)
-        .eq('status', 'active')
         .single();
 
       if (surveyError) throw surveyError;
@@ -199,15 +195,16 @@ const SurveyParticipate = () => {
         withinPeriod
       });
       
-      if (!withinPeriod) {
-        toast({
-          title: "설문 참여 기간이 아닙니다",
-          description: "설문 참여 가능 기간을 확인해 주세요.",
-          variant: "destructive",
-        });
-        navigate('/');
-        return;
-      }
+      // 기간 제한을 적용하지 않습니다 (요청: 설문은 제약 없이 참여 가능)
+      // if (!withinPeriod) {
+      //   toast({
+      //     title: "설문 참여 기간이 아닙니다",
+      //     description: "설문 참여 가능 기간을 확인해 주세요.",
+      //     variant: "destructive",
+      //   });
+      //   navigate('/');
+      //   return;
+      // }
 
       setSurvey(surveyData);
 
