@@ -346,9 +346,9 @@ const SurveyParticipate = () => {
     setSubmitting(true);
     
     try {
-      console.log('Submitting anonymous survey response');
+      console.log('Submitting anonymous survey response - removing all restrictions');
       
-      // 익명 응답 저장
+      // 익명 응답 저장 (완전히 열린 정책)
       const { data: responseData, error: responseError } = await supabase
         .from('survey_responses')
         .insert({
@@ -358,7 +358,7 @@ const SurveyParticipate = () => {
         .select('id')
         .single();
 
-      console.log('Response data:', responseData, 'Error:', responseError);
+      console.log('Response submission result:', { responseData, responseError });
 
       if (responseError) throw responseError;
 
