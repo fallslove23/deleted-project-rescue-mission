@@ -27,7 +27,6 @@ interface Survey {
   template_id?: string | null;
   instructor_id?: string | null;
 }
-
 interface Instructor {
   id: string;
   name: string;
@@ -35,7 +34,6 @@ interface Instructor {
   photo_url?: string;
   bio?: string;
 }
-
 interface Question {
   id: string;
   question_text: string;
@@ -45,14 +43,12 @@ interface Question {
   order_index: number;
   section_id?: string | null;
 }
-
 interface Section {
   id: string;
   name: string;
   description?: string;
   order_index: number;
 }
-
 interface Answer {
   questionId: string;
   answer: string | string[];
@@ -102,9 +98,7 @@ const SurveyParticipate = () => {
             setLoading(false);
             return;
           }
-        } catch {
-          /* no-op */
-        }
+        } catch {/* no-op */}
       }
 
       const urlToken = searchParams.get('code');
@@ -120,9 +114,7 @@ const SurveyParticipate = () => {
           }
           setTokenValidated(true);
           setTokenCode(urlToken);
-        } catch {
-          /* 검증 실패해도 설문은 로드 */
-        }
+        } catch {/* 검증 실패해도 설문은 로드 */}
       }
 
       await fetchSurveyData();
@@ -149,16 +141,12 @@ const SurveyParticipate = () => {
     try {
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
-        .select(
-          `
+        .select(`
           *,
           survey_templates!template_id (
-            id,
-            name,
-            is_course_evaluation
+            id, name, is_course_evaluation
           )
-        `
-        )
+        `)
         .eq('id', surveyId)
         .single();
 
@@ -267,7 +255,6 @@ const SurveyParticipate = () => {
         .insert({ survey_id: surveyId, respondent_email: null })
         .select('id')
         .single();
-
       if (responseError) throw responseError;
 
       const validAnswers = answers.filter((a) =>
@@ -288,7 +275,7 @@ const SurveyParticipate = () => {
       if (session) {
         try {
           await markSurveyCompleted(surveyId!);
-        } catch {}
+        } catch {/* no-op */}
       }
       if (completedKey) localStorage.setItem(completedKey, '1');
 
@@ -442,10 +429,7 @@ const SurveyParticipate = () => {
                     checked={checked}
                     onCheckedChange={(c) => {
                       const cur = (answer?.answer as string[]) || [];
-                      handleAnswerChange(
-                        question.id,
-                        c ? [...cur, option] : cur.filter((x) => x !== option)
-                      );
+                      handleAnswerChange(question.id, c ? [...cur, option] : cur.filter((x) => x !== option));
                     }}
                     className="touch-friendly"
                   />
@@ -487,4 +471,126 @@ const SurveyParticipate = () => {
             </div>
             <RadioGroup
               value={(answer?.answer as string) || ''}
-             
+              onValueChange={(v) => handleAnswerChange(question.id, v)}
+              className="grid grid-cols-5 sm:flex sm:items-center sm:justify-between gap-2"
+            >
+              {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((v) => (
+                <div key={v} className="flex flex-col items-center space-y-1 touch-friendly">
+                  <span className="text-xs sm:text-sm font-medium">{v}</span>
+                  <RadioGroupItem value={String(v)} id={`${question.id}-${v}`} className="touch-friendly" />
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+        );
+      }
+      default:
+        return (
+          <Input
+            value={(answer?.answer as string) || ''}
+            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+            placeholder="답변을 입력해 주세요"
+          />
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center gap-4 max-w-full overflow-hidden">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="shrink-0">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-sm sm:text-base md:text-lg font-semibold break-words line-clamp-1">
+              {survey.title}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground break-words line-clamp-1">{getStepTitle()}</p>
+          </div>
+        </div>
+      </header>
+
+      {/* ⬇️ 스크롤 허용 */}
+      <main className="container mx-auto px-3 sm:px-4 py-6 max-w-2xl overflow-x-hidden overflow-y-auto">
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-xs sm:text-sm text-muted-foreground">{currentStep + 1} / {totalSteps}</span>
+            <span className="text-xs sm:text-sm text-muted-foreground">{Math.round(progress)}% 완료</span>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+
+        {isCourseEvaluation && instructor && (
+          <Card className="mb-4">
+            <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full flex items-center gap-2 touch-friendly">
+                    <User className="h-4 w-4" />
+                    강사 정보 확인하기
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-[90vw] sm:max-w-md mx-4">
+                  <InstructorInfoSection instructor={instructor} title="강사 정보" />
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* overflow-hidden 제거 */}
+        <Card className="max-w-full">
+          <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="text-base sm:text-lg break-words">질문 {currentStep + 1}</CardTitle>
+            {(() => {
+              const q = questions[currentStep];
+              if (!q || !q.section_id) return null;
+              const s = sections.find((x) => x.id === q.section_id);
+              return s?.description ? <p className="text-muted-foreground text-sm break-words">{s.description}</p> : null;
+            })()}
+          </CardHeader>
+
+          <CardContent className="space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
+            {currentQuestions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">이 섹션에는 질문이 없습니다.</div>
+            ) : (
+              currentQuestions.map((q) => (
+                <div key={q.id} className="space-y-3">
+                  <Label className="text-sm sm:text-base break-words hyphens-auto leading-relaxed block">
+                    {q.question_text}
+                    {q.is_required && <span className="text-destructive ml-1">*</span>}
+                  </Label>
+                  <div className="max-w-full overflow-x-auto">{renderQuestion(q)}</div>
+                </div>
+              ))
+            )}
+
+            <div className="flex justify-between pt-6 gap-3 flex-wrap sm:flex-nowrap">
+              <Button
+                variant="outline"
+                onClick={handlePrevious}
+                disabled={currentStep === 0}
+                className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-1"
+              >
+                이전
+              </Button>
+
+              {isLastStep ? (
+                <Button onClick={handleSubmit} disabled={submitting} className="touch-friendly flex-1 sm:flex-none sm:min-w-[120px] order-2">
+                  {submitting ? '제출 중...' : (<><Send className="h-4 w-4 mr-2" />제출하기</>)}
+                </Button>
+              ) : (
+                <Button onClick={handleNext} className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-2">
+                  다음
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+};
+
+export default SurveyParticipate;
