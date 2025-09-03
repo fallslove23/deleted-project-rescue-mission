@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-// ⛔ 내부 스크롤 금지: ScrollArea 제거
+// 내부 스크롤 방지: ScrollArea 미사용
 // import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Menu,
@@ -153,11 +153,17 @@ const Index = () => {
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full overflow-hidden">
-          <div className="absolute left-3 sm:left-4">
+        {/* ⬇️ overflow-hidden 제거 */}
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full">
+          {/* ⬇️ 래퍼는 이벤트 비활성화, 버튼에만 이벤트 허용 */}
+          <div className="absolute left-3 sm:left-4 top-0 pointer-events-none">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative h-8 w-8 md:h-10 md:w-10 pointer-events-auto"
+                >
                   <Menu className="h-5 w-5 md:h-6 md:w-6" />
                   {user && <div className="absolute -top-1 -right-1 h-2 w-2 md:h-3 md:w-3 bg-primary rounded-full" />}
                 </Button>
@@ -309,12 +315,11 @@ const Index = () => {
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
-                    {/* 내부 스크롤 박스 제거, 자연 높이로 렌더 */}
                     <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-1">
                       {roundSurveys.map((survey) => (
                         <Card
                           key={survey.id}
-                          className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-l-primary/30 hover:border-l-primary cursor-pointer max-w-full" // overflow-hidden 제거
+                          className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-l-primary/30 hover:border-l-primary cursor-pointer max-w-full"
                         >
                           <CardHeader className="pb-3 p-4 sm:p-6">
                             <div className="flex justify-between items-start gap-2">
