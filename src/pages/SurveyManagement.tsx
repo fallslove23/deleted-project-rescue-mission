@@ -203,7 +203,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         supabase.from('surveys')
           .select(`
             *,
-            profiles!surveys_created_by_fkey(display_name)
+            profiles!surveys_created_by_fkey(email)
           `)
           .order('created_at', { ascending: false }),
         supabase.from('instructors').select('*').order('name'),
@@ -216,10 +216,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       if (coursesRes.error) throw coursesRes.error;
       if (instructorCoursesRes.error) throw instructorCoursesRes.error;
 
-      // 작성자 이름을 포함한 데이터 매핑
+      // 작성자 이메일(또는 이름) 포함 매핑
       const surveysWithCreator = (surveysRes.data || []).map((survey: any) => ({
         ...survey,
-        creator_name: survey.profiles?.display_name || '알 수 없음'
+        creator_name: survey.profiles?.email || '알 수 없음'
       }));
       setSurveys(surveysWithCreator);
       setInstructors(instructorsRes.data || []);

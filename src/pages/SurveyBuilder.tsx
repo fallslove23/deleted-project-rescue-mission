@@ -1136,14 +1136,17 @@ function SortableQuestion({ question, onEdit, onDelete }: SortableQuestionProps)
             )}
           </div>
           <p className="text-sm mb-2 leading-relaxed">{question.question_text}</p>
-          {question.options && (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
-              <strong>선택 옵션:</strong> {Array.isArray(question.options) 
-                ? question.options.join(' • ') 
-                : question.options?.options?.join(' • ') || 'N/A'
-              }
-            </div>
-          )}
+          {(() => {
+            const list = Array.isArray(question.options)
+              ? question.options
+              : (question.options?.options ?? []);
+            return list && list.length > 0 ? (
+              <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                <strong>선택 옵션:</strong> {list.join(' • ')}
+              </div>
+            ) : null;
+          })()}
+
         </div>
         
         <div className="flex gap-2">
