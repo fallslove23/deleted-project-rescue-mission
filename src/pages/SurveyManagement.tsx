@@ -45,6 +45,7 @@ interface Survey {
   // 누락된 필드들 추가
   template_id?: string | null;
   expected_participants?: number | null;
+  is_test?: boolean | null; // 테스트 데이터 여부 추가
 
   created_at: string;
 }
@@ -243,21 +244,55 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       combined_round_end: null
     });
 
+  // DateTime 변환 함수들
+  const toSafeISOString = (dateTimeLocal: string): string | null => {
+    if (!dateTimeLocal) return null;
+    try {
+      // dateTimeLocal은 이미 YYYY-MM-DDTHH:mm 형태
+      const date = new Date(dateTimeLocal);
+      if (isNaN(date.getTime())) return null;
+      return date.toISOString();
+    } catch {
+      return null;
+    }
+  };
+
+  const toLocalDateTime = (isoString?: string | null): string => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return '';
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const year = date.getFullYear();
+      const month = pad(date.getMonth() + 1);
+      const day = pad(date.getDate());
+      const hours = pad(date.getHours());
+      const minutes = pad(date.getMinutes());
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch {
+      return '';
+    }
+  };
+
   const handleSubmit = async (data: any) => {
+    console.log('SurveyManagement - handleSubmit called with data:', data);
+    
     try {
       const payload = {
         title: '', // Will be auto-generated based on data
         description: data.description || '',
-        start_date: data.start_date ? new Date(data.start_date + '+09:00').toISOString() : null,
-        end_date: data.end_date ? new Date(data.end_date + '+09:00').toISOString() : null,
+        start_date: toSafeISOString(data.start_date),
+        end_date: toSafeISOString(data.end_date),
         education_year: data.education_year,
         education_round: data.education_round,
         education_day: data.education_day,
-        course_name: data.course_name,
-        expected_participants: data.expected_participants,
-        is_combined: data.is_combined || false,
+        course_name: data.course_name || '',
+        expected_participants: data.expected_participants || 0,
+        is_combined: !!data.is_combined,
         combined_round_start: data.is_combined ? data.combined_round_start : null,
         combined_round_end: data.is_combined ? data.combined_round_end : null,
+        round_label: data.is_combined ? (data.round_label || '') : null,
+        is_test: !!data.is_test,
         created_by: user?.id,
         instructor_id: null as string | null,
         course_id: null as string | null,
@@ -266,8 +301,8 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       // Handle course selections - for now, use the first one
       if (data.course_selections && data.course_selections.length > 0) {
         const firstSelection = data.course_selections[0];
-        payload.instructor_id = firstSelection.instructorId;
-        payload.course_id = firstSelection.courseId;
+        payload.instructor_id = firstSelection.instructorId || null;
+        payload.course_id = firstSelection.courseId || null;
       }
 
       // Auto-generate title
@@ -293,10 +328,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       fetchData();
       fetchFilteredSurveys();
     } catch (error: any) {
-      console.error('Error creating survey:', error);
+      console.error('SurveyManagement - Error creating survey:', error);
       toast({
         title: '오류',
-        description: `설문조사 생성 실패: ${error?.message || '권한 또는 유효성 문제'}`,
+        description: `설문조사 생성 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}`,
         variant: 'destructive'
       });
     }
@@ -304,21 +339,26 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
   const handleUpdateSubmit = async (data: any) => {
     if (!editingSurvey) return;
+    
+    console.log('SurveyManagement - handleUpdateSubmit called with data:', data);
+    console.log('SurveyManagement - Editing survey:', editingSurvey);
 
     try {
       const payload = {
         title: '', // Will be auto-generated based on data
         description: data.description || '',
-        start_date: data.start_date ? new Date(data.start_date + '+09:00').toISOString() : null,
-        end_date: data.end_date ? new Date(data.end_date + '+09:00').toISOString() : null,
+        start_date: toSafeISOString(data.start_date),
+        end_date: toSafeISOString(data.end_date),
         education_year: data.education_year,
         education_round: data.education_round,
         education_day: data.education_day,
-        course_name: data.course_name,
-        expected_participants: data.expected_participants,
-        is_combined: data.is_combined || false,
+        course_name: data.course_name || '',
+        expected_participants: data.expected_participants || 0,
+        is_combined: !!data.is_combined,
         combined_round_start: data.is_combined ? data.combined_round_start : null,
         combined_round_end: data.is_combined ? data.combined_round_end : null,
+        round_label: data.is_combined ? (data.round_label || '') : null,
+        is_test: !!data.is_test,
         instructor_id: null as string | null,
         course_id: null as string | null,
       };
@@ -326,8 +366,8 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       // Handle course selections - for now, use the first one
       if (data.course_selections && data.course_selections.length > 0) {
         const firstSelection = data.course_selections[0];
-        payload.instructor_id = firstSelection.instructorId;
-        payload.course_id = firstSelection.courseId;
+        payload.instructor_id = firstSelection.instructorId || null;
+        payload.course_id = firstSelection.courseId || null;
       }
 
       // Auto-generate title
@@ -357,10 +397,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       fetchData();
       fetchFilteredSurveys();
     } catch (error: any) {
-      console.error('Error updating survey:', error);
+      console.error('SurveyManagement - Error updating survey:', error);
       toast({
         title: '오류',
-        description: `설문조사 수정 실패: ${error?.message || '권한 또는 유효성 문제'}`,
+        description: `설문조사 수정 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}`,
         variant: 'destructive'
       });
     }
@@ -400,8 +440,8 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         ...formData,
         instructor_id: formData.instructor_id || null,
         course_id: formData.course_id || null,
-        start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
-        end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
+        start_date: toSafeISOString(formData.start_date),
+        end_date: toSafeISOString(formData.end_date),
 
         // 합반 전송값 정리
         is_combined: !!formData.is_combined,
@@ -1240,6 +1280,25 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
           {editingSurvey && (
             <SurveyCreateForm 
+              initialValues={{
+                education_year: editingSurvey.education_year || new Date().getFullYear(),
+                education_round: editingSurvey.education_round || 1,
+                education_day: editingSurvey.education_day || 1,
+                course_name: editingSurvey.course_name || "",
+                expected_participants: editingSurvey.expected_participants || null,
+                start_date: toLocalDateTime(editingSurvey.start_date),
+                end_date: toLocalDateTime(editingSurvey.end_date),
+                description: editingSurvey.description || "",
+                is_combined: !!editingSurvey.is_combined,
+                combined_round_start: editingSurvey.combined_round_start || null,
+                combined_round_end: editingSurvey.combined_round_end || null,
+                round_label: editingSurvey.round_label || "",
+                is_test: !!editingSurvey.is_test,
+                course_selections: editingSurvey.course_id && editingSurvey.instructor_id ? [{
+                  courseId: editingSurvey.course_id,
+                  instructorId: editingSurvey.instructor_id
+                }] : [],
+              }}
               onSubmit={handleUpdateSubmit}
               onCancel={() => setIsEditDialogOpen(false)}
               isSubmitting={false}
