@@ -1261,24 +1261,6 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                              <Eye className="h-3 w-3 mr-1" />
                              상세 분석
                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedSurvey(survey.id);
-                                // Use setTimeout to ensure the selectedSurvey state is updated
-                                setTimeout(() => {
-                                  const individualTab = document.querySelector('[value="individual"]');
-                                  if (individualTab) {
-                                    (individualTab as HTMLElement).click();
-                                  }
-                                }, 100);
-                              }}
-                              className="touch-friendly text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
-                            >
-                              <BarChart className="h-3 w-3 mr-1" />
-                              개별 통계
-                            </Button>
                            <Button
                              variant="outline"
                              size="sm"
@@ -1308,10 +1290,10 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="overview" className="space-y-4">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="overview" className="text-sm">전체 분석</TabsTrigger>
                     <TabsTrigger value="round-stats" className="text-sm">회차별 통계</TabsTrigger>
-                    <TabsTrigger value="individual" className="text-sm">개별 통계</TabsTrigger>
+                    
                   </TabsList>
 
                      <TabsContent value="overview" className="space-y-4">

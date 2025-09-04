@@ -1066,7 +1066,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                                 복사하기
                               </DropdownMenuItem>
 
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/results`)}>
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/results?surveyId=${survey.id}`)}>
                                 <FileText className="h-4 w-4 mr-2" />
                                 결과 보기
                               </DropdownMenuItem>
