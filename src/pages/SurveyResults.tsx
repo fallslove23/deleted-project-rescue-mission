@@ -1060,7 +1060,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                   과목별 만족도 트렌드
+                   과정별 만족도 트렌드
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1087,14 +1087,14 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                       }}
                        formatter={(value: any, name: string) => [
                          `${value.toFixed(1)}/10`, 
-                         name === 'subjectSatisfaction' ? '과목 만족도' : 
+                         name === 'subjectSatisfaction' ? '과정 만족도' : 
                          name === 'instructorSatisfaction' ? '강사 만족도' : '운영 만족도'
                        ]}
                        labelFormatter={(label) => `${label}`}
                      />
                      <Legend 
-                       formatter={(value) => 
-                         value === 'subjectSatisfaction' ? '과목 만족도' : 
+                     formatter={(value) => 
+                         value === 'subjectSatisfaction' ? '과정 만족도' : 
                          value === 'instructorSatisfaction' ? '강사 만족도' : '운영 만족도'}
                     />
                      <Bar 
@@ -1127,7 +1127,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  과목별 만족도 트렌드
+                  과정별 만족도 트렌드
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1146,7 +1146,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                   과목별 통계
+                   과정별 통계
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1167,17 +1167,17 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                           <span className="text-sm text-muted-foreground">총 응답 수</span>
                           <span className="font-semibold text-primary">{course.responses}개</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">과목 만족도</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{course.subjectSatisfaction > 0 ? `${course.subjectSatisfaction.toFixed(1)}/10` : '-'}</span>
-                            {course.subjectSatisfaction > 0 && (
-                              <Badge variant={course.subjectSatisfaction >= 8 ? 'default' : course.subjectSatisfaction >= 6 ? 'secondary' : 'destructive'}>
-                                {course.subjectSatisfaction >= 8 ? '우수' : course.subjectSatisfaction >= 6 ? '보통' : '개선필요'}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
+                         <div className="flex justify-between items-center">
+                           <span className="text-sm text-muted-foreground">과정 만족도</span>
+                           <div className="flex items-center gap-2">
+                             <span className="font-semibold">{course.subjectSatisfaction > 0 ? `${course.subjectSatisfaction.toFixed(1)}/10` : '-'}</span>
+                             {course.subjectSatisfaction > 0 && (
+                               <Badge variant={course.subjectSatisfaction >= 8 ? 'default' : course.subjectSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                 {course.subjectSatisfaction >= 8 ? '우수' : course.subjectSatisfaction >= 6 ? '보통' : '개선필요'}
+                               </Badge>
+                             )}
+                           </div>
+                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-muted-foreground">강사 만족도</span>
                           <div className="flex items-center gap-2">
@@ -1211,7 +1211,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                   과목별 통계
+                   과정별 통계
                 </CardTitle>
               </CardHeader>
               <CardContent>

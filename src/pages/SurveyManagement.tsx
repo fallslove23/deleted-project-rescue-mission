@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target, ChevronsUpDown, Check } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target, ChevronsUpDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 import SurveyCreateForm from '@/components/SurveyCreateForm';
@@ -70,7 +70,7 @@ interface InstructorCourse {
 
 const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userRoles } = useAuth();
   const { toast } = useToast();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -78,6 +78,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  
+  // 페이징 상태 추가
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // 필터 훅
   const {
@@ -91,6 +95,17 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     fetchAvailableCourses,
     fetchSurveys: fetchFilteredSurveys
   } = useSurveyFilters();
+
+  // 추가 필터 상태
+  const [selectedRound, setSelectedRound] = useState<string>('');
+  const [selectedInstructorFilter, setSelectedInstructorFilter] = useState<string>('all');
+
+  // 사용자 권한 확인
+  const isAdmin = userRoles.includes('admin');
+  const isOperator = userRoles.includes('operator');
+  const isDirector = userRoles.includes('director');
+  const isInstructor = userRoles.includes('instructor');
+  const canViewAll = isAdmin || isOperator || isDirector;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -720,6 +735,42 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     document.body.removeChild(link);
   };
 
+  const getFilteredSurveys = () => {
+    let filtered = surveys;
+    if (selectedYear && selectedYear !== 0) {
+      filtered = filtered.filter(s => s.education_year === selectedYear);
+    }
+    if (selectedRound && selectedRound !== '') {
+      filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
+    }
+    if (selectedCourse && selectedCourse !== '') {
+      const [year, round, courseName] = selectedCourse.split('-');
+      filtered = filtered.filter(s => 
+        s.education_year.toString() === year &&
+        s.education_round.toString() === round &&
+        s.course_name === courseName
+      );
+    }
+    if (canViewAll && selectedInstructorFilter !== 'all') {
+      filtered = filtered.filter(s => s.instructor_id === selectedInstructorFilter);
+    }
+    return filtered;
+  };
+
+  // 페이징된 설문 목록
+  const getPaginatedSurveys = () => {
+    const filtered = selectedCourse ? getFilteredSurveys() : surveys;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  };
+
+  // 전체 페이지 수
+  const getTotalPages = () => {
+    const filtered = selectedCourse ? getFilteredSurveys() : surveys;
+    return Math.ceil(filtered.length / itemsPerPage);
+  };
+
   // 상태 뱃지
   const getStatusBadge = (survey: Survey) => {
     const timeZone = 'Asia/Seoul';
@@ -917,7 +968,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
             {/* 목록 */}
             <div className="grid gap-4">
-              {(selectedCourse ? filteredSurveys : surveys).map((survey) => {
+              {getPaginatedSurveys().map((survey) => {
                 const surveyInstructor = instructors.find(i => i.id === survey.instructor_id);
                 const surveyCourse = courses.find(c => c.id === survey.course_id);
 
@@ -1031,7 +1082,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                                 복사하기
                               </DropdownMenuItem>
 
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/results?surveyId=${survey.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}>
                                 <FileText className="h-4 w-4 mr-2" />
                                 결과 보기
                               </DropdownMenuItem>
@@ -1074,6 +1125,50 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                   </Card>
                 );
               })}
+            </div>
+
+            {/* 페이징 */}
+            {getTotalPages() > 1 && (
+              <div className="flex items-center justify-center space-x-2 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  이전
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: getTotalPages() }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, getTotalPages()))}
+                  disabled={currentPage === getTotalPages()}
+                >
+                  다음
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* 페이징 정보 */}
+            <div className="text-center text-sm text-muted-foreground mt-4">
+              총 {selectedCourse ? getFilteredSurveys().length : surveys.length}개 중 {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, selectedCourse ? getFilteredSurveys().length : surveys.length)}개 표시
             </div>
           </div>
         </div>
