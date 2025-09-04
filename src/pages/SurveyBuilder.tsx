@@ -106,60 +106,84 @@ export default function SurveyBuilder() {
   useEffect(() => {
     if (!id) return;
     (async () => {
+      console.log("SurveyBuilder - Starting to load survey data for ID:", id);
       setLoading(true);
       try {
         // 설문 기본 정보 로드
+        console.log("SurveyBuilder - Loading survey basic info...");
         const { data: surveyData, error: surveyError } = await supabase
           .from("surveys")
           .select("*")
           .eq("id", id)
-          .single();
+          .maybeSingle();
         
-        if (surveyError) throw surveyError;
+        console.log("SurveyBuilder - Survey data result:", { surveyData, surveyError });
+        
+        if (surveyError) {
+          console.error("SurveyBuilder - Survey loading error:", surveyError);
+          throw surveyError;
+        }
         
         if (surveyData) {
+          console.log("SurveyBuilder - Setting form data:", surveyData);
           setForm({
             ...surveyData,
             // datetime-local 포맷 보정
             start_date: surveyData.start_date ? new Date(surveyData.start_date).toISOString().slice(0, 16) : "",
             end_date: surveyData.end_date ? new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
           });
+        } else {
+          console.log("SurveyBuilder - No survey data found");
         }
 
         // 섹션 로드
+        console.log("SurveyBuilder - Loading sections...");
         const { data: sectionsData, error: sectionsError } = await supabase
           .from("survey_sections")
           .select("*")
           .eq("survey_id", id)
           .order("order_index");
         
-        if (sectionsError) throw sectionsError;
+        console.log("SurveyBuilder - Sections result:", { sectionsData, sectionsError });
+        
+        if (sectionsError) {
+          console.error("SurveyBuilder - Sections loading error:", sectionsError); 
+          throw sectionsError;
+        }
         setSections(sectionsData || []);
 
         // 질문 로드
+        console.log("SurveyBuilder - Loading questions...");
         const { data: questionsData, error: questionsError } = await supabase
           .from("survey_questions")
           .select("*")
           .eq("survey_id", id)
           .order("order_index");
         
-        if (questionsError) throw questionsError;
+        console.log("SurveyBuilder - Questions result:", { questionsData, questionsError });
+        
+        if (questionsError) {
+          console.error("SurveyBuilder - Questions loading error:", questionsError);
+          throw questionsError;
+        }
         
         // Cast the questions data to match our interface
         const typedQuestions = (questionsData || []).map(q => ({
           ...q,
           scope: (q.scope as 'session' | 'operation') || 'session'
         }));
+        console.log("SurveyBuilder - Typed questions:", typedQuestions);
         setQuestions(typedQuestions);
         
       } catch (error: any) {
-        console.error(error);
+        console.error("SurveyBuilder - Loading error:", error);
         toast({ 
           title: "오류", 
           description: error.message || "설문 정보를 불러오지 못했습니다.", 
           variant: "destructive" 
         });
       } finally {
+        console.log("SurveyBuilder - Loading completed");
         setLoading(false);
       }
     })();
@@ -293,6 +317,7 @@ export default function SurveyBuilder() {
   };
 
   if (loading) {
+    console.log("SurveyBuilder - Still loading...");
     return <div className="p-6">로딩 중…</div>;
   }
 

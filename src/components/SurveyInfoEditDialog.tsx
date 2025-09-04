@@ -117,6 +117,7 @@ export default function SurveyInfoEditDialog({
         expected_participants: survey.expected_participants ?? 0,
         start_date: toLocal(survey.start_date),
         end_date: toLocal(survey.end_date),
+        description: survey.description ?? "",
         is_combined: !!survey.is_combined,
         combined_round_start: survey.combined_round_start,
         combined_round_end: survey.combined_round_end,
@@ -124,6 +125,9 @@ export default function SurveyInfoEditDialog({
         instructor_id: survey.instructor_id,
       }
     : undefined;
+
+  console.log("SurveyInfoEditDialog - Survey data:", survey);
+  console.log("SurveyInfoEditDialog - Initial values:", initial);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

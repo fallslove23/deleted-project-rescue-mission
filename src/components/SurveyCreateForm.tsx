@@ -107,8 +107,9 @@ export default function SurveyCreateForm({
 
   // actualInitialValues가 변경되면 formData 업데이트
   useEffect(() => {
+    console.log("SurveyCreateForm - actualInitialValues changed:", actualInitialValues);
     if (actualInitialValues) {
-      setFormData({
+      const newFormData = {
         education_year: actualInitialValues.education_year ?? new Date().getFullYear(),
         course_name: actualInitialValues.course_name ?? '',
         education_round: actualInitialValues.education_round ?? 1,
@@ -121,8 +122,10 @@ export default function SurveyCreateForm({
         end_date: actualInitialValues.end_date ?? '',
         description: actualInitialValues.description ?? '',
         is_test: actualInitialValues.is_test ?? false
-      });
-
+      };
+      console.log("SurveyCreateForm - Setting new form data:", newFormData);
+      setFormData(newFormData);
+      
       if (actualInitialValues.session_selections) {
         setSessionSelections(actualInitialValues.session_selections);
       }
