@@ -140,9 +140,9 @@ export default function SurveyInfoEditDialog({
         end_date: toLocal(survey.end_date),
         description: survey.description || "",
         is_combined: Boolean(survey.is_combined),
-        combined_round_start: survey.combined_round_start || null,
-        combined_round_end: survey.combined_round_end || null,
-        round_label: survey.round_label || null,
+        combined_round_start: survey.combined_round_start ?? null,
+        combined_round_end: survey.combined_round_end ?? null,
+        round_label: survey.round_label || "", // null → 빈 문자열로 안전하게 변환
         course_id: survey.course_id || "",
         instructor_id: survey.instructor_id || "",
         is_test: Boolean(survey.is_test),

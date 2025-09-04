@@ -118,26 +118,29 @@ export default function SurveyCreateForm({
     fetchData();
   }, []);
 
-  // initialValues 값이 변경되면 formData 업데이트
+  // initialValues 값이 변경되면 formData 업데이트 (null 체크 강화)
   useEffect(() => {
-    if (initialValues) {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      console.log('SurveyCreateForm - Applying initialValues:', initialValues);
+      
       setFormData({
         education_year: initialValues.education_year ?? new Date().getFullYear(),
         course_name: initialValues.course_name ?? '',
         education_round: initialValues.education_round ?? 1,
-        is_combined: initialValues.is_combined ?? false,
+        is_combined: Boolean(initialValues.is_combined), // null/undefined → false 안전 변환
         combined_round_start: initialValues.combined_round_start ?? null,
         combined_round_end: initialValues.combined_round_end ?? null,
-        round_label: initialValues.round_label ?? null,
+        round_label: initialValues.round_label ?? "",
         education_day: initialValues.education_day ?? 1,
         expected_participants: initialValues.expected_participants ?? 0,
         start_date: toLocalDateTime(initialValues.start_date),
         end_date: toLocalDateTime(initialValues.end_date),
         description: initialValues.description ?? '',
-        is_test: initialValues.is_test ?? false
+        is_test: Boolean(initialValues.is_test) // null/undefined → false 안전 변환
       });
       
-      if (initialValues.course_selections) {
+      // 과목/강사 선택 초기화
+      if (initialValues.course_selections && initialValues.course_selections.length > 0) {
         setCourseSelections(initialValues.course_selections);
       } else if (initialValues.course_id || initialValues.instructor_id) {
         setCourseSelections([{
