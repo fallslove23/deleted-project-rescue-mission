@@ -112,50 +112,42 @@ export default function SurveyInfoEditDialog({
   };
 
   // 편집 초기값 구성 (datetime-local 변환 개선)
-  const toLocal = (iso?: string | null) => {
+  const toLocalInput = (iso?: string | null): string => {
     if (!iso) return "";
     try {
       const d = new Date(iso);
-      // UTC 시간을 로컬 시간으로 변환하여 YYYY-MM-DDTHH:mm 형식으로 반환
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     } catch (error) {
       console.error("Date conversion error:", error);
       return "";
     }
   };
 
-  const initial = survey
-    ? {
-        education_year: survey.education_year || new Date().getFullYear(),
-        education_round: survey.education_round || 1,
-        education_day: survey.education_day || 1,
-        course_name: survey.course_name || "",
-        expected_participants: survey.expected_participants || 0,
-        start_date: toLocal(survey.start_date),
-        end_date: toLocal(survey.end_date),
-        description: survey.description || "",
-        is_combined: Boolean(survey.is_combined),
-        combined_round_start: survey.combined_round_start ?? null,
-        combined_round_end: survey.combined_round_end ?? null,
-        round_label: survey.round_label || "", // null → 빈 문자열로 안전하게 변환
-        course_id: survey.course_id || "",
-        instructor_id: survey.instructor_id || "",
-        is_test: Boolean(survey.is_test),
-        course_selections: survey.course_id && survey.instructor_id ? [{
-          id: '1',
-          courseId: survey.course_id,
-          instructorId: survey.instructor_id
-        }] : []
-      }
-    : null;
+  const initialValues = survey && {
+    education_year: survey.education_year,
+    education_round: survey.education_round,
+    education_day: survey.education_day,
+    course_name: survey.course_name ?? "",
+    expected_participants: survey.expected_participants ?? null,
+    start_date: toLocalInput(survey.start_date),
+    end_date: toLocalInput(survey.end_date),
+    description: survey.description ?? "",
+    // 새 컬럼들
+    is_combined: !!survey.is_combined,
+    combined_round_start: survey.combined_round_start ?? null,
+    combined_round_end: survey.combined_round_end ?? null,
+    round_label: survey.round_label ?? "",
+    is_test: !!survey.is_test,
+    // 과목/강사: 기존 단일 저장 구조라면 첫 슬롯에 복원
+    course_selections: survey.course_id ? [{
+      courseId: survey.course_id,
+      instructorId: survey.instructor_id
+    }] : [],
+  };
 
   console.log("SurveyInfoEditDialog - Survey data:", survey);
-  console.log("SurveyInfoEditDialog - Initial values:", initial);
+  console.log("SurveyInfoEditDialog - Initial values:", initialValues);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,10 +156,10 @@ export default function SurveyInfoEditDialog({
           <DialogTitle className="text-base sm:text-lg">설문 정보 수정</DialogTitle>
         </DialogHeader>
 
-        {survey && initial && (
+        {survey && initialValues && (
           <SurveyCreateForm
             key={survey.id} // 모달 재사용 시 상태 리셋
-            initialValues={initial}
+            initialValues={initialValues}
             onSubmit={handleSubmit}
             onCancel={() => onOpenChange(false)}
             isSubmitting={false}
