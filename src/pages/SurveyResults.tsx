@@ -111,8 +111,6 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   // 사용자 권한 확인 (새로운 역할 시스템 사용)
   const { userRoles } = useAuth();
   const isAdmin = userRoles.includes('admin');
-  const canViewAll = isAdmin || userRoles.includes('operator') || userRoles.includes('director');
-  const isInstructorRole = userRoles.includes('instructor');
   const isOperator = userRoles.includes('operator');
   const isDirector = userRoles.includes('director');
   const isInstructor = userRoles.includes('instructor');
@@ -909,7 +907,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
     <div className="min-h-screen bg-background">
       {showPageHeader && (
         <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-          <div className="container mx-auto px-4 py-3 flex items-center relative">
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between">
             <Button
               onClick={() => navigate('/dashboard')}
               variant="ghost"
@@ -919,15 +917,15 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline ml-1">대시보드</span>
             </Button>
-            <div className="absolute left-1/2 transform -translate-x-1/2">
-              <h1 className="text-sm sm:text-lg font-semibold text-primary text-center">설문 결과 분석</h1>
+            <div className="text-center">
+              <h1 className="text-sm sm:text-lg font-semibold text-primary">설문 결과 분석</h1>
               <p className="text-xs text-muted-foreground break-words hyphens-auto">
                 {canViewAll ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다' : 
                  instructor ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다` : 
                  '담당 강의의 설문조사 결과를 확인할 수 있습니다'}
               </p>
               {!canViewAll && instructor && (
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 justify-center">
                   {instructor.photo_url && (
                     <img 
                       src={instructor.photo_url} 
@@ -941,6 +939,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
                 </div>
               )}
             </div>
+            <TestDataToggle testDataOptions={testDataOptions} className="flex-shrink-0" />
           </div>
         </header>
       )}
