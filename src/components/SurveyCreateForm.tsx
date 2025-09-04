@@ -25,10 +25,12 @@ interface InstructorCourse {
   course_id: string;
 }
 
-interface CourseSelection {
+interface SessionSelection {
   id: string;
   courseId: string;
   instructorId: string;
+  sessionName: string;
+  sessionOrder: number;
 }
 
 // 초기값 타입 정의 추가
@@ -44,7 +46,7 @@ interface SurveyFormData {
   start_date: string;
   end_date: string;
   description: string;
-  course_selections?: CourseSelection[];
+  session_selections?: SessionSelection[];
 }
 
 // Props 인터페이스에 initialValues 추가
@@ -85,9 +87,15 @@ export default function SurveyCreateForm({
     description: actualInitialValues?.description ?? ''
   });
 
-  // courseSelections도 actualInitialValues에서 가져오거나 기본값 사용
-  const [courseSelections, setCourseSelections] = useState<CourseSelection[]>(
-    actualInitialValues?.course_selections || [{ id: '1', courseId: '', instructorId: '' }]
+  // sessionSelections도 actualInitialValues에서 가져오거나 기본값 사용
+  const [sessionSelections, setSessionSelections] = useState<SessionSelection[]>(
+    actualInitialValues?.session_selections || [{ 
+      id: '1', 
+      courseId: '', 
+      instructorId: '', 
+      sessionName: '',
+      sessionOrder: 1
+    }]
   );
 
   useEffect(() => {
@@ -111,8 +119,8 @@ export default function SurveyCreateForm({
         description: actualInitialValues.description ?? ''
       });
 
-      if (actualInitialValues.course_selections) {
-        setCourseSelections(actualInitialValues.course_selections);
+      if (actualInitialValues.session_selections) {
+        setSessionSelections(actualInitialValues.session_selections);
       }
     }
   }, [actualInitialValues]);
@@ -133,22 +141,28 @@ export default function SurveyCreateForm({
     }
   };
 
-  const addCourseSelection = () => {
-    setCourseSelections(prev => [
+  const addSessionSelection = () => {
+    setSessionSelections(prev => [
       ...prev,
-      { id: Date.now().toString(), courseId: '', instructorId: '' }
+      { 
+        id: Date.now().toString(), 
+        courseId: '', 
+        instructorId: '', 
+        sessionName: `세션 ${prev.length + 1}`,
+        sessionOrder: prev.length + 1
+      }
     ]);
   };
 
-  const removeCourseSelection = (id: string) => {
-    if (courseSelections.length > 1) {
-      setCourseSelections(prev => prev.filter(cs => cs.id !== id));
+  const removeSessionSelection = (id: string) => {
+    if (sessionSelections.length > 1) {
+      setSessionSelections(prev => prev.filter(ss => ss.id !== id));
     }
   };
 
-  const updateCourseSelection = (id: string, field: keyof CourseSelection, value: string) => {
-    setCourseSelections(prev => prev.map(cs => 
-      cs.id === id ? { ...cs, [field]: value } : cs
+  const updateSessionSelection = (id: string, field: keyof SessionSelection, value: string | number) => {
+    setSessionSelections(prev => prev.map(ss => 
+      ss.id === id ? { ...ss, [field]: value } : ss
     ));
   };
 
@@ -175,9 +189,9 @@ export default function SurveyCreateForm({
       }
     }
 
-    // 과목 선택 검증
-    const validCourseSelections = courseSelections.filter(cs => cs.courseId && cs.instructorId);
-    if (validCourseSelections.length === 0) {
+    // 세션 선택 검증
+    const validSessionSelections = sessionSelections.filter(ss => ss.courseId && ss.instructorId);
+    if (validSessionSelections.length === 0) {
       alert('최소 1개의 과목과 강사를 선택해야 합니다.');
       return;
     }
@@ -189,7 +203,7 @@ export default function SurveyCreateForm({
     const submitData = {
       ...formData,
       education_round: actualRound,
-      course_selections: validCourseSelections,
+      session_selections: validSessionSelections,
       start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
       end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
     };
@@ -335,41 +349,51 @@ export default function SurveyCreateForm({
           </CardContent>
         </Card>
 
-        {/* 과목 및 강사 선택 */}
+        {/* 세션(과목/강사) 선택 */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-medium">과목 및 강사 선택</Label>
-              <Button type="button" onClick={addCourseSelection} size="sm" variant="outline">
+              <Label className="text-sm font-medium">세션(과목/강사) 선택</Label>
+              <Button type="button" onClick={addSessionSelection} size="sm" variant="outline">
                 <Plus className="h-4 w-4 mr-1" />
-                추가
+                세션 추가
               </Button>
             </div>
             <div className="space-y-3">
-              {courseSelections.map((selection, index) => (
+              {sessionSelections.map((selection, index) => (
                 <div key={selection.id} className="border rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">과목 {index + 1}</span>
-                    {courseSelections.length > 1 && (
+                    <span className="text-sm font-medium">세션 {index + 1}</span>
+                    {sessionSelections.length > 1 && (
                       <Button 
                         type="button" 
                         variant="outline" 
                         size="sm"
-                        onClick={() => removeCourseSelection(selection.id)}
+                        onClick={() => removeSessionSelection(selection.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs">세션명</Label>
+                      <Input
+                        value={selection.sessionName}
+                        onChange={(e) => updateSessionSelection(selection.id, 'sessionName', e.target.value)}
+                        placeholder="세션명 입력"
+                        className="mt-1"
+                      />
+                    </div>
+
                     <div>
                       <Label className="text-xs">과목</Label>
                       <Select 
                         value={selection.courseId} 
                         onValueChange={(value) => {
-                          updateCourseSelection(selection.id, 'courseId', value);
-                          updateCourseSelection(selection.id, 'instructorId', '');
+                          updateSessionSelection(selection.id, 'courseId', value);
+                          updateSessionSelection(selection.id, 'instructorId', '');
                         }}
                       >
                         <SelectTrigger className="mt-1">
@@ -389,7 +413,7 @@ export default function SurveyCreateForm({
                       <Label className="text-xs">강사</Label>
                       <Select 
                         value={selection.instructorId}
-                        onValueChange={(value) => updateCourseSelection(selection.id, 'instructorId', value)}
+                        onValueChange={(value) => updateSessionSelection(selection.id, 'instructorId', value)}
                         disabled={!selection.courseId}
                       >
                         <SelectTrigger className="mt-1">

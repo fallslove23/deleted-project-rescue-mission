@@ -27,13 +27,26 @@ interface Survey {
   template_id?: string | null;
   instructor_id?: string | null;
 }
-interface Instructor {
+
+interface SurveySession {
   id: string;
-  name: string;
-  email?: string;
-  photo_url?: string;
-  bio?: string;
+  survey_id: string;
+  course_id: string;
+  instructor_id: string;
+  session_order: number;
+  session_name: string;
+  course?: {
+    title: string;
+  };
+  instructor?: {
+    id: string;
+    name: string;
+    email?: string;
+    photo_url?: string;
+    bio?: string;
+  };
 }
+
 interface Question {
   id: string;
   question_text: string;
@@ -42,6 +55,14 @@ interface Question {
   is_required: boolean;
   order_index: number;
   section_id?: string | null;
+  session_id?: string | null;
+  scope: 'session' | 'operation';
+}
+
+interface SessionAnswer {
+  sessionId: string;
+  questionAnswers: Answer[];
+  attended: boolean;
 }
 interface Section {
   id: string;
@@ -70,7 +91,8 @@ const SurveyParticipate = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [instructor, setInstructor] = useState<Instructor | null>(null);
+  const [surveySessions, setSurveySessions] = useState<SurveySession[]>([]);
+  const [sessionAnswers, setSessionAnswers] = useState<SessionAnswer[]>([]);
   const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
   const [tokenCode, setTokenCode] = useState('');
   const [needsToken, setNeedsToken] = useState(false);

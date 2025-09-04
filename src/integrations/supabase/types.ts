@@ -461,7 +461,9 @@ export type Database = {
           question_text: string
           question_type: string
           satisfaction_type: string | null
+          scope: string | null
           section_id: string | null
+          session_id: string | null
           survey_id: string
         }
         Insert: {
@@ -473,7 +475,9 @@ export type Database = {
           question_text: string
           question_type?: string
           satisfaction_type?: string | null
+          scope?: string | null
           section_id?: string | null
+          session_id?: string | null
           survey_id: string
         }
         Update: {
@@ -485,7 +489,9 @@ export type Database = {
           question_text?: string
           question_type?: string
           satisfaction_type?: string | null
+          scope?: string | null
           section_id?: string | null
+          session_id?: string | null
           survey_id?: string
         }
         Relationships: [
@@ -494,6 +500,13 @@ export type Database = {
             columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "survey_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -521,24 +534,37 @@ export type Database = {
       }
       survey_responses: {
         Row: {
+          attended: boolean | null
           id: string
           respondent_email: string | null
+          session_id: string | null
           submitted_at: string
           survey_id: string
         }
         Insert: {
+          attended?: boolean | null
           id?: string
           respondent_email?: string | null
+          session_id?: string | null
           submitted_at?: string
           survey_id: string
         }
         Update: {
+          attended?: boolean | null
           id?: string
           respondent_email?: string | null
+          session_id?: string | null
           submitted_at?: string
           survey_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "survey_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "survey_responses_survey_id_fkey"
             columns: ["survey_id"]
@@ -607,6 +633,75 @@ export type Database = {
           },
           {
             foreignKeyName: "survey_sections_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_sessions: {
+        Row: {
+          course_id: string | null
+          created_at: string
+          id: string
+          instructor_id: string | null
+          session_name: string | null
+          session_order: number
+          survey_id: string
+          updated_at: string
+        }
+        Insert: {
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          instructor_id?: string | null
+          session_name?: string | null
+          session_order?: number
+          survey_id: string
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          instructor_id?: string | null
+          session_name?: string | null
+          session_order?: number
+          survey_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "surveys"
@@ -1159,6 +1254,19 @@ export type Database = {
           education_year: number
           instructor_id: string
           survey_count: number
+          total_responses: number
+        }[]
+      }
+      get_session_statistics: {
+        Args: { session_id_param?: string; survey_id_param?: string }
+        Returns: {
+          attended_responses: number
+          avg_satisfaction: number
+          course_title: string
+          instructor_name: string
+          response_rate: number
+          session_id: string
+          session_name: string
           total_responses: number
         }[]
       }
