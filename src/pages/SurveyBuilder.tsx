@@ -63,8 +63,11 @@ export default function SurveyBuilder() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // 상태 분리: loading / errorMsg / notFound
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [notFound, setNotFound] = useState(false);
+  
   const [courses, setCourses] = useState<Course[]>([]);
   const [sections, setSections] = useState<SurveySection[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
@@ -102,24 +105,26 @@ export default function SurveyBuilder() {
     })();
   }, []);
 
-  // 설문 로드
+  // 설문 로드 - 개선된 로직
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
     
     const loadSurveyData = async () => {
       console.log("SurveyBuilder - Starting to load survey data for ID:", id);
       setLoading(true);
+      setErrorMsg("");
+      setNotFound(false);
       
       try {
-        // 설문 기본 정보 로드 - RLS정책 확인을 위해 단순화
+        // 1. 설문 기본 정보 로드 - 관리자는 테스트 데이터도 편집 가능
         console.log("SurveyBuilder - Loading survey basic info...");
         const { data: surveyData, error: surveyError } = await supabase
           .from("surveys")
-          .select(`
-            *,
-            courses:course_id(id, title),
-            instructors:instructor_id(id, name, email)
-          `)
+          .select('*') // 전체 컬럼 조회로 스키마 불일치 회피
           .eq("id", id)
           .maybeSingle();
         
@@ -127,70 +132,75 @@ export default function SurveyBuilder() {
         
         if (surveyError) {
           console.error("SurveyBuilder - Survey loading error:", surveyError);
-          throw surveyError;
+          throw new Error(`설문 조회 실패: ${surveyError.message}`);
         }
         
-        if (surveyData) {
-          console.log("SurveyBuilder - Setting form data:", surveyData);
-          setForm({
-            ...surveyData,
-            // datetime-local 포맷 보정 (YYYY-MM-DDTHH:mm)
-            start_date: surveyData.start_date ? 
-              new Date(surveyData.start_date).toISOString().slice(0, 16) : "",
-            end_date: surveyData.end_date ? 
-              new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
-          });
-        } else {
+        if (!surveyData) {
           console.log("SurveyBuilder - No survey data found");
-          throw new Error("설문을 찾을 수 없습니다.");
+          setNotFound(true);
+          return;
         }
 
-        // 섹션 로드
+        console.log("SurveyBuilder - Setting form data:", surveyData);
+        setForm({
+          ...surveyData,
+          // datetime-local 포맷 보정 (YYYY-MM-DDTHH:mm)
+          start_date: surveyData.start_date ? 
+            new Date(surveyData.start_date).toISOString().slice(0, 16) : "",
+          end_date: surveyData.end_date ? 
+            new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
+        });
+
+        // 2. 섹션 로드 - 실패해도 계속 진행
         console.log("SurveyBuilder - Loading sections...");
-        const { data: sectionsData, error: sectionsError } = await supabase
-          .from("survey_sections")
-          .select("*")
-          .eq("survey_id", id)
-          .order("order_index");
-        
-        console.log("SurveyBuilder - Sections result:", { sectionsData, sectionsError });
-        
-        if (sectionsError) {
-          console.error("SurveyBuilder - Sections loading error:", sectionsError); 
-          // 섹션 로딩 오류는 치명적이지 않음
+        try {
+          const { data: sectionsData, error: sectionsError } = await supabase
+            .from("survey_sections")
+            .select('*') // 전체 컬럼 조회
+            .eq("survey_id", id)
+            .order("order_index");
+          
+          console.log("SurveyBuilder - Sections result:", { sectionsData, sectionsError });
+          
+          if (sectionsError) {
+            console.warn("SurveyBuilder - Sections loading error (non-critical):", sectionsError);
+          }
+          setSections(sectionsData || []);
+        } catch (sectionError) {
+          console.warn("SurveyBuilder - Section loading failed (non-critical):", sectionError);
+          setSections([]);
         }
-        setSections(sectionsData || []);
 
-        // 질문 로드
+        // 3. 질문 로드 - 실패해도 계속 진행
         console.log("SurveyBuilder - Loading questions...");
-        const { data: questionsData, error: questionsError } = await supabase
-          .from("survey_questions")
-          .select("*")
-          .eq("survey_id", id)
-          .order("order_index");
-        
-        console.log("SurveyBuilder - Questions result:", { questionsData, questionsError });
-        
-        if (questionsError) {
-          console.error("SurveyBuilder - Questions loading error:", questionsError);
-          // 질문 로딩 오류는 치명적이지 않음
+        try {
+          const { data: questionsData, error: questionsError } = await supabase
+            .from("survey_questions")
+            .select('*') // 전체 컬럼 조회
+            .eq("survey_id", id)
+            .order("order_index");
+          
+          console.log("SurveyBuilder - Questions result:", { questionsData, questionsError });
+          
+          if (questionsError) {
+            console.warn("SurveyBuilder - Questions loading error (non-critical):", questionsError);
+          }
+          
+          // Cast the questions data to match our interface
+          const typedQuestions = (questionsData || []).map(q => ({
+            ...q,
+            scope: (q.scope as 'session' | 'operation') || 'session'
+          }));
+          console.log("SurveyBuilder - Typed questions:", typedQuestions);
+          setQuestions(typedQuestions);
+        } catch (questionError) {
+          console.warn("SurveyBuilder - Question loading failed (non-critical):", questionError);
+          setQuestions([]);
         }
-        
-        // Cast the questions data to match our interface
-        const typedQuestions = (questionsData || []).map(q => ({
-          ...q,
-          scope: (q.scope as 'session' | 'operation') || 'session'
-        }));
-        console.log("SurveyBuilder - Typed questions:", typedQuestions);
-        setQuestions(typedQuestions);
         
       } catch (error: any) {
-        console.error("SurveyBuilder - Loading error:", error);
-        toast({ 
-          title: "오류", 
-          description: error.message || "설문 정보를 불러오지 못했습니다.", 
-          variant: "destructive" 
-        });
+        console.error("SurveyBuilder - Critical loading error:", error);
+        setErrorMsg(error.message || "데이터 로딩 중 오류가 발생했습니다.");
       } finally {
         console.log("SurveyBuilder - Loading completed");
         setLoading(false);
@@ -198,7 +208,7 @@ export default function SurveyBuilder() {
     };
 
     loadSurveyData();
-  }, [id, toast]);
+  }, [id]);
 
   // 제목 자동 생성 (과정명 + 일차 + 과목명)
   const selectedCourseTitle = useMemo(
@@ -279,9 +289,13 @@ export default function SurveyBuilder() {
     }
   };
 
+  const [saving, setSaving] = useState(false);
+
   const saveInfo = async () => {
     if (!id) return;
+    
     setSaving(true);
+    
     try {
       // 유효성 (합반일 때 범위 필수)
       if (form.course_name === "BS Advanced" && form.is_combined) {
@@ -327,9 +341,69 @@ export default function SurveyBuilder() {
     }
   };
 
+  // 로딩 상태 처리
   if (loading) {
     console.log("SurveyBuilder - Still loading...");
-    return <div className="p-6">로딩 중…</div>;
+    return (
+      <div className="container mx-auto p-4 lg:p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">로딩 중...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태 처리
+  if (errorMsg) {
+    return (
+      <div className="container mx-auto p-4 lg:p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            뒤로
+          </Button>
+          <h1 className="text-lg font-semibold">설문 편집</h1>
+        </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="text-destructive mb-4">⚠️</div>
+            <h3 className="text-lg font-medium mb-2">오류가 발생했습니다</h3>
+            <p className="text-muted-foreground mb-4">{errorMsg}</p>
+            <Button onClick={() => window.location.reload()}>
+              다시 시도
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 설문 없음 상태 처리
+  if (notFound) {
+    return (
+      <div className="container mx-auto p-4 lg:p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            뒤로
+          </Button>
+          <h1 className="text-lg font-semibold">설문 편집</h1>
+        </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="text-muted-foreground mb-4">📝</div>
+            <h3 className="text-lg font-medium mb-2">설문을 찾을 수 없습니다</h3>
+            <p className="text-muted-foreground mb-4">요청하신 설문이 존재하지 않거나 접근 권한이 없습니다.</p>
+            <Button onClick={() => navigate(-1)}>
+              목록으로 돌아가기
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -471,7 +545,7 @@ export default function SurveyBuilder() {
           <div className="flex justify-end">
             <Button onClick={saveInfo} disabled={saving}>
               <Save className="h-4 w-4 mr-2" />
-              {saving ? "저장 중…" : "정보 저장"}
+              {saving ? "저장 중..." : "정보 저장"}
             </Button>
           </div>
         </CardContent>
