@@ -583,8 +583,10 @@ export default function SurveyBuilder() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>설문 질문</CardTitle>
           <Button onClick={() => {
+            console.log('SurveyBuilder - 질문 추가 button clicked');
             setEditingQuestion(null);
             setQuestionDialogOpen(true);
+            console.log('SurveyBuilder - Dialog should open now, questionDialogOpen:', true);
           }}>
             <Plus className="h-4 w-4 mr-2" />
             질문 추가
@@ -660,11 +662,14 @@ export default function SurveyBuilder() {
             question={editingQuestion}
             surveyId={surveyId!}
             onSave={async () => {
+              console.log('SurveyBuilder - QuestionEditForm onSave called');
               await handleQuestionSave();
+              console.log('SurveyBuilder - Closing dialog after save');
               setQuestionDialogOpen(false);
               setEditingQuestion(null);
             }}
             onCancel={() => {
+              console.log('SurveyBuilder - QuestionEditForm onCancel called');
               setQuestionDialogOpen(false);
               setEditingQuestion(null);
             }}

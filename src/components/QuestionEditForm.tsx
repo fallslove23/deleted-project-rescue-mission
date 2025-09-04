@@ -66,6 +66,11 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
   }, [question]);
 
   const handleSave = async () => {
+    console.log('QuestionEditForm - handleSave called');
+    console.log('QuestionEditForm - Current form data:', form);
+    console.log('QuestionEditForm - surveyId:', surveyId);
+    console.log('QuestionEditForm - Is editing?', !!question);
+    
     if (!form.question_text.trim()) {
       toast({ title: "오류", description: "질문 내용을 입력해주세요.", variant: "destructive" });
       return;
@@ -84,27 +89,45 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
         order_index: question?.order_index ?? 0
       };
 
+      console.log('QuestionEditForm - Question data to save:', questionData);
+
       if (question?.id) {
+        console.log('QuestionEditForm - Updating existing question:', question.id);
         const { error } = await supabase
           .from('survey_questions')
           .update(questionData)
           .eq('id', question.id);
         
-        if (error) throw error;
+        if (error) {
+          console.error('QuestionEditForm - Update error:', error);
+          throw error;
+        }
         toast({ title: "성공", description: "질문이 수정되었습니다." });
       } else {
-        const { error } = await supabase
+        console.log('QuestionEditForm - Creating new question');
+        const { data, error } = await supabase
           .from('survey_questions')
-          .insert(questionData);
+          .insert(questionData)
+          .select('*');
         
-        if (error) throw error;
+        if (error) {
+          console.error('QuestionEditForm - Insert error:', error);
+          throw error;
+        }
+        
+        console.log('QuestionEditForm - Question created successfully:', data);
         toast({ title: "성공", description: "질문이 추가되었습니다." });
       }
 
+      console.log('QuestionEditForm - Save completed, calling onSave()');
       onSave();
     } catch (error: any) {
-      console.error(error);
-      toast({ title: "오류", description: error.message || "질문 저장 중 오류가 발생했습니다.", variant: "destructive" });
+      console.error('QuestionEditForm - Save failed:', error);
+      toast({ 
+        title: "오류", 
+        description: error.message || "질문 저장 중 오류가 발생했습니다.", 
+        variant: "destructive" 
+      });
     } finally {
       setSaving(false);
     }
