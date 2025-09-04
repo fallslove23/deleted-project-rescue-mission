@@ -199,21 +199,22 @@ export default function SurveyCreateForm({
 
   return (
     <div className="max-w-4xl mx-auto">
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* 1. 연도 선택 */}
         <Card>
-          <CardHeader>
-            <CardTitle>1. 연도 선택</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">연도 선택</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>교육 연도</Label>
+                <Label className="text-sm">교육 연도</Label>
                 <Input
                   type="number"
                   value={formData.education_year}
                   onChange={(e) => setFormData(prev => ({ ...prev, education_year: parseInt(e.target.value) }))}
                   required
+                  className="mt-1"
                 />
               </div>
             </div>
@@ -222,17 +223,17 @@ export default function SurveyCreateForm({
 
         {/* 2. 과정 선택 */}
         <Card>
-          <CardHeader>
-            <CardTitle>2. 과정 선택</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">과정 선택</CardTitle>
           </CardHeader>
           <CardContent>
             <div>
-              <Label>과정 (프로그램)</Label>
+              <Label className="text-sm">과정 (프로그램)</Label>
               <Select 
                 value={formData.course_name} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, course_name: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue placeholder="과정 선택" />
                 </SelectTrigger>
                 <SelectContent>
@@ -244,14 +245,14 @@ export default function SurveyCreateForm({
           </CardContent>
         </Card>
 
-        {/* 3. 차수 선택 (합반 여부 체크박스 기능, 합반 시작 차수는 선택한 차수로 자동 입력) */}
+        {/* 3. 차수 선택 */}
         <Card>
-          <CardHeader>
-            <CardTitle>3. 차수 선택</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">차수 선택</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             <div>
-              <Label>차수</Label>
+              <Label className="text-sm">차수</Label>
               <Input
                 type="number"
                 min="1"
@@ -266,12 +267,13 @@ export default function SurveyCreateForm({
                   }));
                 }}
                 required
+                className="mt-1"
               />
             </div>
 
             {/* 합반 여부 체크박스 (BS Advanced일 때만) */}
             {formData.course_name === 'BS Advanced' && (
-              <div className="space-y-3 border rounded-md p-4">
+              <div className="space-y-3 border rounded-md p-3">
                 <div className="flex items-center gap-2">
                   <input
                     id="is_combined"
@@ -286,22 +288,22 @@ export default function SurveyCreateForm({
                       combined_round_end: e.target.checked ? prev.combined_round_end : null
                     }))}
                   />
-                  <Label htmlFor="is_combined">합반 (여러 차수를 묶어 동일 설문으로 운영)</Label>
+                  <Label htmlFor="is_combined" className="text-sm">합반 (여러 차수를 묶어 동일 설문으로 운영)</Label>
                 </div>
 
                 {formData.is_combined && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <Label>시작 차수 (자동 입력)</Label>
+                      <Label className="text-sm">시작 차수 (자동 입력)</Label>
                       <Input
                         type="number"
                         value={formData.combined_round_start || ''}
                         readOnly
-                        className="bg-muted"
+                        className="bg-muted mt-1"
                       />
                     </div>
                     <div>
-                      <Label>종료 차수</Label>
+                      <Label className="text-sm">종료 차수</Label>
                       <Input
                         type="number"
                         min={formData.combined_round_start || 1}
@@ -310,6 +312,7 @@ export default function SurveyCreateForm({
                           ...prev, 
                           combined_round_end: e.target.value ? parseInt(e.target.value) : null 
                         }))}
+                        className="mt-1"
                       />
                     </div>
                   </div>
@@ -321,12 +324,12 @@ export default function SurveyCreateForm({
 
         {/* 4. 일차 입력 */}
         <Card>
-          <CardHeader>
-            <CardTitle>4. 일차 입력</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">일차 입력</CardTitle>
           </CardHeader>
           <CardContent>
             <div>
-              <Label>일차 (예: 1일차)</Label>
+              <Label className="text-sm">일차 (예: 1일차)</Label>
               <Input
                 type="number"
                 min="1"
@@ -334,6 +337,7 @@ export default function SurveyCreateForm({
                 onChange={(e) => setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }))}
                 required
                 placeholder="1"
+                className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">전체 교육과정 중 몇 번째 날</p>
             </div>
@@ -342,12 +346,12 @@ export default function SurveyCreateForm({
 
         {/* 5. 설문 인원 입력 */}
         <Card>
-          <CardHeader>
-            <CardTitle>5. 설문 인원 입력</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">설문 인원 입력</CardTitle>
           </CardHeader>
           <CardContent>
             <div>
-              <Label>예상 설문 인원</Label>
+              <Label className="text-sm">예상 설문 인원</Label>
               <Input
                 type="number"
                 min="1"
@@ -357,27 +361,28 @@ export default function SurveyCreateForm({
                   expected_participants: e.target.value ? parseInt(e.target.value) : 0 
                 }))}
                 placeholder="예상 참여자 수"
+                className="mt-1"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* 6. 과목 선택 (여러개 입력, 과목 추가 버튼) */}
+        {/* 6. 과목 선택 */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle>6. 과목 선택</CardTitle>
-              <Button type="button" onClick={addCourseSelection} size="sm">
+              <CardTitle className="text-lg">과목 선택</CardTitle>
+              <Button type="button" onClick={addCourseSelection} size="sm" variant="outline">
                 <Plus className="h-4 w-4 mr-2" />
                 과목 추가
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {courseSelections.map((selection, index) => (
-              <div key={selection.id} className="border rounded-lg p-4 space-y-4">
+              <div key={selection.id} className="border rounded-lg p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium">과목 {index + 1}</h4>
+                  <h4 className="font-medium text-sm">과목 {index + 1}</h4>
                   {courseSelections.length > 1 && (
                     <Button 
                       type="button" 
@@ -390,9 +395,9 @@ export default function SurveyCreateForm({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <Label>과목</Label>
+                    <Label className="text-sm">과목</Label>
                     <Select 
                       value={selection.courseId} 
                       onValueChange={(value) => {
@@ -401,7 +406,7 @@ export default function SurveyCreateForm({
                         updateCourseSelection(selection.id, 'instructorId', '');
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="mt-1">
                         <SelectValue placeholder="과목 선택" />
                       </SelectTrigger>
                       <SelectContent>
@@ -416,13 +421,13 @@ export default function SurveyCreateForm({
 
                   {/* 7. 각 과목 강사 선택 */}
                   <div>
-                    <Label>강사</Label>
+                    <Label className="text-sm">강사</Label>
                     <Select 
                       value={selection.instructorId}
                       onValueChange={(value) => updateCourseSelection(selection.id, 'instructorId', value)}
                       disabled={!selection.courseId}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="mt-1">
                         <SelectValue placeholder={selection.courseId ? "강사 선택" : "먼저 과목을 선택하세요"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -440,29 +445,31 @@ export default function SurveyCreateForm({
           </CardContent>
         </Card>
 
-        {/* 8. 시작일시, 종료일시 입력 */}
+        {/* 8. 시작일시, 종료일시 */}
         <Card>
-          <CardHeader>
-            <CardTitle>8. 시작일시, 종료일시 입력</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">시작일시, 종료일시</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>시작일시</Label>
+                <Label className="text-sm">시작일시</Label>
                 <Input
                   type="datetime-local"
                   value={formData.start_date}
                   onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
                   required
+                  className="mt-1"
                 />
               </div>
               <div>
-                <Label>종료일시</Label>
+                <Label className="text-sm">종료일시</Label>
                 <Input
                   type="datetime-local"
                   value={formData.end_date}
                   onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
                   required
+                  className="mt-1"
                 />
               </div>
             </div>
@@ -471,23 +478,25 @@ export default function SurveyCreateForm({
 
         {/* 9. 설명 */}
         <Card>
-          <CardHeader>
-            <CardTitle>9. 설명</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">설명</CardTitle>
           </CardHeader>
           <CardContent>
             <div>
-              <Label>설명</Label>
+              <Label className="text-sm">설명 (선택사항)</Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="설문조사에 대한 추가 설명을 입력하세요"
                 rows={3}
-                placeholder="설문조사에 대한 설명을 입력하세요"
+                className="mt-1"
               />
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-2">
+        {/* 버튼 */}
+        <div className="flex justify-end gap-3 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             취소
           </Button>
