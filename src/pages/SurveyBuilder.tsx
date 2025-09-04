@@ -59,9 +59,14 @@ type SurveySection = {
 };
 
 export default function SurveyBuilder() {
-  const { id } = useParams<{ id: string }>();
+  const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // UUID 형식 검증
+  const isValidUUID = (id: string): boolean => {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+  };
 
   // 상태 분리: loading / errorMsg / notFound
   const [loading, setLoading] = useState(true);
@@ -105,16 +110,27 @@ export default function SurveyBuilder() {
     })();
   }, []);
 
-  // 설문 로드 - 개선된 로직
+  // 설문 로드 - 개선된 로직 + UUID 검증
   useEffect(() => {
-    if (!id) {
-      setNotFound(true);
+    if (!surveyId) {
+      console.error("SurveyBuilder - No surveyId parameter found in URL");
+      setErrorMsg("설문 ID가 URL에서 누락되었습니다.");
+      setLoading(false);
+      return;
+    }
+
+    console.log("SurveyBuilder - Received surveyId from URL:", surveyId, "Length:", surveyId.length);
+
+    // UUID 형식 검증
+    if (!isValidUUID(surveyId)) {
+      console.error("SurveyBuilder - Invalid UUID format:", surveyId, "Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
+      setErrorMsg(`잘못된 설문 주소입니다. 받은 ID: '${surveyId}' (${surveyId.length}자). 올바른 UUID 형식이 아닙니다.`);
       setLoading(false);
       return;
     }
     
     const loadSurveyData = async () => {
-      console.log("SurveyBuilder - Starting to load survey data for ID:", id);
+      console.log("SurveyBuilder - Starting to load survey data for ID:", surveyId);
       setLoading(true);
       setErrorMsg("");
       setNotFound(false);
@@ -125,7 +141,7 @@ export default function SurveyBuilder() {
         const { data: surveyData, error: surveyError } = await supabase
           .from("surveys")
           .select('*') // 전체 컬럼 조회로 스키마 불일치 회피
-          .eq("id", id)
+          .eq("id", surveyId)
           .maybeSingle();
         
         console.log("SurveyBuilder - Survey data result:", { surveyData, surveyError });
@@ -157,7 +173,7 @@ export default function SurveyBuilder() {
           const { data: sectionsData, error: sectionsError } = await supabase
             .from("survey_sections")
             .select('*') // 전체 컬럼 조회
-            .eq("survey_id", id)
+            .eq("survey_id", surveyId)
             .order("order_index");
           
           console.log("SurveyBuilder - Sections result:", { sectionsData, sectionsError });
@@ -177,7 +193,7 @@ export default function SurveyBuilder() {
           const { data: questionsData, error: questionsError } = await supabase
             .from("survey_questions")
             .select('*') // 전체 컬럼 조회
-            .eq("survey_id", id)
+            .eq("survey_id", surveyId)
             .order("order_index");
           
           console.log("SurveyBuilder - Questions result:", { questionsData, questionsError });
@@ -208,7 +224,7 @@ export default function SurveyBuilder() {
     };
 
     loadSurveyData();
-  }, [id]);
+  }, [surveyId]);
 
   // 제목 자동 생성 (과정명 + 일차 + 과목명)
   const selectedCourseTitle = useMemo(
@@ -273,7 +289,7 @@ export default function SurveyBuilder() {
       const { data: questionsData, error } = await supabase
         .from("survey_questions")
         .select("*")
-        .eq("survey_id", id)
+        .eq("survey_id", surveyId)
         .order("order_index");
       
       if (error) throw error;
@@ -292,7 +308,7 @@ export default function SurveyBuilder() {
   const [saving, setSaving] = useState(false);
 
   const saveInfo = async () => {
-    if (!id) return;
+    if (!surveyId) return;
     
     setSaving(true);
     
@@ -330,7 +346,7 @@ export default function SurveyBuilder() {
         round_label: form.is_combined ? round_label : null,
       };
 
-      const { error } = await supabase.from("surveys").update(payload).eq("id", id);
+      const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
       if (error) throw error;
 
       toast({ title: "저장 완료", description: "설문 기본 정보가 저장되었습니다." });
@@ -642,7 +658,7 @@ export default function SurveyBuilder() {
           </DialogHeader>
           <QuestionEditForm
             question={editingQuestion}
-            surveyId={id!}
+            surveyId={surveyId!}
             onSave={async () => {
               await handleQuestionSave();
               setQuestionDialogOpen(false);
