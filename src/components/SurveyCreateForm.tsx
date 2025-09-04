@@ -198,17 +198,14 @@ export default function SurveyCreateForm({
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* 1. 연도 선택 */}
+    <div className="max-w-4xl mx-auto p-2">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        {/* 기본 정보 */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">연도 선택</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div>
-                <Label className="text-sm">교육 연도</Label>
+                <Label className="text-sm font-medium">교육 연도</Label>
                 <Input
                   type="number"
                   value={formData.education_year}
@@ -217,64 +214,65 @@ export default function SurveyCreateForm({
                   className="mt-1"
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              
+              <div>
+                <Label className="text-sm font-medium">과정</Label>
+                <div className="flex gap-1 mt-1">
+                  <Select 
+                    value={formData.course_name} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, course_name: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="과정 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BS Basic">BS Basic</SelectItem>
+                      <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" size="sm" variant="outline" className="px-2">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
 
-        {/* 2. 과정 선택 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">과정 선택</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <Label className="text-sm">과정 (프로그램)</Label>
-              <Select 
-                value={formData.course_name} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, course_name: value }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="과정 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BS Basic">BS Basic</SelectItem>
-                  <SelectItem value="BS Advanced">BS Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+              <div>
+                <Label className="text-sm font-medium">차수</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={formData.education_round}
+                  onChange={(e) => {
+                    const round = parseInt(e.target.value);
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      education_round: round,
+                      combined_round_start: prev.is_combined ? round : prev.combined_round_start
+                    }));
+                  }}
+                  required
+                  className="mt-1"
+                />
+              </div>
 
-        {/* 3. 차수 선택 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">차수 선택</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label className="text-sm">차수</Label>
-              <Input
-                type="number"
-                min="1"
-                value={formData.education_round}
-                onChange={(e) => {
-                  const round = parseInt(e.target.value);
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    education_round: round,
-                    // 합반 시작 차수는 선택한 차수로 자동 입력
-                    combined_round_start: prev.is_combined ? round : prev.combined_round_start
-                  }));
-                }}
-                required
-                className="mt-1"
-              />
+              <div>
+                <Label className="text-sm font-medium">일차</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={formData.education_day}
+                  onChange={(e) => setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }))}
+                  required
+                  placeholder="1"
+                  className="mt-1"
+                />
+              </div>
             </div>
 
-            {/* 합반 여부 체크박스 (BS Advanced일 때만) */}
+            {/* 합반 설정 (BS Advanced일 때만) */}
             {formData.course_name === 'BS Advanced' && (
-              <div className="space-y-3 border rounded-md p-3">
-                <div className="flex items-center gap-2">
+              <div className="mt-4 p-3 border rounded-md bg-muted/20">
+                <div className="flex items-center gap-2 mb-3">
                   <input
                     id="is_combined"
                     type="checkbox"
@@ -283,27 +281,27 @@ export default function SurveyCreateForm({
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
                       is_combined: e.target.checked,
-                      // 합반 시작 차수는 선택한 차수로 자동 입력
                       combined_round_start: e.target.checked ? prev.education_round : null,
                       combined_round_end: e.target.checked ? prev.combined_round_end : null
                     }))}
                   />
-                  <Label htmlFor="is_combined" className="text-sm">합반 (여러 차수를 묶어 동일 설문으로 운영)</Label>
+                  <Label htmlFor="is_combined" className="text-sm">합반 설정</Label>
                 </div>
 
                 {formData.is_combined && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-sm">시작 차수 (자동 입력)</Label>
+                      <Label className="text-xs">시작 차수</Label>
                       <Input
                         type="number"
                         value={formData.combined_round_start || ''}
                         readOnly
                         className="bg-muted mt-1"
+                        size={1}
                       />
                     </div>
                     <div>
-                      <Label className="text-sm">종료 차수</Label>
+                      <Label className="text-xs">종료 차수</Label>
                       <Input
                         type="number"
                         min={formData.combined_round_start || 1}
@@ -319,39 +317,9 @@ export default function SurveyCreateForm({
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* 4. 일차 입력 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">일차 입력</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <Label className="text-sm">일차 (예: 1일차)</Label>
-              <Input
-                type="number"
-                min="1"
-                value={formData.education_day}
-                onChange={(e) => setFormData(prev => ({ ...prev, education_day: parseInt(e.target.value) }))}
-                required
-                placeholder="1"
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">전체 교육과정 중 몇 번째 날</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 5. 설문 인원 입력 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">설문 인원 입력</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <Label className="text-sm">예상 설문 인원</Label>
+            <div className="mt-4">
+              <Label className="text-sm font-medium">예상 참여 인원</Label>
               <Input
                 type="number"
                 min="1"
@@ -361,134 +329,124 @@ export default function SurveyCreateForm({
                   expected_participants: e.target.value ? parseInt(e.target.value) : 0 
                 }))}
                 placeholder="예상 참여자 수"
-                className="mt-1"
+                className="mt-1 max-w-xs"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* 6. 과목 선택 */}
+        {/* 과목 및 강사 선택 */}
         <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">과목 선택</CardTitle>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-medium">과목 및 강사 선택</Label>
               <Button type="button" onClick={addCourseSelection} size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                과목 추가
+                <Plus className="h-4 w-4 mr-1" />
+                추가
               </Button>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {courseSelections.map((selection, index) => (
-              <div key={selection.id} className="border rounded-lg p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm">과목 {index + 1}</h4>
-                  {courseSelections.length > 1 && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => removeCourseSelection(selection.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-sm">과목</Label>
-                    <Select 
-                      value={selection.courseId} 
-                      onValueChange={(value) => {
-                        updateCourseSelection(selection.id, 'courseId', value);
-                        // 과목 변경시 강사 초기화
-                        updateCourseSelection(selection.id, 'instructorId', '');
-                      }}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="과목 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {courses.map(course => (
-                          <SelectItem key={course.id} value={course.id}>
-                            {course.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            <div className="space-y-3">
+              {courseSelections.map((selection, index) => (
+                <div key={selection.id} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">과목 {index + 1}</span>
+                    {courseSelections.length > 1 && (
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => removeCourseSelection(selection.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
 
-                  {/* 7. 각 과목 강사 선택 */}
-                  <div>
-                    <Label className="text-sm">강사</Label>
-                    <Select 
-                      value={selection.instructorId}
-                      onValueChange={(value) => updateCourseSelection(selection.id, 'instructorId', value)}
-                      disabled={!selection.courseId}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder={selection.courseId ? "강사 선택" : "먼저 과목을 선택하세요"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailableInstructors(selection.courseId).map(instructor => (
-                          <SelectItem key={instructor.id} value={instructor.id}>
-                            {instructor.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">과목</Label>
+                      <Select 
+                        value={selection.courseId} 
+                        onValueChange={(value) => {
+                          updateCourseSelection(selection.id, 'courseId', value);
+                          updateCourseSelection(selection.id, 'instructorId', '');
+                        }}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="과목 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {courses.map(course => (
+                            <SelectItem key={course.id} value={course.id}>
+                              {course.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">강사</Label>
+                      <Select 
+                        value={selection.instructorId}
+                        onValueChange={(value) => updateCourseSelection(selection.id, 'instructorId', value)}
+                        disabled={!selection.courseId}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder={selection.courseId ? "강사 선택" : "먼저 과목을 선택하세요"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getAvailableInstructors(selection.courseId).map(instructor => (
+                            <SelectItem key={instructor.id} value={instructor.id}>
+                              {instructor.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* 8. 시작일시, 종료일시 */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">시작일시, 종료일시</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm">시작일시</Label>
-                <Input
-                  type="datetime-local"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-sm">종료일시</Label>
-                <Input
-                  type="datetime-local"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                  required
-                  className="mt-1"
-                />
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* 9. 설명 */}
+        {/* 일정 및 설명 */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">설명</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 space-y-4">
             <div>
-              <Label className="text-sm">설명 (선택사항)</Label>
+              <Label className="text-sm font-medium mb-2 block">설문 일정</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs">시작일시</Label>
+                  <Input
+                    type="datetime-local"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                    required
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">종료일시</Label>
+                  <Input
+                    type="datetime-local"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
+                    required
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">설명 (선택사항)</Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="설문조사에 대한 추가 설명을 입력하세요"
-                rows={3}
+                rows={2}
                 className="mt-1"
               />
             </div>
