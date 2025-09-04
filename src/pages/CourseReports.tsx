@@ -11,6 +11,10 @@ import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import CourseSelector from '@/components/course-reports/CourseSelector';
 import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
+import { generateCourseReportPDF } from '@/utils/pdfExport';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const CourseReports = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -18,6 +22,7 @@ const CourseReports = () => {
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const {
     reports,
@@ -51,6 +56,50 @@ const CourseReports = () => {
     navigate(`/dashboard/instructor-details/${instructorId}?year=${selectedYear}`);
   };
 
+  const handlePDFExport = () => {
+    if (!currentReport) {
+      toast({
+        title: "오류",
+        description: "내보낼 데이터가 없습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      generateCourseReportPDF({
+        reportTitle: '과정별 운영 결과 보고서',
+        year: currentReport.education_year,
+        round: currentReport.education_round > 0 ? currentReport.education_round : undefined,
+        courseName: currentReport.course_title,
+        totalSurveys: currentReport.total_surveys,
+        totalResponses: currentReport.total_responses,
+        instructorCount: currentReport.report_data?.instructor_count || 0,
+        avgInstructorSatisfaction: currentReport.avg_instructor_satisfaction,
+        avgCourseSatisfaction: currentReport.avg_course_satisfaction,
+        avgOperationSatisfaction: currentReport.report_data?.operation_satisfaction || 0,
+        instructorStats: instructorStats.map(stat => ({
+          name: stat.instructor_name,
+          surveyCount: stat.survey_count,
+          responseCount: stat.response_count,
+          avgSatisfaction: stat.avg_satisfaction
+        }))
+      });
+
+      toast({
+        title: "성공",
+        description: "PDF 파일이 다운로드되었습니다.",
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: "오류",
+        description: "PDF 내보내기 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
   const currentReport = reports[0];
 
@@ -82,13 +131,21 @@ const CourseReports = () => {
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-xl p-6 border border-primary/20">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-            <TrendingUp className="h-4 w-4 text-white" />
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+              <TrendingUp className="h-4 w-4 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              과정별 운영 결과 보고
+            </h1>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-            과정별 운영 결과 보고
-          </h1>
+          {currentReport && (
+            <Button onClick={handlePDFExport} variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              PDF 내보내기
+            </Button>
+          )}
         </div>
         <p className="text-muted-foreground">
           과정별 종합적인 만족도 조사 결과와 강사별 통계를 확인할 수 있습니다.
@@ -199,7 +256,7 @@ const CourseReports = () => {
 
           {/* 강사별 통계 - 스크롤 개선 */}
           {instructorStats.length > 0 && (
-            <div className="max-h-[400px] overflow-y-auto border rounded-lg">
+            <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 border rounded-lg">
               <InstructorStatsSection
                 instructorStats={instructorStats}
                 onInstructorClick={handleInstructorClick}

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -132,7 +131,7 @@ export const useCourseReportsData = (
           )
         `)
         .eq('education_year', selectedYear)
-        .eq('status', 'completed');
+        .in('status', ['completed', 'active']); // active와 completed 둘 다 포함
 
       // 필터 적용
       if (selectedCourse) {
