@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,7 @@ interface SurveyQuestion {
 
 const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
@@ -120,8 +121,14 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       fetchSurveys();
       fetchAllResponses();
       fetchAllQuestionsAndAnswers(); // 모든 질문과 답변 데이터 로드
+      
+      // URL에서 surveyId 파라미터 확인하여 자동 선택
+      const surveyIdFromUrl = searchParams.get('surveyId');
+      if (surveyIdFromUrl) {
+        setSelectedSurvey(surveyIdFromUrl);
+      }
     }
-  }, [profile]);
+  }, [profile, searchParams]);
 
   useEffect(() => {
     if (selectedSurvey) {

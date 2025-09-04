@@ -87,7 +87,10 @@ export default function SurveyInfoEditDialog({
         .update(payload)
         .eq("id", survey.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Survey update error:', error);
+        throw new Error(`설문 정보 수정에 실패했습니다: ${error.message}`);
+      }
 
       onOpenChange(false);
       onSaved?.();
