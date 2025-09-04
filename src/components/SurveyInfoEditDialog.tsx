@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import SurveyCreateForm from "./SurveyCreateForm";
+import SimplifiedSurveyForm from "./SimplifiedSurveyForm";
 
 type SurveyEditable = {
   id: string;
@@ -137,8 +137,8 @@ export default function SurveyInfoEditDialog({
         </DialogHeader>
 
         {survey && (
-          <SurveyCreateForm
-            initialValues={initial}
+          <SimplifiedSurveyForm
+            initial={initial}
             onSubmit={handleSubmit}
             onCancel={() => onOpenChange(false)}
             isSubmitting={false}
