@@ -105,15 +105,21 @@ export default function SurveyBuilder() {
   // 설문 로드
   useEffect(() => {
     if (!id) return;
-    (async () => {
+    
+    const loadSurveyData = async () => {
       console.log("SurveyBuilder - Starting to load survey data for ID:", id);
       setLoading(true);
+      
       try {
-        // 설문 기본 정보 로드
+        // 설문 기본 정보 로드 - RLS정책 확인을 위해 단순화
         console.log("SurveyBuilder - Loading survey basic info...");
         const { data: surveyData, error: surveyError } = await supabase
           .from("surveys")
-          .select("*")
+          .select(`
+            *,
+            courses:course_id(id, title),
+            instructors:instructor_id(id, name, email)
+          `)
           .eq("id", id)
           .maybeSingle();
         
@@ -128,12 +134,15 @@ export default function SurveyBuilder() {
           console.log("SurveyBuilder - Setting form data:", surveyData);
           setForm({
             ...surveyData,
-            // datetime-local 포맷 보정
-            start_date: surveyData.start_date ? new Date(surveyData.start_date).toISOString().slice(0, 16) : "",
-            end_date: surveyData.end_date ? new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
+            // datetime-local 포맷 보정 (YYYY-MM-DDTHH:mm)
+            start_date: surveyData.start_date ? 
+              new Date(surveyData.start_date).toISOString().slice(0, 16) : "",
+            end_date: surveyData.end_date ? 
+              new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
           });
         } else {
           console.log("SurveyBuilder - No survey data found");
+          throw new Error("설문을 찾을 수 없습니다.");
         }
 
         // 섹션 로드
@@ -148,7 +157,7 @@ export default function SurveyBuilder() {
         
         if (sectionsError) {
           console.error("SurveyBuilder - Sections loading error:", sectionsError); 
-          throw sectionsError;
+          // 섹션 로딩 오류는 치명적이지 않음
         }
         setSections(sectionsData || []);
 
@@ -164,7 +173,7 @@ export default function SurveyBuilder() {
         
         if (questionsError) {
           console.error("SurveyBuilder - Questions loading error:", questionsError);
-          throw questionsError;
+          // 질문 로딩 오류는 치명적이지 않음
         }
         
         // Cast the questions data to match our interface
@@ -186,7 +195,9 @@ export default function SurveyBuilder() {
         console.log("SurveyBuilder - Loading completed");
         setLoading(false);
       }
-    })();
+    };
+
+    loadSurveyData();
   }, [id, toast]);
 
   // 제목 자동 생성 (과정명 + 일차 + 과목명)

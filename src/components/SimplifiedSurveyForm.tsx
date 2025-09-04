@@ -92,28 +92,31 @@ export default function SimplifiedSurveyForm({
     console.log("SimplifiedSurveyForm - initial changed:", initial);
     if (initial) {
       const newFormData = {
-        education_year: initial.education_year ?? new Date().getFullYear(),
-        course_name: initial.course_name ?? '',
-        education_round: initial.education_round ?? 1,
-        is_combined: initial.is_combined ?? false,
-        combined_round_start: initial.combined_round_start ?? null,
-        combined_round_end: initial.combined_round_end ?? null,
-        education_day: initial.education_day ?? 1,
-        expected_participants: initial.expected_participants ?? 0,
-        start_date: initial.start_date ?? '',
-        end_date: initial.end_date ?? '',
-        description: initial.description ?? '',
-        is_test: initial.is_test ?? false
+        education_year: initial.education_year || new Date().getFullYear(),
+        course_name: String(initial.course_name || ''), // 문자열 강제 변환
+        education_round: initial.education_round || 1,
+        is_combined: Boolean(initial.is_combined), // 불린 강제 변환
+        combined_round_start: initial.combined_round_start || null,
+        combined_round_end: initial.combined_round_end || null,
+        education_day: initial.education_day || 1,
+        expected_participants: initial.expected_participants || 0,
+        start_date: String(initial.start_date || ''), // datetime-local은 문자열
+        end_date: String(initial.end_date || ''),
+        description: String(initial.description || ''),
+        is_test: Boolean(initial.is_test)
       };
       console.log("SimplifiedSurveyForm - Setting new form data:", newFormData);
       setFormData(newFormData);
       
+      // course_selections 설정
       if (initial.course_id || initial.instructor_id) {
-        setCourseSelections([{
+        const newCourseSelections = [{
           id: '1',
-          courseId: initial.course_id || '',
-          instructorId: initial.instructor_id || ''
-        }]);
+          courseId: String(initial.course_id || ''),
+          instructorId: String(initial.instructor_id || '')
+        }];
+        console.log("SimplifiedSurveyForm - Setting course selections:", newCourseSelections);
+        setCourseSelections(newCourseSelections);
       }
     }
   }, [initial]);
@@ -185,22 +188,31 @@ export default function SimplifiedSurveyForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>교육 연도</Label>
-              <Input
-                type="number"
-                value={formData.education_year}
-                onChange={(e) => setFormData({...formData, education_year: Number(e.target.value)})}
-              />
+              <Select
+                value={String(formData.education_year)}
+                onValueChange={(value) => setFormData({...formData, education_year: Number(value)})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="연도 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[2024, 2025, 2026, 2027, 2028].map(year => (
+                    <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>과정 (프로그램)</Label>
               <Select
-                value={formData.course_name}
+                value={String(formData.course_name)}
                 onValueChange={(value) => setFormData({...formData, course_name: value})}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="과정 선택" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">선택 안함</SelectItem>
                   <SelectItem value="BS Basic">BS Basic</SelectItem>
                   <SelectItem value="BS Advanced">BS Advanced</SelectItem>
                 </SelectContent>

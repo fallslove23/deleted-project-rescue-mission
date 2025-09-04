@@ -20,6 +20,7 @@ type SurveyEditable = {
   combined_round_start: number | null;
   combined_round_end: number | null;
   round_label: string | null;
+  is_test?: boolean | null;
 };
 
 type Course = { id: string; title: string };
@@ -99,32 +100,42 @@ export default function SurveyInfoEditDialog({
     }
   };
 
-  // 편집 초기값 구성 (datetime-local 변환)
+  // 편집 초기값 구성 (datetime-local 변환 개선)
   const toLocal = (iso?: string | null) => {
     if (!iso) return "";
-    const d = new Date(iso);
-    const off = d.getTimezoneOffset();
-    return new Date(d.getTime() - off * 60 * 1000).toISOString().slice(0, 16);
-    // ↑ input[type=datetime-local] 포맷
+    try {
+      const d = new Date(iso);
+      // UTC 시간을 로컬 시간으로 변환하여 YYYY-MM-DDTHH:mm 형식으로 반환
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    } catch (error) {
+      console.error("Date conversion error:", error);
+      return "";
+    }
   };
 
   const initial = survey
     ? {
-        education_year: survey.education_year,
-        education_round: survey.education_round,
-        education_day: survey.education_day ?? 1,
-        course_name: survey.course_name ?? "",
-        expected_participants: survey.expected_participants ?? 0,
+        education_year: survey.education_year || new Date().getFullYear(),
+        education_round: survey.education_round || 1,
+        education_day: survey.education_day || 1,
+        course_name: survey.course_name || "",
+        expected_participants: survey.expected_participants || 0,
         start_date: toLocal(survey.start_date),
         end_date: toLocal(survey.end_date),
-        description: survey.description ?? "",
-        is_combined: !!survey.is_combined,
-        combined_round_start: survey.combined_round_start,
-        combined_round_end: survey.combined_round_end,
-        course_id: survey.course_id,
-        instructor_id: survey.instructor_id,
+        description: survey.description || "",
+        is_combined: Boolean(survey.is_combined),
+        combined_round_start: survey.combined_round_start || null,
+        combined_round_end: survey.combined_round_end || null,
+        course_id: survey.course_id || "",
+        instructor_id: survey.instructor_id || "",
+        is_test: Boolean(survey.is_test)
       }
-    : undefined;
+    : null;
 
   console.log("SurveyInfoEditDialog - Survey data:", survey);
   console.log("SurveyInfoEditDialog - Initial values:", initial);
@@ -136,7 +147,7 @@ export default function SurveyInfoEditDialog({
           <DialogTitle className="text-base sm:text-lg">설문 정보 수정</DialogTitle>
         </DialogHeader>
 
-        {survey && (
+        {survey && initial && (
           <SimplifiedSurveyForm
             initial={initial}
             onSubmit={handleSubmit}
