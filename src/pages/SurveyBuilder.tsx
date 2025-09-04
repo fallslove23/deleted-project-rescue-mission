@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Plus, Trash2, Edit3 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import QuestionEditForm from "@/components/QuestionEditForm";
 
 type Survey = {
   id: string;
@@ -440,7 +441,99 @@ export default function SurveyBuilder() {
         </CardContent>
       </Card>
 
-      {/* 이 아래는 문항 구성/섹션 등 기존 빌더 UI가 있었다면 그대로 유지하세요 */}
+      {/* 질문 관리 섹션 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>설문 질문</CardTitle>
+          <Button onClick={() => {
+            setEditingQuestion(null);
+            setQuestionDialogOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-2" />
+            질문 추가
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {questions.map((question, index) => (
+              <div key={question.id} className="border rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-medium">질문 {index + 1}</span>
+                      <span className="text-xs px-2 py-1 bg-muted rounded">
+                        {question.question_type}
+                      </span>
+                      {question.scope && (
+                        <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
+                          {question.scope}
+                        </span>
+                      )}
+                      {question.is_required && (
+                        <span className="text-xs text-destructive">필수</span>
+                      )}
+                    </div>
+                    <p className="text-sm mb-2">{question.question_text}</p>
+                    {question.options && (
+                      <div className="text-xs text-muted-foreground">
+                        옵션: {JSON.stringify(question.options)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingQuestion(question);
+                        setQuestionDialogOpen(true);
+                      }}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteQuestion(question.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {questions.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                아직 질문이 없습니다. 질문을 추가해보세요.
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 질문 편집 다이얼로그 */}
+      <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingQuestion ? "질문 편집" : "새 질문 추가"}
+            </DialogTitle>
+          </DialogHeader>
+          <QuestionEditForm
+            question={editingQuestion}
+            surveyId={id!}
+            onSave={async () => {
+              await handleQuestionSave();
+              setQuestionDialogOpen(false);
+              setEditingQuestion(null);
+            }}
+            onCancel={() => {
+              setQuestionDialogOpen(false);
+              setEditingQuestion(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
