@@ -8,8 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Plus, Trash2, Edit3 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Edit3, GripVertical, Download, FolderPlus, Copy } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import QuestionEditForm from "@/components/QuestionEditForm";
 
 type Survey = {
@@ -78,6 +84,215 @@ export default function SurveyBuilder() {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
+  
+  // 추가 상태 변수들
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [importTemplateOpen, setImportTemplateOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const [editingSection, setEditingSection] = useState<SurveySection | null>(null);
+  const [sectionForm, setSectionForm] = useState({ name: "", description: "" });
+
+  // 드래그 앤 드롭 센서
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // 템플릿 목록 로드
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('survey_templates')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        setTemplates(data || []);
+      } catch (error) {
+        console.error('Templates loading error:', error);
+      }
+    };
+    
+    loadTemplates();
+  }, []);
+
+  // 섹션 추가/수정
+  const handleSectionSave = async () => {
+    if (!sectionForm.name.trim()) {
+      toast({ title: "오류", description: "섹션 이름을 입력해주세요.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      if (editingSection) {
+        // 수정
+        const { error } = await supabase
+          .from('survey_sections')
+          .update({
+            name: sectionForm.name,
+            description: sectionForm.description || null,
+          })
+          .eq('id', editingSection.id);
+        
+        if (error) throw error;
+        
+        setSections(prev => prev.map(s => 
+          s.id === editingSection.id 
+            ? { ...s, name: sectionForm.name, description: sectionForm.description }
+            : s
+        ));
+        
+        toast({ title: "성공", description: "섹션이 수정되었습니다." });
+      } else {
+        // 추가
+        const { data, error } = await supabase
+          .from('survey_sections')
+          .insert({
+            survey_id: surveyId,
+            name: sectionForm.name,
+            description: sectionForm.description || null,
+            order_index: sections.length,
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        setSections(prev => [...prev, data]);
+        toast({ title: "성공", description: "섹션이 추가되었습니다." });
+      }
+      
+      setSectionDialogOpen(false);
+      setEditingSection(null);
+      setSectionForm({ name: "", description: "" });
+    } catch (error: any) {
+      console.error(error);
+      toast({ title: "오류", description: error.message || "섹션 저장 중 오류가 발생했습니다.", variant: "destructive" });
+    }
+  };
+
+  // 섹션 삭제
+  const deleteSection = async (sectionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('survey_sections')
+        .delete()
+        .eq('id', sectionId);
+      
+      if (error) throw error;
+      
+      setSections(prev => prev.filter(s => s.id !== sectionId));
+      
+      // 해당 섹션의 질문들의 section_id를 null로 업데이트
+      setQuestions(prev => prev.map(q => 
+        q.section_id === sectionId ? { ...q, section_id: null } : q
+      ));
+      
+      toast({ title: "성공", description: "섹션이 삭제되었습니다." });
+    } catch (error: any) {
+      console.error(error);
+      toast({ title: "오류", description: error.message || "섹션 삭제 중 오류가 발생했습니다.", variant: "destructive" });
+    }
+  };
+
+  // 템플릿에서 질문 가져오기
+  const importFromTemplate = async () => {
+    if (!selectedTemplateId) {
+      toast({ title: "오류", description: "템플릿을 선택해주세요.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { data: templateQuestions, error } = await supabase
+        .from('template_questions')
+        .select('*')
+        .eq('template_id', selectedTemplateId)
+        .order('order_index');
+      
+      if (error) throw error;
+
+      const newQuestions = templateQuestions?.map(tq => ({
+        survey_id: surveyId!,
+        question_text: tq.question_text,
+        question_type: tq.question_type,
+        options: tq.options,
+        is_required: tq.is_required,
+        satisfaction_type: tq.satisfaction_type,
+        order_index: questions.length + tq.order_index,
+        scope: 'session' as const,
+      })) || [];
+
+      if (newQuestions.length === 0) {
+        toast({ title: "알림", description: "선택한 템플릿에 질문이 없습니다." });
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from('survey_questions')
+        .insert(newQuestions);
+      
+      if (insertError) throw insertError;
+
+      await handleQuestionSave();
+      
+      toast({ 
+        title: "성공", 
+        description: `${newQuestions.length}개의 질문을 가져왔습니다.` 
+      });
+      
+      setImportTemplateOpen(false);
+      setSelectedTemplateId("");
+    } catch (error: any) {
+      console.error(error);
+      toast({ title: "오류", description: error.message || "템플릿 가져오기 중 오류가 발생했습니다.", variant: "destructive" });
+    }
+  };
+
+  // 질문 순서 변경 (드래그 앤 드롭)
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = questions.findIndex(q => q.id === active.id);
+    const newIndex = questions.findIndex(q => q.id === over.id);
+    
+    const reorderedQuestions = arrayMove(questions, oldIndex, newIndex);
+    setQuestions(reorderedQuestions);
+    
+    // 서버에 순서 업데이트
+    try {
+      const updatePromises = reorderedQuestions.map((question, index) =>
+        supabase
+          .from('survey_questions')
+          .update({ order_index: index })
+          .eq('id', question.id)
+      );
+      
+      await Promise.all(updatePromises);
+    } catch (error) {
+      console.error('Error updating question order:', error);
+      // 실패시 원래 순서로 되돌림
+      await handleQuestionSave();
+    }
+  };
+
+  // 섹션별 질문 그룹화
+  const questionsBySection = useMemo(() => {
+    const grouped: { [key: string]: SurveyQuestion[] } = {
+      unassigned: questions.filter(q => !q.section_id)
+    };
+    
+    sections.forEach(section => {
+      grouped[section.id] = questions.filter(q => q.section_id === section.id);
+    });
+    
+    return grouped;
+  }, [questions, sections]);
 
   const [form, setForm] = useState<Partial<Survey>>({
     title: "",
@@ -578,77 +793,254 @@ export default function SurveyBuilder() {
         </CardContent>
       </Card>
 
-      {/* 질문 관리 섹션 */}
+      {/* 섹션 관리 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>설문 질문</CardTitle>
-          <Button onClick={() => {
-            console.log('SurveyBuilder - 질문 추가 button clicked');
-            setEditingQuestion(null);
-            setQuestionDialogOpen(true);
-            console.log('SurveyBuilder - Dialog should open now, questionDialogOpen:', true);
-          }}>
-            <Plus className="h-4 w-4 mr-2" />
-            질문 추가
+          <CardTitle>섹션 관리</CardTitle>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setEditingSection(null);
+              setSectionForm({ name: "", description: "" });
+              setSectionDialogOpen(true);
+            }}
+          >
+            <FolderPlus className="h-4 w-4 mr-2" />
+            섹션 추가
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {questions.map((question, index) => (
-              <div key={question.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium">질문 {index + 1}</span>
-                      <span className="text-xs px-2 py-1 bg-muted rounded">
-                        {question.question_type}
-                      </span>
-                      {question.scope && (
-                        <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
-                          {question.scope}
-                        </span>
-                      )}
-                      {question.is_required && (
-                        <span className="text-xs text-destructive">필수</span>
-                      )}
-                    </div>
-                    <p className="text-sm mb-2">{question.question_text}</p>
-                    {question.options && (
-                      <div className="text-xs text-muted-foreground">
-                        옵션: {JSON.stringify(question.options)}
-                      </div>
+          {sections.length > 0 ? (
+            <div className="space-y-2">
+              {sections.map((section) => (
+                <div key={section.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <h4 className="font-medium">{section.name}</h4>
+                    {section.description && (
+                      <p className="text-sm text-muted-foreground">{section.description}</p>
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
+                    <Button 
+                      variant="ghost" 
                       size="sm"
                       onClick={() => {
-                        setEditingQuestion(question);
-                        setQuestionDialogOpen(true);
+                        setEditingSection(section);
+                        setSectionForm({ 
+                          name: section.name, 
+                          description: section.description || "" 
+                        });
+                        setSectionDialogOpen(true);
                       }}
                     >
                       <Edit3 className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteQuestion(question.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>섹션 삭제</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            이 섹션을 삭제하시겠습니까? 섹션에 속한 질문들은 미분류로 이동됩니다.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteSection(section.id)}>
+                            삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              섹션이 없습니다. 섹션을 추가하여 질문을 구성해보세요.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 질문 관리 섹션 - 개선된 버전 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>설문 질문</CardTitle>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setImportTemplateOpen(true)}
+              disabled={templates.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              템플릿에서 가져오기
+            </Button>
+            <Button onClick={() => {
+              console.log('SurveyBuilder - 질문 추가 button clicked');
+              setEditingQuestion(null);
+              setQuestionDialogOpen(true);
+              console.log('SurveyBuilder - Dialog should open now, questionDialogOpen:', true);
+            }}>
+              <Plus className="h-4 w-4 mr-2" />
+              질문 추가
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {questions.length > 0 ? (
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="space-y-6">
+                {/* 미분류 질문들 */}
+                {questionsBySection.unassigned.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-3 text-muted-foreground">미분류 질문</h3>
+                    <SortableContext 
+                      items={questionsBySection.unassigned.map(q => q.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-2">
+                        {questionsBySection.unassigned.map((question) => (
+                          <SortableQuestion 
+                            key={question.id}
+                            question={question}
+                            onEdit={(q) => {
+                              setEditingQuestion(q);
+                              setQuestionDialogOpen(true);
+                            }}
+                            onDelete={deleteQuestion}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </div>
+                )}
+
+                {/* 섹션별 질문들 */}
+                {sections.map((section) => (
+                  questionsBySection[section.id]?.length > 0 && (
+                    <div key={section.id}>
+                      <h3 className="text-sm font-medium mb-3">{section.name}</h3>
+                      <SortableContext 
+                        items={questionsBySection[section.id].map(q => q.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-2">
+                          {questionsBySection[section.id].map((question) => (
+                            <SortableQuestion 
+                              key={question.id}
+                              question={question}
+                              onEdit={(q) => {
+                                setEditingQuestion(q);
+                                setQuestionDialogOpen(true);
+                              }}
+                              onDelete={deleteQuestion}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                      <Separator className="mt-4" />
+                    </div>
+                  )
+                ))}
               </div>
-            ))}
-            {questions.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                아직 질문이 없습니다. 질문을 추가해보세요.
+            </DndContext>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              아직 질문이 없습니다. 질문을 추가하거나 템플릿에서 가져와보세요.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 섹션 추가/수정 다이얼로그 */}
+      <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingSection ? "섹션 수정" : "새 섹션 추가"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="section-name">섹션 이름</Label>
+              <Input
+                id="section-name"
+                value={sectionForm.name}
+                onChange={(e) => setSectionForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="섹션 이름을 입력하세요"
+              />
+            </div>
+            <div>
+              <Label htmlFor="section-description">섹션 설명 (선택사항)</Label>
+              <Textarea
+                id="section-description"
+                value={sectionForm.description}
+                onChange={(e) => setSectionForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="섹션에 대한 설명을 입력하세요"
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setSectionDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleSectionSave}>
+              {editingSection ? "수정" : "추가"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 템플릿 가져오기 다이얼로그 */}
+      <Dialog open={importTemplateOpen} onOpenChange={setImportTemplateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>템플릿에서 질문 가져오기</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="template-select">템플릿 선택</Label>
+              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="가져올 템플릿을 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedTemplateId && (
+              <div className="text-sm text-muted-foreground">
+                선택한 템플릿의 모든 질문이 현재 설문에 추가됩니다.
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setImportTemplateOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={importFromTemplate} disabled={!selectedTemplateId}>
+              <Copy className="h-4 w-4 mr-2" />
+              가져오기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 질문 편집 다이얼로그 */}
       <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
@@ -661,6 +1053,7 @@ export default function SurveyBuilder() {
           <QuestionEditForm
             question={editingQuestion}
             surveyId={surveyId!}
+            sections={sections}
             onSave={async () => {
               console.log('SurveyBuilder - QuestionEditForm onSave called');
               await handleQuestionSave();
@@ -676,6 +1069,109 @@ export default function SurveyBuilder() {
           />
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Sortable Question 컴포넌트 - 드래그 앤 드롭 지원
+interface SortableQuestionProps {
+  question: SurveyQuestion;
+  onEdit: (question: SurveyQuestion) => void;
+  onDelete: (questionId: string) => void;
+}
+
+function SortableQuestion({ question, onEdit, onDelete }: SortableQuestionProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style}
+      className={`border rounded-lg p-4 ${isDragging ? 'z-50' : ''}`}
+    >
+      <div className="flex items-start gap-2">
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+        
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs px-2 py-1 bg-muted rounded">
+              {question.question_type}
+            </span>
+            {question.scope && (
+              <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
+                {question.scope}
+              </span>
+            )}
+            {question.satisfaction_type && (
+              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                {question.satisfaction_type}
+              </span>
+            )}
+            {question.is_required && (
+              <span className="text-xs text-destructive">필수</span>
+            )}
+          </div>
+          <p className="text-sm mb-2">{question.question_text}</p>
+          {question.options && (
+            <div className="text-xs text-muted-foreground">
+              옵션: {Array.isArray(question.options) 
+                ? question.options.join(', ') 
+                : question.options?.options?.join(', ') || 'N/A'
+              }
+            </div>
+          )}
+        </div>
+        
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(question)}
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>질문 삭제</AlertDialogTitle>
+                <AlertDialogDescription>
+                  이 질문을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>취소</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDelete(question.id)}>
+                  삭제
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
     </div>
   );
 }

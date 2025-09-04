@@ -27,9 +27,10 @@ interface QuestionEditFormProps {
   surveyId: string;
   onSave: () => void;
   onCancel: () => void;
+  sections?: { id: string; name: string }[];
 }
 
-export default function QuestionEditForm({ question, surveyId, onSave, onCancel }: QuestionEditFormProps) {
+export default function QuestionEditForm({ question, surveyId, onSave, onCancel, sections }: QuestionEditFormProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   
@@ -39,6 +40,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
     is_required: true,
     scope: "session" as 'session' | 'operation',
     satisfaction_type: "none",
+    section_id: "",
     options: [] as string[]
   });
 
@@ -50,6 +52,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
         is_required: question.is_required ?? true,
         scope: question.scope || "session",
         satisfaction_type: question.satisfaction_type || "none",
+        section_id: question.section_id || "",
         options: Array.isArray(question.options) ? question.options : 
                  question.options?.options ? question.options.options : []
       });
@@ -60,6 +63,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
         is_required: true,
         scope: "session",
         satisfaction_type: "none",
+        section_id: "",
         options: []
       });
     }
@@ -85,6 +89,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
         is_required: form.is_required,
         scope: form.scope,
         satisfaction_type: form.satisfaction_type === "none" ? null : form.satisfaction_type,
+        section_id: form.section_id || null,
         options: form.options.length > 0 ? { options: form.options } : null,
         order_index: question?.order_index ?? 0
       };
@@ -223,6 +228,29 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
           </SelectContent>
         </Select>
       </div>
+
+      {/* 섹션 선택 */}
+      {sections && sections.length > 0 && (
+        <div>
+          <Label htmlFor="section_id">섹션 (선택사항)</Label>
+          <Select
+            value={form.section_id}
+            onValueChange={(value) => setForm(prev => ({ ...prev, section_id: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="섹션을 선택하세요" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">미분류</SelectItem>
+              {sections.map((section) => (
+                <SelectItem key={section.id} value={section.id}>
+                  {section.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="flex items-center space-x-2">
         <Checkbox
