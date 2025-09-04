@@ -42,6 +42,10 @@ interface Survey {
   combined_round_start?: number | null;
   combined_round_end?: number | null;
 
+  // 누락된 필드들 추가
+  template_id?: string | null;
+  expected_participants?: number | null;
+
   created_at: string;
 }
 
@@ -447,30 +451,91 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
   const duplicateSurvey = async (survey: Survey) => {
     try {
-      const { error } = await supabase.from('surveys').insert([{
-        title: `${survey.title} (복사본)`,
-        description: survey.description,
-        start_date: survey.start_date,
-        end_date: survey.end_date,
-        education_year: survey.education_year,
-        education_round: survey.education_round,
-        education_day: survey.education_day || null,
-        instructor_id: survey.instructor_id,
-        course_id: survey.course_id,
-        course_name: survey.course_name || null,
-        status: 'draft',
-        created_by: user?.id,
+      // 1. 새 설문 생성 (독립적인 복사본)
+      const { data: newSurvey, error: surveyError } = await supabase
+        .from('surveys')
+        .insert([{
+          title: `${survey.title} (복사본)`,
+          description: survey.description,
+          start_date: survey.start_date,
+          end_date: survey.end_date,
+          education_year: survey.education_year,
+          education_round: survey.education_round,
+          education_day: survey.education_day || null,
+          instructor_id: survey.instructor_id,
+          course_id: survey.course_id,
+          course_name: survey.course_name || null,
+          status: 'draft',
+          created_by: user?.id,
+          template_id: survey.template_id, // 템플릿 참조 복제
+          expected_participants: survey.expected_participants,
 
-        // 합반 필드 복제
-        round_label: survey.round_label || null,
-        is_combined: !!survey.is_combined,
-        combined_round_start: survey.combined_round_start ?? null,
-        combined_round_end: survey.combined_round_end ?? null
-      }]);
+          // 합반 필드 복제
+          round_label: survey.round_label || null,
+          is_combined: !!survey.is_combined,
+          combined_round_start: survey.combined_round_start ?? null,
+          combined_round_end: survey.combined_round_end ?? null
+        }])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (surveyError) throw surveyError;
 
-      toast({ title: '성공', description: '설문조사가 복제되었습니다.' });
+      // 2. 기존 설문의 섹션들 복제
+      const { data: sections } = await supabase
+        .from('survey_sections')
+        .select('*')
+        .eq('survey_id', survey.id)
+        .order('order_index');
+
+      if (sections && sections.length > 0) {
+        const newSections = sections.map(section => ({
+          survey_id: newSurvey.id,
+          name: section.name,
+          description: section.description,
+          order_index: section.order_index
+        }));
+
+        const { data: createdSections, error: sectionsError } = await supabase
+          .from('survey_sections')
+          .insert(newSections)
+          .select();
+
+        if (sectionsError) throw sectionsError;
+
+        // 3. 기존 설문의 질문들 복제
+        const { data: questions } = await supabase
+          .from('survey_questions')
+          .select('*')
+          .eq('survey_id', survey.id)
+          .order('order_index');
+
+        if (questions && questions.length > 0) {
+          const sectionMapping = sections.reduce((acc, oldSection, index) => {
+            acc[oldSection.id] = createdSections[index].id;
+            return acc;
+          }, {} as Record<string, string>);
+
+          const newQuestions = questions.map(question => ({
+            survey_id: newSurvey.id,
+            section_id: question.section_id ? sectionMapping[question.section_id] : null,
+            question_text: question.question_text,
+            question_type: question.question_type,
+            options: question.options,
+            is_required: question.is_required,
+            order_index: question.order_index,
+            satisfaction_type: question.satisfaction_type
+          }));
+
+          const { error: questionsError } = await supabase
+            .from('survey_questions')
+            .insert(newQuestions);
+
+          if (questionsError) throw questionsError;
+        }
+      }
+
+      toast({ title: '성공', description: '설문조사가 질문과 함께 복제되었습니다.' });
       fetchData();
       fetchFilteredSurveys();
     } catch (error) {
@@ -484,13 +549,84 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   };
 
   const deleteSurvey = async (surveyId: string) => {
-    if (!window.confirm('정말로 이 설문을 삭제하시겠습니까?')) return;
+    if (!window.confirm('정말로 이 설문을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
 
     try {
-      const { error } = await supabase.from('surveys').delete().eq('id', surveyId);
+      // 삭제 전에 응답이 있는지 확인
+      const { data: responses } = await supabase
+        .from('survey_responses')
+        .select('id')
+        .eq('survey_id', surveyId)
+        .limit(1);
+
+      if (responses && responses.length > 0) {
+        const deleteAnyway = window.confirm(
+          '이 설문에는 응답 데이터가 있습니다. 삭제하면 모든 응답 데이터도 함께 삭제됩니다. 정말 삭제하시겠습니까?'
+        );
+        if (!deleteAnyway) return;
+      }
+
+      // CASCADE 삭제: 관련 데이터가 자동으로 삭제됨
+      // 1. 먼저 응답 ID들을 가져옴
+      const { data: responseIds } = await supabase
+        .from('survey_responses')
+        .select('id')
+        .eq('survey_id', surveyId);
+
+      // 2. 답변 데이터 삭제 (question_answers)
+      if (responseIds && responseIds.length > 0) {
+        const responseIdArray = responseIds.map(r => r.id);
+        const { error: answersError } = await supabase
+          .from('question_answers')
+          .delete()
+          .in('response_id', responseIdArray);
+      }
+
+      // 3. 응답 데이터 삭제 (survey_responses)
+      const { error: responsesError } = await supabase
+        .from('survey_responses')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 4. 질문 데이터 삭제 (survey_questions)
+      const { error: questionsError } = await supabase
+        .from('survey_questions')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 5. 섹션 데이터 삭제 (survey_sections)
+      const { error: sectionsError } = await supabase
+        .from('survey_sections')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 6. 설문 완료 기록 삭제 (survey_completions)
+      const { error: completionsError } = await supabase
+        .from('survey_completions')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 7. 설문 토큰 삭제 (survey_tokens)
+      const { error: tokensError } = await supabase
+        .from('survey_tokens')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 8. 설문 분석 댓글 삭제 (survey_analysis_comments)
+      const { error: commentsError } = await supabase
+        .from('survey_analysis_comments')
+        .delete()
+        .eq('survey_id', surveyId);
+
+      // 9. 마지막으로 설문 자체 삭제
+      const { error } = await supabase
+        .from('surveys')
+        .delete()
+        .eq('id', surveyId);
+
       if (error) throw error;
 
-      toast({ title: '성공', description: '설문조사가 삭제되었습니다.' });
+      toast({ title: '성공', description: '설문조사와 관련된 모든 데이터가 삭제되었습니다.' });
       fetchData();
       fetchFilteredSurveys();
     } catch (error) {

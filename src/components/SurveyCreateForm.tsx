@@ -53,64 +53,69 @@ interface SurveyCreateFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
   initialValues?: Partial<SurveyFormData>; // 추가된 속성
+  initial?: any; // SurveyInfoEditDialog에서 사용하는 prop 추가
 }
 
 export default function SurveyCreateForm({ 
   onSubmit, 
   onCancel, 
   isSubmitting = false,
-  initialValues // 새로 추가된 prop
+  initialValues, // 새로 추가된 prop
+  initial // SurveyInfoEditDialog에서 사용하는 prop
 }: SurveyCreateFormProps) {
+  
+  // initial prop이 있으면 그것을 우선 사용, 없으면 initialValues 사용
+  const actualInitialValues = initial || initialValues;
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   
-  // initialValues를 사용하여 기본값 설정
+  // actualInitialValues를 사용하여 기본값 설정
   const [formData, setFormData] = useState({
-    education_year: initialValues?.education_year ?? new Date().getFullYear(),
-    course_name: initialValues?.course_name ?? '',
-    education_round: initialValues?.education_round ?? 1,
-    is_combined: initialValues?.is_combined ?? false,
-    combined_round_start: initialValues?.combined_round_start ?? null,
-    combined_round_end: initialValues?.combined_round_end ?? null,
-    education_day: initialValues?.education_day ?? 1,
-    expected_participants: initialValues?.expected_participants ?? 0,
-    start_date: initialValues?.start_date ?? '',
-    end_date: initialValues?.end_date ?? '',
-    description: initialValues?.description ?? ''
+    education_year: actualInitialValues?.education_year ?? new Date().getFullYear(),
+    course_name: actualInitialValues?.course_name ?? '',
+    education_round: actualInitialValues?.education_round ?? 1,
+    is_combined: actualInitialValues?.is_combined ?? false,
+    combined_round_start: actualInitialValues?.combined_round_start ?? null,
+    combined_round_end: actualInitialValues?.combined_round_end ?? null,
+    education_day: actualInitialValues?.education_day ?? 1,
+    expected_participants: actualInitialValues?.expected_participants ?? 0,
+    start_date: actualInitialValues?.start_date ?? '',
+    end_date: actualInitialValues?.end_date ?? '',
+    description: actualInitialValues?.description ?? ''
   });
 
-  // courseSelections도 initialValues에서 가져오거나 기본값 사용
+  // courseSelections도 actualInitialValues에서 가져오거나 기본값 사용
   const [courseSelections, setCourseSelections] = useState<CourseSelection[]>(
-    initialValues?.course_selections || [{ id: '1', courseId: '', instructorId: '' }]
+    actualInitialValues?.course_selections || [{ id: '1', courseId: '', instructorId: '' }]
   );
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // initialValues가 변경되면 formData 업데이트
+  // actualInitialValues가 변경되면 formData 업데이트
   useEffect(() => {
-    if (initialValues) {
+    if (actualInitialValues) {
       setFormData({
-        education_year: initialValues.education_year ?? new Date().getFullYear(),
-        course_name: initialValues.course_name ?? '',
-        education_round: initialValues.education_round ?? 1,
-        is_combined: initialValues.is_combined ?? false,
-        combined_round_start: initialValues.combined_round_start ?? null,
-        combined_round_end: initialValues.combined_round_end ?? null,
-        education_day: initialValues.education_day ?? 1,
-        expected_participants: initialValues.expected_participants ?? 0,
-        start_date: initialValues.start_date ?? '',
-        end_date: initialValues.end_date ?? '',
-        description: initialValues.description ?? ''
+        education_year: actualInitialValues.education_year ?? new Date().getFullYear(),
+        course_name: actualInitialValues.course_name ?? '',
+        education_round: actualInitialValues.education_round ?? 1,
+        is_combined: actualInitialValues.is_combined ?? false,
+        combined_round_start: actualInitialValues.combined_round_start ?? null,
+        combined_round_end: actualInitialValues.combined_round_end ?? null,
+        education_day: actualInitialValues.education_day ?? 1,
+        expected_participants: actualInitialValues.expected_participants ?? 0,
+        start_date: actualInitialValues.start_date ?? '',
+        end_date: actualInitialValues.end_date ?? '',
+        description: actualInitialValues.description ?? ''
       });
 
-      if (initialValues.course_selections) {
-        setCourseSelections(initialValues.course_selections);
+      if (actualInitialValues.course_selections) {
+        setCourseSelections(actualInitialValues.course_selections);
       }
     }
-  }, [initialValues]);
+  }, [actualInitialValues]);
 
   const fetchData = async () => {
     try {
