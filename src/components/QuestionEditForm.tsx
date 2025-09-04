@@ -52,7 +52,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
         is_required: question.is_required ?? true,
         scope: question.scope || "session",
         satisfaction_type: question.satisfaction_type || "none",
-        section_id: question.section_id || "",
+        section_id: question.section_id || "none",
         options: Array.isArray(question.options) ? question.options : 
                  question.options?.options ? question.options.options : []
       });
@@ -63,7 +63,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
         is_required: true,
         scope: "session",
         satisfaction_type: "none",
-        section_id: "",
+        section_id: "none",
         options: []
       });
     }
@@ -89,7 +89,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
         is_required: form.is_required,
         scope: form.scope,
         satisfaction_type: form.satisfaction_type === "none" ? null : form.satisfaction_type,
-        section_id: form.section_id || null,
+        section_id: form.section_id === "none" ? null : (form.section_id || null),
         options: form.options.length > 0 ? { options: form.options } : null,
         order_index: question?.order_index ?? 0
       };
@@ -241,7 +241,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
               <SelectValue placeholder="섹션을 선택하세요" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">미분류</SelectItem>
+              <SelectItem value="none">미분류</SelectItem>
               {sections.map((section) => (
                 <SelectItem key={section.id} value={section.id}>
                   {section.name}
