@@ -37,10 +37,13 @@ export const useCourseReportsData = (
   selectedInstructor: string
 ) => {
   const [reports, setReports] = useState<CourseReport[]>([]);
+  const [previousReports, setPreviousReports] = useState<CourseReport[]>([]);
+  const [trendData, setTrendData] = useState<any[]>([]);
   const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
   const [availableRounds, setAvailableRounds] = useState<number[]>([]);
   const [availableInstructors, setAvailableInstructors] = useState<{id: string, name: string}[]>([]);
+  const [textualResponses, setTextualResponses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -256,6 +259,16 @@ export const useCourseReportsData = (
 
       setReports([courseReport]);
       setInstructorStats(finalInstructorStats);
+
+      // 이전 차수 데이터 가져오기
+      await fetchPreviousReports(selectedYear, selectedCourse, selectedRound);
+      
+      // 트렌드 데이터 가져오기 (최근 5개 차수)
+      await fetchTrendData(selectedYear, selectedCourse);
+
+      // 서술형 응답 가져오기
+      await fetchTextualResponses(surveys);
+
     } catch (error) {
       console.error('Error fetching reports:', error);
       toast({
@@ -268,12 +281,203 @@ export const useCourseReportsData = (
     }
   };
 
+  const fetchPreviousReports = async (year: number, course: string, round: number | null) => {
+    try {
+      const previousRound = round ? round - 1 : null;
+      if (!previousRound || previousRound < 1) return;
+
+      let query = supabase
+        .from('surveys')
+        .select(`
+          id,
+          education_year,
+          education_round,
+          course_name,
+          survey_responses (
+            id,
+            question_answers (
+              id,
+              answer_value,
+              survey_questions (satisfaction_type, question_type)
+            )
+          )
+        `)
+        .eq('education_year', year)
+        .eq('education_round', previousRound)
+        .in('status', ['completed', 'active']);
+
+      if (course) {
+        query = query.eq('course_name', course);
+      }
+
+      const { data: prevSurveys } = await query;
+      
+      if (prevSurveys) {
+        // 이전 차수 통계 계산 (현재 로직과 동일)
+        let prevInstructorSatisfactions: number[] = [];
+        let prevCourseSatisfactions: number[] = [];
+        let prevOperationSatisfactions: number[] = [];
+        let prevTotalResponses = 0;
+
+        prevSurveys.forEach(survey => {
+          prevTotalResponses += survey.survey_responses?.length || 0;
+          
+          survey.survey_responses?.forEach(response => {
+            response.question_answers?.forEach(answer => {
+              if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
+                let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
+                if (score <= 5 && score > 0) score = score * 2;
+                
+                if (answer.survey_questions.satisfaction_type === 'instructor') {
+                  prevInstructorSatisfactions.push(score);
+                } else if (answer.survey_questions.satisfaction_type === 'course') {
+                  prevCourseSatisfactions.push(score);
+                } else if (answer.survey_questions.satisfaction_type === 'operation') {
+                  prevOperationSatisfactions.push(score);
+                }
+              }
+            });
+          });
+        });
+
+        const prevReport: CourseReport = {
+          id: `prev-${year}-${course || 'all'}-${previousRound}`,
+          education_year: year,
+          education_round: previousRound,
+          course_title: course || '전체 과정',
+          total_surveys: prevSurveys.length,
+          total_responses: prevTotalResponses,
+          avg_instructor_satisfaction: prevInstructorSatisfactions.length > 0 
+            ? prevInstructorSatisfactions.reduce((a, b) => a + b, 0) / prevInstructorSatisfactions.length 
+            : 0,
+          avg_course_satisfaction: prevCourseSatisfactions.length > 0
+            ? prevCourseSatisfactions.reduce((a, b) => a + b, 0) / prevCourseSatisfactions.length
+            : 0,
+          report_data: {
+            operation_satisfaction: prevOperationSatisfactions.length > 0
+              ? prevOperationSatisfactions.reduce((a, b) => a + b, 0) / prevOperationSatisfactions.length
+              : 0
+          },
+          created_at: new Date().toISOString()
+        };
+
+        setPreviousReports([prevReport]);
+      }
+    } catch (error) {
+      console.error('Error fetching previous reports:', error);
+    }
+  };
+
+  const fetchTrendData = async (year: number, course: string) => {
+    try {
+      // 최근 5개 차수의 데이터 가져오기
+      let query = supabase
+        .from('surveys')
+        .select(`
+          education_year,
+          education_round,
+          course_name,
+          survey_responses (
+            id,
+            question_answers (
+              answer_value,
+              survey_questions (satisfaction_type, question_type)
+            )
+          )
+        `)
+        .eq('education_year', year)
+        .in('status', ['completed', 'active'])
+        .order('education_round', { ascending: true });
+
+      if (course) {
+        query = query.eq('course_name', course);
+      }
+
+      const { data: trendSurveys } = await query;
+      
+      if (trendSurveys) {
+        const trendMap = new Map();
+        
+        trendSurveys.forEach(survey => {
+          const round = survey.education_round;
+          if (!trendMap.has(round)) {
+            trendMap.set(round, {
+              round,
+              instructor: [],
+              course: [],
+              operation: []
+            });
+          }
+          
+          const roundData = trendMap.get(round);
+          
+          survey.survey_responses?.forEach(response => {
+            response.question_answers?.forEach(answer => {
+              if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
+                let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
+                if (score <= 5 && score > 0) score = score * 2;
+                
+                if (answer.survey_questions.satisfaction_type === 'instructor') {
+                  roundData.instructor.push(score);
+                } else if (answer.survey_questions.satisfaction_type === 'course') {
+                  roundData.course.push(score);
+                } else if (answer.survey_questions.satisfaction_type === 'operation') {
+                  roundData.operation.push(score);
+                }
+              }
+            });
+          });
+        });
+
+        const trendArray = Array.from(trendMap.values()).map(data => ({
+          round: `${data.round}차`,
+          강사만족도: data.instructor.length > 0 ? 
+            Number((data.instructor.reduce((a, b) => a + b, 0) / data.instructor.length).toFixed(1)) : 0,
+          과정만족도: data.course.length > 0 ? 
+            Number((data.course.reduce((a, b) => a + b, 0) / data.course.length).toFixed(1)) : 0,
+          운영만족도: data.operation.length > 0 ? 
+            Number((data.operation.reduce((a, b) => a + b, 0) / data.operation.length).toFixed(1)) : 0
+        })).slice(-5); // 최근 5개만
+
+        setTrendData(trendArray);
+      }
+    } catch (error) {
+      console.error('Error fetching trend data:', error);
+    }
+  };
+
+  const fetchTextualResponses = async (surveys: any[]) => {
+    try {
+      const textResponses: string[] = [];
+      
+      surveys?.forEach(survey => {
+        survey.survey_responses?.forEach(response => {
+          response.question_answers?.forEach(answer => {
+            if (answer.survey_questions?.question_type === 'text' && answer.answer_value) {
+              const text = typeof answer.answer_value === 'string' ? answer.answer_value : String(answer.answer_value);
+              if (text.trim().length > 0) {
+                textResponses.push(text.trim());
+              }
+            }
+          });
+        });
+      });
+
+      setTextualResponses(textResponses);
+    } catch (error) {
+      console.error('Error fetching textual responses:', error);
+    }
+  };
+
   return {
     reports,
+    previousReports,
+    trendData,
     instructorStats,
     availableCourses,
     availableRounds,
     availableInstructors,
+    textualResponses,
     loading,
     fetchAvailableCourses,
     fetchReports
