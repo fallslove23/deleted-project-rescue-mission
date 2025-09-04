@@ -131,7 +131,7 @@ export default function SurveyInfoEditDialog({
 
         {survey && (
           <SurveyCreateForm
-            initial={initial}
+            initialValues={initial}
             onSubmit={handleSubmit}
             onCancel={() => onOpenChange(false)}
             isSubmitting={false}
