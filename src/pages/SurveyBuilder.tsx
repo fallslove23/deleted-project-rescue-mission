@@ -1106,30 +1106,49 @@ function SortableQuestion({ question, onEdit, onDelete }: SortableQuestionProps)
         </div>
         
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs px-2 py-1 bg-muted rounded">
-              {question.question_type}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            {/* 답변 방식 태그 */}
+            <span className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded-full font-medium">
+              {question.question_type === 'multiple_choice' && '☑️ 복수선택'}
+              {question.question_type === 'single_choice' && '⚪ 단일선택'}
+              {question.question_type === 'dropdown' && '📋 드롭다운'}
+              {question.question_type === 'text' && '✏️ 주관식'}
+              {question.question_type === 'textarea' && '📝 장문형'}
+              {question.question_type === 'rating' && '⭐ 평점'}
+              {question.question_type === 'scale' && '📊 척도'}
             </span>
+            
+            {/* 인원 범위 태그 */}
             {question.scope && (
-              <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
-                {question.scope}
+              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                {question.scope === 'session' && '👥 1~10인제'}
+                {question.scope === 'operation' && '👤 1~5인제'}
               </span>
             )}
+            
+            {/* 만족도 분류 태그 */}
             {question.satisfaction_type && (
-              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                {question.satisfaction_type}
+              <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
+                {question.satisfaction_type === 'instructor' && '👨‍🏫 강사'}
+                {question.satisfaction_type === 'course' && '📚 과목'}  
+                {question.satisfaction_type === 'operation' && '⚙️ 운영'}
+                {question.satisfaction_type === 'overall' && '🌟 전반적'}
               </span>
             )}
+            
+            {/* 필수 응답 태그 */}
             {question.is_required && (
-              <span className="text-xs text-destructive">필수</span>
+              <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
+                ⚠️ 필수
+              </span>
             )}
           </div>
-          <p className="text-sm mb-2">{question.question_text}</p>
+          <p className="text-sm mb-2 leading-relaxed">{question.question_text}</p>
           {question.options && (
-            <div className="text-xs text-muted-foreground">
-              옵션: {Array.isArray(question.options) 
-                ? question.options.join(', ') 
-                : question.options?.options?.join(', ') || 'N/A'
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+              <strong>선택 옵션:</strong> {Array.isArray(question.options) 
+                ? question.options.join(' • ') 
+                : question.options?.options?.join(' • ') || 'N/A'
               }
             </div>
           )}
