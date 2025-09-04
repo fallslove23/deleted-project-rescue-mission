@@ -38,7 +38,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
     question_type: "multiple_choice",
     is_required: true,
     scope: "session" as 'session' | 'operation',
-    satisfaction_type: "",
+    satisfaction_type: "none",
     options: [] as string[]
   });
 
@@ -49,7 +49,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
         question_type: question.question_type || "multiple_choice",
         is_required: question.is_required ?? true,
         scope: question.scope || "session",
-        satisfaction_type: question.satisfaction_type || "",
+        satisfaction_type: question.satisfaction_type || "none",
         options: Array.isArray(question.options) ? question.options : 
                  question.options?.options ? question.options.options : []
       });
@@ -59,7 +59,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
         question_type: "multiple_choice",
         is_required: true,
         scope: "session",
-        satisfaction_type: "",
+        satisfaction_type: "none",
         options: []
       });
     }
@@ -84,7 +84,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
         question_type: form.question_type,
         is_required: form.is_required,
         scope: form.scope,
-        satisfaction_type: form.satisfaction_type || null,
+        satisfaction_type: form.satisfaction_type === "none" ? null : form.satisfaction_type,
         options: form.options.length > 0 ? { options: form.options } : null,
         order_index: question?.order_index ?? 0
       };
@@ -215,7 +215,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel 
             <SelectValue placeholder="선택하세요" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">없음</SelectItem>
+            <SelectItem value="none">없음</SelectItem>
             <SelectItem value="instructor">강사</SelectItem>
             <SelectItem value="course">과목</SelectItem>
             <SelectItem value="facility">시설</SelectItem>
