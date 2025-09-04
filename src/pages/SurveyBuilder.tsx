@@ -79,16 +79,21 @@ export default function SurveyBuilder() {
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [notFound, setNotFound] = useState(false);
   
+  // 기본 상태 변수들
   const [courses, setCourses] = useState<Course[]>([]);
   const [sections, setSections] = useState<SurveySection[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
+  
+  // 질문 편집 관련 상태
   const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   
-  // 추가 상태 변수들
+  // 템플릿 관련 상태
   const [templates, setTemplates] = useState<any[]>([]);
   const [importTemplateOpen, setImportTemplateOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  
+  // 섹션 관리 관련 상태
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<SurveySection | null>(null);
   const [sectionForm, setSectionForm] = useState({ name: "", description: "" });
