@@ -1115,16 +1115,8 @@ function SortableQuestion({ question, onEdit, onDelete }: SortableQuestionProps)
               {question.question_type === 'text' && '✏️ 주관식'}
               {question.question_type === 'textarea' && '📝 장문형'}
               {question.question_type === 'rating' && '⭐ 평점'}
-              {question.question_type === 'scale' && '📊 척도'}
+              {question.question_type === 'scale' && '📊 척도 (1-10)'}
             </span>
-            
-            {/* 인원 범위 태그 */}
-            {question.scope && (
-              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                {question.scope === 'session' && '👥 1~10인제'}
-                {question.scope === 'operation' && '👤 1~5인제'}
-              </span>
-            )}
             
             {/* 만족도 분류 태그 */}
             {question.satisfaction_type && (

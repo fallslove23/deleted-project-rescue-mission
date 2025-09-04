@@ -216,13 +216,21 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
           )}
           
           {(form.question_type === 'rating' || form.question_type === 'scale') && (
-            <div className="flex space-x-2">
-              {[1, 2, 3, 4, 5].map((num) => (
-                <label key={num} className="flex items-center space-x-1">
-                  <input type="radio" name="rating-preview" disabled />
-                  <span className="text-sm">{num}</span>
-                </label>
-              ))}
+            <div className="flex space-x-2 flex-wrap">
+              {form.question_type === 'rating' 
+                ? [1, 2, 3, 4, 5].map((num) => (
+                    <label key={num} className="flex items-center space-x-1">
+                      <input type="radio" name="rating-preview" disabled />
+                      <span className="text-sm">{num}</span>
+                    </label>
+                  ))
+                : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    <label key={num} className="flex items-center space-x-1">
+                      <input type="radio" name="scale-preview" disabled />
+                      <span className="text-sm">{num}</span>
+                    </label>
+                  ))
+              }
             </div>
           )}
         </div>
@@ -251,7 +259,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
       {renderQuestionPreview()}
 
       {/* 질문 설정 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="question_type" className="text-sm font-medium">
             답변 방식 <span className="text-red-500">*</span>
@@ -270,25 +278,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
               <SelectItem value="text">✏️ 주관식 (한줄)</SelectItem>
               <SelectItem value="textarea">📝 주관식 (여러줄)</SelectItem>
               <SelectItem value="rating">⭐ 평점 (1-5점)</SelectItem>
-              <SelectItem value="scale">📊 척도 (1-5점)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="scope" className="text-sm font-medium">
-            참여인원 범위
-          </Label>
-          <Select
-            value={form.scope}
-            onValueChange={(value: 'session' | 'operation') => setForm(prev => ({ ...prev, scope: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="session">👥 1~10인제</SelectItem>
-              <SelectItem value="operation">👤 1~5인제</SelectItem>
+              <SelectItem value="scale">📊 척도 (1-10점)</SelectItem>
             </SelectContent>
           </Select>
         </div>
