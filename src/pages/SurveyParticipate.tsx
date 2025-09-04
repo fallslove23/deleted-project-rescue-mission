@@ -59,6 +59,14 @@ interface Question {
   scope: 'session' | 'operation';
 }
 
+interface Instructor {
+  id: string;
+  name: string;
+  email?: string;
+  photo_url?: string;
+  bio?: string;
+}
+
 interface SessionAnswer {
   sessionId: string;
   questionAnswers: Answer[];
@@ -94,6 +102,7 @@ const SurveyParticipate = () => {
   const [surveySessions, setSurveySessions] = useState<SurveySession[]>([]);
   const [sessionAnswers, setSessionAnswers] = useState<SessionAnswer[]>([]);
   const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
+  const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [tokenCode, setTokenCode] = useState('');
   const [needsToken, setNeedsToken] = useState(false);
   const [tokenValidated, setTokenValidated] = useState(false);
@@ -213,7 +222,13 @@ const SurveyParticipate = () => {
         .select('*')
         .eq('survey_id', surveyId)
         .order('order_index');
-      setQuestions(questionsData || []);
+      
+      // Cast the questions data to match our interface
+      const typedQuestions = (questionsData || []).map(q => ({
+        ...q,
+        scope: (q.scope as 'session' | 'operation') || 'session'
+      }));
+      setQuestions(typedQuestions);
 
       const initialAnswers =
         (questionsData || []).map((q) => ({
