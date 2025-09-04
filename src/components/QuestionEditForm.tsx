@@ -223,7 +223,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
             <SelectItem value="none">없음</SelectItem>
             <SelectItem value="instructor">강사</SelectItem>
             <SelectItem value="course">과목</SelectItem>
-            <SelectItem value="facility">시설</SelectItem>
+            <SelectItem value="operation">운영</SelectItem>
             <SelectItem value="overall">전반적</SelectItem>
           </SelectContent>
         </Select>
