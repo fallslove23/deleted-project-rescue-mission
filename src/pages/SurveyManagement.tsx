@@ -46,6 +46,8 @@ interface Survey {
   template_id?: string | null;
   expected_participants?: number | null;
   is_test?: boolean | null; // 테스트 데이터 여부 추가
+  created_by?: string | null; // 작성자 ID
+  creator_name?: string | null; // 작성자 이름 (조인)
 
   created_at: string;
 }
@@ -198,7 +200,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const fetchData = async () => {
     try {
       const [surveysRes, instructorsRes, coursesRes, instructorCoursesRes] = await Promise.all([
-        supabase.from('surveys').select('*').order('created_at', { ascending: false }),
+        supabase.from('surveys')
+          .select(`
+            *,
+            profiles!surveys_created_by_fkey(display_name)
+          `)
+          .order('created_at', { ascending: false }),
         supabase.from('instructors').select('*').order('name'),
         supabase.from('courses').select('*').order('title'),
         supabase.from('instructor_courses').select('*')
@@ -209,7 +216,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       if (coursesRes.error) throw coursesRes.error;
       if (instructorCoursesRes.error) throw instructorCoursesRes.error;
 
-      setSurveys((surveysRes.data as Survey[]) || []);
+      // 작성자 이름을 포함한 데이터 매핑
+      const surveysWithCreator = (surveysRes.data || []).map((survey: any) => ({
+        ...survey,
+        creator_name: survey.profiles?.display_name || '알 수 없음'
+      }));
+      setSurveys(surveysWithCreator);
       setInstructors(instructorsRes.data || []);
       setCourses(coursesRes.data || []);
       setInstructorCourses(instructorCoursesRes.data || []);
@@ -1033,6 +1045,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
                         {/* Info */}
                         <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+                          <p className="break-words"><strong>작성자:</strong> {survey.creator_name || '알 수 없음'}</p>
                           <p className="break-words"><strong>표시:</strong> {displayRoundLabel(survey)}</p>
                           <p className="break-words"><strong>강사:</strong> {surveyInstructor?.name || 'Unknown'}</p>
                           <p className="break-words"><strong>과목:</strong> {surveyCourse?.title || 'Unknown'}</p>
