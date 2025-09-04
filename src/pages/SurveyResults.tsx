@@ -18,6 +18,8 @@ import InstructorIndividualStats from '@/components/InstructorIndividualStats';
 import SurveyStatsByRound from '@/components/SurveyStatsByRound';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { exportResponsesAsCSV, exportSummaryAsCSV, downloadCSV, generateCSVFilename, SurveyResultData } from '@/utils/csvExport';
+import { TestDataToggle } from '@/components/TestDataToggle';
+import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 
 interface Survey {
   id: string;
@@ -73,6 +75,7 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const testDataOptions = useTestDataToggle();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [allInstructors, setAllInstructors] = useState<Instructor[]>([]);
@@ -95,9 +98,21 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const { toast } = useToast();
 
+  // Refresh data when test data toggle changes
+  useEffect(() => {
+    if (profile) {
+      fetchAllResponses();
+      fetchAllQuestionsAndAnswers();
+      fetchSurveys();
+      fetchAvailableCourses();
+    }
+  }, [testDataOptions.includeTestData]);
+
   // 사용자 권한 확인 (새로운 역할 시스템 사용)
   const { userRoles } = useAuth();
   const isAdmin = userRoles.includes('admin');
+  const canViewAll = isAdmin || userRoles.includes('operator') || userRoles.includes('director');
+  const isInstructorRole = userRoles.includes('instructor');
   const isOperator = userRoles.includes('operator');
   const isDirector = userRoles.includes('director');
   const isInstructor = userRoles.includes('instructor');
@@ -139,14 +154,17 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
 
   const fetchAllResponses = async () => {
     try {
-      let query = supabase.from('survey_responses').select('*');
+      let query = testDataOptions.includeTestData 
+        ? supabase.from('survey_responses').select('*')
+        : supabase.from('analytics_responses').select('*');
       
       // 강사인 경우 자신의 강의 설문에 대한 응답만 조회, 관리자/운영자/조직장인 경우 전체 응답 조회
       if (isInstructor && profile?.instructor_id && !canViewAll) {
-        const { data: instructorSurveys } = await supabase
-          .from('surveys')
-          .select('id')
-          .eq('instructor_id', profile.instructor_id);
+        const surveyQuery = testDataOptions.includeTestData
+          ? supabase.from('surveys').select('id').eq('instructor_id', profile.instructor_id)
+          : supabase.from('analytics_surveys').select('id').eq('instructor_id', profile.instructor_id);
+          
+        const { data: instructorSurveys } = await surveyQuery;
         
         if (instructorSurveys && instructorSurveys.length > 0) {
           const surveyIds = instructorSurveys.map(s => s.id);
@@ -166,7 +184,9 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
   // 모든 설문의 질문과 답변 데이터 로드 (과정별 통계용)
   const fetchAllQuestionsAndAnswers = async () => {
     try {
-      let surveyQuery = supabase.from('surveys').select('id');
+      let surveyQuery = testDataOptions.includeTestData
+        ? supabase.from('surveys').select('id')
+        : supabase.from('analytics_surveys').select('id');
       
       // 강사인 경우 자신의 설문만 필터링, 관리자/운영자/조직장인 경우 전체 설문 조회
       if (isInstructor && profile?.instructor_id && !canViewAll) {
@@ -190,10 +210,11 @@ const SurveyResults = ({ showPageHeader = true }: { showPageHeader?: boolean }) 
       setAllQuestions(questionsData || []);
 
       // 모든 설문의 응답 ID들 가져오기
-      const { data: responseIds, error: responseError } = await supabase
-        .from('survey_responses')
-        .select('id')
-        .in('survey_id', surveyIds);
+      const responseQuery = testDataOptions.includeTestData
+        ? supabase.from('survey_responses').select('id').in('survey_id', surveyIds)
+        : supabase.from('analytics_responses').select('id').in('survey_id', surveyIds);
+        
+      const { data: responseIds, error: responseError } = await responseQuery;
       
       if (responseError) throw responseError;
       

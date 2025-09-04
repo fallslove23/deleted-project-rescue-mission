@@ -344,6 +344,13 @@ export type Database = {
             foreignKeyName: "question_answers_response_id_fkey"
             columns: ["response_id"]
             isOneToOne: false
+            referencedRelation: "analytics_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
             referencedRelation: "survey_responses"
             referencedColumns: ["id"]
           },
@@ -380,6 +387,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_analysis_comments_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
             referencedColumns: ["id"]
           },
           {
@@ -433,6 +447,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_survey_completions_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
             referencedColumns: ["id"]
           },
           {
@@ -520,6 +541,13 @@ export type Database = {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "mv_survey_stats"
             referencedColumns: ["survey_id"]
           },
@@ -536,6 +564,7 @@ export type Database = {
         Row: {
           attended: boolean | null
           id: string
+          is_test: boolean | null
           respondent_email: string | null
           session_id: string | null
           submitted_at: string
@@ -544,6 +573,7 @@ export type Database = {
         Insert: {
           attended?: boolean | null
           id?: string
+          is_test?: boolean | null
           respondent_email?: string | null
           session_id?: string | null
           submitted_at?: string
@@ -552,6 +582,7 @@ export type Database = {
         Update: {
           attended?: boolean | null
           id?: string
+          is_test?: boolean | null
           respondent_email?: string | null
           session_id?: string | null
           submitted_at?: string
@@ -570,6 +601,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
             referencedColumns: ["id"]
           },
           {
@@ -622,6 +660,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sections_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
             referencedColumns: ["id"]
           },
           {
@@ -691,6 +736,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
             referencedColumns: ["id"]
           },
           {
@@ -783,6 +835,13 @@ export type Database = {
             foreignKeyName: "fk_survey_tokens_survey_id"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_survey_tokens_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "mv_survey_stats"
             referencedColumns: ["survey_id"]
           },
@@ -812,6 +871,7 @@ export type Database = {
           id: string
           instructor_id: string | null
           is_combined: boolean | null
+          is_test: boolean | null
           round_label: string | null
           start_date: string | null
           status: string
@@ -835,6 +895,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_combined?: boolean | null
+          is_test?: boolean | null
           round_label?: string | null
           start_date?: string | null
           status?: string
@@ -858,6 +919,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_combined?: boolean | null
+          is_test?: boolean | null
           round_label?: string | null
           start_date?: string | null
           status?: string
@@ -1074,6 +1136,202 @@ export type Database = {
           expected_participants?: number | null
           id?: string | null
           instructor_id?: string | null
+          start_date?: string | null
+          status?: string | null
+          template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "survey_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_question_answers: {
+        Row: {
+          answer_text: string | null
+          answer_value: Json | null
+          created_at: string | null
+          id: string | null
+          question_id: string | null
+          response_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "survey_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_responses: {
+        Row: {
+          attended: boolean | null
+          id: string | null
+          is_test: boolean | null
+          respondent_email: string | null
+          session_id: string | null
+          submitted_at: string | null
+          survey_id: string | null
+        }
+        Insert: {
+          attended?: boolean | null
+          id?: string | null
+          is_test?: boolean | null
+          respondent_email?: string | null
+          session_id?: string | null
+          submitted_at?: string | null
+          survey_id?: string | null
+        }
+        Update: {
+          attended?: boolean | null
+          id?: string | null
+          is_test?: boolean | null
+          respondent_email?: string | null
+          session_id?: string | null
+          submitted_at?: string | null
+          survey_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "survey_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_surveys: {
+        Row: {
+          combined_round_end: number | null
+          combined_round_start: number | null
+          course_id: string | null
+          course_name: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          education_day: number | null
+          education_round: number | null
+          education_year: number | null
+          end_date: string | null
+          expected_participants: number | null
+          id: string | null
+          instructor_id: string | null
+          is_combined: boolean | null
+          is_test: boolean | null
+          round_label: string | null
+          start_date: string | null
+          status: string | null
+          template_id: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          combined_round_end?: number | null
+          combined_round_start?: number | null
+          course_id?: string | null
+          course_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          education_day?: number | null
+          education_round?: number | null
+          education_year?: number | null
+          end_date?: string | null
+          expected_participants?: number | null
+          id?: string | null
+          instructor_id?: string | null
+          is_combined?: boolean | null
+          is_test?: boolean | null
+          round_label?: string | null
+          start_date?: string | null
+          status?: string | null
+          template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          combined_round_end?: number | null
+          combined_round_start?: number | null
+          course_id?: string | null
+          course_name?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          education_day?: number | null
+          education_round?: number | null
+          education_year?: number | null
+          end_date?: string | null
+          expected_participants?: number | null
+          id?: string | null
+          instructor_id?: string | null
+          is_combined?: boolean | null
+          is_test?: boolean | null
+          round_label?: string | null
           start_date?: string | null
           status?: string | null
           template_id?: string | null

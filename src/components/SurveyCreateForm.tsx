@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Course {
@@ -46,6 +47,7 @@ interface SurveyFormData {
   start_date: string;
   end_date: string;
   description: string;
+  is_test?: boolean;
   session_selections?: SessionSelection[];
 }
 
@@ -84,7 +86,8 @@ export default function SurveyCreateForm({
     expected_participants: actualInitialValues?.expected_participants ?? 0,
     start_date: actualInitialValues?.start_date ?? '',
     end_date: actualInitialValues?.end_date ?? '',
-    description: actualInitialValues?.description ?? ''
+    description: actualInitialValues?.description ?? '',
+    is_test: actualInitialValues?.is_test ?? false
   });
 
   // sessionSelections도 actualInitialValues에서 가져오거나 기본값 사용
@@ -116,7 +119,8 @@ export default function SurveyCreateForm({
         expected_participants: actualInitialValues.expected_participants ?? 0,
         start_date: actualInitialValues.start_date ?? '',
         end_date: actualInitialValues.end_date ?? '',
-        description: actualInitialValues.description ?? ''
+        description: actualInitialValues.description ?? '',
+        is_test: actualInitialValues.is_test ?? false
       });
 
       if (actualInitialValues.session_selections) {
@@ -473,6 +477,24 @@ export default function SurveyCreateForm({
                 rows={2}
                 className="mt-1"
               />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center space-x-3">
+                <Switch
+                  id="is_test"
+                  checked={formData.is_test}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_test: checked }))}
+                />
+                <div>
+                  <Label htmlFor="is_test" className="text-sm font-medium cursor-pointer">
+                    테스트 데이터
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    체크 시 운영 통계에서 제외됩니다
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
