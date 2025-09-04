@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Edit3 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 type Survey = {
   id: string;
@@ -36,6 +37,26 @@ type Survey = {
 
 type Course = { id: string; title: string };
 
+type SurveyQuestion = {
+  id: string;
+  question_text: string;
+  question_type: string;
+  options: any;
+  is_required: boolean;
+  order_index: number;
+  section_id?: string | null;
+  session_id?: string | null;
+  scope: 'session' | 'operation';
+  satisfaction_type?: string | null;
+};
+
+type SurveySection = {
+  id: string;
+  name: string;
+  description?: string;
+  order_index: number;
+};
+
 export default function SurveyBuilder() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -44,6 +65,10 @@ export default function SurveyBuilder() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [sections, setSections] = useState<SurveySection[]>([]);
+  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
+  const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
+  const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
 
   const [form, setForm] = useState<Partial<Survey>>({
     title: "",
@@ -81,21 +106,63 @@ export default function SurveyBuilder() {
     if (!id) return;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.from("surveys").select("*").eq("id", id).single();
-      if (error) {
+      try {
+        // 설문 기본 정보 로드
+        const { data: surveyData, error: surveyError } = await supabase
+          .from("surveys")
+          .select("*")
+          .eq("id", id)
+          .single();
+        
+        if (surveyError) throw surveyError;
+        
+        if (surveyData) {
+          setForm({
+            ...surveyData,
+            // datetime-local 포맷 보정
+            start_date: surveyData.start_date ? new Date(surveyData.start_date).toISOString().slice(0, 16) : "",
+            end_date: surveyData.end_date ? new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
+          });
+        }
+
+        // 섹션 로드
+        const { data: sectionsData, error: sectionsError } = await supabase
+          .from("survey_sections")
+          .select("*")
+          .eq("survey_id", id)
+          .order("order_index");
+        
+        if (sectionsError) throw sectionsError;
+        setSections(sectionsData || []);
+
+        // 질문 로드
+        const { data: questionsData, error: questionsError } = await supabase
+          .from("survey_questions")
+          .select("*")
+          .eq("survey_id", id)
+          .order("order_index");
+        
+        if (questionsError) throw questionsError;
+        
+        // Cast the questions data to match our interface
+        const typedQuestions = (questionsData || []).map(q => ({
+          ...q,
+          scope: (q.scope as 'session' | 'operation') || 'session'
+        }));
+        setQuestions(typedQuestions);
+        
+      } catch (error: any) {
         console.error(error);
-        toast({ title: "오류", description: "설문 정보를 불러오지 못했습니다.", variant: "destructive" });
-      } else if (data) {
-        setForm({
-          ...data,
-          // datetime-local 포맷 보정
-          start_date: data.start_date ? new Date(data.start_date).toISOString().slice(0, 16) : "",
-          end_date: data.end_date ? new Date(data.end_date).toISOString().slice(0, 16) : "",
+        toast({ 
+          title: "오류", 
+          description: error.message || "설문 정보를 불러오지 못했습니다.", 
+          variant: "destructive" 
         });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
-  }, [id]);
+  }, [id, toast]);
 
   // 제목 자동 생성 (과정명 + 일차 + 과목명)
   const selectedCourseTitle = useMemo(
@@ -134,6 +201,46 @@ export default function SurveyBuilder() {
 
   const onChange = <K extends keyof Survey>(key: K, value: Survey[K] | any) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // 질문 삭제
+  const deleteQuestion = async (questionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('survey_questions')
+        .delete()
+        .eq('id', questionId);
+      
+      if (error) throw error;
+      
+      setQuestions(prev => prev.filter(q => q.id !== questionId));
+      toast({ title: '성공', description: '질문이 삭제되었습니다.' });
+    } catch (error: any) {
+      console.error(error);
+      toast({ title: '오류', description: error.message || '질문 삭제 중 오류가 발생했습니다.', variant: 'destructive' });
+    }
+  };
+
+  // 질문 저장 후 새로고침
+  const handleQuestionSave = async () => {
+    try {
+      const { data: questionsData, error } = await supabase
+        .from("survey_questions")
+        .select("*")
+        .eq("survey_id", id)
+        .order("order_index");
+      
+      if (error) throw error;
+      
+      // Cast the questions data to match our interface
+      const typedQuestions = (questionsData || []).map(q => ({
+        ...q,
+        scope: (q.scope as 'session' | 'operation') || 'session'
+      }));
+      setQuestions(typedQuestions);
+    } catch (error: any) {
+      console.error(error);
+    }
   };
 
   const saveInfo = async () => {
