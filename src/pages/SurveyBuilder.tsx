@@ -471,53 +471,64 @@ export default function SurveyBuilder() {
             </div>
           </div>
 
-          {/* ✅ 합반 입력: BS Advanced일 때만 */}
-          {form.course_name === "BS Advanced" && (
-            <div className="space-y-3 border rounded-md p-3">
-              <div className="flex items-center gap-2">
-                <input
-                  id="is_combined"
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={!!form.is_combined}
-                  onChange={(e) => onChange("is_combined", e.target.checked)}
-                />
-                <Label htmlFor="is_combined">합반(여러 차수를 묶어 동일 설문으로 운영)</Label>
-              </div>
+            {/* ✅ 합반 입력: BS Advanced일 때만 */}
+            {form.course_name === "BS Advanced" && (
+              <Card className="border-orange-200 bg-orange-50/50">
+                <CardHeader>
+                  <CardTitle className="text-sm text-orange-800">합반 설정</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="is_combined"
+                      type="checkbox"
+                      className="h-4 w-4 text-orange-600"
+                      checked={!!form.is_combined}
+                      onChange={(e) => onChange("is_combined", e.target.checked)}
+                    />
+                    <Label htmlFor="is_combined" className="text-sm font-medium">
+                      합반으로 운영
+                    </Label>
+                  </div>
 
-              {form.is_combined && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label>시작 차수</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={form.combined_round_start ?? ""}
-                      onChange={(e) => onChange("combined_round_start", Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    <Label>종료 차수</Label>
-                    <Input
-                      type="number"
-                      min={form.combined_round_start ?? 1}
-                      value={form.combined_round_end ?? ""}
-                      onChange={(e) => onChange("combined_round_end", Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    <Label>합반 라벨(선택)</Label>
-                    <Input
-                      placeholder="미입력 시 자동 생성"
-                      value={form.round_label ?? ""}
-                      onChange={(e) => onChange("round_label", e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                  {form.is_combined && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>시작 차수</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={form.combined_round_start ?? ""}
+                            onChange={(e) => onChange("combined_round_start", Number(e.target.value))}
+                            placeholder="시작 차수"
+                          />
+                        </div>
+                        <div>
+                          <Label>종료 차수</Label>
+                          <Input
+                            type="number"
+                            min={form.combined_round_start ?? 1}
+                            value={form.combined_round_end ?? ""}
+                            onChange={(e) => onChange("combined_round_end", Number(e.target.value))}
+                            placeholder="종료 차수"
+                          />
+                        </div>
+                      </div>
 
+                      <div>
+                        <Label>합반 라벨 (자동 생성됨)</Label>
+                        <Input
+                          value={form.round_label ?? ""}
+                          onChange={(e) => onChange("round_label", e.target.value)}
+                          placeholder="예: 2024년 1∼3차 - BS Advanced"
+                        />
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>시작일시</Label>

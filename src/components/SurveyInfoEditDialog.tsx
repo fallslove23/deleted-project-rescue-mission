@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import SimplifiedSurveyForm from "./SimplifiedSurveyForm";
+import SurveyCreateForm from "./SurveyCreateForm";
 
 type SurveyEditable = {
   id: string;
@@ -40,16 +40,27 @@ export default function SurveyInfoEditDialog({
   courses,    // 현재 컴포넌트에서는 제목 자동생성용으로만 사용
   onSaved,
 }: Props) {
+  // 안전한 ISO 변환 함수
+  const toSafeISOString = (dateTimeLocal: string): string | null => {
+    if (!dateTimeLocal) return null;
+    try {
+      const date = new Date(dateTimeLocal + ':00+09:00');
+      if (isNaN(date.getTime())) return null;
+      return date.toISOString();
+    } catch {
+      return null;
+    }
+  };
+
   const handleSubmit = async (data: any) => {
     if (!survey) return;
 
     try {
       const payload = {
-        // 제목은 서버로 넘길 때 다시 계산: (yy-n차 과정명 n일차) 과목명
         title: "",
         description: data.description || survey.description || "",
-        start_date: data.start_date ? new Date(data.start_date + "+09:00").toISOString() : null,
-        end_date: data.end_date ? new Date(data.end_date + "+09:00").toISOString() : null,
+        start_date: toSafeISOString(data.start_date),
+        end_date: toSafeISOString(data.end_date),
         education_year: data.education_year,
         education_round: data.education_round,
         education_day: data.education_day,
@@ -58,8 +69,10 @@ export default function SurveyInfoEditDialog({
         is_combined: data.is_combined || false,
         combined_round_start: data.is_combined ? data.combined_round_start : null,
         combined_round_end: data.is_combined ? data.combined_round_end : null,
+        round_label: data.is_combined ? data.round_label : null,
         instructor_id: null as string | null,
         course_id: null as string | null,
+        is_test: data.is_test || false,
       };
 
       if (data.course_selections && data.course_selections.length > 0) {
@@ -72,15 +85,13 @@ export default function SurveyInfoEditDialog({
       const selectedCourse = courses.find(c => c.id === payload.course_id);
       if (selectedCourse && payload.education_year && payload.education_round && payload.education_day) {
         const yy = payload.education_year.toString().slice(-2);
-        const program = payload.course_name?.includes("-")
-          ? payload.course_name.split("-")[1]?.trim()
-          : payload.course_name?.trim() || "";
+        const program = payload.course_name?.trim() || "";
         const prefix = program
           ? `(${yy}-${payload.education_round}차 ${program} ${payload.education_day}일차)`
           : `(${yy}-${payload.education_round}차 ${payload.education_day}일차)`;
         payload.title = `${prefix} ${selectedCourse.title}`;
       } else {
-        payload.title = survey.title; // 실패 시 기존 제목 유지
+        payload.title = survey.title;
       }
 
       const { error } = await supabase
@@ -131,9 +142,15 @@ export default function SurveyInfoEditDialog({
         is_combined: Boolean(survey.is_combined),
         combined_round_start: survey.combined_round_start || null,
         combined_round_end: survey.combined_round_end || null,
+        round_label: survey.round_label || null,
         course_id: survey.course_id || "",
         instructor_id: survey.instructor_id || "",
-        is_test: Boolean(survey.is_test)
+        is_test: Boolean(survey.is_test),
+        course_selections: survey.course_id && survey.instructor_id ? [{
+          id: '1',
+          courseId: survey.course_id,
+          instructorId: survey.instructor_id
+        }] : []
       }
     : null;
 
@@ -148,7 +165,7 @@ export default function SurveyInfoEditDialog({
         </DialogHeader>
 
         {survey && initial && (
-          <SimplifiedSurveyForm
+          <SurveyCreateForm
             initial={initial}
             onSubmit={handleSubmit}
             onCancel={() => onOpenChange(false)}

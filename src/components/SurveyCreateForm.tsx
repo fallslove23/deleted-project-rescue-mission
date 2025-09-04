@@ -26,15 +26,13 @@ interface InstructorCourse {
   course_id: string;
 }
 
-interface SessionSelection {
+interface CourseSelection {
   id: string;
   courseId: string;
   instructorId: string;
-  sessionName: string;
-  sessionOrder: number;
 }
 
-// 초기값 타입 정의 추가
+// 초기값 타입 정의
 interface SurveyFormData {
   education_year: number;
   education_round: number;
@@ -43,61 +41,72 @@ interface SurveyFormData {
   is_combined: boolean;
   combined_round_start: number | null;
   combined_round_end: number | null;
+  round_label: string | null;
   expected_participants: number;
   start_date: string;
   end_date: string;
   description: string;
   is_test?: boolean;
-  session_selections?: SessionSelection[];
+  course_selections?: CourseSelection[];
+  course_id?: string;
+  instructor_id?: string;
 }
 
-// Props 인터페이스에 initialValues 추가
 interface SurveyCreateFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
-  initialValues?: Partial<SurveyFormData>; // 추가된 속성
-  initial?: any; // SurveyInfoEditDialog에서 사용하는 prop 추가
+  initial?: Partial<SurveyFormData>;
 }
 
 export default function SurveyCreateForm({ 
   onSubmit, 
   onCancel, 
   isSubmitting = false,
-  initialValues, // 새로 추가된 prop
-  initial // SurveyInfoEditDialog에서 사용하는 prop
+  initial
 }: SurveyCreateFormProps) {
   
-  // initial prop이 있으면 그것을 우선 사용, 없으면 initialValues 사용
-  const actualInitialValues = initial || initialValues;
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   
-  // actualInitialValues를 사용하여 기본값 설정
+  // 안전한 날짜 변환 함수
+  const toLocalDateTime = (isoString?: string | null): string => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return '';
+      // UTC를 KST로 변환하여 YYYY-MM-DDTHH:mm 형식 반환
+      const kstOffset = 9 * 60; // KST = UTC+9
+      const kstTime = new Date(date.getTime() + (kstOffset * 60 * 1000));
+      return kstTime.toISOString().slice(0, 16);
+    } catch {
+      return '';
+    }
+  };
+
   const [formData, setFormData] = useState({
-    education_year: actualInitialValues?.education_year ?? new Date().getFullYear(),
-    course_name: actualInitialValues?.course_name ?? '',
-    education_round: actualInitialValues?.education_round ?? 1,
-    is_combined: actualInitialValues?.is_combined ?? false,
-    combined_round_start: actualInitialValues?.combined_round_start ?? null,
-    combined_round_end: actualInitialValues?.combined_round_end ?? null,
-    education_day: actualInitialValues?.education_day ?? 1,
-    expected_participants: actualInitialValues?.expected_participants ?? 0,
-    start_date: actualInitialValues?.start_date ?? '',
-    end_date: actualInitialValues?.end_date ?? '',
-    description: actualInitialValues?.description ?? '',
-    is_test: actualInitialValues?.is_test ?? false
+    education_year: initial?.education_year ?? new Date().getFullYear(),
+    course_name: initial?.course_name ?? '',
+    education_round: initial?.education_round ?? 1,
+    is_combined: initial?.is_combined ?? false,
+    combined_round_start: initial?.combined_round_start ?? null,
+    combined_round_end: initial?.combined_round_end ?? null,
+    round_label: initial?.round_label ?? null,
+    education_day: initial?.education_day ?? 1,
+    expected_participants: initial?.expected_participants ?? 0,
+    start_date: toLocalDateTime(initial?.start_date),
+    end_date: toLocalDateTime(initial?.end_date),
+    description: initial?.description ?? '',
+    is_test: initial?.is_test ?? false
   });
 
-  // sessionSelections도 actualInitialValues에서 가져오거나 기본값 사용
-  const [sessionSelections, setSessionSelections] = useState<SessionSelection[]>(
-    actualInitialValues?.session_selections || [{ 
+  // 과목+강사 선택 (세션명 제거)
+  const [courseSelections, setCourseSelections] = useState<CourseSelection[]>(
+    initial?.course_selections || [{ 
       id: '1', 
-      courseId: '', 
-      instructorId: '', 
-      sessionName: '',
-      sessionOrder: 1
+      courseId: initial?.course_id || '', 
+      instructorId: initial?.instructor_id || ''
     }]
   );
 
@@ -105,32 +114,36 @@ export default function SurveyCreateForm({
     fetchData();
   }, []);
 
-  // actualInitialValues가 변경되면 formData 업데이트
+  // initial 값이 변경되면 formData 업데이트
   useEffect(() => {
-    console.log("SurveyCreateForm - actualInitialValues changed:", actualInitialValues);
-    if (actualInitialValues) {
-      const newFormData = {
-        education_year: actualInitialValues.education_year ?? new Date().getFullYear(),
-        course_name: actualInitialValues.course_name ?? '',
-        education_round: actualInitialValues.education_round ?? 1,
-        is_combined: actualInitialValues.is_combined ?? false,
-        combined_round_start: actualInitialValues.combined_round_start ?? null,
-        combined_round_end: actualInitialValues.combined_round_end ?? null,
-        education_day: actualInitialValues.education_day ?? 1,
-        expected_participants: actualInitialValues.expected_participants ?? 0,
-        start_date: actualInitialValues.start_date ?? '',
-        end_date: actualInitialValues.end_date ?? '',
-        description: actualInitialValues.description ?? '',
-        is_test: actualInitialValues.is_test ?? false
-      };
-      console.log("SurveyCreateForm - Setting new form data:", newFormData);
-      setFormData(newFormData);
+    if (initial) {
+      setFormData({
+        education_year: initial.education_year ?? new Date().getFullYear(),
+        course_name: initial.course_name ?? '',
+        education_round: initial.education_round ?? 1,
+        is_combined: initial.is_combined ?? false,
+        combined_round_start: initial.combined_round_start ?? null,
+        combined_round_end: initial.combined_round_end ?? null,
+        round_label: initial.round_label ?? null,
+        education_day: initial.education_day ?? 1,
+        expected_participants: initial.expected_participants ?? 0,
+        start_date: toLocalDateTime(initial.start_date),
+        end_date: toLocalDateTime(initial.end_date),
+        description: initial.description ?? '',
+        is_test: initial.is_test ?? false
+      });
       
-      if (actualInitialValues.session_selections) {
-        setSessionSelections(actualInitialValues.session_selections);
+      if (initial.course_selections) {
+        setCourseSelections(initial.course_selections);
+      } else if (initial.course_id || initial.instructor_id) {
+        setCourseSelections([{
+          id: '1',
+          courseId: initial.course_id || '',
+          instructorId: initial.instructor_id || ''
+        }]);
       }
     }
-  }, [actualInitialValues]);
+  }, [initial]);
 
   const fetchData = async () => {
     try {
@@ -148,28 +161,26 @@ export default function SurveyCreateForm({
     }
   };
 
-  const addSessionSelection = () => {
-    setSessionSelections(prev => [
+  const addCourseSelection = () => {
+    setCourseSelections(prev => [
       ...prev,
       { 
         id: Date.now().toString(), 
         courseId: '', 
-        instructorId: '', 
-        sessionName: `세션 ${prev.length + 1}`,
-        sessionOrder: prev.length + 1
+        instructorId: ''
       }
     ]);
   };
 
-  const removeSessionSelection = (id: string) => {
-    if (sessionSelections.length > 1) {
-      setSessionSelections(prev => prev.filter(ss => ss.id !== id));
+  const removeCourseSelection = (id: string) => {
+    if (courseSelections.length > 1) {
+      setCourseSelections(prev => prev.filter(cs => cs.id !== id));
     }
   };
 
-  const updateSessionSelection = (id: string, field: keyof SessionSelection, value: string | number) => {
-    setSessionSelections(prev => prev.map(ss => 
-      ss.id === id ? { ...ss, [field]: value } : ss
+  const updateCourseSelection = (id: string, field: keyof CourseSelection, value: string) => {
+    setCourseSelections(prev => prev.map(cs => 
+      cs.id === id ? { ...cs, [field]: value } : cs
     ));
   };
 
@@ -179,6 +190,19 @@ export default function SurveyCreateForm({
       .filter(ic => ic.course_id === courseId)
       .map(ic => ic.instructor_id);
     return instructors.filter(instructor => instructorIds.includes(instructor.id));
+  };
+
+  // 안전한 ISO 변환 함수
+  const toSafeISOString = (dateTimeLocal: string): string | null => {
+    if (!dateTimeLocal) return null;
+    try {
+      // YYYY-MM-DDTHH:mm 형식을 KST로 해석하여 UTC ISO로 변환
+      const date = new Date(dateTimeLocal + ':00+09:00');
+      if (isNaN(date.getTime())) return null;
+      return date.toISOString();
+    } catch {
+      return null;
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -196,23 +220,25 @@ export default function SurveyCreateForm({
       }
     }
 
-    // 세션 선택 검증
-    const validSessionSelections = sessionSelections.filter(ss => ss.courseId && ss.instructorId);
-    if (validSessionSelections.length === 0) {
+    // 과목+강사 선택 검증
+    const validCourseSelections = courseSelections.filter(cs => cs.courseId && cs.instructorId);
+    if (validCourseSelections.length === 0) {
       alert('최소 1개의 과목과 강사를 선택해야 합니다.');
       return;
     }
 
-    // 자동 차수 입력 (합반일 때)
-    const actualRound = formData.is_combined && formData.combined_round_start ? 
-      formData.combined_round_start : formData.education_round;
+    // 자동 라벨 생성 (합반일 때)
+    let autoRoundLabel = formData.round_label;
+    if (formData.course_name === 'BS Advanced' && formData.is_combined && !autoRoundLabel?.trim()) {
+      autoRoundLabel = `${formData.education_year}년 ${formData.combined_round_start}∼${formData.combined_round_end}차 - BS Advanced`;
+    }
 
     const submitData = {
       ...formData,
-      education_round: actualRound,
-      session_selections: validSessionSelections,
-      start_date: formData.start_date ? new Date(formData.start_date + '+09:00').toISOString() : null,
-      end_date: formData.end_date ? new Date(formData.end_date + '+09:00').toISOString() : null,
+      round_label: autoRoundLabel,
+      course_selections: validCourseSelections,
+      start_date: toSafeISOString(formData.start_date),
+      end_date: toSafeISOString(formData.end_date),
     };
 
     onSubmit(submitData);
@@ -356,51 +382,41 @@ export default function SurveyCreateForm({
           </CardContent>
         </Card>
 
-        {/* 세션(과목/강사) 선택 */}
+        {/* 과목+강사 선택 (세션명 제거) */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-medium">세션(과목/강사) 선택</Label>
-              <Button type="button" onClick={addSessionSelection} size="sm" variant="outline">
+              <Label className="text-sm font-medium">과목 및 강사 선택</Label>
+              <Button type="button" onClick={addCourseSelection} size="sm" variant="outline">
                 <Plus className="h-4 w-4 mr-1" />
-                세션 추가
+                과목 추가
               </Button>
             </div>
             <div className="space-y-3">
-              {sessionSelections.map((selection, index) => (
+              {courseSelections.map((selection, index) => (
                 <div key={selection.id} className="border rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">세션 {index + 1}</span>
-                    {sessionSelections.length > 1 && (
+                    <span className="text-sm font-medium">과목 {index + 1}</span>
+                    {courseSelections.length > 1 && (
                       <Button 
                         type="button" 
                         variant="outline" 
                         size="sm"
-                        onClick={() => removeSessionSelection(selection.id)}
+                        onClick={() => removeCourseSelection(selection.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-xs">세션명</Label>
-                      <Input
-                        value={selection.sessionName}
-                        onChange={(e) => updateSessionSelection(selection.id, 'sessionName', e.target.value)}
-                        placeholder="세션명 입력"
-                        className="mt-1"
-                      />
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">과목</Label>
                       <Select 
                         value={selection.courseId} 
                         onValueChange={(value) => {
-                          updateSessionSelection(selection.id, 'courseId', value);
-                          updateSessionSelection(selection.id, 'instructorId', '');
+                          updateCourseSelection(selection.id, 'courseId', value);
+                          updateCourseSelection(selection.id, 'instructorId', '');
                         }}
                       >
                         <SelectTrigger className="mt-1">
@@ -420,7 +436,7 @@ export default function SurveyCreateForm({
                       <Label className="text-xs">강사</Label>
                       <Select 
                         value={selection.instructorId}
-                        onValueChange={(value) => updateSessionSelection(selection.id, 'instructorId', value)}
+                        onValueChange={(value) => updateCourseSelection(selection.id, 'instructorId', value)}
                         disabled={!selection.courseId}
                       >
                         <SelectTrigger className="mt-1">
