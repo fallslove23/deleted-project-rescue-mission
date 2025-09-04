@@ -203,8 +203,8 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="session">세션</SelectItem>
-              <SelectItem value="operation">운영</SelectItem>
+              <SelectItem value="session">1~10인제</SelectItem>
+              <SelectItem value="operation">1~5인제</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -798,86 +798,22 @@ export default function SurveyBuilder() {
         </CardContent>
       </Card>
 
-      {/* 섹션 관리 */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>섹션 관리</CardTitle>
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setEditingSection(null);
-              setSectionForm({ name: "", description: "" });
-              setSectionDialogOpen(true);
-            }}
-          >
-            <FolderPlus className="h-4 w-4 mr-2" />
-            섹션 추가
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {sections.length > 0 ? (
-            <div className="space-y-2">
-              {sections.map((section) => (
-                <div key={section.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <h4 className="font-medium">{section.name}</h4>
-                    {section.description && (
-                      <p className="text-sm text-muted-foreground">{section.description}</p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setEditingSection(section);
-                        setSectionForm({ 
-                          name: section.name, 
-                          description: section.description || "" 
-                        });
-                        setSectionDialogOpen(true);
-                      }}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>섹션 삭제</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            이 섹션을 삭제하시겠습니까? 섹션에 속한 질문들은 미분류로 이동됩니다.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>취소</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteSection(section.id)}>
-                            삭제
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              섹션이 없습니다. 섹션을 추가하여 질문을 구성해보세요.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* 질문 관리 섹션 - 개선된 버전 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>설문 질문</CardTitle>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setEditingSection(null);
+                setSectionForm({ name: "", description: "" });
+                setSectionDialogOpen(true);
+              }}
+            >
+              <FolderPlus className="h-4 w-4 mr-2" />
+              섹션 추가
+            </Button>
             <Button 
               variant="outline" 
               onClick={() => setImportTemplateOpen(true)}
@@ -898,6 +834,59 @@ export default function SurveyBuilder() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* 섹션 목록 표시 */}
+          {sections.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium mb-3 text-muted-foreground">섹션 목록</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {sections.map((section) => (
+                  <div key={section.id} className="flex items-center justify-between p-2 border rounded text-sm">
+                    <span>{section.name}</span>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setEditingSection(section);
+                          setSectionForm({ 
+                            name: section.name, 
+                            description: section.description || "" 
+                          });
+                          setSectionDialogOpen(true);
+                        }}
+                      >
+                        <Edit3 className="h-3 w-3" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>섹션 삭제</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              이 섹션을 삭제하시겠습니까? 섹션에 속한 질문들은 미분류로 이동됩니다.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>취소</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteSection(section.id)}>
+                              삭제
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Separator className="my-4" />
+            </div>
+          )}
+
+          {/* 질문 목록 */}
           {questions.length > 0 ? (
             <DndContext 
               sensors={sensors}
