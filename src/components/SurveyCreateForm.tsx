@@ -56,57 +56,61 @@ interface SurveyCreateFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
-  initial?: Partial<SurveyFormData>;
+  initialValues?: Partial<SurveyFormData>;
 }
 
 export default function SurveyCreateForm({ 
   onSubmit, 
   onCancel, 
   isSubmitting = false,
-  initial
+  initialValues
 }: SurveyCreateFormProps) {
   
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   
-  // 안전한 날짜 변환 함수
+  // 안전한 datetime-local 변환 함수
   const toLocalDateTime = (isoString?: string | null): string => {
     if (!isoString) return '';
     try {
       const date = new Date(isoString);
       if (isNaN(date.getTime())) return '';
-      // UTC를 KST로 변환하여 YYYY-MM-DDTHH:mm 형식 반환
-      const kstOffset = 9 * 60; // KST = UTC+9
-      const kstTime = new Date(date.getTime() + (kstOffset * 60 * 1000));
-      return kstTime.toISOString().slice(0, 16);
+      // 로컬 시간대로 YYYY-MM-DDTHH:mm 형식 반환
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const year = date.getFullYear();
+      const month = pad(date.getMonth() + 1);
+      const day = pad(date.getDate());
+      const hours = pad(date.getHours());
+      const minutes = pad(date.getMinutes());
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
     } catch {
       return '';
     }
   };
 
   const [formData, setFormData] = useState({
-    education_year: initial?.education_year ?? new Date().getFullYear(),
-    course_name: initial?.course_name ?? '',
-    education_round: initial?.education_round ?? 1,
-    is_combined: initial?.is_combined ?? false,
-    combined_round_start: initial?.combined_round_start ?? null,
-    combined_round_end: initial?.combined_round_end ?? null,
-    round_label: initial?.round_label ?? null,
-    education_day: initial?.education_day ?? 1,
-    expected_participants: initial?.expected_participants ?? 0,
-    start_date: toLocalDateTime(initial?.start_date),
-    end_date: toLocalDateTime(initial?.end_date),
-    description: initial?.description ?? '',
-    is_test: initial?.is_test ?? false
+    education_year: initialValues?.education_year ?? new Date().getFullYear(),
+    course_name: initialValues?.course_name ?? '',
+    education_round: initialValues?.education_round ?? 1,
+    is_combined: initialValues?.is_combined ?? false,
+    combined_round_start: initialValues?.combined_round_start ?? null,
+    combined_round_end: initialValues?.combined_round_end ?? null,
+    round_label: initialValues?.round_label ?? null,
+    education_day: initialValues?.education_day ?? 1,
+    expected_participants: initialValues?.expected_participants ?? 0,
+    start_date: toLocalDateTime(initialValues?.start_date),
+    end_date: toLocalDateTime(initialValues?.end_date),
+    description: initialValues?.description ?? '',
+    is_test: initialValues?.is_test ?? false
   });
 
   // 과목+강사 선택 (세션명 제거)
   const [courseSelections, setCourseSelections] = useState<CourseSelection[]>(
-    initial?.course_selections || [{ 
+    initialValues?.course_selections || [{ 
       id: '1', 
-      courseId: initial?.course_id || '', 
-      instructorId: initial?.instructor_id || ''
+      courseId: initialValues?.course_id || '', 
+      instructorId: initialValues?.instructor_id || ''
     }]
   );
 
@@ -114,36 +118,36 @@ export default function SurveyCreateForm({
     fetchData();
   }, []);
 
-  // initial 값이 변경되면 formData 업데이트
+  // initialValues 값이 변경되면 formData 업데이트
   useEffect(() => {
-    if (initial) {
+    if (initialValues) {
       setFormData({
-        education_year: initial.education_year ?? new Date().getFullYear(),
-        course_name: initial.course_name ?? '',
-        education_round: initial.education_round ?? 1,
-        is_combined: initial.is_combined ?? false,
-        combined_round_start: initial.combined_round_start ?? null,
-        combined_round_end: initial.combined_round_end ?? null,
-        round_label: initial.round_label ?? null,
-        education_day: initial.education_day ?? 1,
-        expected_participants: initial.expected_participants ?? 0,
-        start_date: toLocalDateTime(initial.start_date),
-        end_date: toLocalDateTime(initial.end_date),
-        description: initial.description ?? '',
-        is_test: initial.is_test ?? false
+        education_year: initialValues.education_year ?? new Date().getFullYear(),
+        course_name: initialValues.course_name ?? '',
+        education_round: initialValues.education_round ?? 1,
+        is_combined: initialValues.is_combined ?? false,
+        combined_round_start: initialValues.combined_round_start ?? null,
+        combined_round_end: initialValues.combined_round_end ?? null,
+        round_label: initialValues.round_label ?? null,
+        education_day: initialValues.education_day ?? 1,
+        expected_participants: initialValues.expected_participants ?? 0,
+        start_date: toLocalDateTime(initialValues.start_date),
+        end_date: toLocalDateTime(initialValues.end_date),
+        description: initialValues.description ?? '',
+        is_test: initialValues.is_test ?? false
       });
       
-      if (initial.course_selections) {
-        setCourseSelections(initial.course_selections);
-      } else if (initial.course_id || initial.instructor_id) {
+      if (initialValues.course_selections) {
+        setCourseSelections(initialValues.course_selections);
+      } else if (initialValues.course_id || initialValues.instructor_id) {
         setCourseSelections([{
           id: '1',
-          courseId: initial.course_id || '',
-          instructorId: initial.instructor_id || ''
+          courseId: initialValues.course_id || '',
+          instructorId: initialValues.instructor_id || ''
         }]);
       }
     }
-  }, [initial]);
+  }, [initialValues]);
 
   const fetchData = async () => {
     try {
@@ -524,7 +528,7 @@ export default function SurveyCreateForm({
             취소
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? '생성 중...' : '설문조사 생성'}
+            {isSubmitting ? '저장 중...' : (initialValues ? '설문 정보 수정' : '설문조사 생성')}
           </Button>
         </div>
       </form>

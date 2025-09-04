@@ -166,7 +166,8 @@ export default function SurveyInfoEditDialog({
 
         {survey && initial && (
           <SurveyCreateForm
-            initial={initial}
+            key={survey.id} // 모달 재사용 시 상태 리셋
+            initialValues={initial}
             onSubmit={handleSubmit}
             onCancel={() => onOpenChange(false)}
             isSubmitting={false}
