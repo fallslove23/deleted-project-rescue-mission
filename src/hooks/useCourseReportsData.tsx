@@ -2,6 +2,25 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface CourseStatistics {
+  id: string;
+  year: number;
+  round: number;
+  course_days: number;
+  course_start_date: string;
+  course_end_date: string;
+  status: string;
+  enrolled_count: number;
+  cumulative_count: number;
+  total_satisfaction: number | null;
+  course_satisfaction: number | null;
+  instructor_satisfaction: number | null;
+  operation_satisfaction: number | null;
+  education_hours: number | null;
+  education_days: number | null;
+  course_name: string | null;
+}
+
 interface CourseReport {
   id: string;
   education_year: number;
@@ -44,6 +63,11 @@ export const useCourseReportsData = (
   const [availableRounds, setAvailableRounds] = useState<number[]>([]);
   const [availableInstructors, setAvailableInstructors] = useState<{id: string, name: string}[]>([]);
   const [textualResponses, setTextualResponses] = useState<string[]>([]);
+  const [courseStatistics, setCourseStatistics] = useState<CourseStatistics[]>([]);
+  const [yearlyComparison, setYearlyComparison] = useState<{
+    current: CourseStatistics[];
+    previous: CourseStatistics[];
+  }>({ current: [], previous: [] });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -269,6 +293,9 @@ export const useCourseReportsData = (
       // 서술형 응답 가져오기
       await fetchTextualResponses(surveys);
 
+      // 전년도 대비 통계 가져오기
+      await fetchYearlyComparison(selectedYear, selectedYear - 1);
+
     } catch (error) {
       console.error('Error fetching reports:', error);
       toast({
@@ -469,6 +496,40 @@ export const useCourseReportsData = (
     }
   };
 
+  const fetchCourseStatistics = async (year: number) => {
+    try {
+      const { data: statistics, error } = await supabase
+        .from('course_statistics')
+        .select('*')
+        .eq('year', year)
+        .order('round', { ascending: true });
+
+      if (error) throw error;
+
+      setCourseStatistics(statistics || []);
+      return statistics || [];
+    } catch (error) {
+      console.error('Error fetching course statistics:', error);
+      return [];
+    }
+  };
+
+  const fetchYearlyComparison = async (currentYear: number, previousYear: number) => {
+    try {
+      const [currentStats, previousStats] = await Promise.all([
+        fetchCourseStatistics(currentYear),
+        fetchCourseStatistics(previousYear)
+      ]);
+
+      setYearlyComparison({
+        current: currentStats,
+        previous: previousStats
+      });
+    } catch (error) {
+      console.error('Error fetching yearly comparison:', error);
+    }
+  };
+
   return {
     reports,
     previousReports,
@@ -478,8 +539,12 @@ export const useCourseReportsData = (
     availableRounds,
     availableInstructors,
     textualResponses,
+    courseStatistics,
+    yearlyComparison,
     loading,
     fetchAvailableCourses,
-    fetchReports
+    fetchReports,
+    fetchCourseStatistics,
+    fetchYearlyComparison
   };
 };

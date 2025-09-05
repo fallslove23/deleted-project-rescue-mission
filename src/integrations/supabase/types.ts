@@ -133,6 +133,72 @@ export type Database = {
           },
         ]
       }
+      course_statistics: {
+        Row: {
+          course_days: number
+          course_end_date: string
+          course_name: string | null
+          course_satisfaction: number | null
+          course_start_date: string
+          created_at: string
+          created_by: string | null
+          cumulative_count: number
+          education_days: number | null
+          education_hours: number | null
+          enrolled_count: number
+          id: string
+          instructor_satisfaction: number | null
+          operation_satisfaction: number | null
+          round: number
+          status: string
+          total_satisfaction: number | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          course_days: number
+          course_end_date: string
+          course_name?: string | null
+          course_satisfaction?: number | null
+          course_start_date: string
+          created_at?: string
+          created_by?: string | null
+          cumulative_count?: number
+          education_days?: number | null
+          education_hours?: number | null
+          enrolled_count?: number
+          id?: string
+          instructor_satisfaction?: number | null
+          operation_satisfaction?: number | null
+          round: number
+          status?: string
+          total_satisfaction?: number | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          course_days?: number
+          course_end_date?: string
+          course_name?: string | null
+          course_satisfaction?: number | null
+          course_start_date?: string
+          created_at?: string
+          created_by?: string | null
+          cumulative_count?: number
+          education_days?: number | null
+          education_hours?: number | null
+          enrolled_count?: number
+          id?: string
+          instructor_satisfaction?: number | null
+          operation_satisfaction?: number | null
+          round?: number
+          status?: string
+          total_satisfaction?: number | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           created_at: string

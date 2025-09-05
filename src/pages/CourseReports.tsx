@@ -39,9 +39,12 @@ const CourseReports = () => {
     availableRounds,
     availableInstructors,
     textualResponses,
+    courseStatistics,
+    yearlyComparison,
     loading,
     fetchAvailableCourses,
-    fetchReports
+    fetchReports,
+    fetchYearlyComparison
   } = useCourseReportsData(selectedYear, selectedCourse, selectedRound, selectedInstructor);
 
   useEffect(() => {
@@ -154,6 +157,61 @@ const CourseReports = () => {
   // 응답률 계산
   const responseRate = currentReport && currentReport.total_surveys > 0 ? 
     (currentReport.total_responses / (currentReport.total_surveys * 20)) * 100 : 0; // 가정: 설문당 평균 20명 예상
+
+  // 전년도 대비 비교 데이터 준비
+  const yearlyComparisonData = (() => {
+    if (!yearlyComparison.current.length || !yearlyComparison.previous.length) {
+      return [];
+    }
+
+    const currentYearAvg = {
+      instructor: yearlyComparison.current
+        .filter(s => s.instructor_satisfaction !== null)
+        .reduce((sum, s) => sum + (s.instructor_satisfaction || 0), 0) / 
+        yearlyComparison.current.filter(s => s.instructor_satisfaction !== null).length || 0,
+      course: yearlyComparison.current
+        .filter(s => s.course_satisfaction !== null)
+        .reduce((sum, s) => sum + (s.course_satisfaction || 0), 0) / 
+        yearlyComparison.current.filter(s => s.course_satisfaction !== null).length || 0,
+      operation: yearlyComparison.current
+        .filter(s => s.operation_satisfaction !== null)
+        .reduce((sum, s) => sum + (s.operation_satisfaction || 0), 0) / 
+        yearlyComparison.current.filter(s => s.operation_satisfaction !== null).length || 0
+    };
+
+    const previousYearAvg = {
+      instructor: yearlyComparison.previous
+        .filter(s => s.instructor_satisfaction !== null)
+        .reduce((sum, s) => sum + (s.instructor_satisfaction || 0), 0) / 
+        yearlyComparison.previous.filter(s => s.instructor_satisfaction !== null).length || 0,
+      course: yearlyComparison.previous
+        .filter(s => s.course_satisfaction !== null)
+        .reduce((sum, s) => sum + (s.course_satisfaction || 0), 0) / 
+        yearlyComparison.previous.filter(s => s.course_satisfaction !== null).length || 0,
+      operation: yearlyComparison.previous
+        .filter(s => s.operation_satisfaction !== null)
+        .reduce((sum, s) => sum + (s.operation_satisfaction || 0), 0) / 
+        yearlyComparison.previous.filter(s => s.operation_satisfaction !== null).length || 0
+    };
+
+    return [
+      {
+        category: '강사 만족도',
+        [`${selectedYear}년`]: Number(currentYearAvg.instructor.toFixed(1)),
+        [`${selectedYear - 1}년`]: Number(previousYearAvg.instructor.toFixed(1))
+      },
+      {
+        category: '과정 만족도',
+        [`${selectedYear}년`]: Number(currentYearAvg.course.toFixed(1)),
+        [`${selectedYear - 1}년`]: Number(previousYearAvg.course.toFixed(1))
+      },
+      {
+        category: '운영 만족도',
+        [`${selectedYear}년`]: Number(currentYearAvg.operation.toFixed(1)),
+        [`${selectedYear - 1}년`]: Number(previousYearAvg.operation.toFixed(1))
+      }
+    ];
+  })();
 
   // 드릴다운 모달 열기
   const openDrillDown = (type: 'instructor' | 'course' | 'operation') => {
@@ -428,6 +486,54 @@ const CourseReports = () => {
                       dataKey="만족도" 
                       fill="hsl(var(--primary))" 
                       name="평균 만족도"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 전년도 대비 분석 */}
+          {yearlyComparisonData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>전년도 대비 만족도 비교</CardTitle>
+                <CardDescription>{selectedYear}년 vs {selectedYear - 1}년 만족도 변화 추이</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={yearlyComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
+                    <XAxis 
+                      dataKey="category" 
+                      tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--card-foreground))'
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey={`${selectedYear}년`} 
+                      fill="hsl(var(--primary))" 
+                      name={`${selectedYear}년`}
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey={`${selectedYear - 1}년`} 
+                      fill="hsl(var(--primary) / 0.7)" 
+                      name={`${selectedYear - 1}년`}
                       radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
