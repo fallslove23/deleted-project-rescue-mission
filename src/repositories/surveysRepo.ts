@@ -1,6 +1,6 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 
-export interface SurveyListItem {
+export type SurveyListItem = {
   id: string;
   title: string | null;
   description: string | null;
@@ -9,7 +9,7 @@ export interface SurveyListItem {
   education_year: number | null;
   education_round: number | null;
   education_day: number | null;
-  status: string | null;
+  status: 'draft' | 'active' | 'public' | 'completed' | null;
   course_name: string | null;
   is_combined: boolean | null;
   combined_round_start: number | null;
@@ -26,84 +26,60 @@ export interface SurveyListItem {
   creator_email: string | null;
   instructor_name: string | null;
   course_title: string | null;
-}
+};
 
-export interface SurveyFilters {
+export type SurveyFilters = {
   year: number | null;
   status: 'draft' | 'active' | 'public' | 'completed' | null;
-}
+};
 
-export interface PaginatedSurveyResult {
+export type PaginatedSurveyResult = {
   data: SurveyListItem[];
-  count: number;       // total rows
-  totalPages: number;  // ceil(count / pageSize)
-}
+  count: number;
+  totalPages: number;
+};
 
 export class SurveysRepository {
   static async fetchSurveyList(
-    page: number, 
-    pageSize: number, 
+    page: number,
+    pageSize: number,
     filters: SurveyFilters
   ): Promise<PaginatedSurveyResult> {
-    try {
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      
-      let query = supabase
-        .from('surveys_list_v1')
-        .select('*', { count: 'exact' });
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-      // 연도 필터 적용
-      if (filters.year && filters.year > 0) {
-        query = query.eq('education_year', filters.year);
-      }
+    let query = supabase
+      .from('surveys_list_v1')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
-      // 상태 필터 적용
-      if (filters.status) {
-        query = query.eq('status', filters.status);
-      }
-
-      // 정렬 및 페이지네이션
-      query = query
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error('Survey fetch error:', error);
-        throw new Error(`설문 목록을 가져오는데 실패했습니다: ${error.message}`);
-      }
-
-      const totalPages = count ? Math.ceil(count / pageSize) : 0;
-
-      return {
-        data: data || [],
-        count: count || 0,
-        totalPages
-      };
-    } catch (error) {
-      console.error('Repository error:', error);
-      throw error;
+    if (filters.year !== null) {
+      query = query.eq('education_year', filters.year);
     }
-  }
+    if (filters.status !== null) {
+      query = query.eq('status', filters.status);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const safeData = (data ?? []) as SurveyListItem[];
+    const total = count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return { data: safeData, count: total, totalPages };
+    }
 
   static async getAvailableYears(): Promise<number[]> {
-    try {
-      const { data, error } = await supabase
-        .from('survey_available_years_v1')
-        .select('education_year')
-        .order('education_year', { ascending: false });
+    const { data, error } = await supabase
+      .from('survey_available_years_v1')
+      .select('education_year');
+    if (error) throw error;
 
-      if (error) {
-        console.error('Years fetch error:', error);
-        return [];
-      }
-
-      return data?.map(item => item.education_year).filter(year => year !== null) || [];
-    } catch (error) {
-      console.error('Years fetch error:', error);
-      return [];
-    }
+    return (data ?? [])
+      .map((r: any) => Number(r.education_year))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => b - a);
   }
 }
