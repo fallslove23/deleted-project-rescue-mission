@@ -1,18 +1,7 @@
 // src/pages/SurveyBuilder.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { formatInTimeZone } from "date-fns-tz";
-import {
-  ArrowLeft,
-  Save,
-  Pencil,
-  Trash2,
-  Plus,
-  Settings,
-  Calendar,
-  BookOpen,
-} from "lucide-react";
-
+import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-
 import { supabase } from "@/integrations/supabase/client";
-import { CourseNamesRepo, CourseName } from "@/repositories/courseNamesRepo";
+import {
+  CourseNamesRepo,
+  CourseName,
+} from "@/repositories/surveysRepo"; // ★ 여기만 확인!
 
 type Survey = {
   id: string;
@@ -56,8 +47,6 @@ type Survey = {
   updated_at: string | null;
 };
 
-const TIMEZONE = "Asia/Seoul";
-
 function toLocalDateTime(iso: string | null) {
   if (!iso) return "";
   try {
@@ -74,7 +63,6 @@ function toLocalDateTime(iso: string | null) {
     return "";
   }
 }
-
 function toSafeISOString(local: string) {
   if (!local) return null;
   try {
@@ -85,7 +73,6 @@ function toSafeISOString(local: string) {
     return null;
   }
 }
-
 function buildTitle(
   year: number | null,
   round: number | null,
@@ -105,11 +92,14 @@ export default function SurveyBuilder() {
   const [saving, setSaving] = useState(false);
   const [survey, setSurvey] = useState<Survey | null>(null);
 
-  // 폼 상태 (과목 필드 제거됨)
-  const [educationYear, setEducationYear] = useState<number>(new Date().getFullYear());
+  // ⬇️ 과목 필드 제거, 4가지만 유지
+  const [educationYear, setEducationYear] = useState<number>(
+    new Date().getFullYear()
+  );
   const [educationRound, setEducationRound] = useState<number>(1);
   const [educationDay, setEducationDay] = useState<number>(1);
   const [courseName, setCourseName] = useState<string>("");
+
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -118,7 +108,9 @@ export default function SurveyBuilder() {
   const [courseNames, setCourseNames] = useState<CourseName[]>([]);
   const [courseMgrOpen, setCourseMgrOpen] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
-  const [editRow, setEditRow] = useState<{ id: string; name: string } | null>(null);
+  const [editRow, setEditRow] = useState<{ id: string; name: string } | null>(
+    null
+  );
 
   const title = useMemo(
     () => buildTitle(educationYear, educationRound, educationDay, courseName),
@@ -195,12 +187,7 @@ export default function SurveyBuilder() {
         end_date: toSafeISOString(endAt),
         description,
       };
-
-      const { error } = await supabase
-        .from("surveys")
-        .update(payload)
-        .eq("id", surveyId);
-
+      const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
       if (error) throw error;
 
       toast({ title: "기본 정보 저장", description: "저장되었습니다." });
@@ -226,51 +213,34 @@ export default function SurveyBuilder() {
       await loadCourseNames();
       toast({ title: "과정명 추가", description: `"${name}" 추가됨` });
     } catch (e: any) {
-      toast({
-        title: "추가 실패",
-        description: e.message,
-        variant: "destructive",
-      });
+      toast({ title: "추가 실패", description: e.message, variant: "destructive" });
     }
   };
-
   const handleRenameCourseName = async () => {
     if (!editRow) return;
     const newName = editRow.name.trim();
     if (!newName) return;
-
     try {
       const old = courseNames.find((c) => c.id === editRow.id)?.name || "";
       await CourseNamesRepo.rename(editRow.id, old, newName);
       setEditRow(null);
       await loadCourseNames();
-      // 현재 폼에서 같은 이름을 사용 중이면 동기화
-      if (courseName === old) setCourseName(newName);
+      if (courseName === old) setCourseName(newName); // 폼 동기화
       toast({ title: "과정명 변경", description: `"${old}" → "${newName}"` });
     } catch (e: any) {
-      toast({
-        title: "변경 실패",
-        description: e.message,
-        variant: "destructive",
-      });
+      toast({ title: "변경 실패", description: e.message, variant: "destructive" });
     }
   };
-
   const handleDeleteCourseName = async (id: string) => {
     const target = courseNames.find((c) => c.id === id);
     if (!target) return;
-    if (!confirm(`"${target.name}" 과정을 목록에서 삭제할까요? (기존 설문에는 영향 없습니다)`))
-      return;
+    if (!confirm(`"${target.name}" 과정을 목록에서 삭제할까요? (기존 설문에는 영향 없습니다)`)) return;
     try {
       await CourseNamesRepo.remove(id);
       await loadCourseNames();
       toast({ title: "삭제 완료", description: `"${target.name}" 삭제됨` });
     } catch (e: any) {
-      toast({
-        title: "삭제 실패",
-        description: e.message,
-        variant: "destructive",
-      });
+      toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
     }
   };
 
@@ -305,23 +275,19 @@ export default function SurveyBuilder() {
         <div />
       </div>
 
-      {/* 기본 정보 */}
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">기본 정보</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* ⛔️ 과목(Subject) 필드는 제거됨 */}
+            {/* ⛔️ 과목(Subject) 필드 삭제됨 */}
 
-            {/* 과정명 (관리 가능) */}
+            {/* 과정명 + 관리 */}
             <div className="space-y-2">
               <Label>과정명</Label>
               <div className="flex gap-2">
-                <Select
-                  value={courseName || ""}
-                  onValueChange={(v) => setCourseName(v)}
-                >
+                <Select value={courseName || ""} onValueChange={(v) => setCourseName(v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="과정명을 선택하세요" />
                   </SelectTrigger>
@@ -340,27 +306,21 @@ export default function SurveyBuilder() {
               </div>
             </div>
 
-            {/* 교육 연도 */}
             <div className="space-y-2">
               <Label>교육 연도</Label>
               <Select
                 value={String(educationYear)}
                 onValueChange={(v) => setEducationYear(parseInt(v))}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* 차수 */}
             <div className="space-y-2">
               <Label>차수</Label>
               <Input
@@ -371,7 +331,6 @@ export default function SurveyBuilder() {
               />
             </div>
 
-            {/* 일차 */}
             <div className="space-y-2">
               <Label>일차</Label>
               <Input
@@ -382,34 +341,23 @@ export default function SurveyBuilder() {
               />
             </div>
 
-            {/* 자동 제목 */}
             <div className="space-y-2 md:col-span-2">
               <Label>제목 (자동)</Label>
               <Input value={title} readOnly />
             </div>
 
-            {/* 시작/종료일시 */}
             <div className="space-y-2">
               <Label>시작일시</Label>
-              <Input
-                type="datetime-local"
-                value={startAt}
-                onChange={(e) => setStartAt(e.target.value)}
-              />
+              <Input type="datetime-local" value={toLocalDateTime(survey.start_date)} onChange={(e)=>setStartAt(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>종료일시</Label>
-              <Input
-                type="datetime-local"
-                value={endAt}
-                onChange={(e) => setEndAt(e.target.value)}
-              />
+              <Input type="datetime-local" value={toLocalDateTime(survey.end_date)} onChange={(e)=>setEndAt(e.target.value)} />
             </div>
 
-            {/* 설명 */}
             <div className="space-y-2 md:col-span-2">
               <Label>설명</Label>
-              <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+              <Textarea rows={3} value={description} onChange={(e)=>setDescription(e.target.value)} />
             </div>
           </div>
 
@@ -422,8 +370,6 @@ export default function SurveyBuilder() {
         </CardContent>
       </Card>
 
-      {/* (여기에 이후 섹션/문항 편집 UI가 이어짐) */}
-
       {/* 과정명 관리 다이얼로그 */}
       <Dialog open={courseMgrOpen} onOpenChange={setCourseMgrOpen}>
         <DialogContent className="max-w-xl">
@@ -434,15 +380,12 @@ export default function SurveyBuilder() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* 추가 */}
           <div className="flex gap-2">
             <Input
               placeholder="새 과정명 입력"
               value={newCourseName}
               onChange={(e) => setNewCourseName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateCourseName();
-              }}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateCourseName()}
             />
             <Button onClick={handleCreateCourseName}>
               <Plus className="w-4 h-4 mr-1" />
@@ -452,7 +395,6 @@ export default function SurveyBuilder() {
 
           <Separator className="my-3" />
 
-          {/* 목록 */}
           <div className="space-y-2 max-h-80 overflow-auto">
             {courseNames.length === 0 ? (
               <div className="text-sm text-muted-foreground">등록된 과정명이 없습니다.</div>
@@ -460,10 +402,7 @@ export default function SurveyBuilder() {
               courseNames.map((c) => {
                 const isEditing = editRow?.id === c.id;
                 return (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between gap-3 border rounded-md p-2"
-                  >
+                  <div key={c.id} className="flex items-center justify-between gap-3 border rounded-md p-2">
                     {isEditing ? (
                       <Input
                         value={editRow!.name}
@@ -480,30 +419,16 @@ export default function SurveyBuilder() {
                     <div className="flex gap-2">
                       {isEditing ? (
                         <>
-                          <Button size="sm" onClick={handleRenameCourseName}>
-                            변경
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditRow(null)}>
-                            취소
-                          </Button>
+                          <Button size="sm" onClick={handleRenameCourseName}>변경</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditRow(null)}>취소</Button>
                         </>
                       ) : (
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditRow({ id: c.id, name: c.name })}
-                          >
-                            <Pencil className="w-4 h-4 mr-1" />
-                            이름변경
+                          <Button size="sm" variant="outline" onClick={() => setEditRow({ id: c.id, name: c.name })}>
+                            <Pencil className="w-4 h-4 mr-1" /> 이름변경
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteCourseName(c.id)}
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            삭제
+                          <Button size="sm" variant="destructive" onClick={() => handleDeleteCourseName(c.id)}>
+                            <Trash2 className="w-4 h-4 mr-1" /> 삭제
                           </Button>
                         </>
                       )}
@@ -515,9 +440,7 @@ export default function SurveyBuilder() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCourseMgrOpen(false)}>
-              닫기
-            </Button>
+            <Button variant="outline" onClick={() => setCourseMgrOpen(false)}>닫기</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
