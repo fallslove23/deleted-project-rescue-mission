@@ -139,10 +139,21 @@ export default function SurveyCreateForm({
         });
       }
       
+      // course_selections가 비어있으면 기본 항목 하나 추가
+      const courseSelections = initialValues.course_selections || [];
+      if (courseSelections.length === 0) {
+        courseSelections.push({ courseId: '', instructorId: '' });
+      }
+      
       // 그 다음에 폼을 리셋 (customCourses 업데이트 후)
       setTimeout(() => {
-        reset({ ...DEFAULTS, ...initialValues });
-        console.log('SurveyCreateForm - Form reset completed with course_name:', initialValues.course_name);
+        reset({ ...DEFAULTS, ...initialValues, course_selections: courseSelections });
+        console.log('SurveyCreateForm - Form reset completed with course_selections:', courseSelections);
+      }, 0);
+    } else {
+      // 새 설문 생성 모드일 때도 기본 항목 하나 추가
+      setTimeout(() => {
+        reset({ ...DEFAULTS, course_selections: [{ courseId: '', instructorId: '' }] });
       }, 0);
     }
   }, [initialValues, reset]);
@@ -473,11 +484,12 @@ export default function SurveyCreateForm({
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">과목 {index + 1}</span>
                     {fields.length > 1 && (
-                      <Button 
+                       <Button 
                         type="button" 
                         variant="outline" 
                         size="sm"
                         onClick={() => remove(index)}
+                        className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
