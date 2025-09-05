@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
-interface CourseName {
+interface CourseItem {
   id: string;
-  name: string;
+  title: string;
   description?: string;
   created_at: string;
 }
@@ -23,31 +23,31 @@ interface CourseNameManagerProps {
 
 export default function CourseNameManager({ selectedCourse, onCourseSelect }: CourseNameManagerProps) {
   const { toast } = useToast();
-  const [courseNames, setCourseNames] = useState<CourseName[]>([]);
+  const [courses, setCourses] = useState<CourseItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCourse, setEditingCourse] = useState<CourseName | null>(null);
+  const [editingCourse, setEditingCourse] = useState<CourseItem | null>(null);
   
   const [form, setForm] = useState({
-    name: "",
+    title: "",
     description: ""
   });
 
   useEffect(() => {
-    fetchCourseNames();
+    fetchCourses();
   }, []);
 
-  const fetchCourseNames = async () => {
+  const fetchCourses = async () => {
     try {
       const { data, error } = await supabase
-        .from('course_names')
-        .select('*')
-        .order('name');
+        .from('courses')
+        .select('id, title, description, created_at')
+        .order('title');
 
       if (error) throw error;
-      setCourseNames(data || []);
+      setCourses((data as CourseItem[]) || []);
     } catch (error: any) {
-      console.error('Error fetching course names:', error);
+      console.error('Error fetching courses:', error);
       toast({
         title: "오류",
         description: "과정명 목록을 불러오는 중 오류가 발생했습니다.",
@@ -59,7 +59,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!form.name.trim()) {
+    if (!form.title.trim()) {
       toast({
         title: "오류",
         description: "과정명을 입력해주세요.",
@@ -72,11 +72,10 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
 
     try {
       if (editingCourse) {
-        // 수정
         const { error } = await supabase
-          .from('course_names')
+          .from('courses')
           .update({
-            name: form.name.trim(),
+            title: form.title.trim(),
             description: form.description.trim() || null
           })
           .eq('id', editingCourse.id);
@@ -84,22 +83,18 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
         if (error) throw error;
         toast({ title: "성공", description: "과정명이 수정되었습니다." });
       } else {
-        // 추가
         const { error } = await supabase
-          .from('course_names')
-          .insert([{
-            name: form.name.trim(),
-            description: form.description.trim() || null
-          }]);
+          .from('courses')
+          .insert([{ title: form.title.trim(), description: form.description.trim() || null }]);
 
         if (error) throw error;
         toast({ title: "성공", description: "과정명이 추가되었습니다." });
       }
 
-      setForm({ name: "", description: "" });
+      setForm({ title: "", description: "" });
       setEditingCourse(null);
       setIsDialogOpen(false);
-      fetchCourseNames();
+      fetchCourses();
     } catch (error: any) {
       console.error('Error saving course name:', error);
       toast({
@@ -112,28 +107,25 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
     }
   };
 
-  const handleEdit = (course: CourseName) => {
+  const handleEdit = (course: CourseItem) => {
     setEditingCourse(course);
-    setForm({
-      name: course.name,
-      description: course.description || ""
-    });
+    setForm({ title: course.title, description: course.description || "" });
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("이 과정명을 삭제하시겠습니까?")) return;
+    if (!confirm("이 과정명을 삭제하시겠습니까? 관련된 세션/데이터에 영향을 줄 수 있습니다.")) return;
 
     try {
       const { error } = await supabase
-        .from('course_names')
+        .from('courses')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
       
       toast({ title: "성공", description: "과정명이 삭제되었습니다." });
-      fetchCourseNames();
+      fetchCourses();
     } catch (error: any) {
       console.error('Error deleting course name:', error);
       toast({
@@ -146,7 +138,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
 
   const handleNewCourse = () => {
     setEditingCourse(null);
-    setForm({ name: "", description: "" });
+    setForm({ title: "", description: "" });
     setIsDialogOpen(true);
   };
 
@@ -156,16 +148,16 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
         <Label>과정 (프로그램)</Label>
         <div className="flex gap-2">
           <Select
-            value={selectedCourse}
+            value={selectedCourse || undefined as unknown as string}
             onValueChange={onCourseSelect}
           >
             <SelectTrigger className="flex-1">
               <SelectValue placeholder="과정을 선택하세요" />
             </SelectTrigger>
             <SelectContent>
-              {courseNames.map((course) => (
-                <SelectItem key={course.id} value={course.name}>
-                  {course.name}
+              {courses.map((course) => (
+                <SelectItem key={course.id} value={course.title}>
+                  {course.title}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -188,8 +180,8 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
                 <div>
                   <Label>과정명</Label>
                   <Input
-                    value={form.name}
-                    onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                    value={form.title}
+                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="예: BS Advanced, 웹개발 기초 등"
                   />
                 </div>
@@ -226,10 +218,10 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-32 overflow-y-auto">
-            {courseNames.map((course) => (
+            {courses.map((course) => (
               <div key={course.id} className="flex items-center justify-between p-2 border rounded">
                 <div>
-                  <div className="font-medium text-sm">{course.name}</div>
+                  <div className="font-medium text-sm">{course.title}</div>
                   {course.description && (
                     <div className="text-xs text-muted-foreground">{course.description}</div>
                   )}
@@ -252,7 +244,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
                 </div>
               </div>
             ))}
-            {courseNames.length === 0 && (
+            {courses.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">
                 등록된 과정명이 없습니다.
               </p>
