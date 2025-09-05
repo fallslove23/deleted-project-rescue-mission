@@ -1,5 +1,5 @@
 // src/pages/SurveyManagementV2.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,22 +20,21 @@ import {
   XCircle
 } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
-import { SurveysRepository, SurveyListItem, SurveyFilters, PaginatedSurveyResult } from "@/repositories/surveysRepo";
+import { SurveysRepository, SurveyListItem, SurveyFilters } from "@/repositories/surveysRepo";
 
 const STATUS_CONFIG = {
-  draft: { label: "초안", variant: "secondary" as const, color: "hsl(var(--muted-foreground))" },
-  active: { label: "진행중", variant: "default" as const, color: "hsl(var(--primary))" },
-  public: { label: "진행중", variant: "default" as const, color: "hsl(var(--primary))" },
-  completed: { label: "완료", variant: "outline" as const, color: "hsl(var(--success))" },
-  scheduled: { label: "시작예정", variant: "secondary" as const, color: "hsl(var(--warning))" },
-  expired: { label: "종료", variant: "destructive" as const, color: "hsl(var(--destructive))" },
+  draft: { label: "초안", variant: "secondary" as const },
+  active: { label: "진행중", variant: "default" as const },
+  public: { label: "진행중", variant: "default" as const },
+  completed: { label: "완료", variant: "outline" as const },
+  scheduled: { label: "시작예정", variant: "secondary" as const },
+  expired: { label: "종료", variant: "destructive" as const },
 };
 
 const TIMEZONE = "Asia/Seoul";
 const PAGE_SIZE = 10;
 const DEBOUNCE_MS = 300;
 
-/** 검색어 하이라이트 */
 function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -65,13 +64,19 @@ export default function SurveyManagementV2() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [availableCourseNames, setAvailableCourseNames] = useState<string[]>([]); // ⬅️ 추가
 
-  // 필터 + 검색
-  const [filters, setFilters] = useState<SurveyFilters>({ year: null, status: null, q: null });
-  const [searchText, setSearchText] = useState(""); // 입력 박스용 (디바운스)
+  const [filters, setFilters] = useState<SurveyFilters>({
+    year: null,
+    status: null,
+    q: null,
+    courseName: null, // ⬅️ 추가
+  });
+
+  const [searchText, setSearchText] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // 디바운스 적용
+  // 디바운스 검색
   useEffect(() => {
     const t = setTimeout(() => {
       setFilters((prev) => ({ ...prev, q: searchText.trim() || null }));
@@ -106,9 +111,29 @@ export default function SurveyManagementV2() {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, filters.year, filters.status, filters.q]);
+  }, [currentPage, filters.year, filters.status, filters.q, filters.courseName]);
 
-  // 안전한 날짜 포맷팅
+  // 교육연도 변경 시 과정명 옵션 갱신
+  const loadCourseNames = async (year: number | null) => {
+    try {
+      const names = await SurveysRepository.getAvailableCourseNames(year);
+      setAvailableCourseNames(names);
+      // 현재 선택된 과정명이 목록에 없으면 리셋
+      if (filters.courseName && !names.includes(filters.courseName)) {
+        setFilters((prev) => ({ ...prev, courseName: null }));
+        setCurrentPage(1);
+      }
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadCourseNames(filters.year);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.year]);
+
+  // 안전 날짜
   const formatSafeDate = (dateString: string | null): string => {
     if (!dateString) return "미설정";
     try {
@@ -121,31 +146,34 @@ export default function SurveyManagementV2() {
   };
 
   // 상태 결정
-  const getStatusInfo = (survey: SurveyListItem) => {
+  const getStatusInfo = (s: SurveyListItem) => {
     const now = new Date();
-    const startDate = survey.start_date ? new Date(survey.start_date) : null;
-    const endDate = survey.end_date ? new Date(survey.end_date) : null;
-
-    if (survey.status === "draft") return STATUS_CONFIG.draft;
-    if (survey.status === "completed") return STATUS_CONFIG.completed;
-    if (startDate && now < startDate) return STATUS_CONFIG.scheduled;
-    if (endDate && now > endDate) return STATUS_CONFIG.expired;
-    if (survey.status === "active" || survey.status === "public") return STATUS_CONFIG.active;
+    const start = s.start_date ? new Date(s.start_date) : null;
+    const end = s.end_date ? new Date(s.end_date) : null;
+    if (s.status === "draft") return STATUS_CONFIG.draft;
+    if (s.status === "completed") return STATUS_CONFIG.completed;
+    if (start && now < start) return STATUS_CONFIG.scheduled;
+    if (end && now > end) return STATUS_CONFIG.expired;
+    if (s.status === "active" || s.status === "public") return STATUS_CONFIG.active;
     return STATUS_CONFIG.draft;
   };
 
   // 필터 변경
   const handleFilterChange = (key: keyof SurveyFilters, value: string) => {
     const newValue =
-      value === "all" ? null : key === "year" ? (value ? parseInt(value) : null) : value;
-    setFilters((prev) => ({ ...prev, [key]: newValue }));
+      value === "all"
+        ? null
+        : key === "year"
+        ? (value ? parseInt(value) : null)
+        : value;
+    setFilters((prev) => ({ ...prev, [key]: newValue as any }));
     setCurrentPage(1);
   };
 
   // 새로고침
   const handleRefresh = () => loadData();
 
-  // 단축키: "/" 또는 Cmd/Ctrl+K 로 검색칸 포커스
+  // 단축키
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
@@ -160,8 +188,6 @@ export default function SurveyManagementV2() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  /* ----------------------- Render ----------------------- */
 
   if (loading) {
     return (
@@ -207,7 +233,7 @@ export default function SurveyManagementV2() {
           <CardTitle className="text-lg">검색 / 필터</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* 🔍 검색 박스 */}
+          {/* 검색 */}
           <div className="space-y-2">
             <label className="text-sm font-medium">검색</label>
             <div className="relative">
@@ -232,12 +258,13 @@ export default function SurveyManagementV2() {
             <p className="text-xs text-muted-foreground">
               Tip: <kbd className="px-1 py-0.5 rounded bg-muted">/</kbd> 또는{" "}
               <kbd className="px-1 py-0.5 rounded bg-muted">⌘/Ctrl</kbd>+<kbd className="px-1 py-0.5 rounded bg-muted">K</kbd>{" "}
-              로 검색창에 바로 포커스하기
+              로 검색창 바로 열기
             </p>
           </div>
 
-          {/* 필터 라인 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 필터 라인: 연도 → 과정명 → 상태 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 교육 연도 */}
             <div className="space-y-2">
               <label className="text-sm font-medium">교육 연도</label>
               <Select
@@ -258,6 +285,28 @@ export default function SurveyManagementV2() {
               </Select>
             </div>
 
+            {/* ⬇️ 과정명 필터 */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">과정명</label>
+              <Select
+                value={filters.courseName || "all"}
+                onValueChange={(value) => handleFilterChange("courseName", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="모든 과정" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">모든 과정</SelectItem>
+                  {availableCourseNames.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 상태 */}
             <div className="space-y-2">
               <label className="text-sm font-medium">상태</label>
               <Select
