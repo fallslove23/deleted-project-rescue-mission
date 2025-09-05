@@ -1,6 +1,24 @@
 // src/repositories/surveysRepo.ts
 import { supabase } from "@/integrations/supabase/client";
 
+/* util: 로컬 'YYYY-MM-DDTHH:mm' */
+const pad = (n: number) => String(n).padStart(2, "0");
+const toLocalInputStr = (d: Date) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+const getDefaultStartEndLocal = () => {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const start = new Date(next);
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(next);
+  end.setHours(19, 0, 0, 0);
+  return { startLocal: toLocalInputStr(start), endLocal: toLocalInputStr(end) };
+};
+const toISO = (local: string | null) =>
+  local ? new Date(local).toISOString() : null;
+
 /* ----------------------------- Types ------------------------------ */
 export type SurveyListItem = {
   id: string;
@@ -158,6 +176,7 @@ export const SurveysRepository = {
     if (error) throw error;
   },
 
+  // ▶ 퀵 생성 시에도 기본 start/end 자동 채움
   async quickCreateSurvey(payload: {
     education_year: number;
     education_round: number;
@@ -170,14 +189,16 @@ export const SurveysRepository = {
       payload.title ??
       `${payload.education_year}-${payload.course_name}-${payload.education_round}차-${payload.education_day}일차 설문`;
 
+    const { startLocal, endLocal } = getDefaultStartEndLocal();
+
     const { data, error } = await supabase
       .from("surveys")
       .insert([
         {
           title: baseTitle,
           description: "",
-          start_date: null,
-          end_date: null,
+          start_date: toISO(startLocal),
+          end_date: toISO(endLocal),
           education_year: payload.education_year,
           education_round: payload.education_round,
           education_day: payload.education_day,
@@ -196,7 +217,6 @@ export const SurveysRepository = {
 };
 
 /* ------------------------- CourseNamesRepo ------------------------ */
-/** 새 파일을 만들기 어려우면 이 파일에서 함께 export 합니다. */
 export type CourseName = {
   id: string;
   name: string;
