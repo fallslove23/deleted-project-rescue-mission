@@ -85,6 +85,7 @@ export default function SurveyCreateForm({
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
+  const [customCourses, setCustomCourses] = useState<string[]>([]);
 
   // React Hook Form 설정
   const { control, handleSubmit: hookFormSubmit, reset, watch } = useForm<FormValues>({
@@ -229,24 +230,35 @@ export default function SurveyCreateForm({
                     value={courseNameCtrl.field.value || ""} 
                     onValueChange={courseNameCtrl.field.onChange}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background border-input">
                       <SelectValue placeholder="과정 선택" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="BS Basic">BS Basic</SelectItem>
                       <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                      {/* 동적으로 추가된 과정들 */}
+                      {customCourses.map((course) => (
+                        <SelectItem key={course} value={course}>
+                          {course}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Button 
                     type="button" 
                     size="sm" 
                     variant="outline" 
-                    className="px-2"
+                    className="px-2 bg-background border-input"
                     onClick={() => {
                       const newCourse = prompt('새 과정명을 입력하세요:');
                       if (newCourse && newCourse.trim()) {
-                        // 기존 옵션에 추가 (실제로는 DB에 저장되어야 함)
-                        courseNameCtrl.field.onChange(newCourse.trim());
+                        const trimmedCourse = newCourse.trim();
+                        if (!customCourses.includes(trimmedCourse) && 
+                            trimmedCourse !== 'BS Basic' && 
+                            trimmedCourse !== 'BS Advanced') {
+                          setCustomCourses([...customCourses, trimmedCourse]);
+                        }
+                        courseNameCtrl.field.onChange(trimmedCourse);
                       }
                     }}
                   >
