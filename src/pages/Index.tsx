@@ -135,7 +135,7 @@ const Index = () => {
   const groupedSurveys = groupSurveysByRound(surveys);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full overflow-hidden">
@@ -222,7 +222,7 @@ const Index = () => {
       </header>
 
       {/* Main */}
-      <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 min-h-screen max-w-full overflow-hidden">
+      <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 max-w-full">
         <div className="mb-6 md:mb-8 text-center px-2">
           <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">{showAllSurveys ? '📝 전체 설문조사' : '📝 오늘의 설문조사'}</h2>
           <p className="text-muted-foreground text-sm md:text-base break-words">
@@ -249,7 +249,7 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-[calc(100vh-200px)] space-y-4">
+          <div className="space-y-4 pb-8">
             {Object.entries(groupedSurveys).map(([roundTitle, roundSurveys]) => (
               <div key={roundTitle} className="animate-fade-in">
                 <Collapsible open={openGroups[roundTitle] || false} onOpenChange={() => toggleGroup(roundTitle)}>
@@ -269,8 +269,8 @@ const Index = () => {
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
-                    <div className="flex-1 overflow-y-auto max-h-[60vh] min-h-[300px]">
-                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-1 pb-4">
+                    <div className="mb-6">
+                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-1">
                         {roundSurveys.map((survey) => (
                           <Card
                             key={survey.id}
