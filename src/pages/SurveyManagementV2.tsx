@@ -421,7 +421,10 @@ export default function SurveyManagementV2() {
     course_name: string;
     template_id: string | null;
   }) => {
-    const created = await SurveysRepository.quickCreateSurvey(p);
+    const created = await SurveysRepository.quickCreateSurvey({
+      ...p,
+      program_name: p.course_name // course_name을 program_name으로 매핑
+    });
     toast({ title: "설문 생성 완료", description: created.title ?? "" });
     navigate(`/survey-builder/${created.id}`);
   };

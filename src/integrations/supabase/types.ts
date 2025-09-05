@@ -228,6 +228,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          program_id: string | null
           title: string
           updated_at: string
         }
@@ -235,6 +236,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          program_id?: string | null
           title: string
           updated_at?: string
         }
@@ -242,10 +244,19 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          program_id?: string | null
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "courses_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_logs: {
         Row: {
@@ -394,6 +405,30 @@ export type Database = {
           instructor_id?: string | null
           role?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      programs: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1011,6 +1046,7 @@ export type Database = {
           instructor_id: string | null
           is_combined: boolean | null
           is_test: boolean | null
+          program_id: string | null
           round_label: string | null
           start_date: string | null
           status: string
@@ -1035,6 +1071,7 @@ export type Database = {
           instructor_id?: string | null
           is_combined?: boolean | null
           is_test?: boolean | null
+          program_id?: string | null
           round_label?: string | null
           start_date?: string | null
           status?: string
@@ -1059,6 +1096,7 @@ export type Database = {
           instructor_id?: string | null
           is_combined?: boolean | null
           is_test?: boolean | null
+          program_id?: string | null
           round_label?: string | null
           start_date?: string | null
           status?: string
@@ -1086,6 +1124,13 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
             referencedColumns: ["id"]
           },
           {
