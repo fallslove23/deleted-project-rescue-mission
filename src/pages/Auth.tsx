@@ -98,7 +98,7 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="w-full max-w-6xl mx-auto px-4 py-3 flex items-center">
+        <div className="w-full max-w-7xl mx-auto px-4 py-3 flex items-center">
           <Button
             onClick={() => navigate('/')}
             variant="ghost"
@@ -117,7 +117,7 @@ const Auth = () => {
       </header>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md mx-auto">
+        <div className="w-full max-w-lg mx-auto">
           <Card className="w-full">
             <CardHeader>
               <CardTitle className="text-center text-lg sm:text-xl break-words">
