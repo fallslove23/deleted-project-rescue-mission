@@ -27,7 +27,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     education_round: 1,
     education_day: 1,
     status: "draft",
-    template_id: initialTemplate || "",
+    template_id: initialTemplate || "none",
     expected_participants: 0,
     
     // 합반 관련 필드
@@ -108,7 +108,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         education_round: Number(form.education_round),
         education_day: Number(form.education_day),
         status: form.status,
-        template_id: form.template_id || null,
+        template_id: form.template_id === "none" ? null : form.template_id,
         expected_participants: Number(form.expected_participants) || 0,
         
         // 과정 정보
@@ -248,7 +248,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
               >
                 <SelectTrigger><SelectValue placeholder="템플릿을 선택하세요" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">템플릿 사용 안함</SelectItem>
+                  <SelectItem value="none">템플릿 사용 안함</SelectItem>
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}

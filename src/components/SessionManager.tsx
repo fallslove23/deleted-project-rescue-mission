@@ -166,8 +166,8 @@ export const SessionManager = ({
           .from('survey_sessions')
           .update({
             session_name: sessionForm.session_name,
-            course_id: sessionForm.course_id || null,
-            instructor_id: sessionForm.instructor_id || null,
+            course_id: sessionForm.course_id === "none" ? null : sessionForm.course_id,
+            instructor_id: sessionForm.instructor_id === "none" ? null : sessionForm.instructor_id,
           })
           .eq('id', editingSession.id);
         
@@ -178,8 +178,8 @@ export const SessionManager = ({
             ? { 
                 ...s, 
                 session_name: sessionForm.session_name,
-                course_id: sessionForm.course_id || null,
-                instructor_id: sessionForm.instructor_id || null,
+                course_id: sessionForm.course_id === "none" ? null : sessionForm.course_id,
+                instructor_id: sessionForm.instructor_id === "none" ? null : sessionForm.instructor_id,
                 course: courses.find(c => c.id === sessionForm.course_id),
                 instructor: instructors.find(i => i.id === sessionForm.instructor_id)
               }
@@ -195,8 +195,8 @@ export const SessionManager = ({
           .insert({
             survey_id: surveyId,
             session_name: sessionForm.session_name,
-            course_id: sessionForm.course_id || null,
-            instructor_id: sessionForm.instructor_id || null,
+            course_id: sessionForm.course_id === "none" ? null : sessionForm.course_id,
+            instructor_id: sessionForm.instructor_id === "none" ? null : sessionForm.instructor_id,
             session_order: sessions.length,
           })
           .select(`
@@ -214,7 +214,7 @@ export const SessionManager = ({
       
       setDialogOpen(false);
       setEditingSession(null);
-      setSessionForm({ session_name: "", course_id: "", instructor_id: "" });
+      setSessionForm({ session_name: "", course_id: "none", instructor_id: "none" });
     } catch (error: any) {
       console.error(error);
       toast({ title: "오류", description: error.message || "세션 저장 중 오류가 발생했습니다.", variant: "destructive" });
@@ -225,8 +225,8 @@ export const SessionManager = ({
     setEditingSession(session);
     setSessionForm({
       session_name: session.session_name,
-      course_id: session.course_id || "",
-      instructor_id: session.instructor_id || ""
+      course_id: session.course_id || "none",
+      instructor_id: session.instructor_id || "none"
     });
     setDialogOpen(true);
   };
@@ -252,7 +252,7 @@ export const SessionManager = ({
 
   const openAddDialog = () => {
     setEditingSession(null);
-    setSessionForm({ session_name: "", course_id: "", instructor_id: "" });
+    setSessionForm({ session_name: "", course_id: "none", instructor_id: "none" });
     setDialogOpen(true);
   };
 
@@ -294,7 +294,7 @@ export const SessionManager = ({
                     <SelectValue placeholder="과목을 선택하세요 (선택사항)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">선택 안함</SelectItem>
+                    <SelectItem value="none">선택 안함</SelectItem>
                     {courses.map(course => (
                       <SelectItem key={course.id} value={course.id}>
                         {course.title}
@@ -314,7 +314,7 @@ export const SessionManager = ({
                     <SelectValue placeholder="강사를 선택하세요 (선택사항)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">선택 안함</SelectItem>
+                    <SelectItem value="none">선택 안함</SelectItem>
                     {instructors.map(instructor => (
                       <SelectItem key={instructor.id} value={instructor.id}>
                         {instructor.name}
