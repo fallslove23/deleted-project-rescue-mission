@@ -704,7 +704,7 @@ export default function SurveyBuilder() {
             <div>
               <Label>과목</Label>
               <Select
-                value={String(form.course_id || "")}
+                value={form.course_id || undefined}
                 onValueChange={(v) => onChange("course_id", v)}
               >
                 <SelectTrigger><SelectValue placeholder="과목 선택" /></SelectTrigger>
@@ -719,7 +719,7 @@ export default function SurveyBuilder() {
             <div>
               <Label>과정 (프로그램)</Label>
               <Select
-                value={String(form.course_name || "")}
+                value={form.course_name || undefined}
                 onValueChange={(v) => onChange("course_name", v)}
               >
                 <SelectTrigger><SelectValue placeholder="과정 선택" /></SelectTrigger>
