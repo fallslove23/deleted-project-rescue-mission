@@ -199,29 +199,35 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
 
   const fetchData = async () => {
     try {
+      // 1단계: 단순 쿼리로 우선 확인
       const [surveysRes, instructorsRes, coursesRes, instructorCoursesRes] = await Promise.all([
         supabase.from('surveys')
-          .select(`
-            *,
-            profiles!surveys_created_by_fkey(email, instructor_id),
-            instructors!instructor_id(name)
-          `)
+          .select('*')
           .order('created_at', { ascending: false }),
         supabase.from('instructors').select('*').order('name'),
         supabase.from('courses').select('*').order('title'),
         supabase.from('instructor_courses').select('*')
       ]);
 
+      console.log("Raw surveys data:", surveysRes.data);
+      console.log("Surveys error:", surveysRes.error);
+
       if (surveysRes.error) throw surveysRes.error;
       if (instructorsRes.error) throw instructorsRes.error;
       if (coursesRes.error) throw coursesRes.error;
       if (instructorCoursesRes.error) throw instructorCoursesRes.error;
 
-      // 작성자 이름 매핑 - 실제 계정 정보로 표시
+      // 안전한 데이터 매핑
       const surveysWithCreator = (surveysRes.data || []).map((survey: any) => ({
         ...survey,
-        creator_name: survey.profiles?.email || '알 수 없음'
+        creator_name: '사용자', // 일단 고정값으로 처리
+        // 안전한 Date 처리
+        start_date: survey.start_date || new Date().toISOString(),
+        end_date: survey.end_date || new Date(Date.now() + 24*60*60*1000).toISOString()
       }));
+      
+      console.log("Processed surveys:", surveysWithCreator);
+      
       setSurveys(surveysWithCreator);
       setInstructors(instructorsRes.data || []);
       setCourses(coursesRes.data || []);
@@ -811,6 +817,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
   const getPaginatedSurveys = () => {
     console.log('Debug - surveys length:', surveys.length);
     console.log('Debug - selectedCourse:', selectedCourse);
+    console.log('Debug - surveys sample:', surveys.slice(0, 2)); // 처음 2개 샘플 확인
     
     // 필터링 로직 개선
     let filtered = surveys;
@@ -831,10 +838,16 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     }
     
     console.log('Debug - filtered length:', filtered.length);
+    console.log('Debug - currentPage:', currentPage, 'itemsPerPage:', itemsPerPage);
     
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filtered.slice(startIndex, endIndex);
+    const result = filtered.slice(startIndex, endIndex);
+    
+    console.log('Debug - paginated result length:', result.length);
+    console.log('Debug - paginated result sample:', result.slice(0, 1));
+    
+    return result;
   };
 
   // 전체 페이지 수
@@ -859,39 +872,54 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
     return Math.ceil(filtered.length / itemsPerPage);
   };
 
-  // 상태 뱃지
+  // 상태 뱃지 - 안전한 Date 처리
   const getStatusBadge = (survey: Survey) => {
-    const timeZone = 'Asia/Seoul';
-    const nowKST = toZonedTime(new Date(), timeZone);
-    const startDateKST = toZonedTime(new Date(survey.start_date), timeZone);
-    const endDateKST = toZonedTime(new Date(survey.end_date), timeZone);
-
-    let displayLabel = '';
-    let variant: 'default' | 'secondary' | 'outline' | 'destructive' = 'secondary';
-
-    if (survey.status === 'active') {
-      if (nowKST < startDateKST) {
-        displayLabel = '시작 예정';
-        variant = 'secondary';
-      } else if (nowKST >= startDateKST && nowKST <= endDateKST) {
-        displayLabel = '진행중';
-        variant = 'default';
-      } else {
-        displayLabel = '종료';
-        variant = 'outline';
+    try {
+      const timeZone = 'Asia/Seoul';
+      const nowKST = toZonedTime(new Date(), timeZone);
+      
+      // 안전한 Date 처리
+      const startDate = survey.start_date ? new Date(survey.start_date) : new Date();
+      const endDate = survey.end_date ? new Date(survey.end_date) : new Date();
+      
+      // Invalid Date 체크
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return <Badge variant="secondary">상태 확인 불가</Badge>;
       }
-    } else if (survey.status === 'draft') {
-      displayLabel = '초안';
-      variant = 'secondary';
-    } else if (survey.status === 'completed') {
-      displayLabel = '완료';
-      variant = 'outline';
-    } else {
-      displayLabel = survey.status;
-      variant = 'secondary';
-    }
+      
+      const startDateKST = toZonedTime(startDate, timeZone);
+      const endDateKST = toZonedTime(endDate, timeZone);
 
-    return <Badge variant={variant}>{displayLabel}</Badge>;
+      let displayLabel = '';
+      let variant: 'default' | 'secondary' | 'outline' | 'destructive' = 'secondary';
+
+      if (survey.status === 'active') {
+        if (nowKST < startDateKST) {
+          displayLabel = '시작 예정';
+          variant = 'secondary';
+        } else if (nowKST >= startDateKST && nowKST <= endDateKST) {
+          displayLabel = '진행중';
+          variant = 'default';
+        } else {
+          displayLabel = '종료';
+          variant = 'outline';
+        }
+      } else if (survey.status === 'draft') {
+        displayLabel = '초안';
+        variant = 'secondary';
+      } else if (survey.status === 'completed') {
+        displayLabel = '완료';
+        variant = 'outline';
+      } else {
+        displayLabel = survey.status;
+        variant = 'secondary';
+      }
+
+      return <Badge variant={variant}>{displayLabel}</Badge>;
+    } catch (error) {
+      console.error('Error in getStatusBadge:', error);
+      return <Badge variant="secondary">오류</Badge>;
+    }
   };
 
   // 표시용 라벨 (목록/카드에 사용)
@@ -1139,11 +1167,29 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                           <div className="flex items-center gap-2">
                             <Calendar className="h-3 w-3 flex-shrink-0" />
                             <span className="break-all">
-                              {survey.start_date ? new Date(survey.start_date).toLocaleString('ko-KR', {
-                                year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                              }) : '시작일 미설정'} ~ {survey.end_date ? new Date(survey.end_date).toLocaleString('ko-KR', {
-                                year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                              }) : '종료일 미설정'}
+                              {(() => {
+                                try {
+                                  const startDate = survey.start_date ? new Date(survey.start_date) : null;
+                                  const endDate = survey.end_date ? new Date(survey.end_date) : null;
+                                  
+                                  const startStr = startDate && !isNaN(startDate.getTime()) 
+                                    ? startDate.toLocaleString('ko-KR', {
+                                        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                                      })
+                                    : '시작일 미설정';
+                                    
+                                  const endStr = endDate && !isNaN(endDate.getTime())
+                                    ? endDate.toLocaleString('ko-KR', {
+                                        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                                      })
+                                    : '종료일 미설정';
+                                    
+                                  return `${startStr} ~ ${endStr}`;
+                                } catch (error) {
+                                  console.error('Date formatting error:', error);
+                                  return '날짜 정보 오류';
+                                }
+                              })()}
                             </span>
                           </div>
                         </div>
