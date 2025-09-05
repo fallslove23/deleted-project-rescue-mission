@@ -28,17 +28,14 @@ type Survey = {
   education_year: number;
   education_round: number;
   education_day: number | null;
-  course_id: string | null;      // 과목 (예: 300 점검방법) — 과목명은 course 테이블에서 가져옴
-  course_name: string | null;    // 과정(프로그램)명: "BS Basic" | "BS Advanced"
+  course_id: string | null;
+  course_name: string | null;
   instructor_id: string | null;
   status: string;
-
-  // ✅ 합반 관련(Nullable)
   is_combined: boolean | null;
   combined_round_start: number | null;
   combined_round_end: number | null;
   round_label: string | null;
-
   created_at: string;
   created_by: string | null;
 };
@@ -89,51 +86,35 @@ export default function SurveyBuilder() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // UUID 형식 검증
   const isValidUUID = (id: string): boolean => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
   };
 
-  // 상태 분리: loading / errorMsg / notFound
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [notFound, setNotFound] = useState(false);
   
-  // 기본 상태 변수들
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [sections, setSections] = useState<SurveySection[]>([]);
   const [sessions, setSessions] = useState<SurveySession[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [customCourses, setCustomCourses] = useState<string[]>([]);
-  const [draggedQuestionIndex, setDraggedQuestionIndex] = useState<number | null>(null);
-  const [draggedCourseIndex, setDraggedCourseIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   
-  // 질문 편집 관련 상태
   const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   
-  // 템플릿 관련 상태
   const [templates, setTemplates] = useState<any[]>([]);
   const [importTemplateOpen, setImportTemplateOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   
-  // 섹션 관리 관련 상태
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<SurveySection | null>(null);
   const [sectionForm, setSectionForm] = useState({ name: "", description: "" });
   
-  // 세션 관리 관련 상태
-  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<string | null>(null);
-  const [sessionForm, setSessionForm] = useState({ 
-    session_name: "", 
-    course_id: "", 
-    instructor_id: "" 
-  });
 
-  // 드래그 앤 드롭 센서
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -169,7 +150,6 @@ export default function SurveyBuilder() {
 
     try {
       if (editingSection) {
-        // 수정
         const { error } = await supabase
           .from('survey_sections')
           .update({
@@ -188,7 +168,6 @@ export default function SurveyBuilder() {
         
         toast({ title: "성공", description: "섹션이 수정되었습니다." });
       } else {
-        // 추가
         const { data, error } = await supabase
           .from('survey_sections')
           .insert({
@@ -226,8 +205,6 @@ export default function SurveyBuilder() {
       if (error) throw error;
       
       setSections(prev => prev.filter(s => s.id !== sectionId));
-      
-      // 해당 섹션의 질문들의 section_id를 null로 업데이트
       setQuestions(prev => prev.map(q => 
         q.section_id === sectionId ? { ...q, section_id: null } : q
       ));
@@ -255,7 +232,6 @@ export default function SurveyBuilder() {
       
       if (error) throw error;
 
-      // 현재 편집 중인 세션의 질문 수 계산
       const currentSessionQuestions = editingSession 
         ? questions.filter(q => q.session_id === editingSession)
         : questions.filter(q => !q.session_id);
@@ -310,7 +286,6 @@ export default function SurveyBuilder() {
     const reorderedQuestions = arrayMove(questions, oldIndex, newIndex);
     setQuestions(reorderedQuestions);
     
-    // 서버에 순서 업데이트
     try {
       const updatePromises = reorderedQuestions.map((question, index) =>
         supabase
@@ -322,7 +297,6 @@ export default function SurveyBuilder() {
       await Promise.all(updatePromises);
     } catch (error) {
       console.error('Error updating question order:', error);
-      // 실패시 원래 순서로 되돌림
       await handleQuestionSave();
     }
   };
@@ -362,9 +336,8 @@ export default function SurveyBuilder() {
     education_round: 1,
     education_day: 1,
     course_id: "",
-    course_name: "", // "BS Basic" | "BS Advanced"
+    course_name: "",
     instructor_id: null,
-
     is_combined: false,
     combined_round_start: null,
     combined_round_end: null,
@@ -375,7 +348,6 @@ export default function SurveyBuilder() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // 과목 목록
         const { data: coursesData, error: coursesError } = await supabase
           .from("courses")
           .select("id,title")
@@ -383,7 +355,6 @@ export default function SurveyBuilder() {
         if (coursesError) throw coursesError;
         setCourses(coursesData ?? []);
 
-        // 강사 목록
         const { data: instructorsData, error: instructorsError } = await supabase
           .from("instructors")
           .select("id,name,email,photo_url,bio")
@@ -399,99 +370,80 @@ export default function SurveyBuilder() {
     loadData();
   }, []);
 
-  // 설문 로드 - 개선된 로직 + UUID 검증
+  // 설문 로드
   useEffect(() => {
     if (!surveyId) {
-      console.error("SurveyBuilder - No surveyId parameter found in URL");
       setErrorMsg("설문 ID가 URL에서 누락되었습니다.");
       setLoading(false);
       return;
     }
 
-    console.log("SurveyBuilder - Received surveyId from URL:", surveyId, "Length:", surveyId.length);
-
-    // UUID 형식 검증
     if (!isValidUUID(surveyId)) {
-      console.error("SurveyBuilder - Invalid UUID format:", surveyId, "Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
-      setErrorMsg(`잘못된 설문 주소입니다. 받은 ID: '${surveyId}' (${surveyId.length}자). 올바른 UUID 형식이 아닙니다.`);
+      setErrorMsg(`잘못된 설문 주소입니다. 올바른 UUID 형식이 아닙니다.`);
       setLoading(false);
       return;
     }
     
     const loadSurveyData = async () => {
-      console.log("SurveyBuilder - Starting to load survey data for ID:", surveyId);
       setLoading(true);
       setErrorMsg("");
       setNotFound(false);
       
       try {
-        // 1. 설문 기본 정보 로드 - 관리자는 테스트 데이터도 편집 가능
-        console.log("SurveyBuilder - Loading survey basic info...");
+        // 1. 설문 기본 정보 로드
         const { data: surveyData, error: surveyError } = await supabase
           .from("surveys")
-          .select('*') // 전체 컬럼 조회로 스키마 불일치 회피
+          .select('*')
           .eq("id", surveyId)
           .maybeSingle();
         
-        console.log("SurveyBuilder - Survey data result:", { surveyData, surveyError });
-        
         if (surveyError) {
-          console.error("SurveyBuilder - Survey loading error:", surveyError);
           throw new Error(`설문 조회 실패: ${surveyError.message}`);
         }
         
         if (!surveyData) {
-          console.log("SurveyBuilder - No survey data found");
           setNotFound(true);
           return;
         }
 
-        console.log("SurveyBuilder - Setting form data:", surveyData);
         setForm({
           ...surveyData,
-          // datetime-local 포맷 보정 (YYYY-MM-DDTHH:mm)
           start_date: surveyData.start_date ? 
             new Date(surveyData.start_date).toISOString().slice(0, 16) : "",
           end_date: surveyData.end_date ? 
             new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
         });
 
-        // 커스텀 과정인 경우 목록에 추가
+        // 커스텀 과정 복원
         if (surveyData.course_name && 
             surveyData.course_name !== 'BS Basic' && 
             surveyData.course_name !== 'BS Advanced' && 
             surveyData.course_name.trim() !== '') {
           const courseName = surveyData.course_name.trim();
-          console.log('SurveyBuilder - Adding custom course to list:', courseName);
           setCustomCourses(prev => {
             const updated = prev.includes(courseName) ? prev : [...prev, courseName];
-            console.log('SurveyBuilder - Updated customCourses:', updated);
             return updated;
           });
         }
 
-        // 2. 섹션 로드 - 실패해도 계속 진행
-        console.log("SurveyBuilder - Loading sections...");
+        // 2. 섹션 로드
         try {
           const { data: sectionsData, error: sectionsError } = await supabase
             .from("survey_sections")
-            .select('*') // 전체 컬럼 조회
+            .select('*')
             .eq("survey_id", surveyId)
             .order("order_index");
           
-          console.log("SurveyBuilder - Sections result:", { sectionsData, sectionsError });
-          
           if (sectionsError) {
-            console.warn("SurveyBuilder - Sections loading error (non-critical):", sectionsError);
+            console.warn("Sections loading error (non-critical):", sectionsError);
           }
           setSections(sectionsData || []);
         } catch (sectionError) {
-          console.warn("SurveyBuilder - Section loading failed (non-critical):", sectionError);
+          console.warn("Section loading failed (non-critical):", sectionError);
           setSections([]);
         }
 
         // 3. 세션 로드
-        console.log("SurveyBuilder - Loading sessions...");
         try {
           const { data: sessionsData, error: sessionsError } = await supabase
             .from("survey_sessions")
@@ -503,71 +455,41 @@ export default function SurveyBuilder() {
             .eq("survey_id", surveyId)
             .order("session_order");
           
-          console.log("SurveyBuilder - Sessions result:", { sessionsData, sessionsError });
-          
           if (sessionsError) {
-            console.warn("SurveyBuilder - Sessions loading error (non-critical):", sessionsError);
+            console.warn("Sessions loading error (non-critical):", sessionsError);
           }
           setSessions(sessionsData || []);
-          
-          // 커스텀 과정 복원 로직 강화
-          if (surveyData?.course_name && 
-              !["BS Basic", "BS Advanced"].includes(surveyData.course_name) && 
-              !customCourses.includes(surveyData.course_name)) {
-            console.log("SurveyBuilder - Adding custom course to list:", surveyData.course_name);
-            setCustomCourses(prev => [...prev, surveyData.course_name]);
-            
-            // 커스텀 과정을 데이터베이스에도 저장
-            try {
-              await supabase
-                .from("courses")
-                .upsert({
-                  title: surveyData.course_name,
-                }, {
-                  onConflict: "title",
-                  ignoreDuplicates: true
-                });
-            } catch (error) {
-              console.warn("Failed to save custom course:", error);
-            }
-          }
         } catch (sessionError) {
-          console.warn("SurveyBuilder - Session loading failed (non-critical):", sessionError);
+          console.warn("Session loading failed (non-critical):", sessionError);
           setSessions([]);
         }
 
-        // 4. 질문 로드 - 실패해도 계속 진행
-        console.log("SurveyBuilder - Loading questions...");
+        // 4. 질문 로드
         try {
           const { data: questionsData, error: questionsError } = await supabase
             .from("survey_questions")
-            .select('*') // 전체 컬럼 조회
+            .select('*')
             .eq("survey_id", surveyId)
             .order("order_index");
           
-          console.log("SurveyBuilder - Questions result:", { questionsData, questionsError });
-          
           if (questionsError) {
-            console.warn("SurveyBuilder - Questions loading error (non-critical):", questionsError);
+            console.warn("Questions loading error (non-critical):", questionsError);
           }
           
-          // Cast the questions data to match our interface
           const typedQuestions = (questionsData || []).map(q => ({
             ...q,
             scope: (q.scope as 'session' | 'operation') || 'session'
           }));
-          console.log("SurveyBuilder - Typed questions:", typedQuestions);
           setQuestions(typedQuestions);
         } catch (questionError) {
-          console.warn("SurveyBuilder - Question loading failed (non-critical):", questionError);
+          console.warn("Question loading failed (non-critical):", questionError);
           setQuestions([]);
         }
         
       } catch (error: any) {
-        console.error("SurveyBuilder - Critical loading error:", error);
+        console.error("Critical loading error:", error);
         setErrorMsg(error.message || "데이터 로딩 중 오류가 발생했습니다.");
       } finally {
-        console.log("SurveyBuilder - Loading completed");
         setLoading(false);
       }
     };
@@ -575,24 +497,22 @@ export default function SurveyBuilder() {
     loadSurveyData();
   }, [surveyId]);
 
-  // 제목 자동 생성 (과정명 + 일차 + 과목명)
+  // 제목 자동 생성 수정
   const selectedCourseTitle = useMemo(
     () => courses.find((c) => c.id === form.course_id)?.title ?? "",
     [courses, form.course_id]
   );
 
   useEffect(() => {
-    const year2 = String(form.education_year ?? "").slice(-2);
+    const year = String(form.education_year ?? "");
     const r = form.education_round ?? 1;
     const d = form.education_day ?? 1;
     const program = form.course_name || "";
 
-    if (year2 && r && d && program && selectedCourseTitle) {
-      const prefix = `(${year2}-${r}차 ${program} ${d}일차)`;
-      const title = `${prefix} ${selectedCourseTitle}`;
+    if (year && r && d && program && selectedCourseTitle) {
+      const title = `${year}-${program}-${r}차-${d}일차 ${selectedCourseTitle}`;
       setForm((prev) => ({ ...prev, title }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.education_year, form.education_round, form.education_day, form.course_name, form.course_id, selectedCourseTitle]);
 
   // 합반 라벨 자동 생성
@@ -643,7 +563,6 @@ export default function SurveyBuilder() {
       
       if (error) throw error;
       
-      // Cast the questions data to match our interface
       const typedQuestions = (questionsData || []).map(q => ({
         ...q,
         scope: (q.scope as 'session' | 'operation') || 'session'
@@ -654,98 +573,12 @@ export default function SurveyBuilder() {
     }
   };
 
-  // 과목 순서 변경 처리
-  const handleCourseOrderChange = (dragIndex: number, dropIndex: number) => {
-    if (dragIndex === dropIndex) return;
-    
-    const newCustomCourses = Array.from(customCourses);
-    const [draggedCourse] = newCustomCourses.splice(dragIndex, 1);
-    newCustomCourses.splice(dropIndex, 0, draggedCourse);
-    
-    setCustomCourses(newCustomCourses);
-    toast({
-      title: "순서 변경됨",
-      description: "과목 순서가 변경되었습니다."
-    });
-  };
-
-  // 커스텀 과정 저장
-  const handleSaveSurvey = async () => {
-    if (!surveyId) {
-      console.error('No survey ID available');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // 커스텀 과정 먼저 저장/업데이트
-      if (customCourses.length > 0) {
-        await Promise.all(customCourses.map(async (courseName) => {
-          const { error } = await supabase
-            .from('courses')
-            .upsert({ 
-              title: courseName,
-              description: `자동 생성된 과정: ${courseName}`
-            }, { 
-              onConflict: 'title',
-              ignoreDuplicates: true 
-            });
-          
-          if (error && !error.message.includes('duplicate')) {
-            console.error('Error saving course:', error);
-          }
-        }));
-      }
-
-      toast({
-        title: '성공',
-        description: '과정이 성공적으로 저장되었습니다.',
-      });
-
-      navigate('/dashboard/surveys');
-    } catch (error) {
-      console.error('Error saving survey:', error);
-      toast({
-        title: '오류',
-        description: '과정 저장 중 오류가 발생했습니다.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 과목 추가
-  const handleAddCourse = (courseName: string) => {
-    if (!courseName.trim()) return;
-    
-    const trimmedName = courseName.trim();
-    if (!customCourses.includes(trimmedName)) {
-      setCustomCourses(prev => [...prev, trimmedName]);
-      toast({
-        title: "성공",
-        description: `"${trimmedName}" 과정이 추가되었습니다.`
-      });
-    }
-  };
-
-  // 과목 제거
-  const handleRemoveCourse = (index: number) => {
-    const removedCourse = customCourses[index];
-    setCustomCourses(prev => prev.filter((_, i) => i !== index));
-    toast({
-      title: "삭제됨",
-      description: `"${removedCourse}" 과정이 제거되었습니다.`
-    });
-  };
-
   const saveInfo = async () => {
     if (!surveyId) return;
     
     setSaving(true);
     
     try {
-      // 유효성 (합반일 때 범위 필수)
       if (form.course_name === "BS Advanced" && form.is_combined) {
         if (!form.combined_round_start || !form.combined_round_end) {
           throw new Error("합반을 선택한 경우 시작/종료 차수를 입력하세요.");
@@ -755,7 +588,6 @@ export default function SurveyBuilder() {
         }
       }
 
-      // 라벨 자동 채움
       let round_label = (form.round_label ?? "").trim();
       if (form.course_name === "BS Advanced" && form.is_combined && !round_label) {
         round_label = `${form.education_year}년 ${form.combined_round_start}∼${form.combined_round_end}차 - BS Advanced`;
@@ -771,7 +603,6 @@ export default function SurveyBuilder() {
         education_day: Number(form.education_day) || 1,
         course_id: form.course_id || null,
         course_name: form.course_name || null,
-        // ✅ 합반 필드
         is_combined: !!form.is_combined,
         combined_round_start: form.is_combined ? Number(form.combined_round_start) : null,
         combined_round_end: form.is_combined ? Number(form.combined_round_end) : null,
@@ -789,9 +620,8 @@ export default function SurveyBuilder() {
     }
   };
 
-  // 로딩 상태 처리
+  // 로딩 상태
   if (loading) {
-    console.log("SurveyBuilder - Still loading...");
     return (
       <div className="container mx-auto p-4 lg:p-6">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -804,7 +634,7 @@ export default function SurveyBuilder() {
     );
   }
 
-  // 에러 상태 처리
+  // 에러 상태
   if (errorMsg) {
     return (
       <div className="container mx-auto p-4 lg:p-6">
@@ -829,7 +659,7 @@ export default function SurveyBuilder() {
     );
   }
 
-  // 설문 없음 상태 처리
+  // 설문 없음 상태
   if (notFound) {
     return (
       <div className="container mx-auto p-4 lg:p-6">
@@ -864,6 +694,7 @@ export default function SurveyBuilder() {
         <h1 className="text-lg font-semibold">설문 편집</h1>
       </div>
 
+      {/* 기본 정보 */}
       <Card>
         <CardHeader>
           <CardTitle>기본 정보</CardTitle>
@@ -877,7 +708,7 @@ export default function SurveyBuilder() {
                 onValueChange={(v) => onChange("course_id", v)}
               >
                 <SelectTrigger><SelectValue placeholder="과목 선택" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-50">
                   {courses.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                   ))}
@@ -895,7 +726,6 @@ export default function SurveyBuilder() {
                 <SelectContent className="bg-background border shadow-lg z-50">
                   <SelectItem value="BS Basic">BS Basic</SelectItem>
                   <SelectItem value="BS Advanced">BS Advanced</SelectItem>
-                  {/* 동적으로 추가된 커스텀 과정들 */}
                   {customCourses.map((course) => (
                     <SelectItem key={course} value={course}>
                       {course}
@@ -925,70 +755,69 @@ export default function SurveyBuilder() {
             </div>
           </div>
 
-            {/* ✅ 합반 입력: BS Advanced일 때만 */}
-            {form.course_name === "BS Advanced" && (
-              <Card className="border-orange-200 bg-orange-50/50">
-                <CardHeader>
-                  <CardTitle className="text-sm text-orange-800">합반 설정</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="is_combined"
-                      type="checkbox"
-                      className="h-4 w-4 text-orange-600"
-                      checked={!!form.is_combined}
-                      onChange={(e) => onChange("is_combined", e.target.checked)}
-                    />
-                    <Label htmlFor="is_combined" className="text-sm font-medium">
-                      합반으로 운영
-                    </Label>
-                  </div>
+          {form.course_name === "BS Advanced" && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardHeader>
+                <CardTitle className="text-sm text-orange-800">합반 설정</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="is_combined"
+                    type="checkbox"
+                    className="h-4 w-4 text-orange-600"
+                    checked={!!form.is_combined}
+                    onChange={(e) => onChange("is_combined", e.target.checked)}
+                  />
+                  <Label htmlFor="is_combined" className="text-sm font-medium">
+                    합반으로 운영
+                  </Label>
+                </div>
 
-                  {form.is_combined && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>시작 차수</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={form.combined_round_start ?? ""}
-                            onChange={(e) => onChange("combined_round_start", Number(e.target.value))}
-                            placeholder="시작 차수"
-                          />
-                        </div>
-                        <div>
-                          <Label>종료 차수</Label>
-                          <Input
-                            type="number"
-                            min={form.combined_round_start ?? 1}
-                            value={form.combined_round_end ?? ""}
-                            onChange={(e) => onChange("combined_round_end", Number(e.target.value))}
-                            placeholder="종료 차수"
-                          />
-                        </div>
-                      </div>
-
+                {form.is_combined && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>합반 라벨 (자동 생성됨)</Label>
+                        <Label>시작 차수</Label>
                         <Input
-                          value={form.round_label ?? ""}
-                          onChange={(e) => onChange("round_label", e.target.value)}
-                          placeholder="예: 2024년 1∼3차 - BS Advanced"
+                          type="number"
+                          min="1"
+                          value={form.combined_round_start ?? ""}
+                          onChange={(e) => onChange("combined_round_start", Number(e.target.value))}
+                          placeholder="시작 차수"
                         />
                       </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                      <div>
+                        <Label>종료 차수</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={form.combined_round_end ?? ""}
+                          onChange={(e) => onChange("combined_round_end", Number(e.target.value))}
+                          placeholder="종료 차수"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>합반 라벨 (자동생성됨)</Label>
+                      <Input
+                        value={form.round_label ?? ""}
+                        onChange={(e) => onChange("round_label", e.target.value)}
+                        placeholder="예: 2025년 1∼3차 - BS Advanced"
+                      />
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>시작일시</Label>
               <Input
                 type="datetime-local"
-                value={String(form.start_date || "")}
+                value={form.start_date ?? ""}
                 onChange={(e) => onChange("start_date", e.target.value)}
               />
             </div>
@@ -996,7 +825,7 @@ export default function SurveyBuilder() {
               <Label>종료일시</Label>
               <Input
                 type="datetime-local"
-                value={String(form.end_date || "")}
+                value={form.end_date ?? ""}
                 onChange={(e) => onChange("end_date", e.target.value)}
               />
             </div>
@@ -1004,153 +833,246 @@ export default function SurveyBuilder() {
 
           <div>
             <Label>설명</Label>
-            <Textarea value={form.description ?? ""} onChange={(e) => onChange("description", e.target.value)} rows={3} />
+            <Textarea
+              placeholder="설문에 대한 설명을 입력하세요"
+              value={form.description ?? ""}
+              onChange={(e) => onChange("description", e.target.value)}
+              rows={3}
+            />
           </div>
 
           <div className="flex justify-end">
             <Button onClick={saveInfo} disabled={saving}>
               <Save className="h-4 w-4 mr-2" />
-              {saving ? "저장 중..." : "정보 저장"}
+              {saving ? "저장 중..." : "기본 정보 저장"}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* 질문 관리 섹션 - 개선된 버전 */}
+      {/* 세션 관리 */}
+      <SessionManager 
+        surveyId={surveyId!}
+        sessions={sessions}
+        onSessionsChange={setSessions}
+        courses={courses}
+        instructors={instructors}
+      />
+
+      {/* 섹션 관리 */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>설문 질문</CardTitle>
-          <div className="flex gap-2 flex-wrap">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setEditingSection(null);
-                setSectionForm({ name: "", description: "" });
-                setSectionDialogOpen(true);
-              }}
-            >
-              <FolderPlus className="h-4 w-4 mr-2" />
-              섹션 추가
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => setImportTemplateOpen(true)}
-              disabled={templates.length === 0}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              템플릿 가져오기
-            </Button>
-            <Button onClick={() => {
-              console.log('SurveyBuilder - 질문 추가 button clicked');
-              setEditingQuestion(null);
-              setQuestionDialogOpen(true);
-              console.log('SurveyBuilder - Dialog should open now, questionDialogOpen:', true);
-            }}>
-              <Plus className="h-4 w-4 mr-2" />
-              질문 추가
-            </Button>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>섹션 관리</CardTitle>
+            <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  섹션 추가
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingSection ? '섹션 수정' : '새 섹션 추가'}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>섹션 이름</Label>
+                    <Input 
+                      value={sectionForm.name}
+                      onChange={(e) => setSectionForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="섹션 이름을 입력하세요"
+                    />
+                  </div>
+                  <div>
+                    <Label>설명 (선택사항)</Label>
+                    <Textarea 
+                      value={sectionForm.description}
+                      onChange={(e) => setSectionForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="섹션 설명을 입력하세요"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => {
+                      setSectionDialogOpen(false);
+                      setEditingSection(null);
+                      setSectionForm({ name: "", description: "" });
+                    }}>
+                      취소
+                    </Button>
+                    <Button onClick={handleSectionSave}>
+                      {editingSection ? '수정' : '추가'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
-          {/* 섹션 목록 표시 */}
-          {sections.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-sm font-medium mb-3 text-muted-foreground">섹션 목록</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {sections.map((section) => (
-                  <div key={section.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                    <span>{section.name}</span>
-                    <div className="flex gap-1">
+          {sections.length > 0 ? (
+            <div className="grid gap-2">
+              {sections.map((section) => (
+                <div key={section.id} className="flex items-center justify-between p-2 border rounded bg-background">
+                  <div>
+                    <span className="font-medium">{section.name}</span>
+                    {section.description && (
+                      <p className="text-sm text-muted-foreground">{section.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingSection(section);
+                        setSectionForm({
+                          name: section.name,
+                          description: section.description || "",
+                        });
+                        setSectionDialogOpen(true);
+                      }}
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>섹션 삭제</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            이 섹션을 삭제하시겠습니까? 섹션에 속한 질문들은 미분류로 이동됩니다.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteSection(section.id)}>
+                            삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">등록된 섹션이 없습니다.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 설문 질문 - 스크린샷 3 스타일로 개선 */}
+      <div className="space-y-6">
+        {/* 세션별 질문 목록 */}
+        <div className="space-y-8">
+          {sessions.map((session, sessionIndex) => {
+            const sessionQuestions = questionsBySession[session.id] || [];
+            let globalQuestionNumber = 1;
+            
+            // 이전 세션들의 질문 개수 누적
+            for (let i = 0; i < sessionIndex; i++) {
+              const prevSessionQuestions = questionsBySession[sessions[i].id] || [];
+              globalQuestionNumber += prevSessionQuestions.length;
+            }
+
+            return (
+              <div key={session.id} className="bg-white rounded-lg border shadow-sm">
+                {/* 섹션 헤더 */}
+                <div className="bg-primary text-primary-foreground p-4 rounded-t-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        {session.course?.title || '과목 미선택'}
+                      </h2>
+                      <p className="text-sm opacity-90">
+                        강사: {session.instructor?.name || '강사 미선택'}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Dialog open={importTemplateOpen && editingSession === session.id} 
+                              onOpenChange={(open) => {
+                                setImportTemplateOpen(open);
+                                if (open) setEditingSession(session.id);
+                                else setEditingSession(null);
+                              }}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={() => setEditingSession(session.id)}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            템플릿 가져오기
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>템플릿에서 질문 가져오기</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label>템플릿 선택</Label>
+                              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="템플릿을 선택하세요" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {templates.map((template) => (
+                                    <SelectItem key={template.id} value={template.id}>
+                                      {template.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" onClick={() => {
+                                setImportTemplateOpen(false);
+                                setEditingSession(null);
+                              }}>
+                                취소
+                              </Button>
+                              <Button onClick={importFromTemplate}>
+                                가져오기
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      
                       <Button 
-                        variant="ghost" 
-                        size="sm"
+                        variant="secondary"
+                        size="sm" 
                         onClick={() => {
-                          setEditingSection(section);
-                          setSectionForm({ 
-                            name: section.name, 
-                            description: section.description || "" 
-                          });
-                          setSectionDialogOpen(true);
+                          setEditingSession(session.id);
+                          setEditingQuestion(null);
+                          setQuestionDialogOpen(true);
                         }}
                       >
-                        <Edit3 className="h-3 w-3" />
+                        <Plus className="h-4 w-4 mr-1" />
+                        질문 추가
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>섹션 삭제</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              이 섹션을 삭제하시겠습니까? 섹션에 속한 질문들은 미분류로 이동됩니다.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>취소</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteSection(section.id)}>
-                              삭제
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
                     </div>
                   </div>
-                ))}
-              </div>
-              <Separator className="my-4" />
-            </div>
-          )}
+                </div>
 
-          {/* 질문 목록 */}
-          {questions.length > 0 ? (
-            <DndContext 
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="space-y-6">
-                {/* 미분류 질문들 */}
-                {questionsBySection.unassigned.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-medium mb-3 text-muted-foreground">미분류 질문</h3>
-                    <SortableContext 
-                      items={questionsBySection.unassigned.map(q => q.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="space-y-2">
-                        {questionsBySection.unassigned.map((question) => (
-                          <SortableQuestion 
-                            key={question.id}
-                            question={question}
-                            onEdit={(q) => {
-                              setEditingQuestion(q);
-                              setQuestionDialogOpen(true);
-                            }}
-                            onDelete={deleteQuestion}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </div>
-                )}
-
-                {/* 섹션별 질문들 */}
-                {sections.map((section) => (
-                  questionsBySection[section.id]?.length > 0 && (
-                    <div key={section.id}>
-                      <h3 className="text-sm font-medium mb-3">{section.name}</h3>
-                      <SortableContext 
-                        items={questionsBySection[section.id].map(q => q.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        <div className="space-y-2">
-                          {questionsBySection[section.id].map((question) => (
-                            <SortableQuestion 
+                {/* 질문 목록 */}
+                <div className="p-6">
+                  {sessionQuestions.length > 0 ? (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <SortableContext items={sessionQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-4">
+                          {sessionQuestions.map((question, questionIndex) => (
+                            <SectionQuestionItem
                               key={question.id}
                               question={question}
+                              questionNumber={globalQuestionNumber + questionIndex}
                               onEdit={(q) => {
                                 setEditingQuestion(q);
                                 setQuestionDialogOpen(true);
@@ -1160,163 +1082,231 @@ export default function SurveyBuilder() {
                           ))}
                         </div>
                       </SortableContext>
-                      <Separator className="mt-4" />
+                    </DndContext>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-muted rounded-lg">
+                      <div className="space-y-2">
+                        <p className="text-lg">이 섹션에는 아직 질문이 없습니다</p>
+                        <p className="text-sm">위의 "질문 추가" 또는 "템플릿 가져오기" 버튼을 사용해 질문을 추가해보세요</p>
+                      </div>
                     </div>
-                  )
-                ))}
-              </div>
-            </DndContext>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              아직 질문이 없습니다. 질문을 추가하거나 템플릿에서 가져와보세요.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 섹션 추가/수정 다이얼로그 */}
-      <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingSection ? "섹션 수정" : "새 섹션 추가"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="section-name">섹션 이름</Label>
-              <Input
-                id="section-name"
-                value={sectionForm.name}
-                onChange={(e) => setSectionForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="섹션 이름을 입력하세요"
-              />
-            </div>
-            <div>
-              <Label htmlFor="section-description">섹션 설명 (선택사항)</Label>
-              <Textarea
-                id="section-description"
-                value={sectionForm.description}
-                onChange={(e) => setSectionForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="섹션에 대한 설명을 입력하세요"
-                rows={3}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setSectionDialogOpen(false)}>
-              취소
-            </Button>
-            <Button onClick={handleSectionSave}>
-              {editingSection ? "수정" : "추가"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 템플릿 가져오기 다이얼로그 - 개선된 버전 */}
-      <Dialog open={importTemplateOpen} onOpenChange={setImportTemplateOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>템플릿에서 질문 가져오기</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="template-select">템플릿 선택</Label>
-              <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="가져올 템플릿을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
-                  {templates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      📋 {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {templates.length === 0 && (
-              <div className="text-center py-4 text-muted-foreground">
-                <div className="text-2xl mb-2">📝</div>
-                <p className="text-sm">사용 가능한 템플릿이 없습니다.</p>
-                <p className="text-xs mt-1">템플릿 관리에서 먼저 템플릿을 생성해주세요.</p>
-              </div>
-            )}
-
-            {selectedTemplateId && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-sm text-blue-800">
-                  <strong>💡 가져오기 방식:</strong>
-                  <ul className="mt-2 space-y-1 text-xs">
-                    <li>• 선택한 템플릿의 모든 질문이 현재 설문에 추가됩니다</li>
-                    <li>• 기존 질문은 유지되고 새 질문이 뒤에 추가됩니다</li>
-                    <li>• 필요시 나중에 개별 질문을 수정하거나 삭제할 수 있습니다</li>
-                  </ul>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => {
-              setImportTemplateOpen(false);
-              setSelectedTemplateId("");
-            }}>
-              취소
-            </Button>
-            <Button 
-              onClick={importFromTemplate} 
-              disabled={!selectedTemplateId}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              가져오기
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            );
+          })}
 
-      {/* 질문 편집 다이얼로그 */}
-      <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingQuestion ? "질문 편집" : "새 질문 추가"}
-            </DialogTitle>
-          </DialogHeader>
-          <QuestionEditForm
-            question={editingQuestion}
-            surveyId={surveyId!}
-            sections={sections}
-            sessions={sessions}
-            onSave={async () => {
-              console.log('SurveyBuilder - QuestionEditForm onSave called');
-              await handleQuestionSave();
-              console.log('SurveyBuilder - Closing dialog after save');
-              setQuestionDialogOpen(false);
-              setEditingQuestion(null);
-            }}
-            onCancel={() => {
-              console.log('SurveyBuilder - QuestionEditForm onCancel called');
-              setQuestionDialogOpen(false);
-              setEditingQuestion(null);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+          {/* 섹션별 질문 (기존 시스템) */}
+          {sections.map((section, sectionIndex) => {
+            const sectionQuestions = questionsBySection[section.id] || [];
+            if (sectionQuestions.length === 0) return null;
+
+            let globalQuestionNumber = 1;
+            
+            // 이전 세션들과 섹션들의 질문 개수 누적
+            sessions.forEach(session => {
+              globalQuestionNumber += (questionsBySession[session.id] || []).length;
+            });
+            
+            for (let i = 0; i < sectionIndex; i++) {
+              const prevSectionQuestions = questionsBySection[sections[i].id] || [];
+              globalQuestionNumber += prevSectionQuestions.length;
+            }
+
+            return (
+              <div key={section.id} className="bg-white rounded-lg border shadow-sm">
+                <div className="bg-green-600 text-white p-4 rounded-t-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold">{section.name}</h2>
+                      {section.description && (
+                        <p className="text-sm opacity-90">{section.description}</p>
+                      )}
+                    </div>
+                    <Button 
+                      variant="secondary"
+                      size="sm" 
+                      onClick={() => {
+                        setEditingSession(null);
+                        setEditingQuestion(null);
+                        setQuestionDialogOpen(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      질문 추가
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={sectionQuestions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-4">
+                        {sectionQuestions.map((question, questionIndex) => (
+                          <SectionQuestionItem
+                            key={question.id}
+                            question={question}
+                            questionNumber={globalQuestionNumber + questionIndex}
+                            onEdit={(q) => {
+                              setEditingQuestion(q);
+                              setQuestionDialogOpen(true);
+                            }}
+                            onDelete={deleteQuestion}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* 미분류 질문들 */}
+          {questionsBySection.unassigned && questionsBySection.unassigned.length > 0 && (
+            <div className="bg-white rounded-lg border shadow-sm">
+              <div className="bg-muted text-muted-foreground p-4 rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">미분류 질문</h2>
+                  <Button 
+                    size="sm" 
+                    onClick={() => {
+                      setEditingSession(null);
+                      setEditingQuestion(null);
+                      setQuestionDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    질문 추가
+                  </Button>
+                </div>
+              </div>
+              <div className="p-6">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={questionsBySection.unassigned.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-4">
+                      {questionsBySection.unassigned.map((question, index) => {
+                        const totalPreviousQuestions = sessions.reduce((acc, session) => {
+                          return acc + (questionsBySession[session.id] || []).length;
+                        }, 0) + sections.reduce((acc, section) => {
+                          return acc + (questionsBySection[section.id] || []).length;
+                        }, 0);
+                        
+                        return (
+                          <SectionQuestionItem
+                            key={question.id}
+                            question={question}
+                            questionNumber={totalPreviousQuestions + index + 1}
+                            onEdit={(q) => {
+                              setEditingQuestion(q);
+                              setQuestionDialogOpen(true);
+                            }}
+                            onDelete={deleteQuestion}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </div>
+          )}
+
+          {/* 전체 질문이 없을 때 */}
+          {sessions.length === 0 && sections.length === 0 && questions.length === 0 && (
+            <div className="text-center py-12 border-2 border-dashed border-muted rounded-lg">
+              <div className="space-y-4">
+                <div className="text-muted-foreground">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-2" />
+                  <p className="text-lg font-medium">아직 설문이 구성되지 않았습니다</p>
+                  <p className="text-sm">먼저 세션을 추가하고, 질문을 만들어보세요</p>
+                </div>
+                <div className="flex justify-center gap-2">
+                  <Button 
+                    onClick={() => {
+                      setEditingSession(null);
+                      setEditingQuestion(null);
+                      setQuestionDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    첫 질문 추가하기
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 질문 편집 다이얼로그 */}
+        <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingQuestion ? '질문 수정' : '새 질문 추가'}</DialogTitle>
+            </DialogHeader>
+            <QuestionEditForm
+              question={editingQuestion}
+              sections={sections}
+              sessions={sessions}
+              onSave={async (questionData: any) => {
+                try {
+                  if (editingQuestion) {
+                    const { error } = await supabase
+                      .from('survey_questions')
+                      .update(questionData)
+                      .eq('id', editingQuestion.id);
+                    if (error) throw error;
+                  } else {
+                    const { error } = await supabase
+                      .from('survey_questions')
+                      .insert({
+                        ...questionData,
+                        survey_id: surveyId,
+                        order_index: questions.length,
+                        session_id: editingSession || null,
+                      });
+                    if (error) throw error;
+                  }
+                  
+                  await handleQuestionSave();
+                  setQuestionDialogOpen(false);
+                  setEditingQuestion(null);
+                  setEditingSession(null);
+                  toast({ 
+                    title: '성공', 
+                    description: editingQuestion ? '질문이 수정되었습니다.' : '질문이 추가되었습니다.' 
+                  });
+                } catch (error: any) {
+                  console.error(error);
+                  toast({ 
+                    title: '오류', 
+                    description: error.message || '질문 저장 중 오류가 발생했습니다.', 
+                    variant: 'destructive' 
+                  });
+                }
+              }}
+              onCancel={() => {
+                setQuestionDialogOpen(false);
+                setEditingQuestion(null);
+                setEditingSession(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
 
-// Sortable Question 컴포넌트 - 드래그 앤 드롭 지원
-interface SortableQuestionProps {
+// 개선된 질문 아이템 컴포넌트 (스크린샷 3 스타일)
+interface SectionQuestionItemProps {
   question: SurveyQuestion;
+  questionNumber: number;
   onEdit: (question: SurveyQuestion) => void;
   onDelete: (questionId: string) => void;
 }
 
-function SortableQuestion({ question, onEdit, onDelete }: SortableQuestionProps) {
+function SectionQuestionItem({ question, questionNumber, onEdit, onDelete }: SectionQuestionItemProps) {
   const {
     attributes,
     listeners,
@@ -1336,9 +1326,9 @@ function SortableQuestion({ question, onEdit, onDelete }: SortableQuestionProps)
     <div 
       ref={setNodeRef} 
       style={style}
-      className={`border rounded-lg p-4 ${isDragging ? 'z-50' : ''}`}
+      className={`bg-card border rounded-lg p-4 ${isDragging ? 'z-50' : ''}`}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-3">
         <div 
           {...attributes} 
           {...listeners}
@@ -1348,50 +1338,54 @@ function SortableQuestion({ question, onEdit, onDelete }: SortableQuestionProps)
         </div>
         
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {/* 답변 방식 태그 */}
-            <span className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded-full font-medium">
-              {question.question_type === 'multiple_choice' && '☑️ 복수선택'}
-              {question.question_type === 'single_choice' && '⚪ 단일선택'}
-              {question.question_type === 'dropdown' && '📋 드롭다운'}
-              {question.question_type === 'text' && '✏️ 주관식'}
-              {question.question_type === 'textarea' && '📝 장문형'}
-              {question.question_type === 'rating' && '⭐ 평점'}
-              {question.question_type === 'scale' && '📊 척도 (1-10)'}
+          <div className="flex items-start gap-3">
+            <span className="text-lg font-semibold text-primary min-w-[2rem]">
+              {String(questionNumber).padStart(2, '0')}.
             </span>
-            
-            {/* 만족도 분류 태그 */}
-            {question.satisfaction_type && (
-              <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
-                {question.satisfaction_type === 'instructor' && '👨‍🏫 강사'}
-                {question.satisfaction_type === 'course' && '📚 과목'}  
-                {question.satisfaction_type === 'operation' && '⚙️ 운영'}
-                {question.satisfaction_type === 'overall' && '🌟 전반적'}
-              </span>
-            )}
-            
-            {/* 필수 응답 태그 */}
-            {question.is_required && (
-              <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
-                ⚠️ 필수
-              </span>
-            )}
-          </div>
-          <p className="text-sm mb-2 leading-relaxed">{question.question_text}</p>
-          {(() => {
-            const list = Array.isArray(question.options)
-              ? question.options
-              : (question.options?.options ?? []);
-            return list && list.length > 0 ? (
-              <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
-                <strong>선택 옵션:</strong> {list.join(' • ')}
+            <div className="flex-1">
+              <p className="text-base mb-3 leading-relaxed">{question.question_text}</p>
+              
+              <div className="flex flex-wrap gap-2 mb-2">
+                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                  {question.question_type === 'multiple_choice' && '☑️ 복수선택'}
+                  {question.question_type === 'single_choice' && '⚪ 단일선택'}
+                  {question.question_type === 'dropdown' && '📋 드롭다운'}
+                  {question.question_type === 'text' && '✏️ 주관식'}
+                  {question.question_type === 'textarea' && '📝 장문형'}
+                  {question.question_type === 'rating' && '⭐ 평점'}
+                  {question.question_type === 'scale' && '📊 척도 (1-10)'}
+                </span>
+                
+                {question.satisfaction_type && (
+                  <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
+                    {question.satisfaction_type === 'instructor' && '👨‍🏫 강사'}
+                    {question.satisfaction_type === 'course' && '📚 과목'}  
+                    {question.satisfaction_type === 'operation' && '⚙️ 운영'}
+                  </span>
+                )}
+                
+                {question.is_required && (
+                  <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
+                    ⚠️ 필수
+                  </span>
+                )}
               </div>
-            ) : null;
-          })()}
 
+              {(() => {
+                const list = Array.isArray(question.options)
+                  ? question.options
+                  : (question.options?.options ?? []);
+                return list && list.length > 0 ? (
+                  <div className="text-xs text-muted-foreground bg-muted/50 rounded p-3">
+                    <strong>선택 옵션:</strong> {list.join(' • ')}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button
             variant="ghost"
             size="sm"
