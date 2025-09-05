@@ -85,7 +85,7 @@ const Index = () => {
       const { data, error } = await supabase
         .from('surveys')
         .select('*')
-        .eq('status', 'active')
+        .in('status', ['active', 'public', 'draft', 'completed'])
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false })
         .order('created_at', { ascending: false });
@@ -249,7 +249,7 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col h-[calc(100vh-200px)] space-y-4">
             {Object.entries(groupedSurveys).map(([roundTitle, roundSurveys]) => (
               <div key={roundTitle} className="animate-fade-in">
                 <Collapsible open={openGroups[roundTitle] || false} onOpenChange={() => toggleGroup(roundTitle)}>
@@ -269,8 +269,8 @@ const Index = () => {
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>
-                    <ScrollArea className="h-auto max-h-[400px] w-full">
-                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-1">
+                    <div className="flex-1 overflow-y-auto max-h-[60vh] min-h-[300px]">
+                      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-1 pb-4">
                         {roundSurveys.map((survey) => (
                           <Card
                             key={survey.id}
@@ -353,7 +353,7 @@ const Index = () => {
                           </Card>
                         ))}
                       </div>
-                    </ScrollArea>
+                    </div>
                   </CollapsibleContent>
                 </Collapsible>
               </div>
