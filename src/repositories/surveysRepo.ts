@@ -72,6 +72,45 @@ function nextDayBase(hour: number, minute = 0) {
   return d.toISOString();
 }
 
+export interface CourseName {
+  id: string;
+  name: string;
+}
+
+export const CourseNamesRepo = {
+  async list(): Promise<CourseName[]> {
+    const { data, error } = await supabase.from("course_names").select("*").order("name");
+    if (error) throw error;
+    return (data || []) as CourseName[];
+  },
+
+  async create(name: string) {
+    const { error } = await supabase.from("course_names").insert([{ name }]);
+    if (error) throw error;
+  },
+
+  async rename(id: string, oldName: string, newName: string) {
+    // Update course_names table
+    const { error: courseError } = await supabase
+      .from("course_names")
+      .update({ name: newName })
+      .eq("id", id);
+    if (courseError) throw courseError;
+
+    // Update surveys that use this course name
+    const { error: surveyError } = await supabase
+      .from("surveys")
+      .update({ course_name: newName })
+      .eq("course_name", oldName);
+    if (surveyError) throw surveyError;
+  },
+
+  async remove(id: string) {
+    const { error } = await supabase.from("course_names").delete().eq("id", id);
+    if (error) throw error;
+  }
+};
+
 export const SurveysRepository = {
   async fetchSurveyList(
     page: number,
