@@ -28,9 +28,10 @@ interface QuestionEditFormProps {
   onSave: () => void;
   onCancel: () => void;
   sections?: { id: string; name: string }[];
+  sessions?: { id: string; session_name: string; course?: { title: string }; instructor?: { name: string } }[];
 }
 
-export default function QuestionEditForm({ question, surveyId, onSave, onCancel, sections }: QuestionEditFormProps) {
+export default function QuestionEditForm({ question, surveyId, onSave, onCancel, sections, sessions }: QuestionEditFormProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   
@@ -41,6 +42,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
     scope: "session" as 'session' | 'operation',
     satisfaction_type: "none",
     section_id: "",
+    session_id: "",
     options: [] as string[]
   });
 
@@ -53,6 +55,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
         scope: question.scope || "session",
         satisfaction_type: question.satisfaction_type || "none",
         section_id: question.section_id || "none",
+        session_id: question.session_id || "none",
         options: Array.isArray(question.options) ? question.options : 
                  question.options?.options ? question.options.options : []
       });
@@ -64,6 +67,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
         scope: "session",
         satisfaction_type: "none",
         section_id: "none",
+        session_id: "none",
         options: []
       });
     }
@@ -90,6 +94,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
         scope: form.scope,
         satisfaction_type: form.satisfaction_type === "none" ? null : form.satisfaction_type,
         section_id: form.section_id === "none" ? null : (form.section_id || null),
+        session_id: form.session_id === "none" ? null : (form.session_id || null),
         options: form.options.length > 0 ? { options: form.options } : null,
         order_index: question?.order_index ?? 0
       };
@@ -285,7 +290,7 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
       </div>
 
       {/* 추가 설정 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <div className="space-y-2">
           <Label htmlFor="satisfaction_type" className="text-sm font-medium">
             만족도 분류 (선택사항)
@@ -307,17 +312,58 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
           </Select>
         </div>
 
-        {/* 섹션 선택 - 개선된 UI */}
+        {/* 세션 선택 (우선) */}
+        <div className="space-y-2">
+          <Label htmlFor="session_id" className="text-sm font-medium">
+            과목 세션 (권장)
+          </Label>
+          <Select
+            value={form.session_id}
+            onValueChange={(value) => {
+              setForm(prev => ({ 
+                ...prev, 
+                session_id: value,
+                section_id: value === "none" ? prev.section_id : "none" // 세션 선택 시 섹션 해제
+              }));
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="세션을 선택하세요" />
+            </SelectTrigger>
+            <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectItem value="none">🔄 세션 없음</SelectItem>
+              {sessions && sessions.map((session) => (
+                <SelectItem key={session.id} value={session.id}>
+                  📚 {session.session_name}
+                  {session.course && ` • ${session.course.title}`}
+                  {session.instructor && ` • ${session.instructor.name}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            💡 과목별 세션을 선택하면 해당 과목/강사 그룹에 질문이 추가됩니다.
+          </p>
+        </div>
+
+        {/* 섹션 선택 (레거시) */}
         <div className="space-y-2">
           <Label htmlFor="section_id" className="text-sm font-medium">
-            질문 그룹 (선택사항)
+            질문 섹션 (레거시)
           </Label>
           <Select
             value={form.section_id}
-            onValueChange={(value) => setForm(prev => ({ ...prev, section_id: value }))}
+            onValueChange={(value) => {
+              setForm(prev => ({ 
+                ...prev, 
+                section_id: value,
+                session_id: value === "none" ? prev.session_id : "none" // 섹션 선택 시 세션 해제
+              }));
+            }}
+            disabled={form.session_id !== "none"}
           >
             <SelectTrigger>
-              <SelectValue placeholder="그룹을 선택하거나 미분류로 두세요" />
+              <SelectValue placeholder={form.session_id !== "none" ? "세션이 선택되어 비활성화됨" : "섹션을 선택하세요"} />
             </SelectTrigger>
             <SelectContent className="bg-background border shadow-lg z-50">
               <SelectItem value="none">📁 미분류</SelectItem>
@@ -329,7 +375,10 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            💡 섹션을 지정하지 않으면 미분류 질문으로 추가됩니다. 나중에 언제든 변경 가능합니다.
+            {form.session_id !== "none" 
+              ? "⚠️ 세션이 선택되어 섹션은 비활성화됩니다." 
+              : "📝 기존 섹션 방식입니다. 세션 방식을 권장합니다."
+            }
           </p>
         </div>
       </div>

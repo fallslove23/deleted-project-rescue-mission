@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Plus, Trash2, Edit3, GripVertical, Download, FolderPlus, Copy } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Edit3, GripVertical, Download, FolderPlus, Copy, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -17,6 +17,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import QuestionEditForm from "@/components/QuestionEditForm";
+import { SessionManager } from "@/components/SessionManager";
 
 type Survey = {
   id: string;
@@ -64,6 +65,25 @@ type SurveySection = {
   order_index: number;
 };
 
+type SurveySession = {
+  id: string;
+  survey_id: string;
+  course_id: string | null;
+  instructor_id: string | null;
+  session_name: string;
+  session_order: number;
+  course?: Course;
+  instructor?: Instructor;
+};
+
+type Instructor = {
+  id: string;
+  name: string;
+  email?: string;
+  photo_url?: string;
+  bio?: string;
+};
+
 export default function SurveyBuilder() {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
@@ -81,7 +101,9 @@ export default function SurveyBuilder() {
   
   // 기본 상태 변수들
   const [courses, setCourses] = useState<Course[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [sections, setSections] = useState<SurveySection[]>([]);
+  const [sessions, setSessions] = useState<SurveySession[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [customCourses, setCustomCourses] = useState<string[]>([]);
   const [draggedQuestionIndex, setDraggedQuestionIndex] = useState<number | null>(null);
@@ -101,6 +123,15 @@ export default function SurveyBuilder() {
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<SurveySection | null>(null);
   const [sectionForm, setSectionForm] = useState({ name: "", description: "" });
+  
+  // 세션 관리 관련 상태
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<SurveySession | null>(null);
+  const [sessionForm, setSessionForm] = useState({ 
+    session_name: "", 
+    course_id: "", 
+    instructor_id: "" 
+  });
 
   // 드래그 앤 드롭 센서
   const sensors = useSensors(
@@ -233,6 +264,7 @@ export default function SurveyBuilder() {
         satisfaction_type: tq.satisfaction_type,
         order_index: questions.length + tq.order_index,
         scope: 'session' as const,
+        session_id: sessions.length > 0 ? sessions[sessions.length - 1].id : null, // 마지막 세션에 추가
       })) || [];
 
       if (newQuestions.length === 0) {
@@ -290,10 +322,23 @@ export default function SurveyBuilder() {
     }
   };
 
-  // 섹션별 질문 그룹화
+  // 세션별 질문 그룹화
+  const questionsBySession = useMemo(() => {
+    const grouped: { [key: string]: SurveyQuestion[] } = {
+      unassigned: questions.filter(q => !q.session_id)
+    };
+    
+    sessions.forEach(session => {
+      grouped[session.id] = questions.filter(q => q.session_id === session.id);
+    });
+    
+    return grouped;
+  }, [questions, sessions]);
+
+  // 섹션별 질문 그룹화 (기존 섹션 시스템 호환)
   const questionsBySection = useMemo(() => {
     const grouped: { [key: string]: SurveyQuestion[] } = {
-      unassigned: questions.filter(q => !q.section_id)
+      unassigned: questions.filter(q => !q.section_id && !q.session_id)
     };
     
     sections.forEach(section => {
@@ -321,17 +366,32 @@ export default function SurveyBuilder() {
     round_label: "",
   });
 
-  // 과목 목록
+  // 과목과 강사 목록 로드
   useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.from("courses").select("id,title").order("title");
-      if (error) {
+    const loadData = async () => {
+      try {
+        // 과목 목록
+        const { data: coursesData, error: coursesError } = await supabase
+          .from("courses")
+          .select("id,title")
+          .order("title");
+        if (coursesError) throw coursesError;
+        setCourses(coursesData ?? []);
+
+        // 강사 목록
+        const { data: instructorsData, error: instructorsError } = await supabase
+          .from("instructors")
+          .select("id,name,email,photo_url,bio")
+          .order("name");
+        if (instructorsError) throw instructorsError;
+        setInstructors(instructorsData ?? []);
+      } catch (error: any) {
         console.error(error);
-        toast({ title: "오류", description: "과목 목록을 불러오지 못했습니다.", variant: "destructive" });
-      } else {
-        setCourses(data ?? []);
+        toast({ title: "오류", description: "데이터를 불러오지 못했습니다.", variant: "destructive" });
       }
-    })();
+    };
+    
+    loadData();
   }, []);
 
   // 설문 로드 - 개선된 로직 + UUID 검증
@@ -425,7 +485,31 @@ export default function SurveyBuilder() {
           setSections([]);
         }
 
-        // 3. 질문 로드 - 실패해도 계속 진행
+        // 3. 세션 로드
+        console.log("SurveyBuilder - Loading sessions...");
+        try {
+          const { data: sessionsData, error: sessionsError } = await supabase
+            .from("survey_sessions")
+            .select(`
+              *,
+              course:courses(id, title),
+              instructor:instructors(id, name, email, photo_url, bio)
+            `)
+            .eq("survey_id", surveyId)
+            .order("session_order");
+          
+          console.log("SurveyBuilder - Sessions result:", { sessionsData, sessionsError });
+          
+          if (sessionsError) {
+            console.warn("SurveyBuilder - Sessions loading error (non-critical):", sessionsError);
+          }
+          setSessions(sessionsData || []);
+        } catch (sessionError) {
+          console.warn("SurveyBuilder - Session loading failed (non-critical):", sessionError);
+          setSessions([]);
+        }
+
+        // 4. 질문 로드 - 실패해도 계속 진행
         console.log("SurveyBuilder - Loading questions...");
         try {
           const { data: questionsData, error: questionsError } = await supabase
@@ -1178,6 +1262,7 @@ export default function SurveyBuilder() {
             question={editingQuestion}
             surveyId={surveyId!}
             sections={sections}
+            sessions={sessions}
             onSave={async () => {
               console.log('SurveyBuilder - QuestionEditForm onSave called');
               await handleQuestionSave();
