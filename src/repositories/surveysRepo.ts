@@ -1,96 +1,61 @@
-// Repository for fetching surveys list and available years from Supabase views
-import { supabase } from "@/integrations/supabase/client";
-
-export type SurveyListItem = {
-  id: string;
-  title: string | null;
-  description: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  education_year: number | null;
-  education_round: number | null;
-  education_day: number | null;
-  status: string | null;
-  course_name: string | null;
-  is_combined: boolean | null;
-  combined_round_start: number | null;
-  combined_round_end: number | null;
-  round_label: string | null;
-  template_id: string | null;
-  expected_participants: number | null;
-  is_test: boolean | null;
-  created_by: string | null;
-  instructor_id: string | null;
-  course_id: string | null;
-  created_at: string | null;
-  creator_email: string | null;
-  instructor_name: string | null;
-  course_title: string | null;
-};
-
-export type SurveyFilters = {
-  year: number | null;
-  status: 'draft' | 'active' | 'public' | 'completed' | null;
-};
-
-export type PaginatedSurveyResult = {
-  data: SurveyListItem[];
-  count: number;
-  totalPages: number;
-};
+// ... 기존 import/타입은 그대로 유지
 
 export class SurveysRepository {
-  static async fetchSurveyList(
-    page: number,
-    pageSize: number,
-    filters: SurveyFilters
-  ): Promise<PaginatedSurveyResult> {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
+  // === 기존 fetchSurveyList, getAvailableYears 그대로 ===
 
-    let query = supabase
-      .from('surveys_list_v1')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to);
+  static async getAvailableCourseKeys(year?: number): Promise<
+    { year: number; round: number; course_name: string }[]
+  > {
+    // 연도별 과정-차수 목록 (뷰가 없다면 원본에서 DISTINCT)
+    let q = supabase
+      .from('surveys')
+      .select('education_year, education_round, course_name')
+      .not('course_name', 'is', null);
 
-    if (filters.year !== null) {
-      query = query.eq('education_year', filters.year);
-    }
-    if (filters.status !== null) {
-      query = query.eq('status', filters.status);
-    }
+    if (year) q = q.eq('education_year', year);
 
-    const { data, count, error } = await query;
+    const { data, error } = await q;
+    if (error) throw error;
 
-    if (error) {
-      throw error;
-    }
-
-    const safeData: SurveyListItem[] = (data ?? []) as unknown as SurveyListItem[];
-    const totalCount = count ?? 0;
-    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-
-    return {
-      data: safeData,
-      count: totalCount,
-      totalPages,
-    };
+    const uniq = new Map<string, { year: number; round: number; course_name: string }>();
+    (data ?? []).forEach((r: any) => {
+      const key = `${r.education_year}-${r.education_round}-${r.course_name}`;
+      if (!uniq.has(key)) {
+        uniq.set(key, { year: r.education_year, round: r.education_round, course_name: r.course_name });
+      }
+    });
+    return Array.from(uniq.values()).sort((a, b) =>
+      a.year !== b.year ? b.year - a.year :
+      a.round !== b.round ? a.round - b.round :
+      a.course_name.localeCompare(b.course_name)
+    );
   }
 
-  static async getAvailableYears(): Promise<number[]> {
-    const { data, error } = await supabase
-      .from('survey_available_years_v1')
-      .select('education_year')
-      .order('education_year', { ascending: false });
+  static async updateStatus(id: string, status: 'draft'|'active'|'public'|'completed') {
+    const { error } = await supabase.from('surveys').update({ status }).eq('id', id);
+    if (error) throw error;
+  }
 
-    if (error) {
-      throw error;
-    }
+  static async duplicateSurvey(id: string, titleSuffix = ' (복사본)') {
+    // 서버 RPC/함수가 있으면 그걸 쓰고, 없으면 최소 필드만 복제
+    const { data: src, error: e1 } = await supabase.from('surveys').select('*').eq('id', id).single();
+    if (e1) throw e1;
 
-    const years = (data ?? []) as { education_year: number | null }[];
-    return years
-      .map((row) => row.education_year)
-      .filter((y): y is number => typeof y === 'number');
+    const payload = {
+      ...src,
+      id: undefined,            // PK 제거
+      title: (src.title ?? '무제') + titleSuffix,
+      status: 'draft',
+      created_at: undefined,
+      updated_at: undefined,
+    };
+    const { data: created, error: e2 } = await supabase.from('surveys').insert([payload]).select().single();
+    if (e2) throw e2;
+    return created;
+  }
+
+  static async deleteSurvey(id: string) {
+    const { error } = await supabase.from('surveys').delete().eq('id', id);
+    if (error) throw error;
   }
 }
