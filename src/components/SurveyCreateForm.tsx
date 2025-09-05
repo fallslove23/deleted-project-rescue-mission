@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import CourseNameManager from "@/components/CourseNameManager";
 
 interface SurveyCreateFormProps {
   onSuccess: (surveyId: string) => void;
@@ -31,7 +31,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     expected_participants: 0,
     
     // 합반 관련 필드
-    course_name: "BS Basic",
+    course_name: "",
     is_combined: false,
     combined_round_start: null as number | null,
     combined_round_end: null as number | null,
@@ -224,40 +224,11 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 기본 정보 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>과정 (프로그램)</Label>
-              <Select
-                value={form.course_name}
-                onValueChange={(v) => onChange("course_name", v)}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BS Basic">BS Basic</SelectItem>
-                  <SelectItem value="BS Advanced">BS Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>템플릿 선택 (선택사항)</Label>
-              <Select
-                value={form.template_id}
-                onValueChange={(v) => onChange("template_id", v)}
-              >
-                <SelectTrigger><SelectValue placeholder="템플릿을 선택하세요" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">템플릿 사용 안함</SelectItem>
-                  {templates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          {/* 과정명 관리 */}
+          <CourseNameManager
+            selectedCourse={form.course_name}
+            onCourseSelect={(courseName) => onChange("course_name", courseName)}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
