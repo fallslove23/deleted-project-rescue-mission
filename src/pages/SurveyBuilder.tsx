@@ -851,13 +851,20 @@ export default function SurveyBuilder() {
       </Card>
 
       {/* 세션 관리 */}
-      <SessionManager 
-        surveyId={surveyId!}
-        sessions={sessions}
-        onSessionsChange={setSessions}
-        courses={courses}
-        instructors={instructors}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>일차별 과목 및 강사 설정</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SessionManager 
+            surveyId={surveyId!}
+            sessions={sessions}
+            onSessionsChange={setSessions}
+            courses={courses}
+            instructors={instructors}
+          />
+        </CardContent>
+      </Card>
 
       {/* 섹션 관리 */}
       <Card>

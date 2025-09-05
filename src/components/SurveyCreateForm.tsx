@@ -1,665 +1,405 @@
-import React, { useState, useEffect } from 'react';
-import { useForm, useController, useFieldArray } from 'react-hook-form';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Edit } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import { supabase } from '@/integrations/supabase/client';
-
-interface Course {
-  id: string;
-  title: string;
-}
-
-interface Instructor {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface InstructorCourse {
-  id: string;
-  instructor_id: string;
-  course_id: string;
-}
-
-interface CourseSelection {
-  courseId: string;
-  instructorId: string;
-}
-
-// React Hook Form 타입 정의
-type FormValues = {
-  education_year: number;
-  education_round: number;
-  education_day: number;
-  course_name: string;
-  expected_participants: number | null;
-  start_date: string;
-  end_date: string;
-  description: string;
-  is_combined: boolean;
-  combined_round_start: number | null;
-  combined_round_end: number | null;
-  round_label: string;
-  is_test: boolean;
-  course_selections: CourseSelection[];
-};
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 interface SurveyCreateFormProps {
-  onSubmit: (data: FormValues) => void;
-  onCancel: () => void;
-  isSubmitting?: boolean;
-  initialValues?: Partial<FormValues>;
+  onSuccess: (surveyId: string) => void;
+  templates: Array<{ id: string; name: string; description?: string }>;
+  initialTemplate?: string;
 }
 
-// 기본값 정의
-const DEFAULTS: FormValues = {
-  education_year: new Date().getFullYear(),
-  education_round: 1,
-  education_day: 1,
-  course_name: "",
-  expected_participants: null,
-  start_date: "",
-  end_date: "",
-  description: "",
-  is_combined: false,
-  combined_round_start: null,
-  combined_round_end: null,
-  round_label: "",
-  is_test: false,
-  course_selections: [],
-};
+export default function SurveyCreateForm({ onSuccess, templates, initialTemplate }: SurveyCreateFormProps) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
 
-export default function SurveyCreateForm({ 
-  onSubmit, 
-  onCancel, 
-  isSubmitting = false,
-  initialValues
-}: SurveyCreateFormProps) {
-  
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
-  const [customCourses, setCustomCourses] = useState<string[]>([]);
-
-  // React Hook Form 설정
-  const { control, handleSubmit: hookFormSubmit, reset, watch } = useForm<FormValues>({
-    defaultValues: DEFAULTS,
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    start_date: "",
+    end_date: "",
+    education_year: new Date().getFullYear(),
+    education_round: 1,
+    education_day: 1,
+    status: "draft",
+    template_id: initialTemplate || "",
+    expected_participants: 0,
+    
+    // 합반 관련 필드
+    course_name: "BS Basic",
+    is_combined: false,
+    combined_round_start: null as number | null,
+    combined_round_end: null as number | null,
+    round_label: "",
   });
 
-  // 필드 배열 관리
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "course_selections"
-  });
-
-  // 폼 값 감시
-  const watchedValues = watch();
-  const { course_name, is_combined, education_round } = watchedValues;
-
-  // 제어 컴포넌트들
-  const courseNameCtrl = useController({ name: "course_name", control });
-  const educationYearCtrl = useController({ name: "education_year", control });
-  const educationRoundCtrl = useController({ name: "education_round", control });
-  const educationDayCtrl = useController({ name: "education_day", control });
-  const expectedParticipantsCtrl = useController({ name: "expected_participants", control });
-  const startDateCtrl = useController({ name: "start_date", control });
-  const endDateCtrl = useController({ name: "end_date", control });
-  const descriptionCtrl = useController({ name: "description", control });
-  const isCombinedCtrl = useController({ name: "is_combined", control });
-  const combinedRoundStartCtrl = useController({ name: "combined_round_start", control });
-  const combinedRoundEndCtrl = useController({ name: "combined_round_end", control });
-  const isTestCtrl = useController({ name: "is_test", control });
-
+  // 제목 자동 생성
   useEffect(() => {
-    fetchData();
-  }, []);
+    const year = String(form.education_year);
+    const r = form.education_round;
+    const d = form.education_day;
+    const program = form.course_name;
 
-  // initialValues가 변경되면 폼을 리셋 (핵심: reset 사용)
+    if (year && r && d && program) {
+      const title = `${year}-${program}-${r}차-${d}일차 설문`;
+      setForm((prev) => ({ ...prev, title }));
+    }
+  }, [form.education_year, form.education_round, form.education_day, form.course_name]);
+
+  // 합반 라벨 자동 생성
   useEffect(() => {
-    if (initialValues && Object.keys(initialValues).length > 0) {
-      console.log('SurveyCreateForm - Applying initialValues via reset:', initialValues);
-      
-      // 편집 모드에서 기존 과정이 커스텀 과정인 경우 customCourses에 먼저 추가
-      if (initialValues.course_name && 
-          initialValues.course_name !== 'BS Basic' && 
-          initialValues.course_name !== 'BS Advanced' && 
-          initialValues.course_name.trim() !== '') {
-        const courseName = initialValues.course_name.trim();
-        console.log('SurveyCreateForm - Adding custom course to list:', courseName);
-        setCustomCourses(prev => {
-          const updated = prev.includes(courseName) ? prev : [...prev, courseName];
-          console.log('SurveyCreateForm - Updated customCourses:', updated);
-          return updated;
-        });
-      }
-      
-      // course_selections가 비어있으면 기본 항목 하나 추가
-      const courseSelections = initialValues.course_selections || [];
-      if (courseSelections.length === 0) {
-        courseSelections.push({ courseId: '', instructorId: '' });
-      }
-      
-      // 그 다음에 폼을 리셋 (customCourses 업데이트 후)
-      setTimeout(() => {
-        reset({ ...DEFAULTS, ...initialValues, course_selections: courseSelections });
-        console.log('SurveyCreateForm - Form reset completed with course_selections:', courseSelections);
-      }, 0);
-    } else {
-      // 새 설문 생성 모드일 때도 기본 항목 하나 추가
-      setTimeout(() => {
-        reset({ ...DEFAULTS, course_selections: [{ courseId: '', instructorId: '' }] });
-      }, 0);
+    if (form.course_name !== "BS Advanced") return;
+    if (!form.is_combined) return;
+
+    const year = form.education_year;
+    const s = form.combined_round_start;
+    const e = form.combined_round_end;
+
+    if (year && s && e && s > 0 && e >= s) {
+      const auto = `${year}년 ${s}∼${e}차 - BS Advanced`;
+      setForm((prev) => ({ ...prev, round_label: prev.round_label?.trim() ? prev.round_label : auto }));
     }
-  }, [initialValues, reset]);
+  }, [form.course_name, form.is_combined, form.education_year, form.combined_round_start, form.combined_round_end]);
 
-  const fetchData = async () => {
-    try {
-      const [coursesRes, instructorsRes, instructorCoursesRes] = await Promise.all([
-        supabase.from('courses').select('*').order('title'),
-        supabase.from('instructors').select('*').order('name'),
-        supabase.from('instructor_courses').select('*')
-      ]);
+  const onChange = <K extends keyof typeof form>(key: K, value: typeof form[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
 
-      if (coursesRes.data) setCourses(coursesRes.data);
-      if (instructorsRes.data) setInstructors(instructorsRes.data);
-      if (instructorCoursesRes.data) setInstructorCourses(instructorCoursesRes.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!form.title.trim()) {
+      toast({ title: "오류", description: "제목을 입력해주세요.", variant: "destructive" });
+      return;
     }
-  };
 
-  const addCourseSelection = () => {
-    append({ courseId: '', instructorId: '' });
-  };
-
-  const getAvailableInstructors = (courseId: string) => {
-    if (!courseId) return [];
-    const instructorIds = instructorCourses
-      .filter(ic => ic.course_id === courseId)
-      .map(ic => ic.instructor_id);
-    return instructors.filter(instructor => instructorIds.includes(instructor.id));
-  };
-
-  // 안전한 ISO 변환 함수
-  const toSafeISOString = (dateTimeLocal: string): string | null => {
-    if (!dateTimeLocal) return null;
-    try {
-      const date = new Date(dateTimeLocal + ':00+09:00');
-      if (isNaN(date.getTime())) return null;
-      return date.toISOString();
-    } catch {
-      return null;
-    }
-  };
-
-  const handleFormSubmit = (data: FormValues) => {
-    // 합반 검증
-    if (data.course_name === 'BS Advanced' && data.is_combined) {
-      if (!data.combined_round_start || !data.combined_round_end) {
-        alert('합반을 선택한 경우 시작/종료 차수를 입력하세요.');
+    // 합반 유효성 검사
+    if (form.course_name === "BS Advanced" && form.is_combined) {
+      if (!form.combined_round_start || !form.combined_round_end) {
+        toast({ title: "오류", description: "합반을 선택한 경우 시작/종료 차수를 입력하세요.", variant: "destructive" });
         return;
       }
-      if (data.combined_round_start > data.combined_round_end) {
-        alert('합반 차수의 시작은 종료보다 클 수 없습니다.');
+      if (form.combined_round_start > form.combined_round_end) {
+        toast({ title: "오류", description: "합반 차수의 시작은 종료보다 클 수 없습니다.", variant: "destructive" });
         return;
       }
     }
 
-    // 과목+강사 선택 검증
-    const validCourseSelections = data.course_selections.filter(cs => cs.courseId && cs.instructorId);
-    if (validCourseSelections.length === 0) {
-      alert('최소 1개의 과목과 강사를 선택해야 합니다.');
-      return;
+    setLoading(true);
+
+    try {
+      // 라벨 자동 채움
+      let round_label = form.round_label.trim();
+      if (form.course_name === "BS Advanced" && form.is_combined && !round_label) {
+        round_label = `${form.education_year}년 ${form.combined_round_start}∼${form.combined_round_end}차 - BS Advanced`;
+      }
+
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        start_date: form.start_date ? new Date(form.start_date + ":00+09:00").toISOString() : null,
+        end_date: form.end_date ? new Date(form.end_date + ":00+09:00").toISOString() : null,
+        education_year: Number(form.education_year),
+        education_round: Number(form.education_round),
+        education_day: Number(form.education_day),
+        status: form.status,
+        template_id: form.template_id || null,
+        expected_participants: Number(form.expected_participants) || 0,
+        
+        // 과정 정보
+        course_name: form.course_name,
+        is_combined: form.course_name === "BS Advanced" ? form.is_combined : false,
+        combined_round_start: (form.course_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_start) : null,
+        combined_round_end: (form.course_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_end) : null,
+        round_label: (form.course_name === "BS Advanced" && form.is_combined) ? round_label : null,
+      };
+
+      const { data: survey, error: surveyError } = await supabase
+        .from("surveys")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (surveyError) throw surveyError;
+
+      // 템플릿에서 질문 가져오기 (선택한 경우)
+      if (form.template_id) {
+        const { data: templateQuestions, error: templateError } = await supabase
+          .from('template_questions')
+          .select('*')
+          .eq('template_id', form.template_id)
+          .order('order_index');
+
+        if (templateError) {
+          console.warn('Template questions loading failed:', templateError);
+        } else if (templateQuestions && templateQuestions.length > 0) {
+          // 템플릿 섹션 복사
+          const { data: templateSections } = await supabase
+            .from('template_sections')
+            .select('*')
+            .eq('template_id', form.template_id)
+            .order('order_index');
+
+          if (templateSections && templateSections.length > 0) {
+            // 섹션 생성
+            const sectionsToInsert = templateSections.map(section => ({
+              survey_id: survey.id,
+              name: section.name,
+              description: section.description,
+              order_index: section.order_index,
+            }));
+
+            const { data: newSections } = await supabase
+              .from('survey_sections')
+              .insert(sectionsToInsert)
+              .select();
+
+            // 섹션 ID 매핑 생성
+            const sectionMapping: { [key: string]: string } = {};
+            templateSections.forEach((templateSection, index) => {
+              if (newSections && newSections[index]) {
+                sectionMapping[templateSection.id] = newSections[index].id;
+              }
+            });
+
+            // 질문 생성 (섹션 ID 매핑 적용)
+            const questionsToInsert = templateQuestions.map(tq => ({
+              survey_id: survey.id,
+              question_text: tq.question_text,
+              question_type: tq.question_type,
+              options: tq.options,
+              is_required: tq.is_required,
+              satisfaction_type: tq.satisfaction_type,
+              order_index: tq.order_index,
+              scope: 'session' as const,
+              section_id: tq.section_id ? sectionMapping[tq.section_id] || null : null,
+            }));
+
+            await supabase
+              .from('survey_questions')
+              .insert(questionsToInsert);
+          } else {
+            // 섹션이 없는 경우 질문만 복사
+            const questionsToInsert = templateQuestions.map(tq => ({
+              survey_id: survey.id,
+              question_text: tq.question_text,
+              question_type: tq.question_type,
+              options: tq.options,
+              is_required: tq.is_required,
+              satisfaction_type: tq.satisfaction_type,
+              order_index: tq.order_index,
+              scope: 'session' as const,
+            }));
+
+            await supabase
+              .from('survey_questions')
+              .insert(questionsToInsert);
+          }
+        }
+      }
+
+      toast({ title: "성공", description: "설문이 생성되었습니다." });
+      onSuccess(survey.id);
+    } catch (error: any) {
+      console.error("Survey creation error:", error);
+      toast({ 
+        title: "설문 생성 실패", 
+        description: error.message || "설문 생성 중 오류가 발생했습니다.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setLoading(false);
     }
-
-    // 과정명 검증 - 중요: 과정명이 선택되어야 함
-    if (!data.course_name || data.course_name.trim() === '') {
-      alert('과정을 선택해주세요.');
-      return;
-    }
-
-    // 자동 라벨 생성 (합반일 때)
-    let autoRoundLabel = data.round_label;
-    if (data.course_name === 'BS Advanced' && data.is_combined && !autoRoundLabel?.trim()) {
-      autoRoundLabel = `${data.education_year}년 ${data.combined_round_start}∼${data.combined_round_end}차 - BS Advanced`;
-    }
-
-    const submitData = {
-      ...data,
-      course_name: data.course_name.trim(), // 과정명 보장
-      round_label: autoRoundLabel,
-      course_selections: validCourseSelections,
-      start_date: toSafeISOString(data.start_date),
-      end_date: toSafeISOString(data.end_date),
-    };
-
-    console.log('SurveyCreateForm - Submitting data:', submitData);
-    onSubmit(submitData);
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-2">
-      <form onSubmit={hookFormSubmit(handleFormSubmit)} className="space-y-3">
-        {/* 기본 정보 */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div>
-                <Label className="text-sm font-medium">교육 연도</Label>
-                <Input
-                  type="number"
-                  value={educationYearCtrl.field.value || ''}
-                  onChange={(e) => educationYearCtrl.field.onChange(parseInt(e.target.value) || new Date().getFullYear())}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">과정</Label>
-                <div className="flex gap-1 mt-1">
-                  <Select 
-                    value={courseNameCtrl.field.value || ""} 
-                    onValueChange={courseNameCtrl.field.onChange}
-                  >
-                    <SelectTrigger className="bg-background border-input">
-                      <SelectValue placeholder="과정 선택" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
-                      <SelectItem value="BS Basic">BS Basic</SelectItem>
-                      <SelectItem value="BS Advanced">BS Advanced</SelectItem>
-                      {/* 동적으로 추가된 과정들 */}
-                      {customCourses.map((course) => (
-                        <SelectItem key={course} value={course}>
-                          {course}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button 
-                    type="button" 
-                    size="sm" 
-                    variant="outline" 
-                    className="px-2 bg-background border-input shrink-0"
-                    title="새 과정 추가"
-                    onClick={() => {
-                      const newCourse = prompt('새 과정명을 입력하세요:');
-                      if (newCourse && newCourse.trim()) {
-                        const trimmedCourse = newCourse.trim();
-                        if (!customCourses.includes(trimmedCourse) && 
-                            trimmedCourse !== 'BS Basic' && 
-                            trimmedCourse !== 'BS Advanced') {
-                          setCustomCourses([...customCourses, trimmedCourse]);
-                        }
-                        courseNameCtrl.field.onChange(trimmedCourse);
-                      }
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* 추가된 과정 관리 - 개선된 UI */}
-                {customCourses.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground">사용자 정의 과정</Label>
-                    <div className="space-y-1">
-                      {customCourses.map((course, index) => (
-                        <div key={course} className="flex items-center justify-between p-2 bg-muted/30 border border-muted-foreground/20 rounded-md">
-                          <span className="text-sm font-medium flex-1">{course}</span>
-                          <div className="flex gap-1 ml-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0 hover:bg-primary/10"
-                              title="과정명 수정"
-                              onClick={() => {
-                                const newName = prompt('과정명을 수정하세요:', course);
-                                if (newName && newName.trim() && newName.trim() !== course) {
-                                  const updatedCourses = [...customCourses];
-                                  updatedCourses[index] = newName.trim();
-                                  setCustomCourses(updatedCourses);
-                                  // 현재 선택된 과정이 수정된 과정이면 업데이트
-                                  if (courseNameCtrl.field.value === course) {
-                                    courseNameCtrl.field.onChange(newName.trim());
-                                  }
-                                }
-                              }}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                              title="과정 삭제"
-                              onClick={() => {
-                                if (confirm(`'${course}' 과정을 삭제하시겠습니까?`)) {
-                                  const updatedCourses = customCourses.filter(c => c !== course);
-                                  setCustomCourses(updatedCourses);
-                                  // 현재 선택된 과정이 삭제된 과정이면 초기화
-                                  if (courseNameCtrl.field.value === course) {
-                                    courseNameCtrl.field.onChange('');
-                                  }
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">차수</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={educationRoundCtrl.field.value || ''}
-                  onChange={(e) => {
-                    const round = parseInt(e.target.value) || 1;
-                    educationRoundCtrl.field.onChange(round);
-                    // 합반일 때 시작 차수도 업데이트
-                    if (is_combined) {
-                      combinedRoundStartCtrl.field.onChange(round);
-                    }
-                  }}
-                  required
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">일차</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={educationDayCtrl.field.value || ''}
-                  onChange={(e) => educationDayCtrl.field.onChange(parseInt(e.target.value) || 1)}
-                  required
-                  placeholder="1"
-                  className="mt-1"
-                />
-              </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>새 설문 생성</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 기본 정보 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>과정 (프로그램)</Label>
+              <Select
+                value={form.course_name}
+                onValueChange={(v) => onChange("course_name", v)}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BS Basic">BS Basic</SelectItem>
+                  <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* 합반 설정 (BS Advanced일 때만) */}
-            {course_name === 'BS Advanced' && (
-              <div className="mt-4 p-3 border rounded-md bg-muted/20">
-                <div className="flex items-center gap-2 mb-3">
+            <div>
+              <Label>템플릿 선택 (선택사항)</Label>
+              <Select
+                value={form.template_id}
+                onValueChange={(v) => onChange("template_id", v)}
+              >
+                <SelectTrigger><SelectValue placeholder="템플릿을 선택하세요" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">템플릿 사용 안함</SelectItem>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label>교육 연도</Label>
+              <Input 
+                type="number" 
+                value={form.education_year} 
+                onChange={(e) => onChange("education_year", Number(e.target.value))} 
+              />
+            </div>
+            <div>
+              <Label>차수</Label>
+              <Input 
+                type="number" 
+                min="1"
+                value={form.education_round} 
+                onChange={(e) => onChange("education_round", Number(e.target.value))} 
+              />
+            </div>
+            <div>
+              <Label>일차</Label>
+              <Input 
+                type="number" 
+                min="1"
+                value={form.education_day} 
+                onChange={(e) => onChange("education_day", Number(e.target.value))} 
+              />
+            </div>
+            <div>
+              <Label>예상 참가자 수</Label>
+              <Input 
+                type="number" 
+                min="0"
+                value={form.expected_participants} 
+                onChange={(e) => onChange("expected_participants", Number(e.target.value))} 
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>제목 (자동 생성)</Label>
+            <Input 
+              value={form.title} 
+              onChange={(e) => onChange("title", e.target.value)}
+              placeholder="자동으로 생성됩니다"
+            />
+          </div>
+
+          {/* 합반 설정 (BS Advanced일 때만) */}
+          {form.course_name === "BS Advanced" && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardHeader>
+                <CardTitle className="text-sm text-orange-800">합반 설정</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
                   <input
                     id="is_combined"
                     type="checkbox"
-                    className="h-4 w-4"
-                    checked={isCombinedCtrl.field.value || false}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      isCombinedCtrl.field.onChange(checked);
-                      if (checked) {
-                        combinedRoundStartCtrl.field.onChange(education_round);
-                      } else {
-                        combinedRoundStartCtrl.field.onChange(null);
-                        combinedRoundEndCtrl.field.onChange(null);
-                      }
-                    }}
+                    className="h-4 w-4 text-orange-600"
+                    checked={form.is_combined}
+                    onChange={(e) => onChange("is_combined", e.target.checked)}
                   />
-                  <Label htmlFor="is_combined" className="text-sm">합반 설정</Label>
-                </div>
-
-                {is_combined && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">시작 차수</Label>
-                      <Input
-                        type="number"
-                        value={combinedRoundStartCtrl.field.value || ''}
-                        readOnly
-                        className="bg-muted mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">종료 차수</Label>
-                      <Input
-                        type="number"
-                        min={combinedRoundStartCtrl.field.value || 1}
-                        value={combinedRoundEndCtrl.field.value || ''}
-                        onChange={(e) => combinedRoundEndCtrl.field.onChange(parseInt(e.target.value) || null)}
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-             )}
-
-             {/* 제목 미리보기 */}
-             {watchedValues.education_year && watchedValues.course_name && watchedValues.education_round && watchedValues.education_day && (
-               <div className="mt-4 p-3 border rounded-md bg-primary/5">
-                 <Label className="text-sm font-medium text-primary">설문 제목 미리보기</Label>
-                 <p className="text-sm mt-1 font-medium">
-                   {`${watchedValues.education_year}-${watchedValues.course_name}-${watchedValues.education_round}차-${watchedValues.education_day}일차 설문`}
-                 </p>
-               </div>
-             )}
-
-             <div className="mt-4">
-              <Label className="text-sm font-medium">예상 참여 인원</Label>
-              <Input
-                type="number"
-                min="1"
-                value={expectedParticipantsCtrl.field.value || ''}
-                onChange={(e) => expectedParticipantsCtrl.field.onChange(parseInt(e.target.value) || null)}
-                placeholder="예상 참여자 수"
-                className="mt-1 max-w-xs"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 과목+강사 선택 */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-medium">과목 및 강사 선택</Label>
-              <Button type="button" onClick={addCourseSelection} size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-1" />
-                과목 추가
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {fields.map((field, index) => (
-                <div key={field.id} className="border rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">과목 {index + 1}</span>
-                    {fields.length > 1 && (
-                       <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => remove(index)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">과목</Label>
-                      <CourseSelectionField
-                        control={control}
-                        name={`course_selections.${index}.courseId`}
-                        courses={courses}
-                        onCourseChange={() => {
-                          // 과목 변경 시 강사 초기화
-                          const currentValues = watchedValues.course_selections || [];
-                          const newSelections = [...currentValues];
-                          if (newSelections[index]) {
-                            newSelections[index].instructorId = '';
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs">강사</Label>
-                      <InstructorSelectionField
-                        control={control}
-                        name={`course_selections.${index}.instructorId`}
-                        courseId={watchedValues.course_selections?.[index]?.courseId || ''}
-                        instructors={getAvailableInstructors(watchedValues.course_selections?.[index]?.courseId || '')}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 일정 및 설명 */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <div>
-              <Label className="text-sm font-medium mb-2 block">설문 일정</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">시작일시</Label>
-                  <Input
-                    type="datetime-local"
-                    value={startDateCtrl.field.value || ''}
-                    onChange={startDateCtrl.field.onChange}
-                    required
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">종료일시</Label>
-                  <Input
-                    type="datetime-local"
-                    value={endDateCtrl.field.value || ''}
-                    onChange={endDateCtrl.field.onChange}
-                    required
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium">설명 (선택사항)</Label>
-              <Textarea
-                value={descriptionCtrl.field.value || ''}
-                onChange={descriptionCtrl.field.onChange}
-                placeholder="설문조사에 대한 추가 설명을 입력하세요"
-                rows={2}
-                className="mt-1"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center space-x-3">
-                <Switch
-                  id="is_test"
-                  checked={isTestCtrl.field.value || false}
-                  onCheckedChange={isTestCtrl.field.onChange}
-                />
-                <div>
-                  <Label htmlFor="is_test" className="text-sm font-medium cursor-pointer">
-                    테스트 데이터
+                  <Label htmlFor="is_combined" className="text-sm font-medium">
+                    합반으로 운영
                   </Label>
-                  <p className="text-xs text-muted-foreground">
-                    체크 시 운영 통계에서 제외됩니다
-                  </p>
                 </div>
-              </div>
+
+                {form.is_combined && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>시작 차수</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={form.combined_round_start || ""}
+                          onChange={(e) => onChange("combined_round_start", Number(e.target.value))}
+                          placeholder="시작 차수"
+                        />
+                      </div>
+                      <div>
+                        <Label>종료 차수</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={form.combined_round_end || ""}
+                          onChange={(e) => onChange("combined_round_end", Number(e.target.value))}
+                          placeholder="종료 차수"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>합반 라벨 (자동생성됨)</Label>
+                      <Input
+                        value={form.round_label}
+                        onChange={(e) => onChange("round_label", e.target.value)}
+                        placeholder="예: 2025년 1∼3차 - BS Advanced"
+                      />
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>시작일시</Label>
+              <Input
+                type="datetime-local"
+                value={form.start_date}
+                onChange={(e) => onChange("start_date", e.target.value)}
+              />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <Label>종료일시</Label>
+              <Input
+                type="datetime-local"
+                value={form.end_date}
+                onChange={(e) => onChange("end_date", e.target.value)}
+              />
+            </div>
+          </div>
 
-        {/* 버튼 */}
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            취소
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? '저장 중...' : (initialValues ? '설문 정보 수정' : '설문조사 생성')}
-          </Button>
-        </div>
-      </form>
-    </div>
-  );
-}
+          <div>
+            <Label>설명</Label>
+            <Textarea
+              placeholder="설문에 대한 설명을 입력하세요"
+              value={form.description}
+              onChange={(e) => onChange("description", e.target.value)}
+              rows={3}
+            />
+          </div>
 
-// 과목 선택 컴포넌트
-function CourseSelectionField({ control, name, courses, onCourseChange }: {
-  control: any;
-  name: string;
-  courses: Course[];
-  onCourseChange?: () => void;
-}) {
-  const { field } = useController({ name, control });
-
-  return (
-    <Select 
-      value={field.value || ""} 
-      onValueChange={(value) => {
-        field.onChange(value);
-        onCourseChange?.();
-      }}
-    >
-      <SelectTrigger className="mt-1">
-        <SelectValue placeholder="과목 선택" />
-      </SelectTrigger>
-      <SelectContent>
-        {courses.map(course => (
-          <SelectItem key={course.id} value={course.id}>
-            {course.title}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-// 강사 선택 컴포넌트
-function InstructorSelectionField({ control, name, courseId, instructors }: {
-  control: any;
-  name: string;
-  courseId: string;
-  instructors: Instructor[];
-}) {
-  const { field } = useController({ name, control });
-
-  return (
-    <Select 
-      value={field.value || ""}
-      onValueChange={field.onChange}
-      disabled={!courseId}
-    >
-      <SelectTrigger className="mt-1">
-        <SelectValue placeholder={courseId ? "강사 선택" : "먼저 과목을 선택하세요"} />
-      </SelectTrigger>
-      <SelectContent>
-        {instructors.map(instructor => (
-          <SelectItem key={instructor.id} value={instructor.id}>
-            {instructor.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+          <div className="flex justify-end gap-2">
+            <Button type="submit" disabled={loading}>
+              {loading ? "생성 중..." : "설문 생성"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
