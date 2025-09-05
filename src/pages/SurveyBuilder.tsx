@@ -30,11 +30,39 @@ import { CourseNamesRepo, CourseName } from "@/repositories/surveysRepo";
 // ---------- helpers ----------
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** 'YYYY-MM-DDTHH:mm' (브라우저 로컬 기준) */
-function toLocalInputStr(d: Date) {
+/**
+ * cross-browser safe: 'YYYY-MM-DDTHH:mm' -> Date (local)
+ * 사파리 등 일부 브라우저는 new Date('YYYY-MM-DDTHH:mm') 파싱이 불안정할 수 있어 직접 파싱합니다.
+ */
+function parseLocalDateTime(s: string): Date | null {
+  if (!s) return null;
+  // expected: 2025-09-06T09:00
+  const m = s.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
+  );
+  if (!m) return null;
+  const [_, yy, MM, dd, hh, mm, ss] = m;
+  const y = Number(yy);
+  const M = Number(MM) - 1;
+  const d = Number(dd);
+  const H = Number(hh);
+  const mnt = Number(mm);
+  const sec = ss ? Number(ss) : 0;
+  const dt = new Date(y, M, d, H, mnt, sec, 0);
+  if (isNaN(dt.getTime())) return null;
+  return dt;
+}
+
+/** Date -> 'YYYY-MM-DDTHH:mm' (local) */
+function formatLocalDateTime(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`;
+}
+
+/** 'YYYY-MM-DDTHH:mm' (브라우저 로컬 기준) */
+function toLocalInputStr(d: Date) {
+  return formatLocalDateTime(d);
 }
 
 /** 기본값: 작성 시점 기준 다음날 09:00/19:00 (로컬) */
@@ -48,6 +76,7 @@ function getDefaultStartEndLocal() {
   return { startLocal: toLocalInputStr(start), endLocal: toLocalInputStr(end) };
 }
 
+/** ISO -> 'YYYY-MM-DDTHH:mm' (로컬 인풋용) */
 function toLocalDateTime(iso: string | null) {
   if (!iso) return "";
   try {
@@ -58,16 +87,19 @@ function toLocalDateTime(iso: string | null) {
     return "";
   }
 }
+
+/** 'YYYY-MM-DDTHH:mm' -> ISO (UTC) 안전 변환 */
 function toSafeISOString(local: string | null) {
   if (!local) return null;
   try {
-    const d = new Date(local);
-    if (isNaN(d.getTime())) return null;
+    const d = parseLocalDateTime(local);
+    if (!d) return null;
     return d.toISOString();
   } catch {
     return null;
   }
 }
+
 function buildTitle(
   year: number | null,
   round: number | null,
@@ -138,7 +170,7 @@ export default function SurveyBuilder() {
     } catch (e: any) {
       toast({
         title: "과정명 목록 로드 실패",
-        description: e.message,
+        description: e.message ?? "잠시 후 다시 시도해주세요.",
         variant: "destructive",
       });
     }
@@ -178,7 +210,7 @@ export default function SurveyBuilder() {
     } catch (e: any) {
       toast({
         title: "설문 로드 실패",
-        description: e.message,
+        description: e.message ?? "데이터를 불러오지 못했습니다.",
         variant: "destructive",
       });
     } finally {
@@ -186,17 +218,43 @@ export default function SurveyBuilder() {
     }
   };
 
+  const validateBasic = () => {
+    if (!educationYear || !educationRound || !educationDay || !courseName) {
+      toast({
+        title: "필수값 누락",
+        description: "교육연도, 차수, 일차, 과정명은 필수입니다.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    // 날짜 검증
+    const start = startAt ? parseLocalDateTime(startAt) : null;
+    const end = endAt ? parseLocalDateTime(endAt) : null;
+    if (!start || !end) {
+      toast({
+        title: "날짜 형식 오류",
+        description: "시작/종료일시가 올바르지 않습니다.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    if (start.getTime() >= end.getTime()) {
+      toast({
+        title: "기간 오류",
+        description: "종료일시는 시작일시보다 뒤여야 합니다.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
   const saveBasic = async () => {
     if (!surveyId) return;
     try {
-      if (!educationYear || !educationRound || !educationDay || !courseName) {
-        toast({
-          title: "필수값 누락",
-          description: "교육연도, 차수, 일차, 과정명은 필수입니다.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // 값 검증
+      if (!validateBasic()) return;
+
       setSaving(true);
 
       // 저장 시 비어있으면 기본값을 적용해 저장 (실수 방지)
@@ -227,7 +285,7 @@ export default function SurveyBuilder() {
     } catch (e: any) {
       toast({
         title: "저장 실패",
-        description: e.message,
+        description: e.message ?? "다시 시도해 주세요.",
         variant: "destructive",
       });
     } finally {
@@ -240,6 +298,15 @@ export default function SurveyBuilder() {
     const name = newCourseName.trim();
     if (!name) return;
     try {
+      // 중복 방지
+      if (courseNames.some((c) => c.name === name)) {
+        toast({
+          title: "중복된 과정명",
+          description: `"${name}"은(는) 이미 존재합니다.`,
+          variant: "destructive",
+        });
+        return;
+      }
       await CourseNamesRepo.create(name);
       setNewCourseName("");
       await loadCourseNames();
@@ -248,12 +315,27 @@ export default function SurveyBuilder() {
       toast({ title: "추가 실패", description: e.message, variant: "destructive" });
     }
   };
+
   const handleRenameCourseName = async () => {
     if (!editRow) return;
     const newName = editRow.name.trim();
     if (!newName) return;
     try {
       const old = courseNames.find((c) => c.id === editRow.id)?.name || "";
+      if (!old) return;
+      if (old === newName) {
+        setEditRow(null);
+        return;
+      }
+      // 중복 방지
+      if (courseNames.some((c) => c.name === newName)) {
+        toast({
+          title: "중복된 과정명",
+          description: `"${newName}"은(는) 이미 존재합니다.`,
+          variant: "destructive",
+        });
+        return;
+      }
       await CourseNamesRepo.rename(editRow.id, old, newName);
       setEditRow(null);
       await loadCourseNames();
@@ -263,13 +345,23 @@ export default function SurveyBuilder() {
       toast({ title: "변경 실패", description: e.message, variant: "destructive" });
     }
   };
+
   const handleDeleteCourseName = async (id: string) => {
     const target = courseNames.find((c) => c.id === id);
     if (!target) return;
-    if (!confirm(`"${target.name}" 과정을 목록에서 삭제할까요? (기존 설문에는 영향 없습니다)`)) return;
+    if (
+      !confirm(
+        `"${target.name}" 과정을 목록에서 삭제할까요? (기존 설문에는 영향 없습니다)`
+      )
+    )
+      return;
     try {
       await CourseNamesRepo.remove(id);
       await loadCourseNames();
+      // 현재 폼의 과정명이 삭제된 경우 초기화
+      if (courseName === target.name) {
+        setCourseName("");
+      }
       toast({ title: "삭제 완료", description: `"${target.name}" 삭제됨` });
     } catch (e: any) {
       toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
@@ -294,10 +386,20 @@ export default function SurveyBuilder() {
     );
   }
 
-  const years = Array.from(
-    { length: 6 },
-    (_, i) => new Date().getFullYear() + 1 - i
-  );
+  const years = useMemo(() => {
+    // 올해+1부터 과거 5년까지 총 6개
+    return Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + 1 - i);
+  }, []);
+
+  // 숫자 입력 핸들러(빈 값/NaN 방지)
+  const handleRoundChange = (v: string) => {
+    const n = parseInt(v, 10);
+    setEducationRound(Number.isFinite(n) && n > 0 ? n : 1);
+  };
+  const handleDayChange = (v: string) => {
+    const n = parseInt(v, 10);
+    setEducationDay(Number.isFinite(n) && n > 0 ? n : 1);
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -350,7 +452,7 @@ export default function SurveyBuilder() {
                 onValueChange={(v) => setEducationYear(parseInt(v))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="연도 선택" />
                 </SelectTrigger>
                 <SelectContent>
                   {years.map((y) => (
@@ -366,12 +468,11 @@ export default function SurveyBuilder() {
             <div className="space-y-2">
               <Label>차수</Label>
               <Input
+                inputMode="numeric"
                 type="number"
                 min={1}
                 value={educationRound}
-                onChange={(e) =>
-                  setEducationRound(parseInt(e.target.value || "1"))
-                }
+                onChange={(e) => handleRoundChange(e.target.value)}
               />
             </div>
 
@@ -379,10 +480,11 @@ export default function SurveyBuilder() {
             <div className="space-y-2">
               <Label>일차</Label>
               <Input
+                inputMode="numeric"
                 type="number"
                 min={1}
                 value={educationDay}
-                onChange={(e) => setEducationDay(parseInt(e.target.value || "1"))}
+                onChange={(e) => handleDayChange(e.target.value)}
               />
             </div>
 
