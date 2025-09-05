@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Edit } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -265,6 +265,60 @@ export default function SurveyCreateForm({
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                
+                {/* 추가된 과정 관리 */}
+                {customCourses.length > 0 && (
+                  <div className="mt-3 p-3 border rounded-lg bg-muted/20">
+                    <Label className="text-xs font-medium mb-2 block">추가된 과정</Label>
+                    <div className="space-y-2">
+                      {customCourses.map((course, index) => (
+                        <div key={course} className="flex items-center justify-between p-2 bg-background border rounded">
+                          <span className="text-sm">{course}</span>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={() => {
+                                const newName = prompt('과정명을 수정하세요:', course);
+                                if (newName && newName.trim() && newName.trim() !== course) {
+                                  const updatedCourses = [...customCourses];
+                                  updatedCourses[index] = newName.trim();
+                                  setCustomCourses(updatedCourses);
+                                  // 현재 선택된 과정이 수정된 과정이면 업데이트
+                                  if (courseNameCtrl.field.value === course) {
+                                    courseNameCtrl.field.onChange(newName.trim());
+                                  }
+                                }
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                if (confirm(`'${course}' 과정을 삭제하시겠습니까?`)) {
+                                  const updatedCourses = customCourses.filter(c => c !== course);
+                                  setCustomCourses(updatedCourses);
+                                  // 현재 선택된 과정이 삭제된 과정이면 초기화
+                                  if (courseNameCtrl.field.value === course) {
+                                    courseNameCtrl.field.onChange('');
+                                  }
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
