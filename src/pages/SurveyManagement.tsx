@@ -1020,7 +1020,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
             </div>
 
             {/* 목록 */}
-            <div className="max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 grid gap-4">
+            <div className="h-[calc(100vh-500px)] min-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 grid gap-4 p-1">
               {getPaginatedSurveys().map((survey) => {
                 const surveyInstructor = instructors.find(i => i.id === survey.instructor_id);
                 const surveyCourse = courses.find(c => c.id === survey.course_id);
