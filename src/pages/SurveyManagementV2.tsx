@@ -89,19 +89,16 @@ export default function SurveyManagementV2() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // 데이터
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // 필터 소스
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [availableCourseNames, setAvailableCourseNames] = useState<string[]>([]);
   const [templates, setTemplates] = useState<TemplateLite[]>([]);
 
-  // 필터 상태
   const [filters, setFilters] = useState<SurveyFilters>({
     year: null,
     status: null,
@@ -109,21 +106,19 @@ export default function SurveyManagementV2() {
     q: null,
   });
 
-  // 정렬/페이지/검색
   const [sortBy, setSortBy] = useState<SortBy>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+
   const [searchText, setSearchText] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // 다중 선택
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const allChecked = useMemo(
     () => surveys.length > 0 && surveys.every((s) => selected.has(s.id)),
     [surveys, selected]
   );
 
-  /* ---------------- helpers ---------------- */
   const formatSafeDate = (iso: string | null): string => {
     if (!iso) return "미설정";
     try {
@@ -169,7 +164,6 @@ export default function SurveyManagementV2() {
     setSelected(s);
   };
 
-  /* ---------------- data loading ---------------- */
   const loadData = async () => {
     try {
       setLoading(true);
@@ -214,7 +208,6 @@ export default function SurveyManagementV2() {
     })();
   }, []);
 
-  /* ---------------- actions ---------------- */
   const { toast: show } = useToast();
 
   const handleRefresh = () => loadData();
@@ -326,7 +319,6 @@ export default function SurveyManagementV2() {
     }
   };
 
-  /* ---------------- keyboard ---------------- */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
@@ -338,7 +330,6 @@ export default function SurveyManagementV2() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* ---------------- loading ---------------- */
   if (loading) {
     return (
       <div className="flex min-h-screen">
@@ -369,17 +360,13 @@ export default function SurveyManagementV2() {
     );
   }
 
-  /* ---------------- render ---------------- */
   const q = filters.q ?? "";
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* 좌측 사이드바 */}
       <AdminSidebar />
 
-      {/* 본문 */}
       <main className="flex-1 min-w-0">
-        {/* 상단 헤더 (햄버거 + 타이틀) */}
         <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -407,7 +394,6 @@ export default function SurveyManagementV2() {
         </div>
 
         <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-          {/* 개수 표시 + 모바일용 빠른버튼 */}
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <p className="hidden md:block text-sm text-muted-foreground">전체 {totalCount}개의 설문</p>
             <div className="flex md:hidden items-center gap-2">
@@ -420,7 +406,6 @@ export default function SurveyManagementV2() {
             </div>
           </div>
 
-          {/* 검색/필터 카드 */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">검색 / 필터</CardTitle>
@@ -449,7 +434,6 @@ export default function SurveyManagementV2() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* 연도 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">교육 연도</label>
                   <Select value={filters.year?.toString() || "all"} onValueChange={(v) => handleFilterChange("year", v)}>
@@ -463,7 +447,6 @@ export default function SurveyManagementV2() {
                   </Select>
                 </div>
 
-                {/* 과정명 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">과정명</label>
                   <Select
@@ -480,7 +463,6 @@ export default function SurveyManagementV2() {
                   </Select>
                 </div>
 
-                {/* 상태 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">상태</label>
                   <Select value={filters.status || "all"} onValueChange={(v) => handleFilterChange("status", v)}>
@@ -495,7 +477,6 @@ export default function SurveyManagementV2() {
                   </Select>
                 </div>
 
-                {/* 정렬 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">정렬</label>
                   <div className="flex gap-2">
@@ -516,7 +497,6 @@ export default function SurveyManagementV2() {
             </CardContent>
           </Card>
 
-          {/* 에러 */}
           {error && (
             <Alert variant="destructive" className="mt-6">
               <AlertCircle className="h-4 w-4" />
@@ -537,7 +517,8 @@ export default function SurveyManagementV2() {
 
               <div className="flex items-center gap-2">
                 <Select onValueChange={(v) => bulkStatus(v as any)}>
-                  <SelectTrigger className="w-28 h-9 text-xs">
+                  {/* ▶ 높이/패딩/폭을 버튼(sm)과 동일하게 */}
+                  <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-md">
                     <SelectValue placeholder="상태 변경" />
                   </SelectTrigger>
                   <SelectContent>
@@ -575,7 +556,6 @@ export default function SurveyManagementV2() {
                 return (
                   <Card key={s.id} className={`transition-shadow hover:shadow-md ${checked ? "ring-2 ring-primary/40" : ""}`}>
                     <CardContent className="p-6">
-                      {/* 타이틀/상태/체크 */}
                       <div className="flex justify-between items-start mb-4 gap-3">
                         <div className="flex items-start gap-3">
                           <input
@@ -598,7 +578,6 @@ export default function SurveyManagementV2() {
                         <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                       </div>
 
-                      {/* 요약 정보 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                         <div className="flex items-center gap-2 min-w-0">
                           <User className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -624,7 +603,6 @@ export default function SurveyManagementV2() {
                         </div>
                       </div>
 
-                      {/* 기간 */}
                       <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">교육기간:</span>
@@ -650,7 +628,6 @@ export default function SurveyManagementV2() {
                         </div>
                       )}
 
-                      {/* 액션 (복사/삭제 제거) */}
                       <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
                         <Button
                           variant="outline"
@@ -692,6 +669,7 @@ export default function SurveyManagementV2() {
                           공유
                         </Button>
 
+                        {/* ▶ 여기도 버튼(sm)과 동일한 크기/패딩으로 맞춤 */}
                         <Select
                           value={s.status ?? "draft"}
                           onValueChange={async (v) => {
@@ -707,7 +685,7 @@ export default function SurveyManagementV2() {
                             }
                           }}
                         >
-                          <SelectTrigger className="w-28 h-9 text-xs">
+                          <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-md">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -725,7 +703,6 @@ export default function SurveyManagementV2() {
             </div>
           )}
 
-          {/* 페이지네이션 */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-6">
               <Button
@@ -753,14 +730,13 @@ export default function SurveyManagementV2() {
           )}
         </div>
 
-        {/* 하단 고정 플로팅 액션바 (선택 시) */}
         {selected.size > 0 && (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] max-w-4xl">
             <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border rounded-xl shadow-lg px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm">선택 <b>{selected.size}</b>개</div>
               <div className="flex items-center gap-2">
                 <Select onValueChange={(v) => bulkStatus(v as any)}>
-                  <SelectTrigger className="w-28 h-9 text-xs">
+                  <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-md">
                     <SelectValue placeholder="상태 변경" />
                   </SelectTrigger>
                   <SelectContent>
