@@ -61,7 +61,7 @@ const PersonalDashboard = () => {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
-  const [selectedSubject, setSelectedSubject] = useState<string>('all');
+  const [selectedLecture, setSelectedLecture] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
@@ -82,7 +82,7 @@ const PersonalDashboard = () => {
     if (profile && canViewPersonalStats) {
       fetchData();
     }
-  }, [profile, selectedPeriod, selectedYear, selectedRound, selectedCourse, selectedSubject]);
+  }, [profile, selectedPeriod, selectedYear, selectedRound, selectedCourse, selectedLecture]);
 
   const fetchProfile = async () => {
     if (!user) {
@@ -171,8 +171,8 @@ const PersonalDashboard = () => {
         surveyQuery = surveyQuery.ilike('course_name', `%${selectedCourse}%`);
       }
 
-      if (selectedSubject && selectedSubject !== 'all') {
-        surveyQuery = surveyQuery.eq('course_name', selectedSubject);
+      if (selectedLecture && selectedLecture !== 'all') {
+        surveyQuery = surveyQuery.eq('course_name', selectedLecture);
       }
 
       const { data: surveysData, error: surveysError } = await surveyQuery
@@ -289,7 +289,7 @@ const PersonalDashboard = () => {
   };
 
   // 고유 과목 목록 가져오기 (전체 course_name)
-  const getUniqueSubjects = () => {
+  const getUniqueLectures = () => {
     let filteredSurveys = surveys;
     if (selectedYear && selectedYear !== 'all') {
       filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
@@ -306,11 +306,11 @@ const PersonalDashboard = () => {
       });
     }
     
-    const subjects = filteredSurveys
+    const lectures = filteredSurveys
       .map(survey => survey.course_name)
-      .filter((subject, index, self) => subject && self.indexOf(subject) === index)
+      .filter((lecture, index, self) => lecture && self.indexOf(lecture) === index)
       .sort();
-    return subjects;
+    return lectures;
   };
 
   const getTrendData = () => {
@@ -805,14 +805,14 @@ const PersonalDashboard = () => {
 
         <div>
           <label className="text-sm font-medium mb-2 block">과목</label>
-          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+          <Select value={selectedLecture} onValueChange={setSelectedLecture}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="전체" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
-              {getUniqueSubjects().map(subject => (
-                <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+              {getUniqueLectures().map(lecture => (
+                <SelectItem key={lecture} value={lecture}>{lecture}</SelectItem>
               ))}
             </SelectContent>
           </Select>

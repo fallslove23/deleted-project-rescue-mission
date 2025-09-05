@@ -243,8 +243,11 @@ export default function SurveyCreateForm({
                     variant="outline" 
                     className="px-2"
                     onClick={() => {
-                      // 새 과정 추가 기능 (향후 확장 가능)
-                      alert('새 과정 추가 기능은 준비 중입니다.');
+                      const newCourse = prompt('새 과정명을 입력하세요:');
+                      if (newCourse && newCourse.trim()) {
+                        // 기존 옵션에 추가 (실제로는 DB에 저장되어야 함)
+                        courseNameCtrl.field.onChange(newCourse.trim());
+                      }
                     }}
                   >
                     <Plus className="h-4 w-4" />
@@ -332,9 +335,19 @@ export default function SurveyCreateForm({
                   </div>
                 )}
               </div>
-            )}
+             )}
 
-            <div className="mt-4">
+             {/* 제목 미리보기 */}
+             {watchedValues.education_year && watchedValues.course_name && watchedValues.education_round && watchedValues.education_day && (
+               <div className="mt-4 p-3 border rounded-md bg-primary/5">
+                 <Label className="text-sm font-medium text-primary">설문 제목 미리보기</Label>
+                 <p className="text-sm mt-1 font-medium">
+                   {`${watchedValues.education_year}-${watchedValues.course_name}-${watchedValues.education_round}차-${watchedValues.education_day}일차 설문`}
+                 </p>
+               </div>
+             )}
+
+             <div className="mt-4">
               <Label className="text-sm font-medium">예상 참여 인원</Label>
               <Input
                 type="number"
