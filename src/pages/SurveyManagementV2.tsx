@@ -1,3 +1,4 @@
+// src/pages/SurveyManagementV2.tsx
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,25 +17,26 @@ import {
   RefreshCw
 } from "lucide-react";
 import { formatInTimeZone } from 'date-fns-tz';
-import { SurveysRepository, SurveyListItem, SurveyFilters, PaginatedSurveyResult } from "@/repositories/surveysRepo";
+import { SurveysRepository, SurveyListItem, SurveyFilters } from "@/repositories/surveysRepo";
 
 const STATUS_CONFIG = {
-  draft: { label: '초안', variant: 'secondary' as const, color: 'hsl(var(--muted-foreground))' },
-  active: { label: '진행중', variant: 'default' as const, color: 'hsl(var(--primary))' },
-  public: { label: '진행중', variant: 'default' as const, color: 'hsl(var(--primary))' },
-  completed: { label: '완료', variant: 'outline' as const, color: 'hsl(var(--success))' },
-  scheduled: { label: '시작예정', variant: 'secondary' as const, color: 'hsl(var(--warning))' },
-  expired: { label: '종료', variant: 'destructive' as const, color: 'hsl(var(--destructive))' }
+  draft:    { label: '초안',     variant: 'secondary' as const },
+  active:   { label: '진행중',   variant: 'default'   as const },
+  public:   { label: '진행중',   variant: 'default'   as const },
+  completed:{ label: '완료',     variant: 'outline'   as const },
+  scheduled:{ label: '시작예정', variant: 'secondary' as const },
+  expired:  { label: '종료',     variant: 'destructive' as const },
 };
 
 const TIMEZONE = 'Asia/Seoul';
+const PAGE_SIZE = 10;
 
 export default function SurveyManagementV2() {
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   
@@ -43,8 +45,6 @@ export default function SurveyManagementV2() {
     status: null
   });
 
-  const pageSize = 10;
-
   // 데이터 로드
   const loadData = async () => {
     try {
@@ -52,7 +52,7 @@ export default function SurveyManagementV2() {
       setError(null);
 
       const [surveyResult, years] = await Promise.all([
-        SurveysRepository.fetchSurveyList(currentPage, pageSize, filters),
+        SurveysRepository.fetchSurveyList(currentPage, PAGE_SIZE, filters),
         SurveysRepository.getAvailableYears()
       ]);
 
@@ -68,10 +68,10 @@ export default function SurveyManagementV2() {
     }
   };
 
-  // 초기 로드 및 필터/페이지 변경시 리로드
   useEffect(() => {
     loadData();
-  }, [currentPage, filters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, filters.year, filters.status]);
 
   // 안전한 날짜 포맷팅
   const formatSafeDate = (dateString: string | null): string => {
@@ -89,44 +89,28 @@ export default function SurveyManagementV2() {
   const getStatusInfo = (survey: SurveyListItem) => {
     const now = new Date();
     const startDate = survey.start_date ? new Date(survey.start_date) : null;
-    const endDate = survey.end_date ? new Date(survey.end_date) : null;
+    const endDate   = survey.end_date   ? new Date(survey.end_date)   : null;
 
-    if (survey.status === 'draft') {
-      return STATUS_CONFIG.draft;
-    }
-    
-    if (survey.status === 'completed') {
-      return STATUS_CONFIG.completed;
-    }
+    if (survey.status === 'draft') return STATUS_CONFIG.draft;
+    if (survey.status === 'completed') return STATUS_CONFIG.completed;
 
-    // 시작일이 있고 아직 시작 전
-    if (startDate && now < startDate) {
-      return STATUS_CONFIG.scheduled;
-    }
+    // 시작 전
+    if (startDate && now < startDate) return STATUS_CONFIG.scheduled;
+    // 종료 후
+    if (endDate && now > endDate) return STATUS_CONFIG.expired;
 
-    // 종료일이 있고 이미 종료
-    if (endDate && now > endDate) {
-      return STATUS_CONFIG.expired;
-    }
-
-    // 진행중
-    if (survey.status === 'active' || survey.status === 'public') {
-      return STATUS_CONFIG.active;
-    }
+    if (survey.status === 'active' || survey.status === 'public') return STATUS_CONFIG.active;
 
     return STATUS_CONFIG.draft;
   };
 
-  // 필터 변경 핸들러
+  // 필터 변경
   const handleFilterChange = (key: keyof SurveyFilters, value: string) => {
-    const newValue = value === 'all' ? null : 
-      key === 'year' ? (value ? parseInt(value) : null) : value;
-    
+    const newValue = value === 'all' ? null : (key === 'year' ? (value ? parseInt(value) : null) : value as any);
     setFilters(prev => ({ ...prev, [key]: newValue }));
-    setCurrentPage(1); // 필터 변경시 첫 페이지로
+    setCurrentPage(1);
   };
 
-  // 새로고침
   const handleRefresh = () => {
     loadData();
   };
@@ -161,9 +145,7 @@ export default function SurveyManagementV2() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">설문 관리 V2</h1>
-          <p className="text-muted-foreground">
-            전체 {totalCount}개의 설문
-          </p>
+          <p className="text-muted-foreground">전체 {totalCount}개의 설문</p>
         </div>
         <Button onClick={handleRefresh} variant="outline" size="sm">
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -240,47 +222,44 @@ export default function SurveyManagementV2() {
         <div className="grid gap-4">
           {surveys.map((survey) => {
             const statusInfo = getStatusInfo(survey);
-            
             return (
               <Card key={survey.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold mb-2">{survey.title}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-xl font-semibold mb-2 break-words">{survey.title ?? '제목 없음'}</h3>
                       {survey.description && (
-                        <p className="text-muted-foreground mb-3 line-clamp-2">
+                        <p className="text-muted-foreground mb-3 line-clamp-2 break-words">
                           {survey.description}
                         </p>
                       )}
                     </div>
-                    <Badge variant={statusInfo.variant}>
-                      {statusInfo.label}
-                    </Badge>
+                    <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">작성자:</span>
-                      <span>{survey.creator_email}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground shrink-0">작성자:</span>
+                      <span className="truncate">{survey.creator_email ?? 'unknown'}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">강사:</span>
-                      <span>{survey.instructor_name}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <BookOpen className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground shrink-0">강사:</span>
+                      <span className="truncate">{survey.instructor_name ?? 'Unknown'}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">과목:</span>
-                      <span>{survey.course_title}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground shrink-0">과목:</span>
+                      <span className="truncate">{survey.course_title ?? 'Unknown'}</span>
                     </div>
                     
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">예상 참가자:</span>
-                      <span>{survey.expected_participants || '미설정'}</span>
+                      <span>{survey.expected_participants ?? '미설정'}</span>
                     </div>
                   </div>
 
@@ -290,31 +269,24 @@ export default function SurveyManagementV2() {
                       <div className="font-medium">
                         {survey.education_year && survey.education_round 
                           ? `${survey.education_year}년 ${survey.education_round}기`
-                          : '미설정'
-                        }
+                          : '미설정'}
                       </div>
                     </div>
                     
                     <div>
                       <span className="text-muted-foreground">시작일:</span>
-                      <div className="font-medium">
-                        {formatSafeDate(survey.start_date)}
-                      </div>
+                      <div className="font-medium">{formatSafeDate(survey.start_date)}</div>
                     </div>
                     
                     <div>
                       <span className="text-muted-foreground">종료일:</span>
-                      <div className="font-medium">
-                        {formatSafeDate(survey.end_date)}
-                      </div>
+                      <div className="font-medium">{formatSafeDate(survey.end_date)}</div>
                     </div>
                   </div>
 
                   {survey.is_test && (
                     <div className="mt-2">
-                      <Badge variant="outline" className="text-xs">
-                        테스트 설문
-                      </Badge>
+                      <Badge variant="outline" className="text-xs">테스트 설문</Badge>
                     </div>
                   )}
                 </CardContent>
