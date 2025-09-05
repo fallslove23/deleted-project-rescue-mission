@@ -1,3 +1,4 @@
+// src/pages/SurveyManagementV2.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatInTimeZone } from "date-fns-tz";
@@ -12,7 +13,6 @@ import {
   RefreshCw,
   Settings,
   Eye,
-  Copy,
   Share2,
   Trash2,
   BarChart,
@@ -22,6 +22,7 @@ import {
   SortDesc,
   CheckSquare,
   Download,
+  Copy,
 } from "lucide-react";
 
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -214,6 +215,8 @@ export default function SurveyManagementV2() {
   }, []);
 
   /* ---------------- actions ---------------- */
+  const { toast: show } = useToast();
+
   const handleRefresh = () => loadData();
 
   const exportCsv = async () => {
@@ -281,10 +284,10 @@ export default function SurveyManagementV2() {
         course_name: course,
         template_id: templates[0]?.id ?? null,
       });
-      toast({ title: "설문 생성 완료", description: created.title });
+      show({ title: "설문 생성 완료", description: created.title });
       navigate(`/survey-builder/${created.id}`);
     } catch (e: any) {
-      toast({ title: "생성 실패", description: e?.message ?? "오류", variant: "destructive" });
+      show({ title: "생성 실패", description: e?.message ?? "오류", variant: "destructive" });
     }
   };
 
@@ -294,9 +297,9 @@ export default function SurveyManagementV2() {
       await SurveysRepository.updateStatusMany(Array.from(selected), status);
       setSelected(new Set());
       loadData();
-      toast({ title: "상태 변경 완료" });
+      show({ title: "상태 변경 완료" });
     } catch (e: any) {
-      toast({ title: "상태 변경 실패", description: e?.message, variant: "destructive" });
+      show({ title: "상태 변경 실패", description: e?.message, variant: "destructive" });
     }
   };
   const bulkDuplicate = async () => {
@@ -305,9 +308,9 @@ export default function SurveyManagementV2() {
       await SurveysRepository.duplicateMany(Array.from(selected));
       setSelected(new Set());
       loadData();
-      toast({ title: "복사 완료" });
+      show({ title: "복사 완료" });
     } catch (e: any) {
-      toast({ title: "복사 실패", description: e?.message, variant: "destructive" });
+      show({ title: "복사 실패", description: e?.message, variant: "destructive" });
     }
   };
   const bulkDelete = async () => {
@@ -317,9 +320,9 @@ export default function SurveyManagementV2() {
       await SurveysRepository.deleteMany(Array.from(selected));
       setSelected(new Set());
       loadData();
-      toast({ title: "삭제 완료" });
+      show({ title: "삭제 완료" });
     } catch (e: any) {
-      toast({ title: "삭제 실패", description: e?.message, variant: "destructive" });
+      show({ title: "삭제 실패", description: e?.message, variant: "destructive" });
     }
   };
 
@@ -647,7 +650,7 @@ export default function SurveyManagementV2() {
                         </div>
                       )}
 
-                      {/* 액션 */}
+                      {/* 액션 (복사/삭제 제거) */}
                       <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
                         <Button
                           variant="outline"
@@ -674,23 +677,6 @@ export default function SurveyManagementV2() {
                         >
                           <BarChart className="w-4 h-4 mr-1" />
                           결과
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              const created = await SurveysRepository.duplicateSurvey(s.id);
-                              toast({ title: "복사 완료", description: created.title });
-                              loadData();
-                            } catch (e: any) {
-                              toast({ title: "복사 실패", description: e?.message, variant: "destructive" });
-                            }
-                          }}
-                        >
-                          <Copy className="w-4 h-4 mr-1" />
-                          복사
                         </Button>
 
                         <Button
@@ -731,24 +717,6 @@ export default function SurveyManagementV2() {
                             <SelectItem value="completed">완료</SelectItem>
                           </SelectContent>
                         </Select>
-
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={async () => {
-                            if (!confirm("정말 삭제할까요? 이 작업은 되돌릴 수 없습니다.")) return;
-                            try {
-                              await SurveysRepository.deleteSurvey(s.id);
-                              toast({ title: "삭제 완료" });
-                              loadData();
-                            } catch (e: any) {
-                              toast({ title: "삭제 실패", description: e?.message, variant: "destructive" });
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          삭제
-                        </Button>
                       </div>
                     </CardContent>
                   </Card>
