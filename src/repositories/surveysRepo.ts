@@ -51,7 +51,8 @@ export type SurveyListItem = {
 export type SurveyFilters = {
   year: number | null;
   status: "draft" | "active" | "public" | "completed" | null;
-  q?: string | null; // 🔍 추가
+  q?: string | null;
+  courseName?: string | null; // ⬅️ 추가
 };
 
 export type PaginatedSurveyResult = {
@@ -62,7 +63,6 @@ export type PaginatedSurveyResult = {
 
 // Supabase .or 조건에 안전하게 쓰기 위한 이스케이프
 function escapeOrValue(v: string) {
-  // 쉼표, 괄호는 .or 문법과 충돌하므로 따옴표로 감싸는 대신 와일드카드에만 사용
   return v.replace(/[%_]/g, "\\$&");
 }
 
@@ -84,8 +84,9 @@ export const SurveysRepository = {
 
     if (filters.year !== null) query = query.eq("education_year", filters.year);
     if (filters.status !== null) query = query.eq("status", filters.status);
+    if (filters.courseName) query = query.eq("course_name", filters.courseName);
 
-    // 🔍 통합 검색: 제목/과정명/강사명/과목명/작성자 이메일
+    // 통합 검색
     const q = (filters.q ?? "").trim();
     if (q.length > 0) {
       const kw = escapeOrValue(q);
@@ -121,41 +122,23 @@ export const SurveysRepository = {
       .sort((a, b) => b - a);
   },
 
-  async getAvailableCourseKeys(year?: number): Promise<
-    { year: number; round: number; course_name: string }[]
-  > {
+  // ⬇️ 선택한 연도에서 사용된 과정명만 반환
+  async getAvailableCourseNames(year: number | null): Promise<string[]> {
     let q = supabase
       .from("surveys")
-      .select("education_year, education_round, course_name")
+      .select("course_name, education_year")
       .not("course_name", "is", null);
 
-    if (year) q = q.eq("education_year", year);
+    if (year !== null) q = q.eq("education_year", year);
 
     const { data, error } = await q;
     if (error) throw error;
 
-    const uniq = new Map<
-      string,
-      { year: number; round: number; course_name: string }
-    >();
+    const set = new Set<string>();
     (data ?? []).forEach((r: any) => {
-      const key = `${r.education_year}-${r.education_round}-${r.course_name}`;
-      if (!uniq.has(key)) {
-        uniq.set(key, {
-          year: r.education_year,
-          round: r.education_round,
-          course_name: r.course_name,
-        });
-      }
+      if (r.course_name) set.add(r.course_name);
     });
-
-    return Array.from(uniq.values()).sort((a, b) =>
-      a.year !== b.year
-        ? b.year - a.year
-        : a.round !== b.round
-        ? a.round - b.round
-        : a.course_name.localeCompare(b.course_name)
-    );
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   },
 
   async updateStatus(
@@ -238,7 +221,7 @@ export const SurveysRepository = {
   },
 };
 
-/* ------------------------- CourseNamesRepo ------------------------ */
+/* ------------------------- CourseNamesRepo (편집용) -------------- */
 export type CourseName = { id: string; name: string; created_at: string | null };
 
 export const CourseNamesRepo = {
