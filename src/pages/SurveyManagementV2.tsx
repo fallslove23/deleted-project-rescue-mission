@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -80,14 +81,16 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
 }
 
 export default function SurveyManagementV2() {
-  /* -------------------- 레이아웃: 사이드바 포함 -------------------- */
+  // ✅ SidebarProvider로 감싸서 useSidebar 컨텍스트 제공
   return (
-    <div className="flex min-h-screen bg-background">
-      <AdminSidebar />
-      <div className="flex-1 min-w-0">
-        <PageBody />
+    <SidebarProvider>
+      <div className="flex min-h-screen bg-background">
+        <AdminSidebar />
+        <div className="flex-1 min-w-0">
+          <PageBody />
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
 
@@ -433,10 +436,9 @@ function PageBody() {
 
   return (
     <main className="w-full max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-      {/* 상단 헤더 (타이틀/액션) */}
       <Header totalCount={totalCount} onExport={exportCsv} onRefresh={handleRefresh} onCreate={openQuickCreate} />
 
-      {/* 검색/필터/정렬 */}
+      {/* 검색/필터 카드 */}
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -444,7 +446,6 @@ function PageBody() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* 검색 */}
           <div className="space-y-2">
             <label className="text-sm font-medium">검색</label>
             <div className="relative">
@@ -472,35 +473,29 @@ function PageBody() {
             </div>
           </div>
 
-          {/* 필터 라인 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* 연도 */}
             <div className="space-y-2">
               <label className="text-sm font-medium">교육 연도</label>
-              <Select
-                value={filters.year?.toString() || "all"}
-                onValueChange={(value) => handleFilterChange("year", value)}
-              >
+              <Select value={filters.year?.toString() || "all"} onValueChange={(v) => handleFilterChange("year", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="모든 연도" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">모든 연도</SelectItem>
-                  {availableYears.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}년
+                  {availableYears.map((y) => (
+                    <SelectItem key={y} value={y.toString()}>
+                      {y}년
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* 과정명 */}
             <div className="space-y-2">
               <label className="text-sm font-medium">과정명</label>
               <Select
                 value={filters.courseName || "all"}
-                onValueChange={(value) => handleFilterChange("courseName", value)}
+                onValueChange={(v) => handleFilterChange("courseName", v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="모든 과정" />
@@ -516,13 +511,9 @@ function PageBody() {
               </Select>
             </div>
 
-            {/* 상태 */}
             <div className="space-y-2">
               <label className="text-sm font-medium">상태</label>
-              <Select
-                value={filters.status || "all"}
-                onValueChange={(value) => handleFilterChange("status", value)}
-              >
+              <Select value={filters.status || "all"} onValueChange={(v) => handleFilterChange("status", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="모든 상태" />
                 </SelectTrigger>
@@ -536,7 +527,6 @@ function PageBody() {
               </Select>
             </div>
 
-            {/* 정렬 */}
             <div className="space-y-2">
               <label className="text-sm font-medium">정렬</label>
               <div className="flex gap-2">
@@ -550,11 +540,7 @@ function PageBody() {
                     <SelectItem value="end_date">종료일</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button
-                  variant="outline"
-                  title="정렬 방향"
-                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                >
+                <Button variant="outline" title="정렬 방향" onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}>
                   {sortDir === "asc" ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
                 </Button>
               </div>
@@ -563,7 +549,6 @@ function PageBody() {
         </CardContent>
       </Card>
 
-      {/* 에러 */}
       {error && (
         <Alert variant="destructive" className="mt-6">
           <AlertCircle className="h-4 w-4" />
@@ -571,7 +556,6 @@ function PageBody() {
         </Alert>
       )}
 
-      {/* 멀티 선택 바 */}
       <div className="flex items-center justify-between mt-6">
         <div className="flex items-center gap-2 text-sm">
           <Button variant="outline" size="sm" onClick={toggleAll}>
@@ -604,7 +588,6 @@ function PageBody() {
         )}
       </div>
 
-      {/* 목록 */}
       {surveys.length === 0 ? (
         <Card className="mt-4">
           <CardContent className="py-12 text-center">
@@ -624,20 +607,12 @@ function PageBody() {
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        aria-label="select"
-                        className="mt-1"
-                        checked={checked}
-                        onChange={() => toggleOne(survey.id)}
-                      />
+                      <input type="checkbox" aria-label="select" className="mt-1" checked={checked} onChange={() => toggleOne(survey.id)} />
                       <div>
                         <h3 className="text-xl font-semibold mb-2">
                           <Highlight text={survey.title ?? ""} query={q} />
                         </h3>
-                        {survey.description && (
-                          <p className="text-muted-foreground mb-3 line-clamp-2">{survey.description}</p>
-                        )}
+                        {survey.description && <p className="text-muted-foreground mb-3 line-clamp-2">{survey.description}</p>}
                       </div>
                     </div>
                     <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
@@ -647,30 +622,22 @@ function PageBody() {
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">작성자:</span>
-                      <span>
-                        <Highlight text={survey.creator_email ?? ""} query={q} />
-                      </span>
+                      <span><Highlight text={survey.creator_email ?? ""} query={q} /></span>
                     </div>
                     <div className="flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">강사:</span>
-                      <span>
-                        <Highlight text={survey.instructor_name ?? ""} query={q} />
-                      </span>
+                      <span><Highlight text={survey.instructor_name ?? ""} query={q} /></span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">과목:</span>
-                      <span>
-                        <Highlight text={survey.course_title ?? ""} query={q} />
-                      </span>
+                      <span><Highlight text={survey.course_title ?? ""} query={q} /></span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">과정:</span>
-                      <span>
-                        <Highlight text={survey.course_name ?? ""} query={q} />
-                      </span>
+                      <span><Highlight text={survey.course_name ?? ""} query={q} /></span>
                     </div>
                   </div>
 
@@ -678,9 +645,7 @@ function PageBody() {
                     <div>
                       <span className="text-muted-foreground">교육기간:</span>
                       <div className="font-medium">
-                        {survey.education_year && survey.education_round
-                          ? `${survey.education_year}년 ${survey.education_round}기`
-                          : "미설정"}
+                        {survey.education_year && survey.education_round ? `${survey.education_year}년 ${survey.education_round}기` : "미설정"}
                       </div>
                     </div>
                     <div>
@@ -695,9 +660,7 @@ function PageBody() {
 
                   {survey.is_test && (
                     <div className="mt-2">
-                      <Badge variant="outline" className="text-xs">
-                        테스트 설문
-                      </Badge>
+                      <Badge variant="outline" className="text-xs">테스트 설문</Badge>
                     </div>
                   )}
                 </CardContent>
@@ -707,39 +670,21 @@ function PageBody() {
         </div>
       )}
 
-      {/* 페이지네이션 */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-6">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            이전
+          <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+            <ChevronLeft className="w-4 h-4 mr-1" />이전
           </Button>
-          <span className="text-sm text-muted-foreground px-4">
-            {currentPage} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          >
-            다음
-            <ChevronRight className="w-4 h-4 ml-1" />
+          <span className="text-sm text-muted-foreground px-4">{currentPage} / {totalPages}</span>
+          <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+            다음<ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
       )}
 
-      {/* 빠른 생성 다이얼로그 */}
       <Dialog open={openCreate} onOpenChange={setOpenCreate}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>빠른 설문 생성</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>빠른 설문 생성</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -755,21 +700,11 @@ function PageBody() {
               </div>
               <div className="space-y-1">
                 <Label>차수</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={qcRound}
-                  onChange={(e) => setQcRound(parseInt(e.target.value || "1"))}
-                />
+                <Input type="number" min={1} value={qcRound} onChange={(e) => setQcRound(parseInt(e.target.value || "1"))} />
               </div>
               <div className="space-y-1">
                 <Label>일차</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={qcDay}
-                  onChange={(e) => setQcDay(parseInt(e.target.value || "1"))}
-                />
+                <Input type="number" min={1} value={qcDay} onChange={(e) => setQcDay(parseInt(e.target.value || "1"))} />
               </div>
               <div className="space-y-1">
                 <Label>과정명</Label>
@@ -779,9 +714,7 @@ function PageBody() {
                     {availableCourseNames.length === 0 ? (
                       <div className="p-2 text-sm text-muted-foreground">해당 연도의 과정이 없습니다.</div>
                     ) : (
-                      availableCourseNames.map((n) => (
-                        <SelectItem key={n} value={n}>{n}</SelectItem>
-                      ))
+                      availableCourseNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)
                     )}
                   </SelectContent>
                 </Select>
@@ -794,9 +727,7 @@ function PageBody() {
                 <SelectTrigger><SelectValue placeholder="선택 안함" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">선택 안함</SelectItem>
-                  {templates.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
+                  {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">선택 시 해당 템플릿이 연결된 상태로 생성됩니다.</p>
@@ -804,9 +735,7 @@ function PageBody() {
           </div>
           <DialogFooter className="mt-2">
             <Button variant="outline" onClick={() => setOpenCreate(false)}>취소</Button>
-            <Button onClick={doQuickCreate} disabled={creating || !qcCourse}>
-              생성
-            </Button>
+            <Button onClick={doQuickCreate} disabled={creating || !qcCourse}>생성</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -814,7 +743,7 @@ function PageBody() {
   );
 }
 
-/* ---------------------- 공용 헤더 컴포넌트 ----------------------- */
+/* ---------------------- 공용 헤더 ----------------------- */
 function Header({
   totalCount,
   onExport,
