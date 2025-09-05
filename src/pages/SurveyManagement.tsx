@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import QRCode from 'qrcode';
-import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target, ChevronsUpDown, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Calendar, Users, ArrowLeft, Play, Square, Mail, Copy, Trash2, FileText, Share2, QrCode, Eye, MoreHorizontal, Target, ChevronsUpDown, Check, ChevronLeft, ChevronRight, Settings, BarChart, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 import SurveyCreateForm from '@/components/SurveyCreateForm';
@@ -898,8 +898,9 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         </header>
       )}
 
-      <main className="container mx-auto px-4 py-6">
-        <div className="space-y-6">
+      <main className="container mx-auto px-4 py-6 h-[calc(100vh-120px)] flex flex-col">
+        {/* 상단 고정 영역 */}
+        <div className="flex-shrink-0 space-y-6 mb-6">
           {/* Guide */}
           <Card>
             <CardHeader>
@@ -990,212 +991,210 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
             </CardContent>
           </Card>
 
-          {/* 상단 액션 + 생성 다이얼로그 */}
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-lg sm:text-xl font-bold break-words">
-                설문조사 목록 {selectedCourse && `(${availableCourses.find(c => c.key === selectedCourse)?.course_name})`}
-              </h2>
+          {/* 상단 액션 */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-lg sm:text-xl font-bold break-words">
+              설문조사 목록 {selectedCourse && `(${availableCourses.find(c => c.key === selectedCourse)?.course_name})`}
+            </h2>
 
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="touch-friendly text-sm w-full sm:w-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    <span className="break-words">새 설문조사</span>
-                  </Button>
-                </DialogTrigger>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="touch-friendly text-sm w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="break-words">새 설문조사</span>
+                </Button>
+              </DialogTrigger>
 
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>새 설문조사 만들기</DialogTitle>
-                  </DialogHeader>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>새 설문조사 만들기</DialogTitle>
+                </DialogHeader>
 
-                  <SurveyCreateForm 
-                    onSubmit={handleSubmit}
-                    onCancel={() => setIsDialogOpen(false)}
-                    isSubmitting={false}
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
+                <SurveyCreateForm 
+                  onSubmit={handleSubmit}
+                  onCancel={() => setIsDialogOpen(false)}
+                  isSubmitting={false}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
 
-            {/* 목록 */}
-            <div className="h-[calc(100vh-400px)] min-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 grid gap-4 p-1">
-              {getPaginatedSurveys().map((survey) => {
-                const surveyInstructor = instructors.find(i => i.id === survey.instructor_id);
-                const surveyCourse = courses.find(c => c.id === survey.course_id);
+        {/* 중간 스크롤 가능한 리스트 영역 */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 min-h-0">
+          <div className="grid gap-4 p-1">
+            {getPaginatedSurveys().map((survey) => {
+              const surveyInstructor = instructors.find(i => i.id === survey.instructor_id);
+              const surveyCourse = courses.find(c => c.id === survey.course_id);
 
-                return (
-                  <Card key={survey.id} className="transition-shadow hover:shadow-md">
-                    <CardHeader className="p-4 sm:p-6">
-                      <div className="space-y-4">
-                        {/* Header */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                              <CardTitle className="text-base sm:text-lg break-words line-clamp-2">
-                                {survey.title}
-                              </CardTitle>
-                              {getStatusBadge(survey)}
-                            </div>
-                            <p className="text-sm text-muted-foreground break-words line-clamp-2">
-                              {survey.description}
-                            </p>
+              return (
+                <Card key={survey.id} className="transition-shadow hover:shadow-md">
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                            <CardTitle className="text-base sm:text-lg break-words line-clamp-2">
+                              {survey.title}
+                            </CardTitle>
+                            {getStatusBadge(survey)}
                           </div>
-                        </div>
-
-                        {/* Info */}
-                        <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                          <p className="break-words"><strong>작성자:</strong> {survey.creator_name || '알 수 없음'}</p>
-                          <p className="break-words"><strong>표시:</strong> {displayRoundLabel(survey)}</p>
-                          <p className="break-words"><strong>강사:</strong> {surveyInstructor?.name || 'Unknown'}</p>
-                          <p className="break-words"><strong>과목:</strong> {surveyCourse?.title || 'Unknown'}</p>
-                          {survey.course_name && (
-                            <p className="break-words">
-                              <strong>과정명:</strong>{' '}
-                              <span className="ml-1 text-primary font-medium">
-                                {survey.course_name.includes('-')
-                                  ? survey.course_name.split('-')[1]?.trim()
-                                  : survey.course_name}
-                              </span>
-                            </p>
-                          )}
-                          <p>
-                            <strong>교육기간:</strong>{' '}
-                            {survey.education_year}년 {survey.education_round}차 {survey.education_day || 1}일차
-                            {survey.is_combined && survey.combined_round_start && survey.combined_round_end && (
-                              <span className="ml-2">
-                                (합반 {survey.combined_round_start}∼{survey.combined_round_end}차)
-                              </span>
-                            )}
+                          <p className="text-sm text-muted-foreground break-words line-clamp-2">
+                            {survey.description}
                           </p>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span className="break-all">
-                              {new Date(survey.start_date).toLocaleString('ko-KR', {
-                                year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                              })} ~ {new Date(survey.end_date).toLocaleString('ko-KR', {
-                                year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditSurvey(survey)}
-                            className="touch-friendly text-xs h-9 px-3"
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            정보수정
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/survey-builder/${survey.id}`)}
-                            className="touch-friendly text-xs h-9 px-3"
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            질문편집
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/survey-preview/${survey.id}`)}
-                            className="touch-friendly text-xs h-9 px-3"
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            미리보기
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleShare(survey)}
-                            className="touch-friendly text-xs h-9 px-3"
-                          >
-                            <Share2 className="h-4 w-4 mr-1" />
-                            공유
-                          </Button>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className="touch-friendly text-xs h-9 px-3">
-                                <MoreHorizontal className="h-4 w-4 mr-1" />
-                                더보기
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem onClick={() => duplicateSurvey(survey)}>
-                                <Copy className="h-4 w-4 mr-2" />
-                                복사하기
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}>
-                                <FileText className="h-4 w-4 mr-2" />
-                                결과 보기
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => sendSurveyResults(survey.id)}>
-                                <Mail className="h-4 w-4 mr-2" />
-                                이메일 전송
-                              </DropdownMenuItem>
-
-                              <DropdownMenuSeparator />
-
-                              {survey.status === 'draft' && (
-                                <DropdownMenuItem onClick={() => updateSurveyStatus(survey.id, 'active')}>
-                                  <Play className="h-4 w-4 mr-2" />
-                                  설문 시작
-                                </DropdownMenuItem>
-                              )}
-
-                              {survey.status === 'active' && (
-                                <DropdownMenuItem onClick={() => updateSurveyStatus(survey.id, 'completed')}>
-                                  <Square className="h-4 w-4 mr-2" />
-                                  설문 종료
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteSurvey(survey.id)}
-                            className="touch-friendly text-xs h-9 px-3 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            삭제
-                          </Button>
                         </div>
                       </div>
-                    </CardHeader>
-                  </Card>
-                );
-              })}
-            </div>
 
-            {/* 페이징 */}
-            {getTotalPages() > 1 && (
-              <div className="flex items-center justify-center space-x-2 mt-6">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  이전
-                </Button>
-                
-                <div className="flex items-center space-x-1">
-                  {Array.from({ length: getTotalPages() }, (_, i) => i + 1).map((page) => (
+                      {/* Info */}
+                      <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+                        <p className="break-words"><strong>작성자:</strong> {survey.creator_name || '알 수 없음'}</p>
+                        <p className="break-words"><strong>표시:</strong> {displayRoundLabel(survey)}</p>
+                        <p className="break-words"><strong>강사:</strong> {surveyInstructor?.name || 'Unknown'}</p>
+                        <p className="break-words"><strong>과목:</strong> {surveyCourse?.title || 'Unknown'}</p>
+                        {survey.course_name && (
+                          <p className="break-words">
+                            <strong>과정명:</strong>{' '}
+                            <span className="ml-1 text-primary font-medium">
+                              {survey.course_name.includes('-')
+                                ? survey.course_name.split('-')[1]?.trim()
+                                : survey.course_name}
+                            </span>
+                          </p>
+                        )}
+                        <p>
+                          <strong>교육기간:</strong>{' '}
+                          {survey.education_year}년 {survey.education_round}차 {survey.education_day || 1}일차
+                          {survey.is_combined && survey.combined_round_start && survey.combined_round_end && (
+                            <span className="ml-2">
+                              (합반 {survey.combined_round_start}∼{survey.combined_round_end}차)
+                            </span>
+                          )}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-3 w-3 flex-shrink-0" />
+                          <span className="break-all">
+                            {new Date(survey.start_date).toLocaleString('ko-KR', {
+                              year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                            })} ~ {new Date(survey.end_date).toLocaleString('ko-KR', {
+                              year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditSurvey(survey)}
+                          className="touch-friendly text-xs h-9 px-3"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          정보수정
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/survey-builder/${survey.id}`)}
+                          className="touch-friendly text-xs h-9 px-3"
+                        >
+                          <Settings className="h-4 w-4 mr-1" />
+                          미리보기
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShare(survey)}
+                          className="touch-friendly text-xs h-9 px-3"
+                        >
+                          <Share2 className="h-4 w-4 mr-1" />
+                          공유
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => duplicateSurvey(survey)}
+                          className="touch-friendly text-xs h-9 px-3"
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          복사
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/survey-results/${survey.id}`)}
+                          className="touch-friendly text-xs h-9 px-3"
+                        >
+                          <BarChart className="h-4 w-4 mr-1" />
+                          결과
+                        </Button>
+
+                        <Select value={survey.status} onValueChange={(value) => updateSurveyStatus(survey.id, value)}>
+                          <SelectTrigger className="w-24 h-9 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">활성</SelectItem>
+                            <SelectItem value="draft">초안</SelectItem>
+                            <SelectItem value="completed">완료</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteSurvey(survey.id)}
+                          className="touch-friendly text-xs h-9 px-3"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          삭제
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          onClick={() => window.open(`/survey/${survey.id}`, '_blank')}
+                          className="touch-friendly text-xs h-9 px-3 bg-primary hover:bg-primary/90"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          설문 참여
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 하단 고정 페이징 영역 */}
+        <div className="flex-shrink-0 mt-6">
+          {/* 페이징 */}
+          {getTotalPages() > 1 && (
+            <div className="flex justify-center items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                이전
+              </Button>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, getTotalPages()) }, (_, i) => {
+                  const startPage = Math.max(1, currentPage - 2);
+                  const page = startPage + i;
+                  if (page > getTotalPages()) return null;
+                  
+                  return (
                     <Button
                       key={page}
                       variant={currentPage === page ? "default" : "outline"}
@@ -1205,25 +1204,25 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     >
                       {page}
                     </Button>
-                  ))}
-                </div>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, getTotalPages()))}
-                  disabled={currentPage === getTotalPages()}
-                >
-                  다음
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                  );
+                })}
               </div>
-            )}
-
-            {/* 페이징 정보 */}
-            <div className="text-center text-sm text-muted-foreground mt-4">
-              총 {selectedCourse ? getFilteredSurveys().length : surveys.length}개 중 {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, selectedCourse ? getFilteredSurveys().length : surveys.length)}개 표시
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, getTotalPages()))}
+                disabled={currentPage === getTotalPages()}
+              >
+                다음
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
+          )}
+
+          {/* 페이징 정보 */}
+          <div className="text-center text-sm text-muted-foreground mt-4">
+            총 {selectedCourse ? getFilteredSurveys().length : surveys.length}개 중 {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, selectedCourse ? getFilteredSurveys().length : surveys.length)}개 표시
           </div>
         </div>
       </main>
