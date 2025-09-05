@@ -1,7 +1,11 @@
-import * as React from "react";
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import SurveyCreateForm from "./SurveyCreateForm";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 type SurveyEditable = {
   id: string;
@@ -12,228 +16,65 @@ type SurveyEditable = {
   education_year: number;
   education_round: number;
   education_day: number | null;
-  course_id: string | null;           // 과목 id
-  course_name: string | null;         // "BS Basic" | "BS Advanced"
+  course_id: string | null;
+  course_name: string | null;
   instructor_id: string | null;
   expected_participants: number | null;
   is_combined: boolean | null;
   combined_round_start: number | null;
   combined_round_end: number | null;
   round_label: string | null;
-  is_test?: boolean | null;
+  is_test: boolean | null;
 };
 
-type Course = { id: string; title: string };
-
-interface Props {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
+interface SurveyInfoEditDialogProps {
   survey: SurveyEditable | null;
-  courses: Course[];
-  onSaved?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function SurveyInfoEditDialog({
-  open,
-  onOpenChange,
-  survey,
-  courses,    // 현재 컴포넌트에서는 제목 자동생성용으로만 사용
-  onSaved,
-}: Props) {
-  const [initialValues, setInitialValues] = React.useState<any>(null);
-  
-  // 편집 초기값 구성 (datetime-local 변환 개선)
-  const toLocalInput = (iso?: string | null): string => {
-    if (!iso) return "";
-    try {
-      const d = new Date(iso);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch (error) {
-      console.error("Date conversion error:", error);
-      return "";
+export default function SurveyInfoEditDialog({ survey, open, onOpenChange }: SurveyInfoEditDialogProps) {
+  const { toast } = useToast();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (survey) {
+      setTitle(survey.title);
+      setDescription(survey.description || '');
     }
-  };
-  
-  // 세션 기반 초기값 가져오기
-  React.useEffect(() => {
-    if (survey?.id && open) {
-      const fetchSessionsAndSetInitialValues = async () => {
-        try {
-          const { data: sessions } = await supabase
-            .from("survey_sessions")
-            .select("*")
-            .eq("survey_id", survey.id)
-            .order("session_order");
-          
-          let courseSelections: any[] = [];
-          if (sessions && sessions.length > 0) {
-            courseSelections = sessions.map(session => ({
-              courseId: session.course_id || "",
-              instructorId: session.instructor_id || ""
-            }));
-          } else if (survey.course_id) {
-            // 기존 단일 저장 구조 호환성
-            courseSelections = [{
-              courseId: survey.course_id,
-              instructorId: survey.instructor_id || ""
-            }];
-          }
-          
-          // 기본값이 빈 배열이면 기본 항목 하나 추가
-          if (courseSelections.length === 0) {
-            courseSelections = [{ courseId: '', instructorId: '' }];
-          }
+  }, [survey]);
 
-          const values = {
-            education_year: survey.education_year,
-            education_round: survey.education_round,
-            education_day: survey.education_day,
-            course_name: survey.course_name ?? "",
-            expected_participants: survey.expected_participants ?? null,
-            start_date: toLocalInput(survey.start_date),
-            end_date: toLocalInput(survey.end_date),
-            description: survey.description ?? "",
-            is_combined: !!survey.is_combined,
-            combined_round_start: survey.combined_round_start ?? null,
-            combined_round_end: survey.combined_round_end ?? null,
-            round_label: survey.round_label ?? "",
-            is_test: !!survey.is_test,
-            course_selections: courseSelections,
-          };
-
-          console.log('SurveyInfoEditDialog - Setting initial values:', values);
-          setInitialValues(values);
-        } catch (error) {
-          console.error('Error fetching sessions:', error);
-          // 오류 시 기본값 사용
-          setInitialValues({
-            education_year: survey.education_year,
-            education_round: survey.education_round,
-            education_day: survey.education_day,
-            course_name: survey.course_name ?? "",
-            expected_participants: survey.expected_participants ?? null,
-            start_date: toLocalInput(survey.start_date),
-            end_date: toLocalInput(survey.end_date),
-            description: survey.description ?? "",
-            is_combined: !!survey.is_combined,
-            combined_round_start: survey.combined_round_start ?? null,
-            combined_round_end: survey.combined_round_end ?? null,
-            round_label: survey.round_label ?? "",
-            is_test: !!survey.is_test,
-            course_selections: [{ courseId: '', instructorId: '' }],
-          });
-        }
-      };
-
-      fetchSessionsAndSetInitialValues();
-    }
-  }, [survey?.id, open]);
-
-  // 안전한 ISO 변환 함수
-  const toSafeISOString = (dateTimeLocal: string): string | null => {
-    if (!dateTimeLocal) return null;
-    try {
-      const date = new Date(dateTimeLocal + ':00+09:00');
-      if (isNaN(date.getTime())) return null;
-      return date.toISOString();
-    } catch {
-      return null;
-    }
-  };
-
-  const handleSubmit = async (data: any) => {
+  const handleSave = async () => {
     if (!survey) return;
 
     try {
-      const payload = {
-        title: "",
-        description: data.description || survey.description || "",
-        start_date: toSafeISOString(data.start_date),
-        end_date: toSafeISOString(data.end_date),
-        education_year: data.education_year,
-        education_round: data.education_round,
-        education_day: data.education_day,
-        course_name: data.course_name,
-        expected_participants: data.expected_participants,
-        is_combined: data.is_combined || false,
-        combined_round_start: data.is_combined ? data.combined_round_start : null,
-        combined_round_end: data.is_combined ? data.combined_round_end : null,
-        round_label: data.is_combined ? data.round_label : null,
-        instructor_id: null as string | null,
-        course_id: null as string | null,
-        is_test: data.is_test || false,
-      };
+      const { error } = await supabase
+        .from('surveys')
+        .update({
+          title: title.trim(),
+          description: description.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', survey.id);
 
-      // 제목 자동 생성 (과목 선택과 무관하게)
-      if (payload.education_year && payload.education_round && payload.education_day) {
-        const yy = payload.education_year.toString().slice(-2);
-        const program = payload.course_name?.trim() || "";
-        const prefix = program
-          ? `${yy}-${payload.education_round}차 ${program} ${payload.education_day}일차`
-          : `${yy}-${payload.education_round}차 ${payload.education_day}일차`;
-        payload.title = prefix;
-      } else {
-        payload.title = survey.title;
-      }
+      if (error) throw error;
 
-      // 설문 기본 정보 수정
-      const { error: surveyError } = await supabase
-        .from("surveys")
-        .update(payload)
-        .eq("id", survey.id);
-
-      if (surveyError) {
-        console.error('Survey update error:', surveyError);
-        throw new Error(`설문 정보 수정에 실패했습니다: ${surveyError.message}`);
-      }
-
-      // 기존 세션 삭제
-      const { error: deleteError } = await supabase
-        .from("survey_sessions")
-        .delete()
-        .eq("survey_id", survey.id);
-
-      if (deleteError) {
-        console.error('Session delete error:', deleteError);
-        throw new Error(`기존 세션 삭제에 실패했습니다: ${deleteError.message}`);
-      }
-
-      // 새로운 세션들 추가
-      if (data.course_selections && data.course_selections.length > 0) {
-        const validSelections = data.course_selections.filter(
-          (selection: any) => selection.courseId && selection.instructorId
-        );
-        
-        if (validSelections.length > 0) {
-          const sessionsToInsert = validSelections.map((selection: any, index: number) => ({
-            survey_id: survey.id,
-            course_id: selection.courseId,
-            instructor_id: selection.instructorId,
-            session_name: `과목 ${index + 1}`,
-            session_order: index,
-          }));
-
-          const { error: sessionError } = await supabase
-            .from("survey_sessions")
-            .insert(sessionsToInsert);
-
-          if (sessionError) {
-            console.error('Session insert error:', sessionError);
-            throw new Error(`세션 추가에 실패했습니다: ${sessionError.message}`);
-          }
-        }
-      }
+      toast({
+        title: "성공",
+        description: "설문 정보가 수정되었습니다.",
+      });
 
       onOpenChange(false);
-      onSaved?.();
-    } catch (err) {
-      console.error("Error updating survey:", err);
+    } catch (error: any) {
+      console.error('Error updating survey:', error);
+      toast({
+        title: "오류",
+        description: error.message || "설문 정보 수정 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
     }
   };
-
-  console.log("SurveyInfoEditDialog - Survey data:", survey);
-  console.log("SurveyInfoEditDialog - Initial values:", initialValues);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -242,14 +83,34 @@ export default function SurveyInfoEditDialog({
           <DialogTitle className="text-base sm:text-lg">설문 정보 수정</DialogTitle>
         </DialogHeader>
 
-        {survey && initialValues && (
-          <SurveyCreateForm
-            key={`${survey.id}-${JSON.stringify(initialValues)}`} // 모달 재사용 시 상태 리셋
-            initialValues={initialValues}
-            onSubmit={handleSubmit}
-            onCancel={() => onOpenChange(false)}
-            isSubmitting={false}
-          />
+        {survey && (
+          <div className="space-y-4">
+            <div>
+              <Label>제목</Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="설문 제목"
+              />
+            </div>
+            <div>
+              <Label>설명</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="설문 설명"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                취소
+              </Button>
+              <Button onClick={handleSave}>
+                저장
+              </Button>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>

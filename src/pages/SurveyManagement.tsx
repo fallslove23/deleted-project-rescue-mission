@@ -1008,9 +1008,16 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                 </DialogHeader>
 
                 <SurveyCreateForm 
-                  onSubmit={handleSubmit}
-                  onCancel={() => setIsDialogOpen(false)}
-                  isSubmitting={false}
+                  templates={[]}
+                  onSuccess={(surveyId) => {
+                    setIsDialogOpen(false);
+                    toast({
+                      title: "성공",
+                      description: "설문조사가 생성되었습니다."
+                    });
+                     // Refresh surveys list 
+                     window.location.reload();
+                  }}
                 />
               </DialogContent>
             </Dialog>
@@ -1290,30 +1297,38 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
           </DialogHeader>
 
           {editingSurvey && (
-            <SurveyCreateForm 
-              initialValues={{
-                education_year: editingSurvey.education_year || new Date().getFullYear(),
-                education_round: editingSurvey.education_round || 1,
-                education_day: editingSurvey.education_day || 1,
-                course_name: editingSurvey.course_name || "",
-                expected_participants: editingSurvey.expected_participants || null,
-                start_date: toLocalDateTime(editingSurvey.start_date),
-                end_date: toLocalDateTime(editingSurvey.end_date),
-                description: editingSurvey.description || "",
-                is_combined: !!editingSurvey.is_combined,
-                combined_round_start: editingSurvey.combined_round_start || null,
-                combined_round_end: editingSurvey.combined_round_end || null,
-                round_label: editingSurvey.round_label || "",
-                is_test: !!editingSurvey.is_test,
-                course_selections: editingSurvey.course_id && editingSurvey.instructor_id ? [{
-                  courseId: editingSurvey.course_id,
-                  instructorId: editingSurvey.instructor_id
-                }] : [],
-              }}
-              onSubmit={handleUpdateSubmit}
-              onCancel={() => setIsEditDialogOpen(false)}
-              isSubmitting={false}
-            />
+            <div className="space-y-4">
+              <div>
+                <Label>제목</Label>
+                <Input
+                  value={editingSurvey.title}
+                  readOnly
+                  className="bg-muted"
+                />
+              </div>
+              <div>
+                <Label>설명</Label>
+                <Textarea
+                  value={editingSurvey.description || "설명 없음"}
+                  readOnly
+                  className="bg-muted"
+                  rows={3}
+                />
+              </div>
+              <div className="text-sm text-muted-foreground mb-4">
+                설문의 세부 편집(과목, 강사, 질문 등)은 설문 편집기에서 할 수 있습니다.
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  닫기
+                </Button>
+                <Button onClick={() => {
+                  window.location.href = `/survey-builder/${editingSurvey.id}`;
+                }}>
+                  설문 편집기로 이동
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
