@@ -25,45 +25,40 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  CourseNamesRepo,
-  CourseName,
-} from "@/repositories/surveysRepo"; // ★ 여기만 확인!
+import { CourseNamesRepo, CourseName } from "@/repositories/surveysRepo";
 
-type Survey = {
-  id: string;
-  title: string | null;
-  description: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  education_year: number | null;
-  education_round: number | null;
-  education_day: number | null;
-  course_name: string | null;
-  expected_participants: number | null;
-  is_test: boolean | null;
-  status: "draft" | "active" | "public" | "completed" | null;
-  created_at: string | null;
-  updated_at: string | null;
-};
+// ---------- helpers ----------
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** 'YYYY-MM-DDTHH:mm' (브라우저 로컬 기준) */
+function toLocalInputStr(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
+
+/** 기본값: 작성 시점 기준 다음날 09:00/19:00 (로컬) */
+function getDefaultStartEndLocal() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const start = new Date(next);
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(next);
+  end.setHours(19, 0, 0, 0);
+  return { startLocal: toLocalInputStr(start), endLocal: toLocalInputStr(end) };
+}
 
 function toLocalDateTime(iso: string | null) {
   if (!iso) return "";
   try {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return "";
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const y = d.getFullYear();
-    const m = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    const hh = pad(d.getHours());
-    const mm = pad(d.getMinutes());
-    return `${y}-${m}-${day}T${hh}:${mm}`;
+    return toLocalInputStr(d);
   } catch {
     return "";
   }
 }
-function toSafeISOString(local: string) {
+function toSafeISOString(local: string | null) {
   if (!local) return null;
   try {
     const d = new Date(local);
@@ -83,6 +78,24 @@ function buildTitle(
   return `${year}-${courseName}-${round}차-${day}일차 설문`;
 }
 
+// ---------- types ----------
+type Survey = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  education_year: number | null;
+  education_round: number | null;
+  education_day: number | null;
+  course_name: string | null;
+  expected_participants: number | null;
+  is_test: boolean | null;
+  status: "draft" | "active" | "public" | "completed" | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export default function SurveyBuilder() {
   const { surveyId } = useParams();
   const navigate = useNavigate();
@@ -92,7 +105,7 @@ export default function SurveyBuilder() {
   const [saving, setSaving] = useState(false);
   const [survey, setSurvey] = useState<Survey | null>(null);
 
-  // ⬇️ 과목 필드 제거, 4가지만 유지
+  // ⬇️ 과목 필드 삭제, 4가지만 유지
   const [educationYear, setEducationYear] = useState<number>(
     new Date().getFullYear()
   );
@@ -100,6 +113,7 @@ export default function SurveyBuilder() {
   const [educationDay, setEducationDay] = useState<number>(1);
   const [courseName, setCourseName] = useState<string>("");
 
+  // 날짜/설명은 상태값과 바인딩
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -144,12 +158,19 @@ export default function SurveyBuilder() {
       const s = data as Survey;
       setSurvey(s);
 
+      // 기본정보
       setEducationYear(s.education_year ?? new Date().getFullYear());
       setEducationRound(s.education_round ?? 1);
       setEducationDay(s.education_day ?? 1);
       setCourseName(s.course_name ?? "");
-      setStartAt(toLocalDateTime(s.start_date));
-      setEndAt(toLocalDateTime(s.end_date));
+
+      // 시작/종료: 없으면 다음날 09:00/19:00 기본값
+      const { startLocal, endLocal } = getDefaultStartEndLocal();
+      const start = toLocalDateTime(s.start_date) || startLocal;
+      const end = toLocalDateTime(s.end_date) || endLocal;
+      setStartAt(start);
+      setEndAt(end);
+
       setDescription(
         s.description ??
           "본 설문은 과목과 강사 만족도를 평가하기 위한 것입니다. 교육 품질 향상을 위해 모든 교육생께서 반드시 참여해 주시길 부탁드립니다."
@@ -177,17 +198,28 @@ export default function SurveyBuilder() {
         return;
       }
       setSaving(true);
+
+      // 저장 시 비어있으면 기본값을 적용해 저장 (실수 방지)
+      const { startLocal, endLocal } = getDefaultStartEndLocal();
+      const startISO = toSafeISOString(startAt || startLocal);
+      const endISO = toSafeISOString(endAt || endLocal);
+
       const payload = {
         education_year: educationYear,
         education_round: educationRound,
         education_day: educationDay,
         course_name: courseName,
         title,
-        start_date: toSafeISOString(startAt),
-        end_date: toSafeISOString(endAt),
+        start_date: startISO,
+        end_date: endISO,
         description,
       };
-      const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
+
+      const { error } = await supabase
+        .from("surveys")
+        .update(payload)
+        .eq("id", surveyId);
+
       if (error) throw error;
 
       toast({ title: "기본 정보 저장", description: "저장되었습니다." });
@@ -262,7 +294,10 @@ export default function SurveyBuilder() {
     );
   }
 
-  const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + 1 - i);
+  const years = Array.from(
+    { length: 6 },
+    (_, i) => new Date().getFullYear() + 1 - i
+  );
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -281,13 +316,14 @@ export default function SurveyBuilder() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* ⛔️ 과목(Subject) 필드 삭제됨 */}
-
             {/* 과정명 + 관리 */}
             <div className="space-y-2">
               <Label>과정명</Label>
               <div className="flex gap-2">
-                <Select value={courseName || ""} onValueChange={(v) => setCourseName(v)}>
+                <Select
+                  value={courseName || ""}
+                  onValueChange={(v) => setCourseName(v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="과정명을 선택하세요" />
                   </SelectTrigger>
@@ -306,31 +342,40 @@ export default function SurveyBuilder() {
               </div>
             </div>
 
+            {/* 교육 연도 */}
             <div className="space-y-2">
               <Label>교육 연도</Label>
               <Select
                 value={String(educationYear)}
                 onValueChange={(v) => setEducationYear(parseInt(v))}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    <SelectItem key={y} value={String(y)}>
+                      {y}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* 차수 */}
             <div className="space-y-2">
               <Label>차수</Label>
               <Input
                 type="number"
                 min={1}
                 value={educationRound}
-                onChange={(e) => setEducationRound(parseInt(e.target.value || "1"))}
+                onChange={(e) =>
+                  setEducationRound(parseInt(e.target.value || "1"))
+                }
               />
             </div>
 
+            {/* 일차 */}
             <div className="space-y-2">
               <Label>일차</Label>
               <Input
@@ -341,23 +386,38 @@ export default function SurveyBuilder() {
               />
             </div>
 
+            {/* 자동 제목 */}
             <div className="space-y-2 md:col-span-2">
               <Label>제목 (자동)</Label>
               <Input value={title} readOnly />
             </div>
 
+            {/* 시작/종료일시 (상태값과 바인딩) */}
             <div className="space-y-2">
               <Label>시작일시</Label>
-              <Input type="datetime-local" value={toLocalDateTime(survey.start_date)} onChange={(e)=>setStartAt(e.target.value)} />
+              <Input
+                type="datetime-local"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>종료일시</Label>
-              <Input type="datetime-local" value={toLocalDateTime(survey.end_date)} onChange={(e)=>setEndAt(e.target.value)} />
+              <Input
+                type="datetime-local"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+              />
             </div>
 
+            {/* 설명 */}
             <div className="space-y-2 md:col-span-2">
               <Label>설명</Label>
-              <Textarea rows={3} value={description} onChange={(e)=>setDescription(e.target.value)} />
+              <Textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </div>
           </div>
 
@@ -380,6 +440,7 @@ export default function SurveyBuilder() {
             </DialogDescription>
           </DialogHeader>
 
+          {/* 추가 */}
           <div className="flex gap-2">
             <Input
               placeholder="새 과정명 입력"
@@ -395,18 +456,26 @@ export default function SurveyBuilder() {
 
           <Separator className="my-3" />
 
+          {/* 목록 */}
           <div className="space-y-2 max-h-80 overflow-auto">
             {courseNames.length === 0 ? (
-              <div className="text-sm text-muted-foreground">등록된 과정명이 없습니다.</div>
+              <div className="text-sm text-muted-foreground">
+                등록된 과정명이 없습니다.
+              </div>
             ) : (
               courseNames.map((c) => {
                 const isEditing = editRow?.id === c.id;
                 return (
-                  <div key={c.id} className="flex items-center justify-between gap-3 border rounded-md p-2">
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between gap-3 border rounded-md p-2"
+                  >
                     {isEditing ? (
                       <Input
                         value={editRow!.name}
-                        onChange={(e) => setEditRow({ ...editRow!, name: e.target.value })}
+                        onChange={(e) =>
+                          setEditRow({ ...editRow!, name: e.target.value })
+                        }
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleRenameCourseName();
                           if (e.key === "Escape") setEditRow(null);
@@ -419,16 +488,36 @@ export default function SurveyBuilder() {
                     <div className="flex gap-2">
                       {isEditing ? (
                         <>
-                          <Button size="sm" onClick={handleRenameCourseName}>변경</Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditRow(null)}>취소</Button>
+                          <Button size="sm" onClick={handleRenameCourseName}>
+                            변경
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditRow(null)}
+                          >
+                            취소
+                          </Button>
                         </>
                       ) : (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => setEditRow({ id: c.id, name: c.name })}>
-                            <Pencil className="w-4 h-4 mr-1" /> 이름변경
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setEditRow({ id: c.id, name: c.name })
+                            }
+                          >
+                            <Pencil className="w-4 h-4 mr-1" />
+                            이름변경
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteCourseName(c.id)}>
-                            <Trash2 className="w-4 h-4 mr-1" /> 삭제
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteCourseName(c.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            삭제
                           </Button>
                         </>
                       )}
@@ -440,7 +529,9 @@ export default function SurveyBuilder() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCourseMgrOpen(false)}>닫기</Button>
+            <Button variant="outline" onClick={() => setCourseMgrOpen(false)}>
+              닫기
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
