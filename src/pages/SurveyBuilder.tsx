@@ -25,7 +25,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { CourseNamesRepo, CourseName } from "@/repositories/surveysRepo";
+// Course names will be managed directly in this component
 
 // ---------- helpers ----------
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -119,7 +119,7 @@ export default function SurveyBuilder() {
   const [description, setDescription] = useState<string>("");
 
   // 과정명 관리
-  const [courseNames, setCourseNames] = useState<CourseName[]>([]);
+  const [courseNames, setCourseNames] = useState<{id: string; name: string}[]>([]);
   const [courseMgrOpen, setCourseMgrOpen] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [editRow, setEditRow] = useState<{ id: string; name: string } | null>(
@@ -133,8 +133,9 @@ export default function SurveyBuilder() {
 
   const loadCourseNames = async () => {
     try {
-      const list = await CourseNamesRepo.list();
-      setCourseNames(list);
+      const { data, error } = await supabase.from("course_names").select("*").order("name");
+      if (error) throw error;
+      setCourseNames((data || []) as {id: string; name: string}[]);
     } catch (e: any) {
       toast({
         title: "과정명 목록 로드 실패",
@@ -240,7 +241,8 @@ export default function SurveyBuilder() {
     const name = newCourseName.trim();
     if (!name) return;
     try {
-      await CourseNamesRepo.create(name);
+      const { error } = await supabase.from("course_names").insert([{ name }]);
+      if (error) throw error;
       setNewCourseName("");
       await loadCourseNames();
       toast({ title: "과정명 추가", description: `"${name}" 추가됨` });
@@ -254,7 +256,21 @@ export default function SurveyBuilder() {
     if (!newName) return;
     try {
       const old = courseNames.find((c) => c.id === editRow.id)?.name || "";
-      await CourseNamesRepo.rename(editRow.id, old, newName);
+      
+      // Update course_names table
+      const { error: courseError } = await supabase
+        .from("course_names")
+        .update({ name: newName })
+        .eq("id", editRow.id);
+      if (courseError) throw courseError;
+
+      // Update surveys that use this course name
+      const { error: surveyError } = await supabase
+        .from("surveys")
+        .update({ course_name: newName })
+        .eq("course_name", old);
+      if (surveyError) throw surveyError;
+      
       setEditRow(null);
       await loadCourseNames();
       if (courseName === old) setCourseName(newName); // 폼 동기화
@@ -268,7 +284,8 @@ export default function SurveyBuilder() {
     if (!target) return;
     if (!confirm(`"${target.name}" 과정을 목록에서 삭제할까요? (기존 설문에는 영향 없습니다)`)) return;
     try {
-      await CourseNamesRepo.remove(id);
+      const { error } = await supabase.from("course_names").delete().eq("id", id);
+      if (error) throw error;
       await loadCourseNames();
       toast({ title: "삭제 완료", description: `"${target.name}" 삭제됨` });
     } catch (e: any) {
