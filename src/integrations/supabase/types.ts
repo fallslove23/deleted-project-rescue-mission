@@ -1601,8 +1601,16 @@ export type Database = {
           },
         ]
       }
+      survey_available_years_v1: {
+        Row: {
+          education_year: number | null
+        }
+        Relationships: []
+      }
       surveys_list_v1: {
         Row: {
+          combined_round_end: number | null
+          combined_round_start: number | null
           course_id: string | null
           course_name: string | null
           course_title: string | null
@@ -1616,12 +1624,14 @@ export type Database = {
           end_date: string | null
           expected_participants: number | null
           id: string | null
-          instructor_email: string | null
           instructor_id: string | null
           instructor_name: string | null
+          is_combined: boolean | null
           is_test: boolean | null
+          round_label: string | null
           start_date: string | null
           status: string | null
+          template_id: string | null
           title: string | null
           updated_at: string | null
         }
@@ -1645,6 +1655,13 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "survey_templates"
             referencedColumns: ["id"]
           },
         ]
