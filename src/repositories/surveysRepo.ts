@@ -17,33 +17,21 @@ export interface SurveyListItem {
   status: "draft" | "active" | "public" | "completed" | null;
   course_name: string | null; // 레거시
   program_id: string | null;
-  subject_id: string | null;
-  is_combined: boolean | null;
-  combined_round_start: number | null;
-  combined_round_end: number | null;
-  round_label: string | null;
+  session_id: string | null;  // NEW
   template_id: string | null;
-  expected_participants: number | null;
-  is_test: boolean | null;
-  created_by: string | null;
-  instructor_id: string | null;
-  course_id: string | null;
   created_at: string | null;
   updated_at: string | null;
-  creator_email: string | null;
-  instructor_name: string | null;
-  course_title: string | null;
 
-  /* v2 조인 결과 필드 (뷰에서만 나올 수 있음) */
+  // 뷰 조인 필드
   program_title?: string | null;
-  subject_title?: string | null;
+  session_title?: string | null;
 }
 
 export interface SurveyFilters {
   year: number | null;
   status: "draft" | "active" | "public" | "completed" | null;
   q?: string | null;
-  courseName?: string | null; // 레거시 필터
+  courseName?: string | null; // 레거시 필터 유지
 }
 
 export interface PaginatedSurveyResult {
@@ -57,24 +45,22 @@ export interface TemplateLite {
   name: string;
 }
 
-/* ===== 프로그램/과목 타입 ===== */
+/* ===== 프로그램/세션 타입 ===== */
 export interface Program {
   id: string;
-  title: string;
-  is_active: boolean;
+  name: string;
 }
 
-export interface Subject {
+export interface Session {
   id: string;
-  title: string;
-  is_active: boolean;
+  session_name: string;
 }
 
-export interface ProgramSubjectRow {
+export interface ProgramSessionRow {
   program_id: string;
   program_title: string;
-  subject_id: string;
-  subject_title: string;
+  session_id: string;
+  session_title: string;
   sort_order: number;
   is_active: boolean;
 }
@@ -105,52 +91,51 @@ function throwIf(error: any, context?: string): asserts error is null {
 }
 
 /* =========================================
- * ProgramsRepo / SubjectsRepo
+ * Programs / Sessions Repos
  * ========================================= */
 export const ProgramsRepo = {
-  async listActive(): Promise<Program[]> {
+  async list(): Promise<Program[]> {
     const { data, error } = await supabase
       .from("programs")
-      .select("id, title, is_active")
-      .eq("is_active", true)
-      .order("title", { ascending: true });
+      .select("id, name")
+      .order("name", { ascending: true });
     throwIf(error, "프로그램 목록 조회 실패");
     return (data ?? []) as Program[];
   },
 };
 
-export const SubjectsRepo = {
-  async listActiveByProgram(programId: string): Promise<Subject[]> {
+export const SessionsRepo = {
+  /** 프로그램별 세션(과목) 목록 */
+  async listByProgram(programId: string): Promise<Session[]> {
     if (!programId) return [];
     const { data, error } = await supabase
-      .from("program_subjects_v1")
-      .select("subject_id, subject_title, sort_order")
+      .from("program_sessions_v1")
+      .select("session_id, session_title, sort_order")
       .eq("program_id", programId)
       .order("sort_order", { ascending: true });
-    throwIf(error, "과목 목록 조회 실패");
+    throwIf(error, "세션 목록 조회 실패");
     return (data ?? []).map((r: any) => ({
-      id: r.subject_id,
-      title: r.subject_title,
-      is_active: true,
-    })) as Subject[];
+      id: r.session_id,
+      session_name: r.session_title,
+    })) as Session[];
   },
 
-  async listProgramSubjects(): Promise<ProgramSubjectRow[]> {
+  /** 전체 편성 보기(관리 화면 등에서 사용) */
+  async listProgramSessions(): Promise<ProgramSessionRow[]> {
     const { data, error } = await supabase
-      .from("program_subjects_v1")
+      .from("program_sessions_v1")
       .select("*")
       .order("program_title", { ascending: true })
       .order("sort_order", { ascending: true });
-    throwIf(error, "프로그램-과목 편성 조회 실패");
-    return (data ?? []) as ProgramSubjectRow[];
+    throwIf(error, "프로그램-세션 편성 조회 실패");
+    return (data ?? []) as ProgramSessionRow[];
   },
 };
 
 /* =========================================
- * SurveysRepository (레거시 + v2 공존)
+ * SurveysRepository: v2(프로그램/세션) + 레거시 공존
  * ========================================= */
 export const SurveysRepository = {
-  /* === 목록: 기존 v1 뷰 대신 v2 사용 권장 === */
   async fetchSurveyList(
     page: number,
     pageSize: number,
@@ -165,7 +150,7 @@ export const SurveysRepository = {
 
     if (filters.year) query = query.eq("education_year", filters.year);
     if (filters.status) query = query.eq("status", filters.status);
-    if (filters.courseName) query = query.eq("course_name", filters.courseName); // 레거시 필터 유지
+    if (filters.courseName) query = query.eq("course_name", filters.courseName); // 레거시 호환
 
     if (filters.q && filters.q.trim()) {
       const like = `%${filters.q.trim()}%`;
@@ -173,10 +158,7 @@ export const SurveysRepository = {
         [
           `title.ilike.${like}`,
           `program_title.ilike.${like}`,
-          `subject_title.ilike.${like}`,
-          `course_name.ilike.${like}`,
-          `instructor_name.ilike.${like}`,
-          `creator_email.ilike.${like}`,
+          `session_title.ilike.${like}`,
         ].join(",")
       );
     }
@@ -193,13 +175,6 @@ export const SurveysRepository = {
     };
   },
 
-  async fetchByIds(ids: string[]): Promise<SurveyListItem[]> {
-    if (ids.length === 0) return [];
-    const { data, error } = await supabase.from("surveys_list_v2").select("*").in("id", ids);
-    throwIf(error, "ID로 설문 조회 실패");
-    return (data || []) as SurveyListItem[];
-  },
-
   async listTemplates(): Promise<TemplateLite[]> {
     const { data, error } = await supabase
       .from("survey_templates")
@@ -209,35 +184,37 @@ export const SurveysRepository = {
     return (data || []) as TemplateLite[];
   },
 
-  /* === 빠른생성: v2 (program_id + subject_id 기반) === */
+  /** 빠른 생성 V2: program_id + session_id 기반 */
   async quickCreateSurveyV2(params: {
     program_id: string;
-    subject_id: string;
+    session_id: string;
     education_year: number;
     education_round: number;
     education_day: number;
     template_id?: string | null;
   }): Promise<SurveyListItem> {
-    // 이름 조합을 위해 program/subject 이름 조회
-    const [{ data: pRow, error: pErr }] = await Promise.all([
-      supabase.from("programs").select("title").eq("id", params.program_id).single(),
-    ]);
+    // 이름 조합을 위해 program/session 이름 조회
+    const { data: pRow, error: pErr } = await supabase
+      .from("programs")
+      .select("name")
+      .eq("id", params.program_id)
+      .single();
     throwIf(pErr, "프로그램명 조회 실패");
 
     const { data: sRow, error: sErr } = await supabase
-      .from("subjects")
-      .select("title")
-      .eq("id", params.subject_id)
+      .from("survey_sessions")
+      .select("session_name")
+      .eq("id", params.session_id)
       .single();
-    throwIf(sErr, "과목명 조회 실패");
+    throwIf(sErr, "세션명 조회 실패");
 
-    const programTitle = (pRow as any)?.title ?? "";
-    const subjectTitle = (sRow as any)?.title ?? "";
+    const programName = (pRow as any)?.name ?? "";
+    const sessionName  = (sRow as any)?.session_name ?? "";
 
-    const title = `${params.education_year}-${programTitle}-${params.education_round}차-${params.education_day}일차 ${subjectTitle} 설문`;
+    const title = `${params.education_year}-${programName}-${params.education_round}차-${params.education_day}일차 ${sessionName} 설문`;
 
     const startISO = nextDayBase(9, 0);
-    const endISO = nextDayBase(19, 0);
+    const endISO   = nextDayBase(19, 0);
 
     const insertPayload: any = {
       title,
@@ -249,10 +226,10 @@ export const SurveysRepository = {
       education_round: params.education_round,
       education_day: params.education_day,
       program_id: params.program_id,
-      subject_id: params.subject_id,
+      session_id: params.session_id,
       status: "draft",
       template_id: params.template_id ?? null,
-      -- course_name: NULL  -- 레거시 미사용
+      // course_name: null // 점진 전환; 필요시 유지
     };
 
     const { data, error } = await supabase
@@ -265,7 +242,7 @@ export const SurveysRepository = {
     return data as SurveyListItem;
   },
 
-  /* === 레거시 빠른생성(문자열 course_name)도 유지 === */
+  /** 레거시 빠른 생성 (course_name 문자열 기반) */
   async quickCreateSurveyLegacy(payload: {
     education_year: number;
     education_round: number;
@@ -275,7 +252,7 @@ export const SurveysRepository = {
   }): Promise<SurveyListItem> {
     const title = `${payload.education_year}-${payload.course_name}-${payload.education_round}차-${payload.education_day}일차 설문`;
     const startISO = nextDayBase(9, 0);
-    const endISO = nextDayBase(19, 0);
+    const endISO   = nextDayBase(19, 0);
 
     const { data, error } = await supabase
       .from("surveys")
