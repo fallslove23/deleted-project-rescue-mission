@@ -500,6 +500,13 @@ export type Database = {
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "survey_analysis_comments_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
         ]
       }
       survey_completions: {
@@ -558,6 +565,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_survey_completions_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
             referencedColumns: ["id"]
           },
         ]
@@ -648,6 +662,13 @@ export type Database = {
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "survey_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
         ]
       }
       survey_responses: {
@@ -714,6 +735,13 @@ export type Database = {
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
         ]
       }
       survey_sections: {
@@ -771,6 +799,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sections_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
             referencedColumns: ["id"]
           },
         ]
@@ -847,6 +882,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
             referencedColumns: ["id"]
           },
         ]
@@ -940,6 +982,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_survey_tokens_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
             referencedColumns: ["id"]
           },
         ]
@@ -1367,6 +1416,13 @@ export type Database = {
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
         ]
       }
       analytics_surveys: {
@@ -1536,6 +1592,54 @@ export type Database = {
           title: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surveys_list_v1: {
+        Row: {
+          course_id: string | null
+          course_name: string | null
+          course_title: string | null
+          created_at: string | null
+          created_by: string | null
+          creator_email: string | null
+          description: string | null
+          education_day: number | null
+          education_round: number | null
+          education_year: number | null
+          end_date: string | null
+          expected_participants: number | null
+          id: string | null
+          instructor_email: string | null
+          instructor_id: string | null
+          instructor_name: string | null
+          is_test: boolean | null
+          start_date: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "surveys_instructor_id_fkey"
             columns: ["instructor_id"]

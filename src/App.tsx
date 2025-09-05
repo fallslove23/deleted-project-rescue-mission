@@ -23,6 +23,7 @@ import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
+import SurveyManagementV2 from "./pages/SurveyManagementV2";
 import SurveyBuilder from "./pages/SurveyBuilder";
 import SurveyParticipate from "./pages/SurveyParticipate";
 import SurveyPreview from "./pages/SurveyPreview";
@@ -107,6 +108,11 @@ const App = () => (
             <Route path="/survey-management" element={
               <ProtectedRoute>
                 <SurveyManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/surveys-v2" element={
+              <ProtectedRoute>
+                <SurveyManagementV2 />
               </ProtectedRoute>
             } />
             <Route path="/survey/:surveyId" element={<SurveyParticipate />} />
