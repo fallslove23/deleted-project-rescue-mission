@@ -124,21 +124,26 @@ export default function SurveyCreateForm({
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
       console.log('SurveyCreateForm - Applying initialValues via reset:', initialValues);
-      reset({ ...DEFAULTS, ...initialValues });
       
-      // 편집 모드에서 기존 과정이 커스텀 과정인 경우 customCourses에 추가
+      // 편집 모드에서 기존 과정이 커스텀 과정인 경우 customCourses에 먼저 추가
       if (initialValues.course_name && 
           initialValues.course_name !== 'BS Basic' && 
           initialValues.course_name !== 'BS Advanced' && 
           initialValues.course_name.trim() !== '') {
         const courseName = initialValues.course_name.trim();
+        console.log('SurveyCreateForm - Adding custom course to list:', courseName);
         setCustomCourses(prev => {
-          if (!prev.includes(courseName)) {
-            return [...prev, courseName];
-          }
-          return prev;
+          const updated = prev.includes(courseName) ? prev : [...prev, courseName];
+          console.log('SurveyCreateForm - Updated customCourses:', updated);
+          return updated;
         });
       }
+      
+      // 그 다음에 폼을 리셋 (customCourses 업데이트 후)
+      setTimeout(() => {
+        reset({ ...DEFAULTS, ...initialValues });
+        console.log('SurveyCreateForm - Form reset completed with course_name:', initialValues.course_name);
+      }, 0);
     }
   }, [initialValues, reset]);
 
