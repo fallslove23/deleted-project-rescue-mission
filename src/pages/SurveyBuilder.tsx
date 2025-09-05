@@ -1,8 +1,9 @@
 // src/pages/SurveyBuilder.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings } from "lucide-react";
+import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import QuestionEditForm from "@/components/QuestionEditForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +97,32 @@ type Survey = {
   updated_at: string | null;
 };
 
+type SurveyQuestion = {
+  id: string;
+  question_text: string;
+  question_type: string;
+  options: any;
+  is_required: boolean;
+  order_index: number;
+  section_id?: string | null;
+  session_id?: string | null;
+  scope: 'session' | 'operation';
+  satisfaction_type?: string | null;
+};
+
+type Section = {
+  id: string;
+  name: string;
+  description?: string;
+};
+
+type Session = {
+  id: string;
+  session_name: string;
+  course?: { title: string };
+  instructor?: { name: string };
+};
+
 export default function SurveyBuilder() {
   const { surveyId } = useParams();
   const navigate = useNavigate();
@@ -104,6 +131,13 @@ export default function SurveyBuilder() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [survey, setSurvey] = useState<Survey | null>(null);
+  
+  // 질문 관리 상태
+  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
 
   // ⬇️ 과목 필드 삭제, 4가지만 유지
   const [educationYear, setEducationYear] = useState<number>(
@@ -139,6 +173,61 @@ export default function SurveyBuilder() {
     } catch (e: any) {
       toast({
         title: "과정명 목록 로드 실패",
+        description: e.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadQuestions = async () => {
+    if (!surveyId) return;
+    try {
+      const { data, error } = await supabase
+        .from('survey_questions')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('order_index');
+      
+      if (error) throw error;
+      setQuestions((data || []) as SurveyQuestion[]);
+    } catch (e: any) {
+      toast({
+        title: "질문 로드 실패",
+        description: e.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadSectionsAndSessions = async () => {
+    if (!surveyId) return;
+    try {
+      // Load sections
+      const { data: sectionsData, error: sectionsError } = await supabase
+        .from('survey_sections')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('order_index');
+      
+      if (sectionsError) throw sectionsError;
+      setSections(sectionsData || []);
+
+      // Load sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('survey_sessions')
+        .select(`
+          *,
+          course:courses(title),
+          instructor:instructors(name)
+        `)
+        .eq('survey_id', surveyId)
+        .order('session_order');
+      
+      if (sessionsError) throw sessionsError;
+      setSessions(sessionsData || []);
+    } catch (e: any) {
+      toast({
+        title: "섹션/세션 로드 실패", 
         description: e.message,
         variant: "destructive",
       });
@@ -293,9 +382,48 @@ export default function SurveyBuilder() {
     }
   };
 
+  const handleAddQuestion = () => {
+    setEditingQuestion(null);
+    setQuestionDialogOpen(true);
+  };
+
+  const handleEditQuestion = (question: SurveyQuestion) => {
+    setEditingQuestion(question);
+    setQuestionDialogOpen(true);
+  };
+
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!confirm('이 질문을 삭제하시겠습니까?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('survey_questions')
+        .delete()
+        .eq('id', questionId);
+      
+      if (error) throw error;
+      
+      toast({ title: "성공", description: "질문이 삭제되었습니다." });
+      loadQuestions();
+    } catch (e: any) {
+      toast({
+        title: "삭제 실패",
+        description: e.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleQuestionSave = () => {
+    setQuestionDialogOpen(false);
+    loadQuestions();
+  };
+
   useEffect(() => {
     loadSurvey();
     loadCourseNames();
+    loadQuestions();
+    loadSectionsAndSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId]);
 
@@ -446,6 +574,87 @@ export default function SurveyBuilder() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 질문 관리 섹션 */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl">질문 관리</CardTitle>
+            <Button onClick={handleAddQuestion}>
+              <Plus className="w-4 h-4 mr-2" />
+              질문 추가
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {questions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <div className="text-4xl mb-2">📝</div>
+              <p>아직 질문이 없습니다</p>
+              <p className="text-sm mt-1">첫 번째 질문을 추가해보세요</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {questions.map((question, index) => (
+                <div key={question.id} className="border rounded-lg p-4 relative">
+                  <div className="absolute left-4 top-4 flex items-center justify-center w-6 h-6 bg-primary text-white text-sm font-bold rounded-full">
+                    {index + 1}
+                  </div>
+                  
+                  <div className="absolute top-4 right-4 flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => handleEditQuestion(question)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                      onClick={() => handleDeleteQuestion(question.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="ml-8 mr-16">
+                    <h3 className="font-medium mb-2">
+                      {question.question_text}
+                      {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                    </h3>
+                    <div className="text-sm text-muted-foreground">
+                      유형: {question.question_type} 
+                      {question.satisfaction_type && ` • 만족도: ${question.satisfaction_type}`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 질문 추가/편집 다이얼로그 */}
+      <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingQuestion ? "질문 수정" : "질문 추가"}
+            </DialogTitle>
+          </DialogHeader>
+          <QuestionEditForm
+            question={editingQuestion}
+            surveyId={surveyId!}
+            onSave={handleQuestionSave}
+            onCancel={() => setQuestionDialogOpen(false)}
+            sections={sections}
+            sessions={sessions}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* 과정명 관리 다이얼로그 */}
       <Dialog open={courseMgrOpen} onOpenChange={setCourseMgrOpen}>
