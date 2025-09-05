@@ -155,11 +155,16 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const DEFAULT_FROM = "BS교육원 설문시스템 <onboarding@resend.dev>";
-    const envFrom = Deno.env.get("RESEND_FROM_ADDRESS");
-    const fromAddress = envFrom && envFrom.includes("@")
-      ? `BS교육원 설문시스템 <${envFrom}>`
-      : DEFAULT_FROM;
+    // Fixed sender and reply-to per internal policy
+    const FROM_ADDRESS = "onboarding@resend.dev";
+    const REPLY_TO_EMAIL = "SSeduadmin@osstem.com";
+
+    // Display name mapping for author based on reply-to email
+    const SENDER_DISPLAY_MAP: Record<string, string> = {
+      "sseduadmin@osstem.com": "교육운영팀",
+      "admin@osstem.com": "교육운영팀",
+    };
+    const authorDisplayName = SENDER_DISPLAY_MAP[REPLY_TO_EMAIL.toLowerCase()] ?? REPLY_TO_EMAIL;
 
     // Fetch survey responses and analysis
     const { data: responses } = await supabaseClient
@@ -264,8 +269,9 @@ const handler = async (req: Request): Promise<Response> => {
         }
         
         const emailResponse = await resend.emails.send({
-          from: fromAddress,
+          from: FROM_ADDRESS,
           to: [email],
+          reply_to: REPLY_TO_EMAIL,
           subject: `📊 설문 결과 발송: ${survey.title}`,
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
@@ -302,6 +308,10 @@ const handler = async (req: Request): Promise<Response> => {
                   <div style="display: flex; justify-content: space-between; padding: 8px 0;">
                     <span style="color: #64748b; font-weight: 500;">총 응답 수</span>
                     <span style="color: #059669; font-weight: 700; font-size: 16px;">${responseCount}명</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                    <span style="color: #64748b; font-weight: 500;">작성자</span>
+                    <span style="color: #334155; font-weight: 600;">${authorDisplayName} (${REPLY_TO_EMAIL})</span>
                   </div>
                 </div>
               </div>
@@ -397,7 +407,9 @@ const handler = async (req: Request): Promise<Response> => {
               course: courseTitle,
               year: survey.education_year,
               round: survey.education_round,
-              response_count: responseCount
+              response_count: responseCount,
+              author_name: authorDisplayName,
+              author_email: REPLY_TO_EMAIL
             },
             question_analysis: questionAnalysis
           },
