@@ -224,7 +224,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 과정명 관리 */}
+          {/* 과정명 관리 - 템플릿 대신 과정명 관리 기능 */}
           <CourseNameManager
             selectedCourse={form.course_name}
             onCourseSelect={(courseName) => onChange("course_name", courseName)}
