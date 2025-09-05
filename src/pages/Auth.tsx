@@ -98,7 +98,7 @@ const Auth = () => {
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center">
+        <div className="w-full max-w-6xl mx-auto px-4 py-3 flex items-center">
           <Button
             onClick={() => navigate('/')}
             variant="ghost"
@@ -117,53 +117,55 @@ const Auth = () => {
       </header>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center text-lg sm:text-xl break-words">
-              {isResetPassword ? '비밀번호 찾기' : '로그인'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={isResetPassword ? handleResetPassword : handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              {!isResetPassword && (
+        <div className="w-full max-w-md mx-auto">
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-center text-lg sm:text-xl break-words">
+                {isResetPassword ? '비밀번호 찾기' : '로그인'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={isResetPassword ? handleResetPassword : handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">비밀번호</Label>
+                  <Label htmlFor="email">이메일</Label>
                   <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
-              )}
-              <Button type="submit" className="w-full touch-friendly text-sm sm:text-base" disabled={loading}>
-                <span className="break-words">
-                  {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
-                </span>
-              </Button>
-            </form>
-            <div className="mt-4 text-center">
-              <Button
-                variant="link"
-                className="touch-friendly break-words hyphens-auto text-sm"
-                onClick={() => setIsResetPassword(!isResetPassword)}
-              >
-                {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                {!isResetPassword && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">비밀번호</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+                <Button type="submit" className="w-full touch-friendly text-sm sm:text-base" disabled={loading}>
+                  <span className="break-words">
+                    {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
+                  </span>
+                </Button>
+              </form>
+              <div className="mt-4 text-center">
+                <Button
+                  variant="link"
+                  className="touch-friendly break-words hyphens-auto text-sm"
+                  onClick={() => setIsResetPassword(!isResetPassword)}
+                >
+                  {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

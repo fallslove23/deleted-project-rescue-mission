@@ -138,7 +138,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full overflow-hidden">
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 py-3 flex justify-between items-center overflow-hidden">
           <div className="absolute left-3 sm:left-4">
             <Sheet>
               <SheetTrigger asChild>
@@ -222,7 +222,7 @@ const Index = () => {
       </header>
 
       {/* Main */}
-      <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 max-w-full">
+      <main className="w-full max-w-6xl mx-auto px-3 sm:px-4 py-6 md:py-8">
         <div className="mb-6 md:mb-8 text-center px-2">
           <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">{showAllSurveys ? '📝 전체 설문조사' : '📝 오늘의 설문조사'}</h2>
           <p className="text-muted-foreground text-sm md:text-base break-words">
