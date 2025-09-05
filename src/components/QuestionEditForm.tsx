@@ -307,7 +307,6 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
               <SelectItem value="instructor">👨‍🏫 강사 만족도</SelectItem>
               <SelectItem value="course">📚 과목 만족도</SelectItem>
               <SelectItem value="operation">⚙️ 운영 만족도</SelectItem>
-              <SelectItem value="overall">🌟 전반적 만족도</SelectItem>
             </SelectContent>
           </Select>
         </div>

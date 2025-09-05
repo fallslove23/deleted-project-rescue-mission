@@ -126,7 +126,7 @@ export default function SurveyBuilder() {
   
   // 세션 관리 관련 상태
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
-  const [editingSession, setEditingSession] = useState<SurveySession | null>(null);
+  const [editingSession, setEditingSession] = useState<string | null>(null);
   const [sessionForm, setSessionForm] = useState({ 
     session_name: "", 
     course_id: "", 
@@ -255,16 +255,21 @@ export default function SurveyBuilder() {
       
       if (error) throw error;
 
-      const newQuestions = templateQuestions?.map(tq => ({
+      // 현재 편집 중인 세션의 질문 수 계산
+      const currentSessionQuestions = editingSession 
+        ? questions.filter(q => q.session_id === editingSession)
+        : questions.filter(q => !q.session_id);
+
+      const newQuestions = templateQuestions?.map((tq, index) => ({
         survey_id: surveyId!,
         question_text: tq.question_text,
         question_type: tq.question_type,
         options: tq.options,
         is_required: tq.is_required,
         satisfaction_type: tq.satisfaction_type,
-        order_index: questions.length + tq.order_index,
+        order_index: currentSessionQuestions.length + index,
         scope: 'session' as const,
-        session_id: sessions.length > 0 ? sessions[sessions.length - 1].id : null, // 마지막 세션에 추가
+        session_id: editingSession || null,
       })) || [];
 
       if (newQuestions.length === 0) {
@@ -504,6 +509,28 @@ export default function SurveyBuilder() {
             console.warn("SurveyBuilder - Sessions loading error (non-critical):", sessionsError);
           }
           setSessions(sessionsData || []);
+          
+          // 커스텀 과정 복원 로직 강화
+          if (surveyData?.course_name && 
+              !["BS Basic", "BS Advanced"].includes(surveyData.course_name) && 
+              !customCourses.includes(surveyData.course_name)) {
+            console.log("SurveyBuilder - Adding custom course to list:", surveyData.course_name);
+            setCustomCourses(prev => [...prev, surveyData.course_name]);
+            
+            // 커스텀 과정을 데이터베이스에도 저장
+            try {
+              await supabase
+                .from("courses")
+                .upsert({
+                  title: surveyData.course_name,
+                }, {
+                  onConflict: "title",
+                  ignoreDuplicates: true
+                });
+            } catch (error) {
+              console.warn("Failed to save custom course:", error);
+            }
+          }
         } catch (sessionError) {
           console.warn("SurveyBuilder - Session loading failed (non-critical):", sessionError);
           setSessions([]);
