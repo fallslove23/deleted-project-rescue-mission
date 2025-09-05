@@ -22,9 +22,9 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
       <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
         <AdminSidebar />
         
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 scrollable-y">
           {/* Header */}
-          <header className="h-14 border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+          <header className="h-14 border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm ios-safe-area">
             <div className="flex items-center h-full px-2 sm:px-4 max-w-full overflow-hidden">
               {/* Left: Sidebar Toggle */}
               <div className="flex items-center shrink-0">
@@ -107,7 +107,7 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
           </header>
 
           {/* Main content */}
-          <main className="flex-1 p-2 sm:p-3 md:p-6 overflow-x-auto">
+          <main className="flex-1 p-2 sm:p-3 md:p-6 touch-scroll safe-bottom">
             <div className="max-w-full overflow-hidden">
               {children}
             </div>

@@ -74,8 +74,8 @@ const sections = [
     .filter((sec) => sec.items.length > 0)
 
   return (
-    <Sidebar className={state === "collapsed" ? "w-14" : "w-60"}>
-      <SidebarContent className="bg-gradient-to-b from-primary/5 to-primary/10">
+    <Sidebar className={`${state === "collapsed" ? "w-14" : "w-60"} touch-scroll mobile-scroll`}>
+      <SidebarContent className="bg-gradient-to-b from-primary/5 to-primary/10 scrollable-y">
         {sectionItems.map((section) => (
           <SidebarGroup key={section.label}>
             <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
