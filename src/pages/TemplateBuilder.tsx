@@ -317,74 +317,72 @@ const TemplateBuilder = () => {
   };
 
 
-  // Simple Question Item Component (without drag and drop)
-  const QuestionItem = ({ question, index }: { question: TemplateQuestion; index: number }) => {
+  // Improved Question Item Component to match screenshot
+  const QuestionItem = ({ question, globalIndex }: { question: TemplateQuestion; globalIndex: number }) => {
     return (
-      <div className="relative group border rounded-lg bg-white">
-        {/* Question number indicator */}
-        <div className="absolute left-2 top-2 flex items-center justify-center w-6 h-6 bg-primary/10 text-primary text-xs font-medium rounded-full">
-          {index + 1}
+      <div className="relative border rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+        {/* Question number in top left */}
+        <div className="absolute left-4 top-4 flex items-center justify-center w-7 h-7 bg-primary text-white text-xs font-bold rounded-full">
+          {globalIndex}
         </div>
         
-        {/* Right side - Edit and delete buttons */}
-        <div className="absolute top-2 right-2 flex gap-1 z-10">
+        {/* Edit and delete buttons in top right */}
+        <div className="absolute top-4 right-4 flex gap-2">
           <Button
             variant="ghost"
             size="sm"
-            className="bg-white/90 hover:bg-white border shadow-sm"
+            className="h-8 w-8 p-0 hover:bg-gray-100"
             onClick={() => handleEditQuestion(question)}
           >
-            <Edit className="h-3 w-3" />
+            <Edit className="h-4 w-4 text-gray-600" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="bg-white/90 hover:bg-white border shadow-sm"
+            className="h-8 w-8 p-0 hover:bg-gray-100"
             onClick={() => handleDeleteQuestion(question.id)}
           >
-            <Trash2 className="h-3 w-3" />
+            <Trash2 className="h-4 w-4 text-gray-600" />
           </Button>
         </div>
         
-        {/* Main content with left padding for number and right padding for buttons */}
-        <div className="pl-10 pr-20 py-4">
+        {/* Question content */}
+        <div className="ml-10 mr-20">
+          <h3 className="font-medium text-base mb-4 leading-relaxed">
+            {question.question_text}
+            {question.is_required && <span className="text-red-500 ml-1">*</span>}
+          </h3>
+          
           {question.question_type === 'scale' ? (
-            <div>
-              <div className="mb-4">
-                <h3 className="font-medium text-sm">
-                  {question.question_text}
-                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>전혀 그렇지 않다</span>
+                <span>매우 그렇다</span>
               </div>
               
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>전혀 그렇지 않다</span>
-                  <span>매우 그렇다</span>
-                </div>
-                
-                <RadioGroup className="flex items-center justify-between">
-                  {Array.from({ length: (question.options?.max || 10) - (question.options?.min || 1) + 1 }, (_, i) => {
-                    const value = (question.options?.min || 1) + i;
-                    return (
-                      <div key={value} className="flex flex-col items-center space-y-1">
-                        <span className="text-xs font-medium">{value}</span>
-                        <RadioGroupItem value={String(value)} disabled />
-                      </div>
-                    );
-                  })}
-                </RadioGroup>
+              <div className="flex items-center justify-between px-2">
+                {Array.from({ length: (question.options?.max || 10) - (question.options?.min || 1) + 1 }, (_, i) => {
+                  const value = (question.options?.min || 1) + i;
+                  return (
+                    <div key={value} className="flex flex-col items-center space-y-2">
+                      <span className="text-sm font-medium">{value}</span>
+                      <div className="w-5 h-5 rounded-full border-2 border-gray-300 bg-white" />
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          ) : question.question_type === 'text' ? (
+            <div className="space-y-2">
+              <Textarea 
+                placeholder="답변을 입력하세요" 
+                disabled 
+                className="min-h-[80px] resize-none bg-gray-50"
+              />
+            </div>
           ) : (
-            <div>
-              <h3 className="font-medium text-sm mb-2">
-                {question.question_text}
-                {question.is_required && <span className="text-red-500 ml-1">*</span>}
-              </h3>
-              {question.question_type === 'text' && (
-                <Textarea placeholder="답변을 입력하세요" disabled />
-              )}
+            <div className="text-sm text-muted-foreground">
+              {question.question_type === 'multiple_choice' ? '객관식 질문' : '기타 질문'}
             </div>
           )}
         </div>
@@ -697,68 +695,83 @@ const TemplateBuilder = () => {
               </div>
             </div>
 
-            {/* Sections with Questions */}
-            {sections.length > 0 && (
-              <div className="space-y-4">
-                {sections.map((section) => {
-                  const sectionQuestions = questions.filter(q => q.section_id === section.id);
-                  
-                  return (
-                    <div key={section.id} className="space-y-4">
-                      <div className="border-t pt-4">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">{section.name}</Badge>
+            {/* Render questions with proper numbering */}
+            <div className="space-y-6">
+              {(() => {
+                let globalQuestionIndex = 1;
+                const result = [];
+                
+                // First render sections with their questions
+                if (sections.length > 0) {
+                  sections.forEach((section) => {
+                    const sectionQuestions = questions
+                      .filter(q => q.section_id === section.id)
+                      .sort((a, b) => a.order_index - b.order_index);
+                    
+                    if (sectionQuestions.length > 0) {
+                      result.push(
+                        <div key={section.id} className="space-y-4">
+                          {/* Section Header */}
+                          <div className="py-4 border-b border-gray-200">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                  {section.name}
+                                </h3>
+                                {section.description && (
+                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                                    {section.description}
+                                  </p>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditSection(section)}
+                                className="text-gray-500 hover:text-gray-700"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
                             </div>
-                            {section.description && (
-                              <p className="text-sm text-muted-foreground pl-1 whitespace-pre-wrap">
-                                {section.description}
-                              </p>
-                            )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditSection(section)}
-                            className="mt-0.5"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
+                          
+                          {/* Questions in Section */}
+                          <div className="space-y-4">
+                            {sectionQuestions.map((question) => (
+                              <QuestionItem
+                                key={question.id}
+                                question={question}
+                                globalIndex={globalQuestionIndex++}
+                              />
+                            ))}
+                          </div>
                         </div>
-                        <Separator className="mt-3" />
-                      </div>
-                      
-                       {/* Questions in this section */}
-                      <div className="space-y-3 ml-4">
-                        {sectionQuestions
-                          .sort((a, b) => a.order_index - b.order_index)
-                          .map((question, index) => (
-                            <QuestionItem
-                              key={question.id}
-                              question={question}
-                              index={index}
-                            />
-                          ))}
-                      </div>
+                      );
+                    }
+                  });
+                }
+                
+                // Then render questions without sections
+                const questionsWithoutSection = questions
+                  .filter((q) => !q.section_id)
+                  .sort((a, b) => a.order_index - b.order_index);
+                
+                if (questionsWithoutSection.length > 0) {
+                  result.push(
+                    <div key="no-section" className="space-y-4">
+                      {questionsWithoutSection.map((question) => (
+                        <QuestionItem
+                          key={question.id}
+                          question={question}
+                          globalIndex={globalQuestionIndex++}
+                        />
+                      ))}
                     </div>
                   );
-                })}
-              </div>
-            )}
-
-            {/* Questions without sections */}
-            <div className="space-y-4">
-              {questions
-                .filter((q) => !q.section_id)
-                .sort((a, b) => a.order_index - b.order_index)
-                .map((question, index) => (
-                  <QuestionItem
-                    key={question.id}
-                    question={question}
-                    index={index}
-                  />
-                ))}
+                }
+                
+                return result;
+              })()}
             </div>
 
             {questions.length === 0 && (
