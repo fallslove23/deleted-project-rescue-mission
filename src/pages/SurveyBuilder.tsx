@@ -83,6 +83,7 @@ export default function SurveyBuilder() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [sections, setSections] = useState<SurveySection[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
+  const [customCourses, setCustomCourses] = useState<string[]>([]);
   
   // 질문 편집 관련 상태
   const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
@@ -387,6 +388,20 @@ export default function SurveyBuilder() {
             new Date(surveyData.end_date).toISOString().slice(0, 16) : "",
         });
 
+        // 커스텀 과정인 경우 목록에 추가
+        if (surveyData.course_name && 
+            surveyData.course_name !== 'BS Basic' && 
+            surveyData.course_name !== 'BS Advanced' && 
+            surveyData.course_name.trim() !== '') {
+          const courseName = surveyData.course_name.trim();
+          console.log('SurveyBuilder - Adding custom course to list:', courseName);
+          setCustomCourses(prev => {
+            const updated = prev.includes(courseName) ? prev : [...prev, courseName];
+            console.log('SurveyBuilder - Updated customCourses:', updated);
+            return updated;
+          });
+        }
+
         // 2. 섹션 로드 - 실패해도 계속 진행
         console.log("SurveyBuilder - Loading sections...");
         try {
@@ -680,9 +695,15 @@ export default function SurveyBuilder() {
                 onValueChange={(v) => onChange("course_name", v)}
               >
                 <SelectTrigger><SelectValue placeholder="과정 선택" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-50">
                   <SelectItem value="BS Basic">BS Basic</SelectItem>
                   <SelectItem value="BS Advanced">BS Advanced</SelectItem>
+                  {/* 동적으로 추가된 커스텀 과정들 */}
+                  {customCourses.map((course) => (
+                    <SelectItem key={course} value={course}>
+                      {course}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -802,7 +823,7 @@ export default function SurveyBuilder() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>설문 질문</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button 
               variant="outline" 
               onClick={() => {
@@ -820,7 +841,7 @@ export default function SurveyBuilder() {
               disabled={templates.length === 0}
             >
               <Download className="h-4 w-4 mr-2" />
-              템플릿에서 가져오기
+              템플릿 가져오기
             </Button>
             <Button onClick={() => {
               console.log('SurveyBuilder - 질문 추가 button clicked');
@@ -996,9 +1017,9 @@ export default function SurveyBuilder() {
         </DialogContent>
       </Dialog>
 
-      {/* 템플릿 가져오기 다이얼로그 */}
+      {/* 템플릿 가져오기 다이얼로그 - 개선된 버전 */}
       <Dialog open={importTemplateOpen} onOpenChange={setImportTemplateOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>템플릿에서 질문 가져오기</DialogTitle>
           </DialogHeader>
@@ -1009,26 +1030,49 @@ export default function SurveyBuilder() {
                 <SelectTrigger>
                   <SelectValue placeholder="가져올 템플릿을 선택하세요" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-50">
                   {templates.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      {template.name}
+                      📋 {template.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            
+            {templates.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground">
+                <div className="text-2xl mb-2">📝</div>
+                <p className="text-sm">사용 가능한 템플릿이 없습니다.</p>
+                <p className="text-xs mt-1">템플릿 관리에서 먼저 템플릿을 생성해주세요.</p>
+              </div>
+            )}
+
             {selectedTemplateId && (
-              <div className="text-sm text-muted-foreground">
-                선택한 템플릿의 모든 질문이 현재 설문에 추가됩니다.
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm text-blue-800">
+                  <strong>💡 가져오기 방식:</strong>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    <li>• 선택한 템플릿의 모든 질문이 현재 설문에 추가됩니다</li>
+                    <li>• 기존 질문은 유지되고 새 질문이 뒤에 추가됩니다</li>
+                    <li>• 필요시 나중에 개별 질문을 수정하거나 삭제할 수 있습니다</li>
+                  </ul>
+                </div>
               </div>
             )}
           </div>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setImportTemplateOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setImportTemplateOpen(false);
+              setSelectedTemplateId("");
+            }}>
               취소
             </Button>
-            <Button onClick={importFromTemplate} disabled={!selectedTemplateId}>
+            <Button 
+              onClick={importFromTemplate} 
+              disabled={!selectedTemplateId}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
               <Copy className="h-4 w-4 mr-2" />
               가져오기
             </Button>

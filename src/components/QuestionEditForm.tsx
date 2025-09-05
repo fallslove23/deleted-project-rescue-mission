@@ -307,30 +307,31 @@ export default function QuestionEditForm({ question, surveyId, onSave, onCancel,
           </Select>
         </div>
 
-        {/* 섹션 선택 */}
-        {sections && sections.length > 0 && (
-          <div className="space-y-2">
-            <Label htmlFor="section_id" className="text-sm font-medium">
-              질문 그룹 (선택사항)
-            </Label>
-            <Select
-              value={form.section_id}
-              onValueChange={(value) => setForm(prev => ({ ...prev, section_id: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="그룹을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">📁 미분류</SelectItem>
-                {sections.map((section) => (
-                  <SelectItem key={section.id} value={section.id}>
-                    📂 {section.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        {/* 섹션 선택 - 개선된 UI */}
+        <div className="space-y-2">
+          <Label htmlFor="section_id" className="text-sm font-medium">
+            질문 그룹 (선택사항)
+          </Label>
+          <Select
+            value={form.section_id}
+            onValueChange={(value) => setForm(prev => ({ ...prev, section_id: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="그룹을 선택하거나 미분류로 두세요" />
+            </SelectTrigger>
+            <SelectContent className="bg-background border shadow-lg z-50">
+              <SelectItem value="none">📁 미분류</SelectItem>
+              {sections && sections.map((section) => (
+                <SelectItem key={section.id} value={section.id}>
+                  📂 {section.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            💡 섹션을 지정하지 않으면 미분류 질문으로 추가됩니다. 나중에 언제든 변경 가능합니다.
+          </p>
+        </div>
       </div>
 
       {/* 필수 응답 체크 */}
