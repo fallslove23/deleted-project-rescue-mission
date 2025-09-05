@@ -22,6 +22,7 @@ import {
   SortDesc,
   CheckSquare,
   Download,
+  Wand2,
 } from "lucide-react";
 
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -41,6 +42,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   SurveysRepository,
@@ -57,6 +59,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import SurveyCreateForm from "@/components/SurveyCreateForm";
 
 const TIMEZONE = "Asia/Seoul";
 const PAGE_SIZE = 10;
@@ -91,7 +101,6 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
   );
 }
 
-// 빠른 생성 모달
 function QuickCreateDialog(props: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -115,19 +124,11 @@ function QuickCreateDialog(props: {
   const [templateId, setTemplateId] = useState<string | null>(templates[0]?.id ?? null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => setYear(defaultYear), [defaultYear]);
   useEffect(() => {
-    setYear(defaultYear);
-  }, [defaultYear]);
-
-  useEffect(() => {
-    if (courseNames.length && !courseNames.includes(course)) {
-      setCourse(courseNames[0]);
-    }
+    if (courseNames.length && !courseNames.includes(course)) setCourse(courseNames[0]);
   }, [courseNames]);
-
-  useEffect(() => {
-    setTemplateId(templates[0]?.id ?? null);
-  }, [templates]);
+  useEffect(() => setTemplateId(templates[0]?.id ?? null), [templates]);
 
   const submit = async () => {
     setSubmitting(true);
@@ -155,80 +156,47 @@ function QuickCreateDialog(props: {
           <div className="space-y-2">
             <label className="text-sm font-medium">교육 연도</label>
             <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y} value={String(y)}>
-                    {y}년
-                  </SelectItem>
-                ))}
+                {years.map((y) => <SelectItem key={y} value={String(y)}>{y}년</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">과정명</label>
             <Select value={course} onValueChange={(v) => setCourse(v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {courseNames.map((n) => (
-                  <SelectItem key={n} value={n}>
-                    {n}
-                  </SelectItem>
-                ))}
+                {courseNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">차수</label>
-              <Input
-                type="number"
-                min={1}
-                value={round}
-                onChange={(e) => setRound(parseInt(e.target.value || "1"))}
-              />
+              <Input type="number" min={1} value={round}
+                onChange={(e) => setRound(parseInt(e.target.value || "1"))} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">일차</label>
-              <Input
-                type="number"
-                min={1}
-                value={day}
-                onChange={(e) => setDay(parseInt(e.target.value || "1"))}
-              />
+              <Input type="number" min={1} value={day}
+                onChange={(e) => setDay(parseInt(e.target.value || "1"))} />
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">템플릿</label>
-            <Select
-              value={templateId ?? "none"}
-              onValueChange={(v) => setTemplateId(v === "none" ? null : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="선택" />
-              </SelectTrigger>
+            <Select value={templateId ?? "none"} onValueChange={(v) => setTemplateId(v === "none" ? null : v)}>
+              <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">선택 안 함</SelectItem>
-                {templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
+                {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            취소
-          </Button>
-          <Button onClick={submit} disabled={submitting}>
-            {submitting ? "생성 중..." : "생성"}
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
+          <Button onClick={submit} disabled={submitting}>{submitting ? "생성 중..." : "생성"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -255,15 +223,9 @@ export default function SurveyManagementV2() {
     q: params.get("q") || null,
   });
 
-  const [sortBy, setSortBy] = useState<SortBy>(
-    (params.get("sortBy") as SortBy) || "created_at"
-  );
-  const [sortDir, setSortDir] = useState<SortDir>(
-    (params.get("sortDir") as SortDir) || "desc"
-  );
-  const [currentPage, setCurrentPage] = useState<number>(
-    params.get("page") ? parseInt(params.get("page") as string) : 1
-  );
+  const [sortBy, setSortBy] = useState<SortBy>((params.get("sortBy") as SortBy) || "created_at");
+  const [sortDir, setSortDir] = useState<SortDir>((params.get("sortDir") as SortDir) || "desc");
+  const [currentPage, setCurrentPage] = useState<number>(params.get("page") ? parseInt(params.get("page") as string) : 1);
 
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -272,12 +234,15 @@ export default function SurveyManagementV2() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const allChecked = useMemo(
-    () => surveys.length > 0 && surveys.every((s) => selected.has(s.id)),
-    [surveys, selected]
-  );
+  const allChecked = useMemo(() => surveys.length > 0 && surveys.every((s) => selected.has(s.id)), [surveys, selected]);
 
+  // 상세 시트
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetSurvey, setSheetSurvey] = useState<SurveyListItem | null>(null);
+
+  // 다이얼로그들
   const [quickOpen, setQuickOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   // URL 동기화
   useEffect(() => {
@@ -321,24 +286,12 @@ export default function SurveyManagementV2() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, filters.year, filters.status, filters.q, filters.courseName, sortBy, sortDir]);
+  useEffect(() => { loadData(); }, [currentPage, filters.year, filters.status, filters.q, filters.courseName, sortBy, sortDir]);
+  useEffect(() => { loadCourseNames(filters.year); }, [filters.year]);
 
-  useEffect(() => {
-    loadCourseNames(filters.year);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.year]);
+  useEffect(() => { (async () => setTemplates(await SurveysRepository.listTemplates()))(); }, []);
 
-  useEffect(() => {
-    (async () => {
-      const list = await SurveysRepository.listTemplates();
-      setTemplates(list);
-    })();
-  }, []);
-
-  // 포커스 단축키
+  // 단축키
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
@@ -374,12 +327,7 @@ export default function SurveyManagementV2() {
   };
 
   const handleFilterChange = (key: keyof SurveyFilters, value: string) => {
-    const v =
-      value === "all"
-        ? null
-        : key === "year"
-        ? (value ? parseInt(value) : null)
-        : (value as any);
+    const v = value === "all" ? null : key === "year" ? (value ? parseInt(value) : null) : (value as any);
     setFilters((prev) => ({ ...prev, [key]: v }));
     setCurrentPage(1);
     setSelected(new Set());
@@ -395,9 +343,15 @@ export default function SurveyManagementV2() {
     setSelected(s);
   };
 
-  const exportCsv = async () => {
+  const exportCsvAll = async () => {
     const res = await SurveysRepository.fetchSurveyList(1, 1000, filters, sortBy, sortDir);
-    const rows = res.data;
+    downloadCsv(res.data);
+  };
+  const exportCsvSelected = async () => {
+    const rows = await SurveysRepository.fetchByIds(Array.from(selected));
+    downloadCsv(rows);
+  };
+  const downloadCsv = (rows: SurveyListItem[]) => {
     const header = [
       "id",
       "title",
@@ -449,6 +403,17 @@ export default function SurveyManagementV2() {
     URL.revokeObjectURL(url);
   };
 
+  const runAutoStatus = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-status-update", { body: {} });
+      if (error) throw error;
+      toast({ title: "상태 동기화 완료", description: `활성:${data?.toActive ?? 0}, 완료:${data?.toCompleted ?? 0}` });
+      loadData();
+    } catch (e: any) {
+      toast({ title: "동기화 실패", description: e?.message || "오류", variant: "destructive" });
+    }
+  };
+
   const handleQuickCreate = async (p: {
     education_year: number;
     education_round: number;
@@ -461,7 +426,7 @@ export default function SurveyManagementV2() {
     navigate(`/survey-builder/${created.id}`);
   };
 
-  // 로딩
+  // 로딩 UI
   if (loading) {
     return (
       <div className="flex min-h-screen">
@@ -510,13 +475,21 @@ export default function SurveyManagementV2() {
               </div>
             </div>
             <div className="hidden md:flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Button variant="outline" size="sm" onClick={exportCsvAll}>
                 <Download className="w-4 h-4 mr-2" />
                 CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={runAutoStatus}>
+                <Wand2 className="w-4 h-4 mr-2" />
+                상태 동기화
               </Button>
               <Button variant="outline" size="sm" onClick={() => loadData()}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 새로고침
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                설문 추가
               </Button>
               <Button size="sm" onClick={() => setQuickOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -530,16 +503,14 @@ export default function SurveyManagementV2() {
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <p className="hidden md:block text-sm text-muted-foreground">전체 {totalCount}개의 설문</p>
             <div className="flex md:hidden items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => loadData()}>
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-              <Button size="sm" onClick={() => setQuickOpen(true)}>
-                <Plus className="w-4 h-4" />
-              </Button>
+              <Button variant="outline" size="sm" onClick={exportCsvAll}><Download className="w-4 h-4" /></Button>
+              <Button variant="outline" size="sm" onClick={runAutoStatus}><Wand2 className="w-4 h-4" /></Button>
+              <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /></Button>
+              <Button size="sm" onClick={() => setQuickOpen(true)}><Plus className="w-4 h-4" /></Button>
             </div>
           </div>
 
-          {/* 검색/필터 */}
+          {/* 검색/필터 카드 */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">검색 / 필터</CardTitle>
@@ -570,53 +541,30 @@ export default function SurveyManagementV2() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">교육 연도</label>
-                  <Select
-                    value={filters.year?.toString() || "all"}
-                    onValueChange={(v) => handleFilterChange("year", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="모든 연도" />
-                    </SelectTrigger>
+                  <Select value={filters.year?.toString() || "all"} onValueChange={(v) => handleFilterChange("year", v)}>
+                    <SelectTrigger><SelectValue placeholder="모든 연도" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">모든 연도</SelectItem>
-                      {availableYears.map((y) => (
-                        <SelectItem key={y} value={String(y)}>
-                          {y}년
-                        </SelectItem>
-                      ))}
+                      {availableYears.map((y) => <SelectItem key={y} value={String(y)}>{y}년</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">과정명</label>
-                  <Select
-                    value={filters.courseName || "all"}
-                    onValueChange={(v) => handleFilterChange("courseName", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="모든 과정" />
-                    </SelectTrigger>
+                  <Select value={filters.courseName || "all"} onValueChange={(v) => handleFilterChange("courseName", v)}>
+                    <SelectTrigger><SelectValue placeholder="모든 과정" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">모든 과정</SelectItem>
-                      {availableCourseNames.map((n) => (
-                        <SelectItem key={n} value={n}>
-                          {n}
-                        </SelectItem>
-                      ))}
+                      {availableCourseNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">상태</label>
-                  <Select
-                    value={filters.status || "all"}
-                    onValueChange={(v) => handleFilterChange("status", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="모든 상태" />
-                    </SelectTrigger>
+                  <Select value={filters.status || "all"} onValueChange={(v) => handleFilterChange("status", v)}>
+                    <SelectTrigger><SelectValue placeholder="모든 상태" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">모든 상태</SelectItem>
                       <SelectItem value="draft">초안</SelectItem>
@@ -631,24 +579,15 @@ export default function SurveyManagementV2() {
                   <label className="text-sm font-medium">정렬</label>
                   <div className="flex gap-2">
                     <Select value={sortBy} onValueChange={(v: SortBy) => setSortBy(v)}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="created_at">생성일</SelectItem>
                         <SelectItem value="start_date">시작일</SelectItem>
                         <SelectItem value="end_date">종료일</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                    >
-                      {sortDir === "asc" ? (
-                        <SortAsc className="w-4 h-4" />
-                      ) : (
-                        <SortDesc className="w-4 h-4" />
-                      )}
+                    <Button variant="outline" onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}>
+                      {sortDir === "asc" ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
                     </Button>
                   </div>
                 </div>
@@ -672,20 +611,14 @@ export default function SurveyManagementV2() {
                   <CheckSquare className="w-4 h-4 mr-1" />
                   {allChecked ? "전체 해제" : "현재 페이지 전체선택"}
                 </Button>
-                <span className="text-sm text-muted-foreground">
-                  선택: {selected.size}개
-                </span>
+                <span className="text-sm text-muted-foreground">선택: {selected.size}개</span>
               </div>
 
               <div className="flex items-center gap-2">
-                {/* 버튼과 동일한 크기/패딩으로 맞춤 */}
                 <Select
                   onValueChange={async (v) => {
                     if (selected.size === 0) return;
-                    await SurveysRepository.updateStatusMany(
-                      Array.from(selected),
-                      v as any
-                    );
+                    await SurveysRepository.updateStatusMany(Array.from(selected), v as any);
                     setSelected(new Set());
                     loadData();
                     toast({ title: "상태 변경 완료" });
@@ -702,18 +635,9 @@ export default function SurveyManagementV2() {
                   </SelectContent>
                 </Select>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    if (selected.size === 0) return;
-                    await SurveysRepository.duplicateMany(Array.from(selected));
-                    setSelected(new Set());
-                    loadData();
-                    toast({ title: "복사 완료" });
-                  }}
-                >
-                  복사
+                <Button variant="outline" size="sm" onClick={exportCsvSelected} disabled={selected.size === 0}>
+                  <Download className="w-4 h-4 mr-1" />
+                  CSV(선택)
                 </Button>
 
                 <Button
@@ -740,9 +664,7 @@ export default function SurveyManagementV2() {
             <Card className="mt-4">
               <CardContent className="py-12 text-center">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">
-                  조건에 맞는 설문이 없습니다.
-                </p>
+                <p className="text-muted-foreground mb-4">조건에 맞는 설문이 없습니다.</p>
                 <Button onClick={() => setQuickOpen(true)} size="sm">
                   <Plus className="w-4 h-4 mr-2" />
                   첫 설문 만들기
@@ -754,12 +676,17 @@ export default function SurveyManagementV2() {
               {surveys.map((s) => {
                 const statusInfo = getStatusInfo(s);
                 const checked = selected.has(s.id);
+
+                const openSheet = () => {
+                  setSheetSurvey(s);
+                  setSheetOpen(true);
+                };
+
                 return (
                   <Card
                     key={s.id}
-                    className={`transition-shadow hover:shadow-md ${
-                      checked ? "ring-2 ring-primary/40" : ""
-                    }`}
+                    className={`transition-shadow hover:shadow-md ${checked ? "ring-2 ring-primary/40" : ""} cursor-pointer`}
+                    onClick={openSheet}
                   >
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4 gap-3">
@@ -768,6 +695,7 @@ export default function SurveyManagementV2() {
                             type="checkbox"
                             className="mt-1"
                             checked={checked}
+                            onClick={(e) => e.stopPropagation()}
                             onChange={() => toggleOne(s.id)}
                           />
                           <div className="min-w-0">
@@ -788,28 +716,19 @@ export default function SurveyManagementV2() {
                         <div className="flex items-center gap-2 min-w-0">
                           <User className="w-4 h-4 text-muted-foreground shrink-0" />
                           <span className="text-muted-foreground shrink-0">작성자:</span>
-                          <span className="truncate">
-                            <Highlight text={s.creator_email ?? "unknown"} query={q} />
-                          </span>
+                          <span className="truncate"><Highlight text={s.creator_email ?? "unknown"} query={q} /></span>
                         </div>
 
                         <div className="flex items-center gap-2 min-w-0">
                           <BookOpen className="w-4 h-4 text-muted-foreground shrink-0" />
                           <span className="text-muted-foreground shrink-0">강사:</span>
-                          <span className="truncate">
-                            <Highlight text={s.instructor_name ?? "Unknown"} query={q} />
-                          </span>
+                          <span className="truncate"><Highlight text={s.instructor_name ?? "Unknown"} query={q} /></span>
                         </div>
 
                         <div className="flex items-center gap-2 min-w-0">
                           <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
                           <span className="text-muted-foreground shrink-0">과목:</span>
-                          <span className="truncate">
-                            <Highlight
-                              text={s.course_title ?? s.course_name ?? "Unknown"}
-                              query={q}
-                            />
-                          </span>
+                          <span className="truncate"><Highlight text={s.course_title ?? s.course_name ?? "Unknown"} query={q} /></span>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -823,9 +742,7 @@ export default function SurveyManagementV2() {
                         <div>
                           <span className="text-muted-foreground">교육기간:</span>
                           <div className="font-medium">
-                            {s.education_year && s.education_round
-                              ? `${s.education_year}년 ${s.education_round}기`
-                              : "미설정"}
+                            {s.education_year && s.education_round ? `${s.education_year}년 ${s.education_round}기` : "미설정"}
                           </div>
                         </div>
                         <div>
@@ -840,40 +757,21 @@ export default function SurveyManagementV2() {
 
                       {s.is_test && (
                         <div className="mt-2">
-                          <Badge variant="outline" className="text-xs">
-                            테스트 설문
-                          </Badge>
+                          <Badge variant="outline" className="text-xs">테스트 설문</Badge>
                         </div>
                       )}
 
-                      <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/survey-builder/${s.id}`)}
-                        >
-                          <Settings className="w-4 h-4 mr-1" />
-                          질문수정
+                      {/* 카드 내부 버튼들: 클릭 버블링 막기 */}
+                      <div className="mt-4 flex flex-wrap gap-2 border-t pt-4" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/survey-builder/${s.id}`)}>
+                          <Settings className="w-4 h-4 mr-1" /> 질문수정
                         </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/survey-preview/${s.id}`)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          미리보기
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/survey-preview/${s.id}`)}>
+                          <Eye className="w-4 h-4 mr-1" /> 미리보기
                         </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/survey-results/${s.id}`)}
-                        >
-                          <BarChart className="w-4 h-4 mr-1" />
-                          결과
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/survey-results/${s.id}`)}>
+                          <BarChart className="w-4 h-4 mr-1" /> 결과
                         </Button>
-
                         <Button
                           variant="outline"
                           size="sm"
@@ -883,18 +781,13 @@ export default function SurveyManagementV2() {
                             toast({ title: "링크 복사", description: link });
                           }}
                         >
-                          <Share2 className="w-4 h-4 mr-1" />
-                          공유
+                          <Share2 className="w-4 h-4 mr-1" /> 공유
                         </Button>
 
-                        {/* 상태 드롭다운 - 버튼과 동일 크기로 통일 */}
                         <Select
                           value={s.status ?? "draft"}
                           onValueChange={async (v) => {
-                            await SurveysRepository.updateStatus(
-                              s.id,
-                              v as "draft" | "active" | "public" | "completed"
-                            );
+                            await SurveysRepository.updateStatus(s.id, v as "draft" | "active" | "public" | "completed");
                             toast({ title: "상태 변경", description: `상태가 ${v}로 변경되었습니다.` });
                             loadData();
                           }}
@@ -920,30 +813,78 @@ export default function SurveyManagementV2() {
           {/* 페이지네이션 */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                이전
+              <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+                <ChevronLeft className="w-4 h-4 mr-1" /> 이전
               </Button>
-              <span className="text-sm text-muted-foreground px-4">
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              >
-                다음
-                <ChevronRight className="w-4 h-4 ml-1" />
+              <span className="text-sm text-muted-foreground px-4">{currentPage} / {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+                다음 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
           )}
         </div>
+
+        {/* 상세 시트 */}
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-xl">
+            <SheetHeader>
+              <SheetTitle className="break-words">{sheetSurvey?.title || "제목 없음"}</SheetTitle>
+              <SheetDescription className="break-words">
+                {sheetSurvey?.description || "설명 없음"}
+              </SheetDescription>
+            </SheetHeader>
+
+            {sheetSurvey && (
+              <div className="mt-6 space-y-4 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-muted-foreground">상태</div>
+                  <div>{sheetSurvey.status}</div>
+                  <div className="text-muted-foreground">교육기간</div>
+                  <div>
+                    {sheetSurvey.education_year && sheetSurvey.education_round
+                      ? `${sheetSurvey.education_year}년 ${sheetSurvey.education_round}기`
+                      : "미설정"}
+                  </div>
+                  <div className="text-muted-foreground">시작일</div>
+                  <div>{formatSafeDate(sheetSurvey.start_date)}</div>
+                  <div className="text-muted-foreground">종료일</div>
+                  <div>{formatSafeDate(sheetSurvey.end_date)}</div>
+                  <div className="text-muted-foreground">작성자</div>
+                  <div>{sheetSurvey.creator_email || "unknown"}</div>
+                  <div className="text-muted-foreground">강사</div>
+                  <div>{sheetSurvey.instructor_name || "Unknown"}</div>
+                  <div className="text-muted-foreground">과목</div>
+                  <div>{sheetSurvey.course_title || sheetSurvey.course_name || "Unknown"}</div>
+                  <div className="text-muted-foreground">예상 참가자</div>
+                  <div>{sheetSurvey.expected_participants ?? "미설정"}</div>
+                </div>
+
+                <div className="pt-4 border-t flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/survey-builder/${sheetSurvey.id}`)}>
+                    <Settings className="w-4 h-4 mr-1" /> 질문수정
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/survey-preview/${sheetSurvey.id}`)}>
+                    <Eye className="w-4 h-4 mr-1" /> 미리보기
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/survey-results/${sheetSurvey.id}`)}>
+                    <BarChart className="w-4 h-4 mr-1" /> 결과
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const link = `${window.location.origin}/survey/${sheetSurvey.id}`;
+                      navigator.clipboard.writeText(link);
+                      toast({ title: "링크 복사", description: link });
+                    }}
+                  >
+                    <Share2 className="w-4 h-4 mr-1" /> 공유
+                  </Button>
+                </div>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
 
         {/* 빠른 생성 모달 */}
         <QuickCreateDialog
@@ -955,6 +896,23 @@ export default function SurveyManagementV2() {
           defaultYear={filters.year ?? new Date().getFullYear()}
           onCreate={handleQuickCreate}
         />
+
+        {/* 설문 추가(정식) 모달: 기존 SurveyCreateForm 사용 */}
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>새 설문 추가</DialogTitle>
+            </DialogHeader>
+            <SurveyCreateForm
+              templates={templates.map((t) => ({ id: t.id, name: t.name }))}
+              onSuccess={(surveyId: string) => {
+                setCreateOpen(false);
+                toast({ title: "성공", description: "설문이 생성되었습니다." });
+                navigate(`/survey-builder/${surveyId}`);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
