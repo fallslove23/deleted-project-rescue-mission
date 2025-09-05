@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -81,16 +80,14 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
 }
 
 export default function SurveyManagementV2() {
-  // ✅ SidebarProvider로 감싸서 useSidebar 컨텍스트 제공
+  // Use global SidebarProvider from App.tsx - no need to wrap again
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen bg-background">
-        <AdminSidebar />
-        <div className="flex-1 min-w-0">
-          <PageBody />
-        </div>
+    <div className="flex min-h-screen bg-background">
+      <AdminSidebar />
+      <div className="flex-1 min-w-0">
+        <PageBody />
       </div>
-    </SidebarProvider>
+    </div>
   );
 }
 
