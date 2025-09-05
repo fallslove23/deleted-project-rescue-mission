@@ -318,17 +318,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         payload.course_id = firstSelection.courseId || null;
       }
 
-      // Auto-generate title
-      const selectedCourse = courses.find(c => c.id === payload.course_id);
-      if (selectedCourse && payload.education_year && payload.education_round && payload.education_day) {
-        const yy = payload.education_year.toString().slice(-2);
-        const courseName = payload.course_name?.includes('-')
-          ? payload.course_name.split('-')[1]?.trim()
-          : payload.course_name?.trim() || '';
-        const titlePrefix = courseName
-          ? `(${yy}-${payload.education_round}차 ${courseName} ${payload.education_day}일차)`
-          : `(${yy}-${payload.education_round}차 ${payload.education_day}일차)`;
-        payload.title = `${titlePrefix} ${selectedCourse.title}`;
+      // Auto-generate title: "연도-과정-차수-일차 설문"
+      const courseName = payload.course_name?.includes('-')
+        ? payload.course_name.split('-')[1]?.trim()
+        : payload.course_name?.trim() || '';
+      if (payload.education_year && payload.education_round && payload.education_day && courseName) {
+        payload.title = `${payload.education_year}-${courseName}-${payload.education_round}차-${payload.education_day}일차 설문`;
       }
 
       const { error } = await supabase.from('surveys').insert([payload]);
@@ -383,17 +378,12 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         payload.course_id = firstSelection.courseId || null;
       }
 
-      // Auto-generate title
-      const selectedCourse = courses.find(c => c.id === payload.course_id);
-      if (selectedCourse && payload.education_year && payload.education_round && payload.education_day) {
-        const yy = payload.education_year.toString().slice(-2);
-        const courseName = payload.course_name?.includes('-')
-          ? payload.course_name.split('-')[1]?.trim()
-          : payload.course_name?.trim() || '';
-        const titlePrefix = courseName
-          ? `(${yy}-${payload.education_round}차 ${courseName} ${payload.education_day}일차)`
-          : `(${yy}-${payload.education_round}차 ${payload.education_day}일차)`;
-        payload.title = `${titlePrefix} ${selectedCourse.title}`;
+      // Auto-generate title: "연도-과정-차수-일차 설문"
+      const courseName = payload.course_name?.includes('-')
+        ? payload.course_name.split('-')[1]?.trim()
+        : payload.course_name?.trim() || '';
+      if (payload.education_year && payload.education_round && payload.education_day && courseName) {
+        payload.title = `${payload.education_year}-${courseName}-${payload.education_round}차-${payload.education_day}일차 설문`;
       }
 
       const { error } = await supabase
@@ -1102,7 +1092,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                           className="touch-friendly text-xs h-9 px-3"
                         >
                           <Settings className="h-4 w-4 mr-1" />
-                          미리보기
+                          질문수정
                         </Button>
 
                         <Button
@@ -1157,12 +1147,13 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                         </Button>
 
                         <Button
+                          variant="outline"
                           size="sm"
-                          onClick={() => window.open(`/survey/${survey.id}`, '_blank')}
-                          className="touch-friendly text-xs h-9 px-3 bg-primary hover:bg-primary/90"
+                          onClick={() => navigate(`/survey-preview/${survey.id}`)}
+                          className="touch-friendly text-xs h-9 px-3"
                         >
-                          <ExternalLink className="h-4 w-4 mr-1" />
-                          설문 참여
+                          <Eye className="h-4 w-4 mr-1" />
+                          미리보기
                         </Button>
                       </div>
                     </div>

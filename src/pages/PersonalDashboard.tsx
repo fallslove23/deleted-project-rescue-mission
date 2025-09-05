@@ -167,9 +167,8 @@ const PersonalDashboard = () => {
       }
 
       if (selectedCourse && selectedCourse !== 'all') {
-        // 과정 타입으로 필터링 (예: "BS Basic", "300 점검방법")
-        const coursePattern = `%- ${selectedCourse}%`;
-        surveyQuery = surveyQuery.ilike('course_name', coursePattern);
+        // 과정 타입으로 필터링 (예: "BS Basic", "BS Advanced")
+        surveyQuery = surveyQuery.ilike('course_name', `%${selectedCourse}%`);
       }
 
       if (selectedSubject && selectedSubject !== 'all') {

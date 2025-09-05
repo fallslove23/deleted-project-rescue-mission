@@ -237,7 +237,16 @@ export default function SurveyCreateForm({
                       <SelectItem value="BS Advanced">BS Advanced</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button type="button" size="sm" variant="outline" className="px-2">
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant="outline" 
+                    className="px-2"
+                    onClick={() => {
+                      // 새 과정 추가 기능 (향후 확장 가능)
+                      alert('새 과정 추가 기능은 준비 중입니다.');
+                    }}
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
