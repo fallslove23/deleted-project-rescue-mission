@@ -1,30 +1,10 @@
 // src/repositories/surveysRepo.ts
 import { supabase } from "@/integrations/supabase/client";
 
-/* ---------- utils ---------- */
-const pad = (n: number) => String(n).padStart(2, "0");
-const toLocalInputStr = (d: Date) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
-const getDefaultStartEndLocal = () => {
-  const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const start = new Date(next);
-  start.setHours(9, 0, 0, 0);
-  const end = new Date(next);
-  end.setHours(19, 0, 0, 0);
-  return { startLocal: toLocalInputStr(start), endLocal: toLocalInputStr(end) };
-};
-const toISO = (local: string | null) =>
-  local ? new Date(local).toISOString() : null;
+export type SortBy = "created_at" | "start_date" | "end_date";
+export type SortDir = "asc" | "desc";
 
-function escapeOrValue(v: string) {
-  return v.replace(/[%_]/g, "\\$&");
-}
-
-/* ---------- types ---------- */
-export type SurveyListItem = {
+export interface SurveyListItem {
   id: string;
   title: string | null;
   description: string | null;
@@ -50,27 +30,49 @@ export type SurveyListItem = {
   creator_email: string | null;
   instructor_name: string | null;
   course_title: string | null;
-};
+}
 
-export type SurveyFilters = {
+export interface SurveyFilters {
   year: number | null;
   status: "draft" | "active" | "public" | "completed" | null;
   q?: string | null;
   courseName?: string | null;
-};
+}
 
-export type SortBy = "created_at" | "start_date" | "end_date";
-export type SortDir = "asc" | "desc";
-
-export type PaginatedSurveyResult = {
+export interface PaginatedSurveyResult {
   data: SurveyListItem[];
   count: number;
   totalPages: number;
-};
+}
 
-export type TemplateLite = { id: string; name: string };
+export interface QuickCreatePayload {
+  education_year: number;
+  education_round: number;
+  education_day: number;
+  course_name: string;
+  template_id?: string | null;
+}
 
-/* ---------- repository ---------- */
+export interface TemplateLite {
+  id: string;
+  name: string;
+}
+
+function nextDayBase(hour: number, minute = 0) {
+  const now = new Date();
+  // 내일 09:00/19:00 (로컬 타임존 기준)
+  const d = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    hour,
+    minute,
+    0,
+    0
+  );
+  return d.toISOString();
+}
+
 export const SurveysRepository = {
   async fetchSurveyList(
     page: number,
@@ -84,35 +86,35 @@ export const SurveysRepository = {
 
     let query = supabase
       .from("surveys_list_v1")
-      .select("*", { count: "exact" })
-      .order(sortBy, { ascending: sortDir === "asc" })
-      .range(from, to);
+      .select("*", { count: "exact" });
 
-    if (filters.year !== null) query = query.eq("education_year", filters.year);
-    if (filters.status !== null) query = query.eq("status", filters.status);
+    if (filters.year) query = query.eq("education_year", filters.year);
+    if (filters.status) query = query.eq("status", filters.status);
     if (filters.courseName) query = query.eq("course_name", filters.courseName);
 
-    const q = (filters.q ?? "").trim();
-    if (q.length > 0) {
-      const kw = escapeOrValue(q);
+    if (filters.q && filters.q.trim()) {
+      const like = `%${filters.q.trim()}%`;
       query = query.or(
         [
-          `title.ilike.%${kw}%`,
-          `course_name.ilike.%${kw}%`,
-          `instructor_name.ilike.%${kw}%`,
-          `course_title.ilike.%${kw}%`,
-          `creator_email.ilike.%${kw}%`,
+          `title.ilike.${like}`,
+          `course_title.ilike.${like}`,
+          `course_name.ilike.${like}`,
+          `instructor_name.ilike.${like}`,
+          `creator_email.ilike.${like}`,
         ].join(",")
       );
     }
 
-    const { data, error, count } = await query;
+    query = query.order(sortBy, { ascending: sortDir === "asc", nullsFirst: false });
+
+    const { data, error, count } = await query.range(from, to);
     if (error) throw error;
 
-    const safeData = (data ?? []) as SurveyListItem[];
-    const total = count ?? 0;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    return { data: safeData, count: total, totalPages };
+    return {
+      data: (data || []) as SurveyListItem[],
+      count: count || 0,
+      totalPages: Math.max(1, Math.ceil((count || 0) / pageSize)),
+    };
   },
 
   async getAvailableYears(): Promise<number[]> {
@@ -120,83 +122,100 @@ export const SurveysRepository = {
       .from("survey_available_years_v1")
       .select("education_year");
     if (error) throw error;
-
-    return (data ?? [])
-      .map((r: any) => Number(r.education_year))
-      .filter((n) => Number.isFinite(n))
-      .sort((a, b) => b - a);
+    return (data || []).map((d: any) => d.education_year);
   },
 
+  // 연도별 과정명 목록 (중복 제거)
   async getAvailableCourseNames(year: number | null): Promise<string[]> {
-    let q = supabase
-      .from("surveys")
-      .select("course_name, education_year")
-      .not("course_name", "is", null);
-
-    if (year !== null) q = q.eq("education_year", year);
-
+    let q = supabase.from("surveys").select("course_name").not("course_name", "is", null);
+    if (year) q = q.eq("education_year", year);
     const { data, error } = await q;
     if (error) throw error;
-
     const set = new Set<string>();
-    (data ?? []).forEach((r: any) => r.course_name && set.add(r.course_name));
+    (data || []).forEach((r: any) => r.course_name && set.add(r.course_name));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   },
 
-  async updateStatus(
-    id: string,
-    status: "draft" | "active" | "public" | "completed"
-  ) {
-    const { error } = await supabase
-      .from("surveys")
-      .update({ status })
-      .eq("id", id);
-    if (error) throw error;
+  async listTemplates(): Promise<TemplateLite[]> {
+    const { data, error } = await supabase
+      .from("survey_templates")
+      .select("id,name")
+      .order("created_at", { ascending: false });
+    if (error) return [];
+    return (data || []) as TemplateLite[];
   },
 
-  async updateStatusMany(
-    ids: string[],
-    status: "draft" | "active" | "public" | "completed"
-  ) {
-    if (!ids.length) return;
-    const { error } = await supabase
-      .from("surveys")
-      .update({ status })
-      .in("id", ids);
-    if (error) throw error;
-  },
+  async quickCreateSurvey(payload: QuickCreatePayload) {
+    const title = `${payload.education_year}-${payload.course_name}-${payload.education_round}차-${payload.education_day}일차 설문`;
 
-  async duplicateSurvey(id: string, titleSuffix = " (복사본)") {
-    const { data: src, error: e1 } = await supabase
+    const startISO = nextDayBase(9, 0);
+    const endISO = nextDayBase(19, 0);
+
+    const insertPayload: any = {
+      title,
+      description:
+        "본 설문은 과목과 강사 만족도를 평가하기 위한 것입니다. 교육 품질 향상을 위해 모든 교육생께서 반드시 참여해 주시길 부탁드립니다.",
+      start_date: startISO,
+      end_date: endISO,
+      education_year: payload.education_year,
+      education_round: payload.education_round,
+      education_day: payload.education_day,
+      course_name: payload.course_name,
+      status: "draft",
+      template_id: payload.template_id ?? null,
+    };
+
+    const { data, error } = await supabase
       .from("surveys")
-      .select("*")
-      .eq("id", id)
+      .insert([insertPayload])
+      .select()
       .single();
-    if (e1) throw e1;
+    if (error) throw error;
+    return data as SurveyListItem;
+  },
 
-    const payload: any = { ...src };
-    delete payload.id;
-    delete payload.created_at;
-    delete payload.updated_at;
-    payload.title = (src.title ?? "무제") + titleSuffix;
-    payload.status = "draft";
+  async updateStatus(id: string, status: "draft" | "active" | "public" | "completed") {
+    const { error } = await supabase.from("surveys").update({ status }).eq("id", id);
+    if (error) throw error;
+  },
+
+  async updateStatusMany(ids: string[], status: "draft" | "active" | "public" | "completed") {
+    const { error } = await supabase.from("surveys").update({ status }).in("id", ids);
+    if (error) throw error;
+  },
+
+  async duplicateSurvey(id: string) {
+    const { data: src, error: e1 } = await supabase.from("surveys").select("*").eq("id", id).single();
+    if (e1) throw e1;
 
     const { data: created, error: e2 } = await supabase
       .from("surveys")
-      .insert([payload])
+      .insert([
+        {
+          ...src,
+          id: undefined,
+          title: `${src.title || "무제"} (복사본)`,
+          status: "draft",
+          created_at: undefined,
+          updated_at: undefined,
+        },
+      ])
       .select()
       .single();
     if (e2) throw e2;
-    return created;
+
+    // 섹션/문항 복제는 필요시 확장 (여기선 본문만 복제)
+    return created as SurveyListItem;
   },
 
   async duplicateMany(ids: string[]) {
-    const results: any[] = [];
     for (const id of ids) {
-      const r = await this.duplicateSurvey(id);
-      results.push(r);
+      try {
+        await this.duplicateSurvey(id);
+      } catch {
+        // 개별 실패는 무시하고 진행
+      }
     }
-    return results;
   },
 
   async deleteSurvey(id: string) {
@@ -205,95 +224,7 @@ export const SurveysRepository = {
   },
 
   async deleteMany(ids: string[]) {
-    if (!ids.length) return;
     const { error } = await supabase.from("surveys").delete().in("id", ids);
-    if (error) throw error;
-  },
-
-  async quickCreateSurvey(payload: {
-    education_year: number;
-    education_round: number;
-    education_day: number;
-    course_name: string;
-    title?: string;
-    template_id?: string | null;
-  }) {
-    const baseTitle =
-      payload.title ??
-      `${payload.education_year}-${payload.course_name}-${payload.education_round}차-${payload.education_day}일차 설문`;
-
-    const { startLocal, endLocal } = getDefaultStartEndLocal();
-
-    const { data, error } = await supabase
-      .from("surveys")
-      .insert([
-        {
-          title: baseTitle,
-          description: "",
-          start_date: toISO(startLocal),
-          end_date: toISO(endLocal),
-          education_year: payload.education_year,
-          education_round: payload.education_round,
-          education_day: payload.education_day,
-          course_name: payload.course_name,
-          expected_participants: 0,
-          status: "draft",
-          template_id: payload.template_id ?? null,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  },
-
-  async listTemplates(): Promise<TemplateLite[]> {
-    // 테이블 이름은 기존 스키마에 맞춰 조정하세요 (예: 'survey_templates')
-    const { data, error } = await supabase
-      .from("survey_templates")
-      .select("id, name")
-      .order("name", { ascending: true });
-    if (error) return []; // 템플릿 없으면 무시
-    return (data ?? []) as TemplateLite[];
-  },
-};
-
-/* ---------- 과정명 저장/편집(편집화면에서 사용) ---------- */
-export type CourseName = { id: string; name: string; created_at: string | null };
-
-export const CourseNamesRepo = {
-  async list(): Promise<CourseName[]> {
-    const { data, error } = await supabase
-      .from("course_names")
-      .select("*")
-      .order("name", { ascending: true });
-    if (error) throw error;
-    return (data ?? []) as CourseName[];
-  },
-  async create(name: string) {
-    const { data, error } = await supabase
-      .from("course_names")
-      .insert([{ name }])
-      .select()
-      .single();
-    if (error) throw error;
-    return data as CourseName;
-  },
-  async rename(id: string, oldName: string, newName: string) {
-    const { error: e1 } = await supabase
-      .from("course_names")
-      .update({ name: newName })
-      .eq("id", id);
-    if (e1) throw e1;
-    const { error: e2 } = await supabase
-      .from("surveys")
-      .update({ course_name: newName })
-      .eq("course_name", oldName);
-    if (e2) throw e2;
-  },
-  async remove(id: string) {
-    const { error } = await supabase.from("course_names").delete().eq("id", id);
     if (error) throw error;
   },
 };
