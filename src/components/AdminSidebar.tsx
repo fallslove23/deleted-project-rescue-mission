@@ -28,7 +28,13 @@ const allItems = [
   { title: "피드백", url: "/dashboard/my-stats", icon: Star, roles: ["instructor", "admin", "operator", "director"] },
   { title: "결과분석", url: "/dashboard/results", icon: BarChart, roles: ["admin", "operator", "instructor", "director"] },
   { title: "결과보고", url: "/dashboard/course-reports", icon: TrendingUp, roles: ["admin", "operator", "director"] },
+
+  // 기존 설문관리(구)
   { title: "설문관리", url: "/dashboard/surveys", icon: FileText, roles: ["admin", "operator"] },
+
+  // ✅ 새로 추가: 설문관리 V2 (운영/관리자만 보임)
+  { title: "설문관리 V2", url: "/surveys-v2", icon: FileText, roles: ["admin", "operator"] },
+
   { title: "강사관리", url: "/dashboard/instructors", icon: Users, roles: ["admin", "operator"] },
   { title: "사용자관리", url: "/dashboard/users", icon: Users, roles: ["admin"] },
   { title: "과목관리", url: "/dashboard/courses", icon: BookOpen, roles: ["admin", "operator"] },
@@ -45,7 +51,7 @@ export function AdminSidebar() {
   const currentPath = location.pathname
   const [viewAsRole, setViewAsRole] = useState<string | null>(null)
 
-  // 사용자 역할에 따라 필터링된 메뉴 항목 (권한별 뷰가 활성화된 경우 해당 권한으로 필터링)
+  // 사용자 역할에 따라 필터링된 메뉴 항목
   const effectiveRoles = viewAsRole ? [viewAsRole] : userRoles
   const items = allItems.filter((item) =>
     item.roles.some((role) => effectiveRoles.includes(role))
@@ -58,13 +64,24 @@ export function AdminSidebar() {
     return currentPath.startsWith(path)
   }
 
-const sections = [
-  { label: "대시보드", keys: ["/dashboard", "/dashboard/course-reports"] },
-  { label: "설문", keys: ["/dashboard/results", "/dashboard/my-stats"] },
-  { label: "관리", keys: ["/dashboard/surveys", "/dashboard/instructors", "/dashboard/users", "/dashboard/courses", "/dashboard/course-statistics", "/dashboard/templates"] },
-  { label: "기록", keys: ["/dashboard/email-logs", "/dashboard/system-logs"] },
-]
-
+  // 섹션 구분: 설문관리 V2는 "관리" 섹션에 묶음
+  const sections = [
+    { label: "대시보드", keys: ["/dashboard", "/dashboard/course-reports"] },
+    { label: "설문", keys: ["/dashboard/results", "/dashboard/my-stats"] },
+    { 
+      label: "관리", 
+      keys: [
+        "/dashboard/surveys",
+        "/surveys-v2",                    // ✅ 여기 섹션에도 포함
+        "/dashboard/instructors",
+        "/dashboard/users",
+        "/dashboard/courses",
+        "/dashboard/course-statistics",
+        "/dashboard/templates",
+      ] 
+    },
+    { label: "기록", keys: ["/dashboard/email-logs", "/dashboard/system-logs"] },
+  ]
 
   const sectionItems = sections
     .map((section) => ({
