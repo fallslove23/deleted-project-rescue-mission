@@ -1,3 +1,4 @@
+// src/repositories/surveysRepo.ts
 import { supabase } from '@/integrations/supabase/client';
 
 export type SurveyListItem = {
@@ -69,7 +70,7 @@ export class SurveysRepository {
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     return { data: safeData, count: total, totalPages };
-    }
+  }
 
   static async getAvailableYears(): Promise<number[]> {
     const { data, error } = await supabase
