@@ -271,7 +271,10 @@ const CourseStatisticsManagement = () => {
 
         const { error } = await supabase
           .from('course_statistics')
-          .upsert(statisticsToUpload, { onConflict: 'year,round,course_name' });
+          .upsert(statisticsToUpload, { 
+            onConflict: 'year,round,course_name',
+            ignoreDuplicates: false 
+          });
 
         if (error) {
           console.error('Supabase error:', error);

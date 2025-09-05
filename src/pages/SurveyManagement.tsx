@@ -309,6 +309,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         created_by: user?.id,
         instructor_id: null as string | null,
         course_id: null as string | null,
+        status: 'draft', // Set initial status as draft
       };
 
       // Handle course selections - for now, use the first one
@@ -326,15 +327,21 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
         payload.title = `${payload.education_year}-${courseName}-${payload.education_round}차-${payload.education_day}일차 설문`;
       }
 
-      const { error } = await supabase.from('surveys').insert([payload]);
+      const { data: createdSurvey, error } = await supabase
+        .from('surveys')
+        .insert([payload])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast({ title: '성공', description: '설문조사가 생성되었습니다.' });
+      toast({ 
+        title: '성공', 
+        description: '설문조사가 생성되었습니다. 질문을 추가하여 설문을 완성하세요.'
+      });
 
-      setIsDialogOpen(false);
-      fetchData();
-      fetchFilteredSurveys();
+      // Navigate to survey builder for immediate question creation
+      navigate(`/survey-builder/${createdSurvey.id}`);
     } catch (error: any) {
       console.error('SurveyManagement - Error creating survey:', error);
       toast({

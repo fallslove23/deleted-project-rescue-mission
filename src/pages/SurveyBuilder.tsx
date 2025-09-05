@@ -84,6 +84,9 @@ export default function SurveyBuilder() {
   const [sections, setSections] = useState<SurveySection[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [customCourses, setCustomCourses] = useState<string[]>([]);
+  const [draggedQuestionIndex, setDraggedQuestionIndex] = useState<number | null>(null);
+  const [draggedCourseIndex, setDraggedCourseIndex] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
   
   // 질문 편집 관련 상태
   const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
@@ -540,7 +543,90 @@ export default function SurveyBuilder() {
     }
   };
 
-  const [saving, setSaving] = useState(false);
+  // 과목 순서 변경 처리
+  const handleCourseOrderChange = (dragIndex: number, dropIndex: number) => {
+    if (dragIndex === dropIndex) return;
+    
+    const newCustomCourses = Array.from(customCourses);
+    const [draggedCourse] = newCustomCourses.splice(dragIndex, 1);
+    newCustomCourses.splice(dropIndex, 0, draggedCourse);
+    
+    setCustomCourses(newCustomCourses);
+    toast({
+      title: "순서 변경됨",
+      description: "과목 순서가 변경되었습니다."
+    });
+  };
+
+  // 커스텀 과정 저장
+  const handleSaveSurvey = async () => {
+    if (!surveyId) {
+      console.error('No survey ID available');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 커스텀 과정 먼저 저장/업데이트
+      if (customCourses.length > 0) {
+        await Promise.all(customCourses.map(async (courseName) => {
+          const { error } = await supabase
+            .from('courses')
+            .upsert({ 
+              title: courseName,
+              description: `자동 생성된 과정: ${courseName}`
+            }, { 
+              onConflict: 'title',
+              ignoreDuplicates: true 
+            });
+          
+          if (error && !error.message.includes('duplicate')) {
+            console.error('Error saving course:', error);
+          }
+        }));
+      }
+
+      toast({
+        title: '성공',
+        description: '과정이 성공적으로 저장되었습니다.',
+      });
+
+      navigate('/dashboard/surveys');
+    } catch (error) {
+      console.error('Error saving survey:', error);
+      toast({
+        title: '오류',
+        description: '과정 저장 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 과목 추가
+  const handleAddCourse = (courseName: string) => {
+    if (!courseName.trim()) return;
+    
+    const trimmedName = courseName.trim();
+    if (!customCourses.includes(trimmedName)) {
+      setCustomCourses(prev => [...prev, trimmedName]);
+      toast({
+        title: "성공",
+        description: `"${trimmedName}" 과정이 추가되었습니다.`
+      });
+    }
+  };
+
+  // 과목 제거
+  const handleRemoveCourse = (index: number) => {
+    const removedCourse = customCourses[index];
+    setCustomCourses(prev => prev.filter((_, i) => i !== index));
+    toast({
+      title: "삭제됨",
+      description: `"${removedCourse}" 과정이 제거되었습니다.`
+    });
+  };
 
   const saveInfo = async () => {
     if (!surveyId) return;
