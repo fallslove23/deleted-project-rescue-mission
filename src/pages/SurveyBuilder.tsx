@@ -1,9 +1,8 @@
 // src/pages/SurveyBuilder.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit } from "lucide-react";
+import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import QuestionEditForm from "@/components/QuestionEditForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +25,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-// Course names will be managed directly in this component
+import { CourseNamesRepo, CourseName } from "@/repositories/surveysRepo";
 
 // ---------- helpers ----------
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -97,32 +96,6 @@ type Survey = {
   updated_at: string | null;
 };
 
-type SurveyQuestion = {
-  id: string;
-  question_text: string;
-  question_type: string;
-  options: any;
-  is_required: boolean;
-  order_index: number;
-  section_id?: string | null;
-  session_id?: string | null;
-  scope: 'session' | 'operation';
-  satisfaction_type?: string | null;
-};
-
-type Section = {
-  id: string;
-  name: string;
-  description?: string;
-};
-
-type Session = {
-  id: string;
-  session_name: string;
-  course?: { title: string };
-  instructor?: { name: string };
-};
-
 export default function SurveyBuilder() {
   const { surveyId } = useParams();
   const navigate = useNavigate();
@@ -131,13 +104,6 @@ export default function SurveyBuilder() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [survey, setSurvey] = useState<Survey | null>(null);
-  
-  // 질문 관리 상태
-  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
-  const [sections, setSections] = useState<Section[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
 
   // ⬇️ 과목 필드 삭제, 4가지만 유지
   const [educationYear, setEducationYear] = useState<number>(
@@ -153,195 +119,25 @@ export default function SurveyBuilder() {
   const [description, setDescription] = useState<string>("");
 
   // 과정명 관리
-  const [courseNames, setCourseNames] = useState<{id: string; name: string}[]>([]);
+  const [courseNames, setCourseNames] = useState<CourseName[]>([]);
   const [courseMgrOpen, setCourseMgrOpen] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [editRow, setEditRow] = useState<{ id: string; name: string } | null>(
     null
   );
 
-  // 템플릿 관리
-  const [templates, setTemplates] = useState<{id: string; name: string}[]>([]);
-  const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
-  const [loadingTemplate, setLoadingTemplate] = useState(false);
-
-  // 섹션 관리
-  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
-  const [editingSection, setEditingSection] = useState<Section | null>(null);
-  const [sectionForm, setSectionForm] = useState({
-    name: "",
-    description: ""
-  });
-
   const title = useMemo(
     () => buildTitle(educationYear, educationRound, educationDay, courseName),
     [educationYear, educationRound, educationDay, courseName]
   );
 
-  const loadTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('survey_templates')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      setTemplates(data || []);
-    } catch (e: any) {
-      toast({
-        title: "템플릿 로드 실패",
-        description: e.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const loadFromTemplate = async (templateId: string) => {
-    if (!surveyId) return;
-    
-    setLoadingTemplate(true);
-    try {
-      // 템플릿 질문들 가져오기
-      const { data: templateQuestions, error: questionsError } = await supabase
-        .from('template_questions')
-        .select('*')
-        .eq('template_id', templateId)
-        .order('order_index');
-      
-      if (questionsError) throw questionsError;
-
-      // 템플릿 섹션들 가져오기
-      const { data: templateSections, error: sectionsError } = await supabase
-        .from('template_sections')
-        .select('*')
-        .eq('template_id', templateId)
-        .order('order_index');
-      
-      if (sectionsError) throw sectionsError;
-
-      // 기존 질문과 섹션 삭제
-      await supabase.from('survey_questions').delete().eq('survey_id', surveyId);
-      await supabase.from('survey_sections').delete().eq('survey_id', surveyId);
-
-      // 섹션들을 먼저 생성
-      const sectionMapping: Record<string, string> = {};
-      if (templateSections && templateSections.length > 0) {
-        for (const section of templateSections) {
-          const { data: newSection, error: sectionError } = await supabase
-            .from('survey_sections')
-            .insert({
-              survey_id: surveyId,
-              name: section.name,
-              description: section.description,
-              order_index: section.order_index
-            })
-            .select('*')
-            .single();
-          
-          if (sectionError) throw sectionError;
-          sectionMapping[section.id] = newSection.id;
-        }
-      }
-
-      // 질문들 생성
-      if (templateQuestions && templateQuestions.length > 0) {
-        const questionsToInsert = templateQuestions.map(q => ({
-          survey_id: surveyId,
-          question_text: q.question_text,
-          question_type: q.question_type,
-          options: q.options,
-          is_required: q.is_required,
-          order_index: q.order_index,
-          section_id: q.section_id ? sectionMapping[q.section_id] || null : null,
-          satisfaction_type: q.satisfaction_type,
-          scope: 'session'
-        }));
-
-        const { error: insertError } = await supabase
-          .from('survey_questions')
-          .insert(questionsToInsert);
-        
-        if (insertError) throw insertError;
-      }
-
-      toast({ title: "성공", description: "템플릿이 적용되었습니다." });
-      setTemplateSelectOpen(false);
-      loadQuestions();
-      loadSectionsAndSessions();
-    } catch (e: any) {
-      toast({
-        title: "템플릿 적용 실패",
-        description: e.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingTemplate(false);
-    }
-  };
-
   const loadCourseNames = async () => {
     try {
-      const { data, error } = await supabase.from("course_names").select("*").order("name");
-      if (error) throw error;
-      setCourseNames((data || []) as {id: string; name: string}[]);
+      const list = await CourseNamesRepo.list();
+      setCourseNames(list);
     } catch (e: any) {
       toast({
         title: "과정명 목록 로드 실패",
-        description: e.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const loadQuestions = async () => {
-    if (!surveyId) return;
-    try {
-      const { data, error } = await supabase
-        .from('survey_questions')
-        .select('*')
-        .eq('survey_id', surveyId)
-        .order('order_index');
-      
-      if (error) throw error;
-      setQuestions((data || []) as SurveyQuestion[]);
-    } catch (e: any) {
-      toast({
-        title: "질문 로드 실패",
-        description: e.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const loadSectionsAndSessions = async () => {
-    if (!surveyId) return;
-    try {
-      // Load sections
-      const { data: sectionsData, error: sectionsError } = await supabase
-        .from('survey_sections')
-        .select('*')
-        .eq('survey_id', surveyId)
-        .order('order_index');
-      
-      if (sectionsError) throw sectionsError;
-      setSections(sectionsData || []);
-
-      // Load sessions
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('survey_sessions')
-        .select(`
-          *,
-          course:courses(title),
-          instructor:instructors(name)
-        `)
-        .eq('survey_id', surveyId)
-        .order('session_order');
-      
-      if (sessionsError) throw sessionsError;
-      setSessions(sessionsData || []);
-    } catch (e: any) {
-      toast({
-        title: "섹션/세션 로드 실패", 
         description: e.message,
         variant: "destructive",
       });
@@ -444,8 +240,7 @@ export default function SurveyBuilder() {
     const name = newCourseName.trim();
     if (!name) return;
     try {
-      const { error } = await supabase.from("course_names").insert([{ name }]);
-      if (error) throw error;
+      await CourseNamesRepo.create(name);
       setNewCourseName("");
       await loadCourseNames();
       toast({ title: "과정명 추가", description: `"${name}" 추가됨` });
@@ -459,21 +254,7 @@ export default function SurveyBuilder() {
     if (!newName) return;
     try {
       const old = courseNames.find((c) => c.id === editRow.id)?.name || "";
-      
-      // Update course_names table
-      const { error: courseError } = await supabase
-        .from("course_names")
-        .update({ name: newName })
-        .eq("id", editRow.id);
-      if (courseError) throw courseError;
-
-      // Update surveys that use this course name
-      const { error: surveyError } = await supabase
-        .from("surveys")
-        .update({ course_name: newName })
-        .eq("course_name", old);
-      if (surveyError) throw surveyError;
-      
+      await CourseNamesRepo.rename(editRow.id, old, newName);
       setEditRow(null);
       await loadCourseNames();
       if (courseName === old) setCourseName(newName); // 폼 동기화
@@ -487,8 +268,7 @@ export default function SurveyBuilder() {
     if (!target) return;
     if (!confirm(`"${target.name}" 과정을 목록에서 삭제할까요? (기존 설문에는 영향 없습니다)`)) return;
     try {
-      const { error } = await supabase.from("course_names").delete().eq("id", id);
-      if (error) throw error;
+      await CourseNamesRepo.remove(id);
       await loadCourseNames();
       toast({ title: "삭제 완료", description: `"${target.name}" 삭제됨` });
     } catch (e: any) {
@@ -496,136 +276,9 @@ export default function SurveyBuilder() {
     }
   };
 
-  const handleAddQuestion = () => {
-    setEditingQuestion(null);
-    setQuestionDialogOpen(true);
-  };
-
-  const handleEditQuestion = (question: SurveyQuestion) => {
-    setEditingQuestion(question);
-    setQuestionDialogOpen(true);
-  };
-
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm('이 질문을 삭제하시겠습니까?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('survey_questions')
-        .delete()
-        .eq('id', questionId);
-      
-      if (error) throw error;
-      
-      toast({ title: "성공", description: "질문이 삭제되었습니다." });
-      loadQuestions();
-    } catch (e: any) {
-      toast({
-        title: "삭제 실패",
-        description: e.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleQuestionSave = () => {
-    setQuestionDialogOpen(false);
-    loadQuestions();
-  };
-
-  const handleAddSection = async () => {
-    setSectionForm({ name: "", description: "" });
-    setEditingSection(null);
-    setSectionDialogOpen(true);
-  };
-
-  const handleEditSection = (section: Section) => {
-    setEditingSection(section);
-    setSectionForm({
-      name: section.name,
-      description: section.description || ""
-    });
-    setSectionDialogOpen(true);
-  };
-
-  const handleSaveSection = async () => {
-    if (!surveyId || !sectionForm.name.trim()) return;
-    
-    try {
-      if (editingSection) {
-        // 수정
-        const { error } = await supabase
-          .from('survey_sections')
-          .update({
-            name: sectionForm.name,
-            description: sectionForm.description || null
-          })
-          .eq('id', editingSection.id);
-        
-        if (error) throw error;
-        toast({ title: "성공", description: "섹션이 수정되었습니다." });
-      } else {
-        // 추가
-        const { error } = await supabase
-          .from('survey_sections')
-          .insert({
-            survey_id: surveyId,
-            name: sectionForm.name,
-            description: sectionForm.description || null,
-            order_index: sections.length
-          });
-        
-        if (error) throw error;
-        toast({ title: "성공", description: "섹션이 추가되었습니다." });
-      }
-
-      setSectionDialogOpen(false);
-      loadSectionsAndSessions();
-    } catch (e: any) {
-      toast({
-        title: editingSection ? "수정 실패" : "추가 실패",
-        description: e.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteSection = async (sectionId: string) => {
-    if (!confirm('이 섹션을 삭제하시겠습니까? 섹션에 속한 질문들의 섹션 정보가 제거됩니다.')) return;
-    
-    try {
-      // 섹션에 속한 질문들의 section_id를 null로 설정
-      await supabase
-        .from('survey_questions')
-        .update({ section_id: null })
-        .eq('section_id', sectionId);
-
-      // 섹션 삭제
-      const { error } = await supabase
-        .from('survey_sections')
-        .delete()
-        .eq('id', sectionId);
-      
-      if (error) throw error;
-      
-      toast({ title: "성공", description: "섹션이 삭제되었습니다." });
-      loadSectionsAndSessions();
-      loadQuestions();
-    } catch (e: any) {
-      toast({
-        title: "삭제 실패",
-        description: e.message,
-        variant: "destructive",
-      });
-    }
-  };
-
   useEffect(() => {
     loadSurvey();
     loadCourseNames();
-    loadQuestions();
-    loadSectionsAndSessions();
-    loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId]);
 
@@ -776,211 +429,6 @@ export default function SurveyBuilder() {
           </div>
         </CardContent>
       </Card>
-
-      {/* 질문 관리 섹션 */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl">질문 관리</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setTemplateSelectOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                템플릿 불러오기
-              </Button>
-              <Button variant="outline" onClick={handleAddSection}>
-                <Plus className="w-4 h-4 mr-2" />
-                섹션 추가
-              </Button>
-              <Button onClick={handleAddQuestion}>
-                <Plus className="w-4 h-4 mr-2" />
-                질문 추가
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* 섹션 관리 */}
-          {sections.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">질문 섹션</h3>
-              <div className="space-y-2">
-                {sections.map((section) => (
-                  <div key={section.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{section.name}</h4>
-                      {section.description && (
-                        <p className="text-sm text-muted-foreground">{section.description}</p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditSection(section)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => handleDeleteSection(section.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {questions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <div className="text-4xl mb-2">📝</div>
-              <p>아직 질문이 없습니다</p>
-              <p className="text-sm mt-1">첫 번째 질문을 추가해보세요</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {questions.map((question, index) => (
-                <div key={question.id} className="border rounded-lg p-4 relative">
-                  <div className="absolute left-4 top-4 flex items-center justify-center w-6 h-6 bg-primary text-white text-sm font-bold rounded-full">
-                    {index + 1}
-                  </div>
-                  
-                  <div className="absolute top-4 right-4 flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleEditQuestion(question)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                      onClick={() => handleDeleteQuestion(question.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="ml-8 mr-16">
-                    <h3 className="font-medium mb-2">
-                      {question.question_text}
-                      {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                    </h3>
-                    <div className="text-sm text-muted-foreground">
-                      유형: {question.question_type} 
-                      {question.satisfaction_type && ` • 만족도: ${question.satisfaction_type}`}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 질문 추가/편집 다이얼로그 */}
-      <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingQuestion ? "질문 수정" : "질문 추가"}
-            </DialogTitle>
-          </DialogHeader>
-          <QuestionEditForm
-            question={editingQuestion}
-            surveyId={surveyId!}
-            onSave={handleQuestionSave}
-            onCancel={() => setQuestionDialogOpen(false)}
-            sections={sections}
-            sessions={sessions}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* 템플릿 선택 다이얼로그 */}
-      <Dialog open={templateSelectOpen} onOpenChange={setTemplateSelectOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>템플릿 선택</DialogTitle>
-            <DialogDescription>
-              기존 템플릿을 불러와서 질문을 자동으로 추가합니다. 기존 질문과 섹션은 모두 삭제됩니다.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {templates.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">
-                사용 가능한 템플릿이 없습니다.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {templates.map((template) => (
-                  <Button
-                    key={template.id}
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => loadFromTemplate(template.id)}
-                    disabled={loadingTemplate}
-                  >
-                    {template.name}
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplateSelectOpen(false)}>
-              취소
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 섹션 추가/편집 다이얼로그 */}
-      <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingSection ? "섹션 수정" : "섹션 추가"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="section-name">섹션 이름</Label>
-              <Input
-                id="section-name"
-                value={sectionForm.name}
-                onChange={(e) => setSectionForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="섹션 이름을 입력하세요"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="section-description">설명 (선택사항)</Label>
-              <Textarea
-                id="section-description"
-                value={sectionForm.description}
-                onChange={(e) => setSectionForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="섹션 설명을 입력하세요"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSectionDialogOpen(false)}>
-              취소
-            </Button>
-            <Button onClick={handleSaveSection} disabled={!sectionForm.name.trim()}>
-              {editingSection ? "수정" : "추가"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* 과정명 관리 다이얼로그 */}
       <Dialog open={courseMgrOpen} onOpenChange={setCourseMgrOpen}>

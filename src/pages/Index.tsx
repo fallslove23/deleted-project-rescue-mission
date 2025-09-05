@@ -138,17 +138,17 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-          <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-3 flex justify-between items-center overflow-hidden">
-            <div className="absolute left-3 sm:left-4">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
-                    <Menu className="h-5 w-5 md:h-6 md:w-6" />
-                    {user && <div className="absolute -top-1 -right-1 h-2 w-2 md:h-3 md:w-3 bg-primary rounded-full"></div>}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[280px] sm:w-80 p-4 max-w-[90vw]">
-                  <div className="space-y-6 mt-6 overflow-y-auto max-h-[calc(100vh-80px)]">
+        <div className="container mx-auto px-3 sm:px-4 py-3 flex justify-between items-center max-w-full overflow-hidden">
+          <div className="absolute left-3 sm:left-4">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-10 md:w-10">
+                  <Menu className="h-5 w-5 md:h-6 md:w-6" />
+                  {user && <div className="absolute -top-1 -right-1 h-2 w-2 md:h-3 md:w-3 bg-primary rounded-full"></div>}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] sm:w-80 p-4 max-w-[90vw]">
+                <div className="space-y-6 mt-6 overflow-y-auto max-h-[calc(100vh-80px)]">
                   {user ? (
                     <>
                       <div className="border-b pb-4">
@@ -222,7 +222,7 @@ const Index = () => {
       </header>
 
       {/* Main */}
-      <main className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-6 md:py-8">
+      <main className="container mx-auto px-3 sm:px-4 py-6 md:py-8 max-w-full">
         <div className="mb-6 md:mb-8 text-center px-2">
           <h2 className="text-lg md:text-3xl font-bold mb-2 md:mb-4 break-words">{showAllSurveys ? '📝 전체 설문조사' : '📝 오늘의 설문조사'}</h2>
           <p className="text-muted-foreground text-sm md:text-base break-words">

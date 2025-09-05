@@ -49,7 +49,7 @@ export interface QuickCreatePayload {
   education_year: number;
   education_round: number;
   education_day: number;
-  program_name: string;
+  course_name: string;
   template_id?: string | null;
 }
 
@@ -71,45 +71,6 @@ function nextDayBase(hour: number, minute = 0) {
   );
   return d.toISOString();
 }
-
-export interface CourseName {
-  id: string;
-  name: string;
-}
-
-export const CourseNamesRepo = {
-  async list(): Promise<CourseName[]> {
-    const { data, error } = await supabase.from("course_names").select("*").order("name");
-    if (error) throw error;
-    return (data || []) as CourseName[];
-  },
-
-  async create(name: string) {
-    const { error } = await supabase.from("course_names").insert([{ name }]);
-    if (error) throw error;
-  },
-
-  async rename(id: string, oldName: string, newName: string) {
-    // Update course_names table
-    const { error: courseError } = await supabase
-      .from("course_names")
-      .update({ name: newName })
-      .eq("id", id);
-    if (courseError) throw courseError;
-
-    // Update surveys that use this course name
-    const { error: surveyError } = await supabase
-      .from("surveys")
-      .update({ course_name: newName })
-      .eq("course_name", oldName);
-    if (surveyError) throw surveyError;
-  },
-
-  async remove(id: string) {
-    const { error } = await supabase.from("course_names").delete().eq("id", id);
-    if (error) throw error;
-  }
-};
 
 export const SurveysRepository = {
   async fetchSurveyList(
@@ -188,29 +149,21 @@ export const SurveysRepository = {
   },
 
   async quickCreateSurvey(payload: QuickCreatePayload) {
-    const title = `${payload.education_year}-${payload.program_name}-${payload.education_round}차-${payload.education_day}일차 설문`;
+    const title = `${payload.education_year}-${payload.course_name}-${payload.education_round}차-${payload.education_day}일차 설문`;
 
     const startISO = nextDayBase(9, 0);
     const endISO = nextDayBase(19, 0);
 
-    // Get program_id for the selected program
-    const { data: program } = await supabase
-      .from('programs')
-      .select('id')
-      .eq('name', payload.program_name)
-      .single();
-
     const insertPayload: any = {
       title,
       description:
-        "본 설문은 과정과 강사 만족도를 평가하기 위한 것입니다. 교육 품질 향상을 위해 모든 교육생께서 반드시 참여해 주시길 부탁드립니다.",
+        "본 설문은 과목과 강사 만족도를 평가하기 위한 것입니다. 교육 품질 향상을 위해 모든 교육생께서 반드시 참여해 주시길 부탁드립니다.",
       start_date: startISO,
       end_date: endISO,
       education_year: payload.education_year,
       education_round: payload.education_round,
       education_day: payload.education_day,
-      course_name: payload.program_name, // 호환성을 위해 유지
-      program_id: program?.id || null,
+      course_name: payload.course_name,
       status: "draft",
       template_id: payload.template_id ?? null,
     };
@@ -221,12 +174,7 @@ export const SurveysRepository = {
       .select()
       .single();
     if (error) throw error;
-    return {
-      ...data,
-      creator_email: null,
-      instructor_name: null,
-      course_title: null
-    } as SurveyListItem;
+    return data as SurveyListItem;
   },
 
   async updateStatus(id: string, status: "draft" | "active" | "public" | "completed") {
@@ -259,12 +207,7 @@ export const SurveysRepository = {
       .single();
     if (e2) throw e2;
 
-    return {
-      ...created,
-      creator_email: null,
-      instructor_name: null,
-      course_title: null
-    } as SurveyListItem;
+    return created as SurveyListItem;
   },
 
   async duplicateMany(ids: string[]) {
