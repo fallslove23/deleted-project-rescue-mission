@@ -1246,44 +1246,18 @@ export default function SurveyBuilder() {
             </DialogHeader>
             <QuestionEditForm
               question={editingQuestion}
+              surveyId={surveyId!}
               sections={sections}
               sessions={sessions}
-              onSave={async (questionData: any) => {
-                try {
-                  if (editingQuestion) {
-                    const { error } = await supabase
-                      .from('survey_questions')
-                      .update(questionData)
-                      .eq('id', editingQuestion.id);
-                    if (error) throw error;
-                  } else {
-                    const { error } = await supabase
-                      .from('survey_questions')
-                      .insert({
-                        ...questionData,
-                        survey_id: surveyId,
-                        order_index: questions.length,
-                        session_id: editingSession || null,
-                      });
-                    if (error) throw error;
-                  }
-                  
-                  await handleQuestionSave();
-                  setQuestionDialogOpen(false);
-                  setEditingQuestion(null);
-                  setEditingSession(null);
-                  toast({ 
-                    title: '성공', 
-                    description: editingQuestion ? '질문이 수정되었습니다.' : '질문이 추가되었습니다.' 
-                  });
-                } catch (error: any) {
-                  console.error(error);
-                  toast({ 
-                    title: '오류', 
-                    description: error.message || '질문 저장 중 오류가 발생했습니다.', 
-                    variant: 'destructive' 
-                  });
-                }
+              onSave={async () => {
+                await handleQuestionSave();
+                setQuestionDialogOpen(false);
+                setEditingQuestion(null);
+                setEditingSession(null);
+                toast({ 
+                  title: '성공', 
+                  description: editingQuestion ? '질문이 수정되었습니다.' : '질문이 추가되었습니다.' 
+                });
               }}
               onCancel={() => {
                 setQuestionDialogOpen(false);
