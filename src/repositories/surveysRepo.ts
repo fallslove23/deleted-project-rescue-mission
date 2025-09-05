@@ -1,7 +1,7 @@
 // src/repositories/surveysRepo.ts
 import { supabase } from "@/integrations/supabase/client";
 
-/* util: 로컬 'YYYY-MM-DDTHH:mm' */
+/* util */
 const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalInputStr = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
@@ -51,6 +51,7 @@ export type SurveyListItem = {
 export type SurveyFilters = {
   year: number | null;
   status: "draft" | "active" | "public" | "completed" | null;
+  q?: string | null; // 🔍 추가
 };
 
 export type PaginatedSurveyResult = {
@@ -58,6 +59,12 @@ export type PaginatedSurveyResult = {
   count: number;
   totalPages: number;
 };
+
+// Supabase .or 조건에 안전하게 쓰기 위한 이스케이프
+function escapeOrValue(v: string) {
+  // 쉼표, 괄호는 .or 문법과 충돌하므로 따옴표로 감싸는 대신 와일드카드에만 사용
+  return v.replace(/[%_]/g, "\\$&");
+}
 
 /* ------------------------- SurveysRepository ---------------------- */
 export const SurveysRepository = {
@@ -77,6 +84,21 @@ export const SurveysRepository = {
 
     if (filters.year !== null) query = query.eq("education_year", filters.year);
     if (filters.status !== null) query = query.eq("status", filters.status);
+
+    // 🔍 통합 검색: 제목/과정명/강사명/과목명/작성자 이메일
+    const q = (filters.q ?? "").trim();
+    if (q.length > 0) {
+      const kw = escapeOrValue(q);
+      query = query.or(
+        [
+          `title.ilike.%${kw}%`,
+          `course_name.ilike.%${kw}%`,
+          `instructor_name.ilike.%${kw}%`,
+          `course_title.ilike.%${kw}%`,
+          `creator_email.ilike.%${kw}%`,
+        ].join(",")
+      );
+    }
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -176,7 +198,7 @@ export const SurveysRepository = {
     if (error) throw error;
   },
 
-  // ▶ 퀵 생성 시에도 기본 start/end 자동 채움
+  // 기본 start/end 자동 채움
   async quickCreateSurvey(payload: {
     education_year: number;
     education_round: number;
@@ -217,11 +239,7 @@ export const SurveysRepository = {
 };
 
 /* ------------------------- CourseNamesRepo ------------------------ */
-export type CourseName = {
-  id: string;
-  name: string;
-  created_at: string | null;
-};
+export type CourseName = { id: string; name: string; created_at: string | null };
 
 export const CourseNamesRepo = {
   async list(): Promise<CourseName[]> {
@@ -232,7 +250,6 @@ export const CourseNamesRepo = {
     if (error) throw error;
     return (data ?? []) as CourseName[];
   },
-
   async create(name: string) {
     const { data, error } = await supabase
       .from("course_names")
@@ -242,22 +259,18 @@ export const CourseNamesRepo = {
     if (error) throw error;
     return data as CourseName;
   },
-
-  // 이름 변경 시 기존 설문(surveys.course_name)도 일괄 반영
   async rename(id: string, oldName: string, newName: string) {
     const { error: e1 } = await supabase
       .from("course_names")
       .update({ name: newName })
       .eq("id", id);
     if (e1) throw e1;
-
     const { error: e2 } = await supabase
       .from("surveys")
       .update({ course_name: newName })
       .eq("course_name", oldName);
     if (e2) throw e2;
   },
-
   async remove(id: string) {
     const { error } = await supabase.from("course_names").delete().eq("id", id);
     if (error) throw error;
