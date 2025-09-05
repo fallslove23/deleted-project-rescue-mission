@@ -572,29 +572,15 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
         return;
       }
 
-      const instructorData = instructorsWithEmail.map(instructor => ({
-        id: instructor.id,
-        email: instructor.email,
-        name: instructor.name
-      }));
-
-      const response = await fetch('/api/create-instructor-users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ instructors: instructorData }),
+      const { data, error } = await supabase.functions.invoke('create-instructor-users', {
+        body: { instructors: instructorsWithEmail }
       });
 
-      if (!response.ok) {
-        throw new Error('계정 동기화 요청 실패');
-      }
-
-      const result = await response.json();
+      if (error) throw error;
       
       toast({
         title: "동기화 완료",
-        description: `${result.successful.length}명의 강사 계정이 처리되었습니다.`,
+        description: `${data?.successful?.length || instructorsWithEmail.length}명의 강사 계정이 처리되었습니다.`,
         variant: "default"
       });
 
