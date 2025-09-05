@@ -60,7 +60,6 @@ export interface TemplateLite {
 
 function nextDayBase(hour: number, minute = 0) {
   const now = new Date();
-  // 내일 09:00/19:00 (로컬 타임존 기준)
   const d = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -84,9 +83,7 @@ export const SurveysRepository = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = supabase
-      .from("surveys_list_v1")
-      .select("*", { count: "exact" });
+    let query = supabase.from("surveys_list_v1").select("*", { count: "exact" });
 
     if (filters.year) query = query.eq("education_year", filters.year);
     if (filters.status) query = query.eq("status", filters.status);
@@ -117,6 +114,13 @@ export const SurveysRepository = {
     };
   },
 
+  async fetchByIds(ids: string[]): Promise<SurveyListItem[]> {
+    if (ids.length === 0) return [];
+    const { data, error } = await supabase.from("surveys_list_v1").select("*").in("id", ids);
+    if (error) throw error;
+    return (data || []) as SurveyListItem[];
+  },
+
   async getAvailableYears(): Promise<number[]> {
     const { data, error } = await supabase
       .from("survey_available_years_v1")
@@ -125,7 +129,6 @@ export const SurveysRepository = {
     return (data || []).map((d: any) => d.education_year);
   },
 
-  // 연도별 과정명 목록 (중복 제거)
   async getAvailableCourseNames(year: number | null): Promise<string[]> {
     let q = supabase.from("surveys").select("course_name").not("course_name", "is", null);
     if (year) q = q.eq("education_year", year);
@@ -204,7 +207,6 @@ export const SurveysRepository = {
       .single();
     if (e2) throw e2;
 
-    // 섹션/문항 복제는 필요시 확장 (여기선 본문만 복제)
     return created as SurveyListItem;
   },
 
@@ -212,9 +214,7 @@ export const SurveysRepository = {
     for (const id of ids) {
       try {
         await this.duplicateSurvey(id);
-      } catch {
-        // 개별 실패는 무시하고 진행
-      }
+      } catch {}
     }
   },
 
