@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Plus, Edit, Trash2, FileSpreadsheet, Wand2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, Plus, Edit, Trash2, FileSpreadsheet, Wand2, AlertCircle, CheckCircle, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
@@ -34,31 +33,43 @@ interface CourseStatistic {
 
 const CourseStatisticsManagement = () => {
   const [statistics, setStatistics] = useState<CourseStatistic[]>([]);
+  const [allStatistics, setAllStatistics] = useState<CourseStatistic[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedRound, setSelectedRound] = useState<string>('all');
+  const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [editingItem, setEditingItem] = useState<CourseStatistic | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
   const { toast } = useToast();
 
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i + 1);
   const statusOptions = ['완료', '진행 중', '진행 예정', '취소'];
+  
+  // 필터링된 통계에서 사용 가능한 차수와 과정명 추출
+  const availableRounds = [...new Set(allStatistics.filter(stat => stat.year === selectedYear).map(stat => stat.round))].sort((a, b) => a - b);
+  const availableCourses = [...new Set(allStatistics.filter(stat => stat.year === selectedYear && (selectedRound === 'all' || stat.round === parseInt(selectedRound))).map(stat => stat.course_name))].sort();
 
   useEffect(() => {
-    fetchStatistics();
-  }, [selectedYear]);
+    fetchAllStatistics();
+  }, []);
 
-  const fetchStatistics = async () => {
+  useEffect(() => {
+    applyFilters();
+  }, [selectedYear, selectedRound, selectedCourse, allStatistics]);
+
+  const fetchAllStatistics = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('course_statistics')
         .select('*')
-        .eq('year', selectedYear)
+        .order('year', { ascending: false })
         .order('round', { ascending: true });
 
       if (error) throw error;
-      setStatistics(data || []);
+      setAllStatistics(data || []);
     } catch (error) {
       console.error('Error fetching statistics:', error);
       toast({
@@ -69,6 +80,20 @@ const CourseStatisticsManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilters = () => {
+    let filtered = allStatistics.filter(stat => stat.year === selectedYear);
+    
+    if (selectedRound !== 'all') {
+      filtered = filtered.filter(stat => stat.round === parseInt(selectedRound));
+    }
+    
+    if (selectedCourse !== 'all') {
+      filtered = filtered.filter(stat => stat.course_name === selectedCourse);
+    }
+    
+    setStatistics(filtered.sort((a, b) => a.round - b.round));
   };
 
   const handleSave = async (formData: FormData) => {
@@ -110,7 +135,7 @@ const CourseStatisticsManagement = () => {
 
       setIsDialogOpen(false);
       setEditingItem(null);
-      fetchStatistics();
+      fetchAllStatistics();
     } catch (error) {
       console.error('Error saving statistic:', error);
       toast({
@@ -133,7 +158,7 @@ const CourseStatisticsManagement = () => {
       if (error) throw error;
       
       toast({ title: "성공", description: "통계 데이터가 삭제되었습니다." });
-      fetchStatistics();
+      fetchAllStatistics();
     } catch (error) {
       console.error('Error deleting statistic:', error);
       toast({
@@ -188,7 +213,8 @@ const CourseStatisticsManagement = () => {
           message: `${statisticsToUpload.length}개의 통계 데이터가 성공적으로 업로드되었습니다.` 
         });
         
-        fetchStatistics();
+        setIsUploadDialogOpen(false);
+        fetchAllStatistics();
       } catch (error) {
         console.error('Error uploading Excel:', error);
         setUploadStatus({ 
@@ -342,7 +368,7 @@ const CourseStatisticsManagement = () => {
           description: `${statsArray.length}개의 통계가 자동 생성되었습니다.`
         });
 
-        fetchStatistics();
+        fetchAllStatistics();
       }
 
     } catch (error) {
@@ -369,221 +395,248 @@ const CourseStatisticsManagement = () => {
           </h1>
         </div>
         <p className="text-muted-foreground">
-          과정별 통계 데이터를 입력, 수정, 삭제하거나 Excel로 일괄 업로드할 수 있습니다.
+          과정별 통계 데이터를 조회, 입력, 수정, 삭제하거나 Excel 업로드 및 자동 생성할 수 있습니다.
         </p>
       </div>
 
-      <Tabs defaultValue="management" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="management">데이터 관리</TabsTrigger>
-          <TabsTrigger value="upload">Excel 업로드</TabsTrigger>
-          <TabsTrigger value="generate">자동 생성</TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>과정별 통계 데이터</CardTitle>
+              <CardDescription>연도, 차수, 과정명으로 필터링하여 통계를 조회하세요</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsUploadDialogOpen(true)}
+                disabled={loading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Excel 업로드
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={generateFromSurveys}
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                ) : (
+                  <Wand2 className="h-4 w-4 mr-2" />
+                )}
+                자동 생성
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => { setEditingItem(null); setIsDialogOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    새 통계 추가
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{editingItem ? '통계 수정' : '새 통계 추가'}</DialogTitle>
+                    <DialogDescription>
+                      과정별 통계 정보를 입력해주세요.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <StatisticForm 
+                    initialData={editingItem} 
+                    onSave={handleSave}
+                    onCancel={() => setIsDialogOpen(false)}
+                  />
+                </DialogContent>
+                </Dialog>
+            </div>
+          </div>
+        </CardHeader>
 
-        <TabsContent value="management" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>과정별 통계 데이터</CardTitle>
-                  <CardDescription>{selectedYear}년도 과정별 통계 현황</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map(year => (
-                        <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button onClick={() => { setEditingItem(null); setIsDialogOpen(true); }}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        새 통계 추가
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>{editingItem ? '통계 수정' : '새 통계 추가'}</DialogTitle>
-                        <DialogDescription>
-                          과정별 통계 정보를 입력해주세요.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <StatisticForm 
-                        initialData={editingItem} 
-                        onSave={handleSave}
-                        onCancel={() => setIsDialogOpen(false)}
-                      />
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <CardContent className="space-y-4">
+          {/* 필터 섹션 */}
+          <div className="flex items-center gap-4 p-4 bg-muted/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">필터</span>
+            </div>
+            <div className="flex gap-2">
+              <Select value={selectedYear.toString()} onValueChange={(value) => {
+                setSelectedYear(Number(value));
+                setSelectedRound('all');
+                setSelectedCourse('all');
+              }}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={selectedRound} onValueChange={(value) => {
+                setSelectedRound(value);
+                setSelectedCourse('all');
+              }}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="차수 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 차수</SelectItem>
+                  {availableRounds.map(round => (
+                    <SelectItem key={round} value={round.toString()}>{round}차</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="과정 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 과정</SelectItem>
+                  {availableCourses.map(course => (
+                    <SelectItem key={course} value={course}>{course}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {/* 테이블 섹션 */}
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              {statistics.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  선택한 조건에 해당하는 통계 데이터가 없습니다.
                 </div>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>차수</TableHead>
-                        <TableHead>과정명</TableHead>
-                        <TableHead>기간</TableHead>
-                        <TableHead>상태</TableHead>
-                        <TableHead>수강/누적</TableHead>
-                        <TableHead>종합만족도</TableHead>
-                        <TableHead>작업</TableHead>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>차수</TableHead>
+                      <TableHead>과정명</TableHead>
+                      <TableHead>기간</TableHead>
+                      <TableHead>상태</TableHead>
+                      <TableHead>수강/누적</TableHead>
+                      <TableHead>종합만족도</TableHead>
+                      <TableHead>작업</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {statistics.map((stat) => (
+                      <TableRow key={stat.id}>
+                        <TableCell>{stat.round}차</TableCell>
+                        <TableCell>{stat.course_name}</TableCell>
+                        <TableCell className="text-sm">
+                          {stat.course_start_date} ~ {stat.course_end_date}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            stat.status === '완료' ? 'bg-success/20 text-success' :
+                            stat.status === '진행 중' ? 'bg-info/20 text-info' :
+                            stat.status === '진행 예정' ? 'bg-warning/20 text-warning' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {stat.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>{stat.enrolled_count} / {stat.cumulative_count}</TableCell>
+                        <TableCell>
+                          {stat.total_satisfaction ? `${stat.total_satisfaction}/10` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => { setEditingItem(stat); setIsDialogOpen(true); }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => stat.id && handleDelete(stat.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {statistics.map((stat) => (
-                        <TableRow key={stat.id}>
-                          <TableCell>{stat.round}차</TableCell>
-                          <TableCell>{stat.course_name}</TableCell>
-                          <TableCell className="text-sm">
-                            {stat.course_start_date} ~ {stat.course_end_date}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              stat.status === '완료' ? 'bg-green-100 text-green-800' :
-                              stat.status === '진행 중' ? 'bg-blue-100 text-blue-800' :
-                              stat.status === '진행 예정' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {stat.status}
-                            </span>
-                          </TableCell>
-                          <TableCell>{stat.enrolled_count} / {stat.cumulative_count}</TableCell>
-                          <TableCell>
-                            {stat.total_satisfaction ? `${stat.total_satisfaction}/10` : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => { setEditingItem(stat); setIsDialogOpen(true); }}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => stat.id && handleDelete(stat.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <TabsContent value="upload" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Excel 파일 업로드</CardTitle>
-              <CardDescription>Excel 파일을 업로드하여 통계 데이터를 일괄 입력할 수 있습니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {uploadStatus.type && (
-                <Alert className={uploadStatus.type === 'success' ? 'border-green-500' : 'border-red-500'}>
-                  {uploadStatus.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                  <AlertDescription>{uploadStatus.message}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-                <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Excel 파일을 선택해주세요</h3>
-                  <p className="text-sm text-muted-foreground">
-                    .xlsx, .xls 파일을 지원합니다
-                  </p>
-                </div>
-                <Input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleExcelUpload}
-                  className="mt-4 max-w-xs mx-auto"
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h4 className="font-semibold mb-2">Excel 파일 형식</h4>
-                <p className="text-sm text-muted-foreground mb-2">
-                  다음 컬럼들을 포함해야 합니다:
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>• 연도 (year)</div>
-                  <div>• 차수 (round)</div>
-                  <div>• 과정명 (course_name)</div>
-                  <div>• 과정시작일 (course_start_date)</div>
-                  <div>• 과정종료일 (course_end_date)</div>
-                  <div>• 과정일수 (course_days)</div>
-                  <div>• 상태 (status)</div>
-                  <div>• 수강인원 (enrolled_count)</div>
-                  <div>• 누적인원 (cumulative_count)</div>
-                  <div>• 교육일수 (education_days) - 선택</div>
-                  <div>• 교육시간 (education_hours) - 선택</div>
-                  <div>• 종합만족도 (total_satisfaction) - 선택</div>
-                  <div>• 과정만족도 (course_satisfaction) - 선택</div>
-                  <div>• 강사만족도 (instructor_satisfaction) - 선택</div>
-                  <div>• 운영만족도 (operation_satisfaction) - 선택</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="generate" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>설문 결과 자동 생성</CardTitle>
-              <CardDescription>기존 설문 조사 결과를 기반으로 통계 데이터를 자동으로 생성합니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert>
-                <Wand2 className="h-4 w-4" />
-                <AlertDescription>
-                  {selectedYear}년도의 완료된 설문 조사 결과를 분석하여 과정별 통계를 자동 생성합니다.
-                  기존에 동일한 년도/차수/과정명으로 입력된 데이터가 있다면 덮어쓰여집니다.
-                </AlertDescription>
+      {/* Excel 업로드 다이얼로그 */}
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Excel 파일 업로드</DialogTitle>
+            <DialogDescription>
+              Excel 파일을 업로드하여 통계 데이터를 일괄 입력할 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {uploadStatus.type && (
+              <Alert className={uploadStatus.type === 'success' ? 'border-success' : 'border-destructive'}>
+                {uploadStatus.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                <AlertDescription>{uploadStatus.message}</AlertDescription>
               </Alert>
-
-              <div className="flex justify-center">
-                <Button 
-                  onClick={generateFromSurveys} 
-                  disabled={loading}
-                  size="lg"
-                  className="min-w-48"
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  ) : (
-                    <Wand2 className="h-4 w-4 mr-2" />
-                  )}
-                  {selectedYear}년 통계 자동 생성
-                </Button>
+            )}
+            
+            <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
+              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <div className="space-y-2">
+                <h3 className="font-semibold">Excel 파일을 선택해주세요</h3>
+                <p className="text-sm text-muted-foreground">
+                  .xlsx, .xls 파일을 지원합니다
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+                className="mt-4 max-w-xs mx-auto"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-4">
+              <h4 className="font-semibold mb-2">Excel 파일 형식</h4>
+              <p className="text-sm text-muted-foreground mb-2">
+                다음 컬럼들을 포함해야 합니다:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>• 연도 (year)</div>
+                <div>• 차수 (round)</div>
+                <div>• 과정명 (course_name)</div>
+                <div>• 과정시작일 (course_start_date)</div>
+                <div>• 과정종료일 (course_end_date)</div>
+                <div>• 과정일수 (course_days)</div>
+                <div>• 상태 (status)</div>
+                <div>• 수강인원 (enrolled_count)</div>
+                <div>• 누적인원 (cumulative_count)</div>
+                <div>• 교육일수 (education_days) - 선택</div>
+                <div>• 교육시간 (education_hours) - 선택</div>
+                <div>• 종합만족도 (total_satisfaction) - 선택</div>
+                <div>• 과정만족도 (course_satisfaction) - 선택</div>
+                <div>• 강사만족도 (instructor_satisfaction) - 선택</div>
+                <div>• 운영만족도 (operation_satisfaction) - 선택</div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
