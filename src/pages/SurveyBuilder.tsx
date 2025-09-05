@@ -160,10 +160,124 @@ export default function SurveyBuilder() {
     null
   );
 
+  // 템플릿 관리
+  const [templates, setTemplates] = useState<{id: string; name: string}[]>([]);
+  const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+
+  // 섹션 관리
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
+  const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [sectionForm, setSectionForm] = useState({
+    name: "",
+    description: ""
+  });
+
   const title = useMemo(
     () => buildTitle(educationYear, educationRound, educationDay, courseName),
     [educationYear, educationRound, educationDay, courseName]
   );
+
+  const loadTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('survey_templates')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      setTemplates(data || []);
+    } catch (e: any) {
+      toast({
+        title: "템플릿 로드 실패",
+        description: e.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadFromTemplate = async (templateId: string) => {
+    if (!surveyId) return;
+    
+    setLoadingTemplate(true);
+    try {
+      // 템플릿 질문들 가져오기
+      const { data: templateQuestions, error: questionsError } = await supabase
+        .from('template_questions')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('order_index');
+      
+      if (questionsError) throw questionsError;
+
+      // 템플릿 섹션들 가져오기
+      const { data: templateSections, error: sectionsError } = await supabase
+        .from('template_sections')
+        .select('*')
+        .eq('template_id', templateId)
+        .order('order_index');
+      
+      if (sectionsError) throw sectionsError;
+
+      // 기존 질문과 섹션 삭제
+      await supabase.from('survey_questions').delete().eq('survey_id', surveyId);
+      await supabase.from('survey_sections').delete().eq('survey_id', surveyId);
+
+      // 섹션들을 먼저 생성
+      const sectionMapping: Record<string, string> = {};
+      if (templateSections && templateSections.length > 0) {
+        for (const section of templateSections) {
+          const { data: newSection, error: sectionError } = await supabase
+            .from('survey_sections')
+            .insert({
+              survey_id: surveyId,
+              name: section.name,
+              description: section.description,
+              order_index: section.order_index
+            })
+            .select('*')
+            .single();
+          
+          if (sectionError) throw sectionError;
+          sectionMapping[section.id] = newSection.id;
+        }
+      }
+
+      // 질문들 생성
+      if (templateQuestions && templateQuestions.length > 0) {
+        const questionsToInsert = templateQuestions.map(q => ({
+          survey_id: surveyId,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          is_required: q.is_required,
+          order_index: q.order_index,
+          section_id: q.section_id ? sectionMapping[q.section_id] || null : null,
+          satisfaction_type: q.satisfaction_type,
+          scope: 'session'
+        }));
+
+        const { error: insertError } = await supabase
+          .from('survey_questions')
+          .insert(questionsToInsert);
+        
+        if (insertError) throw insertError;
+      }
+
+      toast({ title: "성공", description: "템플릿이 적용되었습니다." });
+      setTemplateSelectOpen(false);
+      loadQuestions();
+      loadSectionsAndSessions();
+    } catch (e: any) {
+      toast({
+        title: "템플릿 적용 실패",
+        description: e.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
 
   const loadCourseNames = async () => {
     try {
@@ -419,11 +533,99 @@ export default function SurveyBuilder() {
     loadQuestions();
   };
 
+  const handleAddSection = async () => {
+    setSectionForm({ name: "", description: "" });
+    setEditingSection(null);
+    setSectionDialogOpen(true);
+  };
+
+  const handleEditSection = (section: Section) => {
+    setEditingSection(section);
+    setSectionForm({
+      name: section.name,
+      description: section.description || ""
+    });
+    setSectionDialogOpen(true);
+  };
+
+  const handleSaveSection = async () => {
+    if (!surveyId || !sectionForm.name.trim()) return;
+    
+    try {
+      if (editingSection) {
+        // 수정
+        const { error } = await supabase
+          .from('survey_sections')
+          .update({
+            name: sectionForm.name,
+            description: sectionForm.description || null
+          })
+          .eq('id', editingSection.id);
+        
+        if (error) throw error;
+        toast({ title: "성공", description: "섹션이 수정되었습니다." });
+      } else {
+        // 추가
+        const { error } = await supabase
+          .from('survey_sections')
+          .insert({
+            survey_id: surveyId,
+            name: sectionForm.name,
+            description: sectionForm.description || null,
+            order_index: sections.length
+          });
+        
+        if (error) throw error;
+        toast({ title: "성공", description: "섹션이 추가되었습니다." });
+      }
+
+      setSectionDialogOpen(false);
+      loadSectionsAndSessions();
+    } catch (e: any) {
+      toast({
+        title: editingSection ? "수정 실패" : "추가 실패",
+        description: e.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    if (!confirm('이 섹션을 삭제하시겠습니까? 섹션에 속한 질문들의 섹션 정보가 제거됩니다.')) return;
+    
+    try {
+      // 섹션에 속한 질문들의 section_id를 null로 설정
+      await supabase
+        .from('survey_questions')
+        .update({ section_id: null })
+        .eq('section_id', sectionId);
+
+      // 섹션 삭제
+      const { error } = await supabase
+        .from('survey_sections')
+        .delete()
+        .eq('id', sectionId);
+      
+      if (error) throw error;
+      
+      toast({ title: "성공", description: "섹션이 삭제되었습니다." });
+      loadSectionsAndSessions();
+      loadQuestions();
+    } catch (e: any) {
+      toast({
+        title: "삭제 실패",
+        description: e.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     loadSurvey();
     loadCourseNames();
     loadQuestions();
     loadSectionsAndSessions();
+    loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId]);
 
@@ -580,13 +782,59 @@ export default function SurveyBuilder() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-2xl">질문 관리</CardTitle>
-            <Button onClick={handleAddQuestion}>
-              <Plus className="w-4 h-4 mr-2" />
-              질문 추가
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setTemplateSelectOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                템플릿 불러오기
+              </Button>
+              <Button variant="outline" onClick={handleAddSection}>
+                <Plus className="w-4 h-4 mr-2" />
+                섹션 추가
+              </Button>
+              <Button onClick={handleAddQuestion}>
+                <Plus className="w-4 h-4 mr-2" />
+                질문 추가
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {/* 섹션 관리 */}
+          {sections.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-3">질문 섹션</h3>
+              <div className="space-y-2">
+                {sections.map((section) => (
+                  <div key={section.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div>
+                      <h4 className="font-medium">{section.name}</h4>
+                      {section.description && (
+                        <p className="text-sm text-muted-foreground">{section.description}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditSection(section)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => handleDeleteSection(section.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {questions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <div className="text-4xl mb-2">📝</div>
@@ -653,6 +901,84 @@ export default function SurveyBuilder() {
             sections={sections}
             sessions={sessions}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* 템플릿 선택 다이얼로그 */}
+      <Dialog open={templateSelectOpen} onOpenChange={setTemplateSelectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>템플릿 선택</DialogTitle>
+            <DialogDescription>
+              기존 템플릿을 불러와서 질문을 자동으로 추가합니다. 기존 질문과 섹션은 모두 삭제됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {templates.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                사용 가능한 템플릿이 없습니다.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {templates.map((template) => (
+                  <Button
+                    key={template.id}
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => loadFromTemplate(template.id)}
+                    disabled={loadingTemplate}
+                  >
+                    {template.name}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateSelectOpen(false)}>
+              취소
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 섹션 추가/편집 다이얼로그 */}
+      <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingSection ? "섹션 수정" : "섹션 추가"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="section-name">섹션 이름</Label>
+              <Input
+                id="section-name"
+                value={sectionForm.name}
+                onChange={(e) => setSectionForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="섹션 이름을 입력하세요"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="section-description">설명 (선택사항)</Label>
+              <Textarea
+                id="section-description"
+                value={sectionForm.description}
+                onChange={(e) => setSectionForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="섹션 설명을 입력하세요"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSectionDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleSaveSection} disabled={!sectionForm.name.trim()}>
+              {editingSection ? "수정" : "추가"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
