@@ -20,6 +20,7 @@ import DashboardEmailLogs from "./pages/DashboardEmailLogs";
 import DashboardSystemLogs from "./pages/DashboardSystemLogs";
 import DashboardUserManagement from "./pages/DashboardUserManagement";
 import DashboardCourseManagement from "./pages/DashboardCourseManagement";
+import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagement from "./pages/SurveyManagement";
 import SurveyBuilder from "./pages/SurveyBuilder";
@@ -81,6 +82,11 @@ const App = () => (
             <Route path="/dashboard/courses" element={
               <ProtectedRoute allowedRoles={["admin", "operator"]}>
                 <DashboardCourseManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/course-statistics" element={
+              <ProtectedRoute allowedRoles={["admin", "operator"]}>
+                <DashboardCourseStatistics />
               </ProtectedRoute>
             } />
             <Route path="/dashboard/templates" element={

@@ -1,0 +1,781 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Upload, Plus, Edit, Trash2, FileSpreadsheet, Wand2, AlertCircle, CheckCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import * as XLSX from 'xlsx';
+
+interface CourseStatistic {
+  id?: string;
+  year: number;
+  round: number;
+  course_name: string;
+  course_start_date: string;
+  course_end_date: string;
+  course_days: number;
+  status: string;
+  enrolled_count: number;
+  cumulative_count: number;
+  education_days?: number;
+  education_hours?: number;
+  total_satisfaction?: number;
+  course_satisfaction?: number;
+  instructor_satisfaction?: number;
+  operation_satisfaction?: number;
+}
+
+const CourseStatisticsManagement = () => {
+  const [statistics, setStatistics] = useState<CourseStatistic[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [editingItem, setEditingItem] = useState<CourseStatistic | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
+  const { toast } = useToast();
+
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i + 1);
+  const statusOptions = ['완료', '진행 중', '진행 예정', '취소'];
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [selectedYear]);
+
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('course_statistics')
+        .select('*')
+        .eq('year', selectedYear)
+        .order('round', { ascending: true });
+
+      if (error) throw error;
+      setStatistics(data || []);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      toast({
+        title: "오류",
+        description: "통계 데이터를 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (formData: FormData) => {
+    try {
+      const statisticData: CourseStatistic = {
+        year: parseInt(formData.get('year') as string),
+        round: parseInt(formData.get('round') as string),
+        course_name: formData.get('course_name') as string,
+        course_start_date: formData.get('course_start_date') as string,
+        course_end_date: formData.get('course_end_date') as string,
+        course_days: parseInt(formData.get('course_days') as string),
+        status: formData.get('status') as string,
+        enrolled_count: parseInt(formData.get('enrolled_count') as string),
+        cumulative_count: parseInt(formData.get('cumulative_count') as string),
+        education_days: formData.get('education_days') ? parseInt(formData.get('education_days') as string) : null,
+        education_hours: formData.get('education_hours') ? parseInt(formData.get('education_hours') as string) : null,
+        total_satisfaction: formData.get('total_satisfaction') ? parseFloat(formData.get('total_satisfaction') as string) : null,
+        course_satisfaction: formData.get('course_satisfaction') ? parseFloat(formData.get('course_satisfaction') as string) : null,
+        instructor_satisfaction: formData.get('instructor_satisfaction') ? parseFloat(formData.get('instructor_satisfaction') as string) : null,
+        operation_satisfaction: formData.get('operation_satisfaction') ? parseFloat(formData.get('operation_satisfaction') as string) : null,
+      };
+
+      if (editingItem?.id) {
+        const { error } = await supabase
+          .from('course_statistics')
+          .update(statisticData)
+          .eq('id', editingItem.id);
+        
+        if (error) throw error;
+        toast({ title: "성공", description: "통계 데이터가 수정되었습니다." });
+      } else {
+        const { error } = await supabase
+          .from('course_statistics')
+          .insert(statisticData);
+        
+        if (error) throw error;
+        toast({ title: "성공", description: "통계 데이터가 추가되었습니다." });
+      }
+
+      setIsDialogOpen(false);
+      setEditingItem(null);
+      fetchStatistics();
+    } catch (error) {
+      console.error('Error saving statistic:', error);
+      toast({
+        title: "오류",
+        description: "통계 데이터 저장 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('정말로 삭제하시겠습니까?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('course_statistics')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast({ title: "성공", description: "통계 데이터가 삭제되었습니다." });
+      fetchStatistics();
+    } catch (error) {
+      console.error('Error deleting statistic:', error);
+      toast({
+        title: "오류",
+        description: "통계 데이터 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExcelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        setLoading(true);
+        setUploadStatus({ type: null, message: '' });
+
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        const statisticsToUpload: CourseStatistic[] = jsonData.map((row: any) => ({
+          year: parseInt(row['연도'] || row['year']),
+          round: parseInt(row['차수'] || row['round']),
+          course_name: row['과정명'] || row['course_name'] || '',
+          course_start_date: formatDate(row['과정시작일'] || row['course_start_date']),
+          course_end_date: formatDate(row['과정종료일'] || row['course_end_date']),
+          course_days: parseInt(row['과정일수'] || row['course_days']),
+          status: row['상태'] || row['status'] || '완료',
+          enrolled_count: parseInt(row['수강인원'] || row['enrolled_count']),
+          cumulative_count: parseInt(row['누적인원'] || row['cumulative_count']),
+          education_days: row['교육일수'] || row['education_days'] ? parseInt(row['교육일수'] || row['education_days']) : null,
+          education_hours: row['교육시간'] || row['education_hours'] ? parseInt(row['교육시간'] || row['education_hours']) : null,
+          total_satisfaction: row['종합만족도'] || row['total_satisfaction'] ? parseFloat(row['종합만족도'] || row['total_satisfaction']) : null,
+          course_satisfaction: row['과정만족도'] || row['course_satisfaction'] ? parseFloat(row['과정만족도'] || row['course_satisfaction']) : null,
+          instructor_satisfaction: row['강사만족도'] || row['instructor_satisfaction'] ? parseFloat(row['강사만족도'] || row['instructor_satisfaction']) : null,
+          operation_satisfaction: row['운영만족도'] || row['operation_satisfaction'] ? parseFloat(row['운영만족도'] || row['operation_satisfaction']) : null,
+        }));
+
+        const { error } = await supabase
+          .from('course_statistics')
+          .upsert(statisticsToUpload, { onConflict: 'year,round,course_name' });
+
+        if (error) throw error;
+
+        setUploadStatus({ 
+          type: 'success', 
+          message: `${statisticsToUpload.length}개의 통계 데이터가 성공적으로 업로드되었습니다.` 
+        });
+        
+        fetchStatistics();
+      } catch (error) {
+        console.error('Error uploading Excel:', error);
+        setUploadStatus({ 
+          type: 'error', 
+          message: 'Excel 파일 업로드 중 오류가 발생했습니다. 파일 형식을 확인해주세요.' 
+        });
+      } finally {
+        setLoading(false);
+        // Reset file input
+        event.target.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const formatDate = (dateValue: any): string => {
+    if (!dateValue) return '';
+    
+    // Excel 날짜 숫자인 경우
+    if (typeof dateValue === 'number') {
+      const date = XLSX.SSF.parse_date_code(dateValue);
+      return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
+    }
+    
+    // 이미 문자열인 경우
+    if (typeof dateValue === 'string') {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+    }
+    
+    return dateValue.toString();
+  };
+
+  const generateFromSurveys = async () => {
+    if (!confirm('기존 설문 데이터로부터 통계를 자동 생성하시겠습니까? (기존 데이터는 덮어쓰여질 수 있습니다)')) return;
+
+    try {
+      setLoading(true);
+      
+      // 해당 년도의 완료된 설문 데이터 가져오기
+      const { data: surveys, error: surveyError } = await supabase
+        .from('surveys')
+        .select(`
+          education_year,
+          education_round,
+          course_name,
+          start_date,
+          end_date,
+          status,
+          expected_participants,
+          survey_responses (
+            id,
+            question_answers (
+              answer_value,
+              survey_questions (satisfaction_type, question_type)
+            )
+          )
+        `)
+        .eq('education_year', selectedYear)
+        .eq('status', 'completed');
+
+      if (surveyError) throw surveyError;
+
+      if (!surveys || surveys.length === 0) {
+        toast({
+          title: "알림",
+          description: `${selectedYear}년도에 완료된 설문이 없습니다.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // 설문별로 통계 계산
+      const generatedStats = new Map<string, CourseStatistic>();
+
+      surveys.forEach(survey => {
+        const key = `${survey.education_year}-${survey.education_round}-${survey.course_name}`;
+        
+        if (!generatedStats.has(key)) {
+          generatedStats.set(key, {
+            year: survey.education_year,
+            round: survey.education_round,
+            course_name: survey.course_name || '',
+            course_start_date: survey.start_date ? new Date(survey.start_date).toISOString().split('T')[0] : '',
+            course_end_date: survey.end_date ? new Date(survey.end_date).toISOString().split('T')[0] : '',
+            course_days: 1, // 기본값
+            status: '완료',
+            enrolled_count: survey.expected_participants || 0,
+            cumulative_count: survey.expected_participants || 0,
+            education_days: null,
+            education_hours: null,
+            total_satisfaction: null,
+            course_satisfaction: null,
+            instructor_satisfaction: null,
+            operation_satisfaction: null,
+          });
+        }
+
+        const stat = generatedStats.get(key)!;
+
+        // 만족도 계산
+        let instructorScores: number[] = [];
+        let courseScores: number[] = [];
+        let operationScores: number[] = [];
+
+        survey.survey_responses?.forEach(response => {
+          response.question_answers?.forEach(answer => {
+            if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
+              let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
+              if (score <= 5 && score > 0) score = score * 2; // 5점 척도를 10점으로 변환
+
+              if (answer.survey_questions.satisfaction_type === 'instructor') {
+                instructorScores.push(score);
+              } else if (answer.survey_questions.satisfaction_type === 'course') {
+                courseScores.push(score);
+              } else if (answer.survey_questions.satisfaction_type === 'operation') {
+                operationScores.push(score);
+              }
+            }
+          });
+        });
+
+        // 평균 계산
+        stat.instructor_satisfaction = instructorScores.length > 0 ? 
+          Number((instructorScores.reduce((a, b) => a + b, 0) / instructorScores.length).toFixed(2)) : null;
+        stat.course_satisfaction = courseScores.length > 0 ? 
+          Number((courseScores.reduce((a, b) => a + b, 0) / courseScores.length).toFixed(2)) : null;
+        stat.operation_satisfaction = operationScores.length > 0 ? 
+          Number((operationScores.reduce((a, b) => a + b, 0) / operationScores.length).toFixed(2)) : null;
+
+        // 종합 만족도
+        const validScores = [stat.instructor_satisfaction, stat.course_satisfaction, stat.operation_satisfaction]
+          .filter(score => score !== null) as number[];
+        stat.total_satisfaction = validScores.length > 0 ? 
+          Number((validScores.reduce((a, b) => a + b, 0) / validScores.length).toFixed(2)) : null;
+      });
+
+      const statsArray = Array.from(generatedStats.values());
+
+      if (statsArray.length > 0) {
+        const { error } = await supabase
+          .from('course_statistics')
+          .upsert(statsArray, { onConflict: 'year,round,course_name' });
+
+        if (error) throw error;
+
+        toast({
+          title: "성공",
+          description: `${statsArray.length}개의 통계가 자동 생성되었습니다.`
+        });
+
+        fetchStatistics();
+      }
+
+    } catch (error) {
+      console.error('Error generating statistics:', error);
+      toast({
+        title: "오류",
+        description: "통계 자동 생성 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-xl p-6 border border-primary/20">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+            <FileSpreadsheet className="h-4 w-4 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+            과정별 통계 관리
+          </h1>
+        </div>
+        <p className="text-muted-foreground">
+          과정별 통계 데이터를 입력, 수정, 삭제하거나 Excel로 일괄 업로드할 수 있습니다.
+        </p>
+      </div>
+
+      <Tabs defaultValue="management" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="management">데이터 관리</TabsTrigger>
+          <TabsTrigger value="upload">Excel 업로드</TabsTrigger>
+          <TabsTrigger value="generate">자동 생성</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="management" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>과정별 통계 데이터</CardTitle>
+                  <CardDescription>{selectedYear}년도 과정별 통계 현황</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(Number(value))}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map(year => (
+                        <SelectItem key={year} value={year.toString()}>{year}년</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button onClick={() => { setEditingItem(null); setIsDialogOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        새 통계 추가
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>{editingItem ? '통계 수정' : '새 통계 추가'}</DialogTitle>
+                        <DialogDescription>
+                          과정별 통계 정보를 입력해주세요.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <StatisticForm 
+                        initialData={editingItem} 
+                        onSave={handleSave}
+                        onCancel={() => setIsDialogOpen(false)}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>차수</TableHead>
+                        <TableHead>과정명</TableHead>
+                        <TableHead>기간</TableHead>
+                        <TableHead>상태</TableHead>
+                        <TableHead>수강/누적</TableHead>
+                        <TableHead>종합만족도</TableHead>
+                        <TableHead>작업</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {statistics.map((stat) => (
+                        <TableRow key={stat.id}>
+                          <TableCell>{stat.round}차</TableCell>
+                          <TableCell>{stat.course_name}</TableCell>
+                          <TableCell className="text-sm">
+                            {stat.course_start_date} ~ {stat.course_end_date}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              stat.status === '완료' ? 'bg-green-100 text-green-800' :
+                              stat.status === '진행 중' ? 'bg-blue-100 text-blue-800' :
+                              stat.status === '진행 예정' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {stat.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>{stat.enrolled_count} / {stat.cumulative_count}</TableCell>
+                          <TableCell>
+                            {stat.total_satisfaction ? `${stat.total_satisfaction}/10` : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setEditingItem(stat); setIsDialogOpen(true); }}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => stat.id && handleDelete(stat.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="upload" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Excel 파일 업로드</CardTitle>
+              <CardDescription>Excel 파일을 업로드하여 통계 데이터를 일괄 입력할 수 있습니다.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {uploadStatus.type && (
+                <Alert className={uploadStatus.type === 'success' ? 'border-green-500' : 'border-red-500'}>
+                  {uploadStatus.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                  <AlertDescription>{uploadStatus.message}</AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
+                <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Excel 파일을 선택해주세요</h3>
+                  <p className="text-sm text-muted-foreground">
+                    .xlsx, .xls 파일을 지원합니다
+                  </p>
+                </div>
+                <Input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelUpload}
+                  className="mt-4 max-w-xs mx-auto"
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4">
+                <h4 className="font-semibold mb-2">Excel 파일 형식</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  다음 컬럼들을 포함해야 합니다:
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>• 연도 (year)</div>
+                  <div>• 차수 (round)</div>
+                  <div>• 과정명 (course_name)</div>
+                  <div>• 과정시작일 (course_start_date)</div>
+                  <div>• 과정종료일 (course_end_date)</div>
+                  <div>• 과정일수 (course_days)</div>
+                  <div>• 상태 (status)</div>
+                  <div>• 수강인원 (enrolled_count)</div>
+                  <div>• 누적인원 (cumulative_count)</div>
+                  <div>• 교육일수 (education_days) - 선택</div>
+                  <div>• 교육시간 (education_hours) - 선택</div>
+                  <div>• 종합만족도 (total_satisfaction) - 선택</div>
+                  <div>• 과정만족도 (course_satisfaction) - 선택</div>
+                  <div>• 강사만족도 (instructor_satisfaction) - 선택</div>
+                  <div>• 운영만족도 (operation_satisfaction) - 선택</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="generate" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>설문 결과 자동 생성</CardTitle>
+              <CardDescription>기존 설문 조사 결과를 기반으로 통계 데이터를 자동으로 생성합니다.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <Wand2 className="h-4 w-4" />
+                <AlertDescription>
+                  {selectedYear}년도의 완료된 설문 조사 결과를 분석하여 과정별 통계를 자동 생성합니다.
+                  기존에 동일한 년도/차수/과정명으로 입력된 데이터가 있다면 덮어쓰여집니다.
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex justify-center">
+                <Button 
+                  onClick={generateFromSurveys} 
+                  disabled={loading}
+                  size="lg"
+                  className="min-w-48"
+                >
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Wand2 className="h-4 w-4 mr-2" />
+                  )}
+                  {selectedYear}년 통계 자동 생성
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+interface StatisticFormProps {
+  initialData: CourseStatistic | null;
+  onSave: (formData: FormData) => void;
+  onCancel: () => void;
+}
+
+const StatisticForm = ({ initialData, onSave, onCancel }: StatisticFormProps) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    onSave(formData);
+  };
+
+  const statusOptions = ['완료', '진행 중', '진행 예정', '취소'];
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="year">연도 *</Label>
+          <Input
+            id="year"
+            name="year"
+            type="number"
+            defaultValue={initialData?.year || new Date().getFullYear()}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="round">차수 *</Label>
+          <Input
+            id="round"
+            name="round"
+            type="number"
+            defaultValue={initialData?.round || 1}
+            required
+          />
+        </div>
+        <div className="md:col-span-2">
+          <Label htmlFor="course_name">과정명 *</Label>
+          <Input
+            id="course_name"
+            name="course_name"
+            defaultValue={initialData?.course_name || ''}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="course_start_date">과정 시작일 *</Label>
+          <Input
+            id="course_start_date"
+            name="course_start_date"
+            type="date"
+            defaultValue={initialData?.course_start_date || ''}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="course_end_date">과정 종료일 *</Label>
+          <Input
+            id="course_end_date"
+            name="course_end_date"
+            type="date"
+            defaultValue={initialData?.course_end_date || ''}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="course_days">과정 일수 *</Label>
+          <Input
+            id="course_days"
+            name="course_days"
+            type="number"
+            defaultValue={initialData?.course_days || 1}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="status">상태 *</Label>
+          <Select name="status" defaultValue={initialData?.status || '완료'}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map(status => (
+                <SelectItem key={status} value={status}>{status}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="enrolled_count">수강 인원 *</Label>
+          <Input
+            id="enrolled_count"
+            name="enrolled_count"
+            type="number"
+            defaultValue={initialData?.enrolled_count || 0}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="cumulative_count">누적 인원 *</Label>
+          <Input
+            id="cumulative_count"
+            name="cumulative_count"
+            type="number"
+            defaultValue={initialData?.cumulative_count || 0}
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="education_days">교육 일수</Label>
+          <Input
+            id="education_days"
+            name="education_days"
+            type="number"
+            defaultValue={initialData?.education_days || ''}
+          />
+        </div>
+        <div>
+          <Label htmlFor="education_hours">교육 시간</Label>
+          <Input
+            id="education_hours"
+            name="education_hours"
+            type="number"
+            defaultValue={initialData?.education_hours || ''}
+          />
+        </div>
+        <div>
+          <Label htmlFor="total_satisfaction">종합 만족도</Label>
+          <Input
+            id="total_satisfaction"
+            name="total_satisfaction"
+            type="number"
+            step="0.01"
+            min="0"
+            max="10"
+            defaultValue={initialData?.total_satisfaction || ''}
+          />
+        </div>
+        <div>
+          <Label htmlFor="course_satisfaction">과정 만족도</Label>
+          <Input
+            id="course_satisfaction"
+            name="course_satisfaction"
+            type="number"
+            step="0.01"
+            min="0"
+            max="10"
+            defaultValue={initialData?.course_satisfaction || ''}
+          />
+        </div>
+        <div>
+          <Label htmlFor="instructor_satisfaction">강사 만족도</Label>
+          <Input
+            id="instructor_satisfaction"
+            name="instructor_satisfaction"
+            type="number"
+            step="0.01"
+            min="0"
+            max="10"
+            defaultValue={initialData?.instructor_satisfaction || ''}
+          />
+        </div>
+        <div>
+          <Label htmlFor="operation_satisfaction">운영 만족도</Label>
+          <Input
+            id="operation_satisfaction"
+            name="operation_satisfaction"
+            type="number"
+            step="0.01"
+            min="0"
+            max="10"
+            defaultValue={initialData?.operation_satisfaction || ''}
+          />
+        </div>
+      </div>
+      
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          취소
+        </Button>
+        <Button type="submit">
+          {initialData ? '수정' : '추가'}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+export default CourseStatisticsManagement;
