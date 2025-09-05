@@ -391,7 +391,52 @@ const CourseReports = () => {
             </Card>
           </div>
 
-          {/* 4. 응답자 분석 영역 */}
+          {/* 4. 강사 만족도 트렌드 */}
+          {instructorTrendData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>강사 만족도 트렌드</CardTitle>
+                <CardDescription>강사별 만족도 평가 비교 현황</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={instructorTrendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis 
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                      axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--card-foreground))'
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="만족도" 
+                      fill="hsl(var(--primary))" 
+                      name="평균 만족도"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 5. 응답자 분석 영역 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
