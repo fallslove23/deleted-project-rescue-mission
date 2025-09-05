@@ -217,10 +217,10 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
       if (coursesRes.error) throw coursesRes.error;
       if (instructorCoursesRes.error) throw instructorCoursesRes.error;
 
-      // 작성자 이름 매핑 - 운영/관리자 정보로 통일
+      // 작성자 이름 매핑 - 실제 계정 정보로 표시
       const surveysWithCreator = (surveysRes.data || []).map((survey: any) => ({
         ...survey,
-        creator_name: '교육운영팀' // 모든 설문의 작성자를 교육운영팀으로 통일
+        creator_name: survey.profiles?.email || '알 수 없음'
       }));
       setSurveys(surveysWithCreator);
       setInstructors(instructorsRes.data || []);
@@ -1020,7 +1020,7 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
             </div>
 
             {/* 목록 */}
-            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 grid gap-4 p-1" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+            <div className="h-[calc(100vh-400px)] min-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 grid gap-4 p-1">
               {getPaginatedSurveys().map((survey) => {
                 const surveyInstructor = instructors.find(i => i.id === survey.instructor_id);
                 const surveyCourse = courses.find(c => c.id === survey.course_id);
