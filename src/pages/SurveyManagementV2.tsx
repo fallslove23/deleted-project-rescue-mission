@@ -1,6 +1,8 @@
 // src/pages/SurveyManagementV2.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { AdminSidebar } from "@/components/AdminSidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +30,10 @@ import {
   Download,
   PlusCircle,
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatInTimeZone } from "date-fns-tz";
+
 import {
   SurveysRepository,
   SurveyListItem,
@@ -37,8 +42,6 @@ import {
   SortDir,
   TemplateLite,
 } from "@/repositories/surveysRepo";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 
 const TIMEZONE = "Asia/Seoul";
 const PAGE_SIZE = 10;
@@ -77,17 +80,35 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
 }
 
 export default function SurveyManagementV2() {
+  /* -------------------- 레이아웃: 사이드바 포함 -------------------- */
+  return (
+    <div className="flex min-h-screen bg-background">
+      <AdminSidebar />
+      <div className="flex-1 min-w-0">
+        <PageBody />
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/* ========================== 실제 페이지 본문 ======================== */
+/* ================================================================== */
+
+function PageBody() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  /* ---------- state ---------- */
+  // 데이터 상태
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 필터 소스
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [availableCourseNames, setAvailableCourseNames] = useState<string[]>([]);
 
+  // 필터 상태
   const [filters, setFilters] = useState<SurveyFilters>({
     year: null,
     status: null,
@@ -95,10 +116,10 @@ export default function SurveyManagementV2() {
     courseName: null,
   });
 
+  // 페이지네이션/정렬
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-
   const [sortBy, setSortBy] = useState<SortBy>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -123,7 +144,7 @@ export default function SurveyManagementV2() {
   const [templates, setTemplates] = useState<TemplateLite[]>([]);
   const [creating, setCreating] = useState(false);
 
-  /* ---------- URL → 상태 초기화 ---------- */
+  /* ---------- URL → 상태 ---------- */
   useEffect(() => {
     const q = searchParams.get("q");
     const year = searchParams.get("year");
@@ -144,9 +165,9 @@ export default function SurveyManagementV2() {
     setSortBy(sby);
     setSortDir(sdir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 최초 1회
+  }, []);
 
-  /* ---------- 상태 → URL 동기화 ---------- */
+  /* ---------- 상태 → URL ---------- */
   useEffect(() => {
     const sp = new URLSearchParams();
     if (filters.q) sp.set("q", filters.q);
@@ -198,7 +219,7 @@ export default function SurveyManagementV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.year]);
 
-  // 템플릿 목록 (빠른 생성용)
+  // 템플릿 목록
   useEffect(() => {
     (async () => {
       const list = await SurveysRepository.listTemplates();
@@ -267,7 +288,7 @@ export default function SurveyManagementV2() {
 
   const handleRefresh = () => loadData();
 
-  /* ---------- CSV export (현재 필터 적용 전체 최대 1000건) ---------- */
+  /* ---------- CSV export ---------- */
   const exportCsv = async () => {
     const res = await SurveysRepository.fetchSurveyList(1, 1000, filters, sortBy, sortDir);
     const rows = res.data;
@@ -286,8 +307,7 @@ export default function SurveyManagementV2() {
       "end_date",
       "created_at",
     ];
-    const escape = (v: any) =>
-      `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const escape = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const csv =
       header.join(",") +
       "\n" +
@@ -366,14 +386,13 @@ export default function SurveyManagementV2() {
         template_id: qcTemplate,
       });
       setOpenCreate(false);
-      // 바로 편집기로 이동
       navigate(`/survey-builder/${created.id}`);
     } finally {
       setCreating(false);
     }
   };
 
-  /* ---------- keyboard shortcuts ---------- */
+  /* ---------- 키보드 숏컷 ---------- */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "/" && !e.metaKey && !e.ctrlKey) {
@@ -389,16 +408,13 @@ export default function SurveyManagementV2() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* ---------- render ---------- */
+  /* ======================== 렌더 ======================== */
 
   if (loading) {
     return (
-      <div className="space-y-6 p-6">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-24" />
-        </div>
-        <div className="grid gap-4">
+      <main className="w-full max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+        <Header totalCount={totalCount} onExport={exportCsv} onRefresh={handleRefresh} onCreate={openQuickCreate} />
+        <div className="mt-6 grid gap-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <Card key={i}>
               <CardContent className="p-6">
@@ -411,36 +427,17 @@ export default function SurveyManagementV2() {
             </Card>
           ))}
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* 헤더 */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">설문 관리 V2</h1>
-          <p className="text-muted-foreground">전체 {totalCount}개의 설문</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportCsv}>
-            <Download className="w-4 h-4 mr-2" />
-            CSV 내보내기
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleRefresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            새로고침
-          </Button>
-          <Button size="sm" onClick={openQuickCreate}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            빠른 생성
-          </Button>
-        </div>
-      </div>
+    <main className="w-full max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+      {/* 상단 헤더 (타이틀/액션) */}
+      <Header totalCount={totalCount} onExport={exportCsv} onRefresh={handleRefresh} onCreate={openQuickCreate} />
 
       {/* 검색/필터/정렬 */}
-      <Card>
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Filter className="w-4 h-4" /> 검색 / 필터
@@ -463,7 +460,11 @@ export default function SurveyManagementV2() {
                 <button
                   aria-label="검색어 지우기"
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setSearchText("")}
+                  onClick={() => {
+                    setSearchText("");
+                    setFilters((prev) => ({ ...prev, q: null }));
+                    setCurrentPage(1);
+                  }}
                 >
                   <XCircle className="h-4 w-4" />
                 </button>
@@ -471,7 +472,7 @@ export default function SurveyManagementV2() {
             </div>
           </div>
 
-          {/* 필터 라인: 연도 → 과정명 → 상태 → 정렬 */}
+          {/* 필터 라인 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* 연도 */}
             <div className="space-y-2">
@@ -564,14 +565,14 @@ export default function SurveyManagementV2() {
 
       {/* 에러 */}
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="mt-6">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {/* 멀티 선택 바 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mt-6">
         <div className="flex items-center gap-2 text-sm">
           <Button variant="outline" size="sm" onClick={toggleAll}>
             <CheckSquare className="w-4 h-4 mr-1" />
@@ -605,14 +606,14 @@ export default function SurveyManagementV2() {
 
       {/* 목록 */}
       {surveys.length === 0 ? (
-        <Card>
+        <Card className="mt-4">
           <CardContent className="py-12 text-center">
             <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">조건에 맞는 설문이 없습니다.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 mt-4">
           {surveys.map((survey) => {
             const statusInfo = getStatusInfo(survey);
             const q = filters.q ?? "";
@@ -647,28 +648,28 @@ export default function SurveyManagementV2() {
                       <User className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">작성자:</span>
                       <span>
-                        <Highlight text={survey.creator_email ?? ""} query={filters.q ?? ""} />
+                        <Highlight text={survey.creator_email ?? ""} query={q} />
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">강사:</span>
                       <span>
-                        <Highlight text={survey.instructor_name ?? ""} query={filters.q ?? ""} />
+                        <Highlight text={survey.instructor_name ?? ""} query={q} />
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">과목:</span>
                       <span>
-                        <Highlight text={survey.course_title ?? ""} query={filters.q ?? ""} />
+                        <Highlight text={survey.course_title ?? ""} query={q} />
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-muted-foreground" />
                       <span className="text-muted-foreground">과정:</span>
                       <span>
-                        <Highlight text={survey.course_name ?? ""} query={filters.q ?? ""} />
+                        <Highlight text={survey.course_name ?? ""} query={q} />
                       </span>
                     </div>
                   </div>
@@ -708,7 +709,7 @@ export default function SurveyManagementV2() {
 
       {/* 페이지네이션 */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2">
+        <div className="flex justify-center items-center gap-2 mt-6">
           <Button
             variant="outline"
             size="sm"
@@ -809,6 +810,42 @@ export default function SurveyManagementV2() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </main>
+  );
+}
+
+/* ---------------------- 공용 헤더 컴포넌트 ----------------------- */
+function Header({
+  totalCount,
+  onExport,
+  onRefresh,
+  onCreate,
+}: {
+  totalCount: number;
+  onExport: () => void;
+  onRefresh: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">설문 관리 V2</h1>
+        <p className="text-sm text-muted-foreground">전체 {totalCount}개의 설문</p>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={onExport}>
+          <Download className="w-4 h-4 mr-2" />
+          CSV 내보내기
+        </Button>
+        <Button variant="outline" size="sm" onClick={onRefresh}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          새로고침
+        </Button>
+        <Button size="sm" onClick={onCreate}>
+          <PlusCircle className="w-4 h-4 mr-2" />
+          빠른 생성
+        </Button>
+      </div>
     </div>
   );
 }
