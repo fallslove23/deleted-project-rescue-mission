@@ -1023,17 +1023,17 @@ const SurveyManagement = ({ showPageHeader = true }: { showPageHeader?: boolean 
                     <div className="space-y-4">
                       {/* Header */}
                       <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                            <CardTitle className="text-base sm:text-lg break-words line-clamp-2">
-                              {survey.title}
-                            </CardTitle>
-                            {getStatusBadge(survey)}
-                          </div>
-                          <p className="text-sm text-muted-foreground break-words line-clamp-2">
-                            {survey.description}
-                          </p>
-                        </div>
+                         <div className="flex-1 min-w-0">
+                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                             <CardTitle className="text-base sm:text-lg break-words line-clamp-2">
+                               {survey.title || `${survey.education_year}-${survey.course_name || '과정명없음'}-${survey.education_round}차-${survey.education_day || 1}일차 설문`}
+                             </CardTitle>
+                             {getStatusBadge(survey)}
+                           </div>
+                           <p className="text-sm text-muted-foreground break-words line-clamp-2">
+                             {survey.description}
+                           </p>
+                         </div>
                       </div>
 
                       {/* Info */}

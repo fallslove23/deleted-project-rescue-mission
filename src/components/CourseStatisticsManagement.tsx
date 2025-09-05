@@ -181,6 +181,17 @@ const CourseStatisticsManagement = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // 파일 확장자 검증
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+      setUploadStatus({ 
+        type: 'error', 
+        message: 'Excel 파일(.xlsx 또는 .xls)만 업로드 가능합니다.' 
+      });
+      event.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -189,42 +200,83 @@ const CourseStatisticsManagement = () => {
 
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
+        
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          throw new Error('Excel 파일에 시트가 없습니다.');
+        }
+
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const statisticsToUpload: CourseStatistic[] = jsonData
-          .map((row: any) => ({
-            year: parseInt(row['연도'] || row['year']),
-            round: parseInt(row['차수'] || row['round']),
-            course_name: row['과정명'] || row['course_name'] || '',
-            course_start_date: formatDate(row['과정시작일'] || row['course_start_date']),
-            course_end_date: formatDate(row['과정종료일'] || row['course_end_date']),
-            course_days: parseInt(row['과정일수'] || row['course_days']),
-            status: row['상태'] || row['status'] || '완료',
-            enrolled_count: parseInt(row['수강인원'] || row['enrolled_count']),
-            cumulative_count: parseInt(row['누적인원'] || row['cumulative_count']),
-            education_days: row['교육일수'] || row['education_days'] ? parseInt(row['교육일수'] || row['education_days']) : null,
-            education_hours: row['교육시간'] || row['education_hours'] ? parseInt(row['교육시간'] || row['education_hours']) : null,
-            total_satisfaction: row['종합만족도'] || row['total_satisfaction'] ? parseFloat(row['종합만족도'] || row['total_satisfaction']) : null,
-            course_satisfaction: row['과정만족도'] || row['course_satisfaction'] ? parseFloat(row['과정만족도'] || row['course_satisfaction']) : null,
-            instructor_satisfaction: row['강사만족도'] || row['instructor_satisfaction'] ? parseFloat(row['강사만족도'] || row['instructor_satisfaction']) : null,
-            operation_satisfaction: row['운영만족도'] || row['operation_satisfaction'] ? parseFloat(row['운영만족도'] || row['operation_satisfaction']) : null,
-          }))
-          .map((stat: CourseStatistic) => {
-            // 안전장치: 과정명에 상태값이 들어온 경우 자동 교정
-            if (statusSet.has(stat.course_name) && stat.status && !statusSet.has(stat.status)) {
-              const wrong = stat.course_name;
-              stat.course_name = stat.status;
-              stat.status = typeof wrong === 'string' ? wrong : '완료';
+        if (!jsonData || jsonData.length === 0) {
+          throw new Error('Excel 파일에 데이터가 없습니다.');
+        }
+
+        console.log('Excel data preview:', jsonData.slice(0, 2));
+
+        const statisticsToUpload: CourseStatistic[] = [];
+        const errors: string[] = [];
+
+        jsonData.forEach((row: any, index: number) => {
+          try {
+            // 필수 필드 검증
+            const year = parseInt(row['연도'] || row['year']) || null;
+            const round = parseInt(row['차수'] || row['round']) || null;
+            const courseName = (row['과정명'] || row['course_name'] || '').toString().trim();
+            
+            if (!year || !round || !courseName) {
+              errors.push(`${index + 2}번째 행: 연도, 차수, 과정명은 필수입니다.`);
+              return;
             }
-            return stat;
-          });
+
+            const statistic: CourseStatistic = {
+              year,
+              round,
+              course_name: courseName,
+              course_start_date: formatDate(row['과정시작일'] || row['course_start_date']),
+              course_end_date: formatDate(row['과정종료일'] || row['course_end_date']),
+              course_days: parseInt(row['과정일수'] || row['course_days']) || 1,
+              status: (row['상태'] || row['status'] || '완료').toString(),
+              enrolled_count: parseInt(row['수강인원'] || row['enrolled_count']) || 0,
+              cumulative_count: parseInt(row['누적인원'] || row['cumulative_count']) || 0,
+              education_days: row['교육일수'] || row['education_days'] ? parseInt(row['교육일수'] || row['education_days']) : null,
+              education_hours: row['교육시간'] || row['education_hours'] ? parseInt(row['교육시간'] || row['education_hours']) : null,
+              total_satisfaction: row['종합만족도'] || row['total_satisfaction'] ? parseFloat(row['종합만족도'] || row['total_satisfaction']) : null,
+              course_satisfaction: row['과정만족도'] || row['course_satisfaction'] ? parseFloat(row['과정만족도'] || row['course_satisfaction']) : null,
+              instructor_satisfaction: row['강사만족도'] || row['instructor_satisfaction'] ? parseFloat(row['강사만족도'] || row['instructor_satisfaction']) : null,
+              operation_satisfaction: row['운영만족도'] || row['operation_satisfaction'] ? parseFloat(row['운영만족도'] || row['operation_satisfaction']) : null,
+            };
+
+            // 안전장치: 과정명에 상태값이 들어온 경우 자동 교정
+            if (statusSet.has(statistic.course_name) && statistic.status && !statusSet.has(statistic.status)) {
+              const wrong = statistic.course_name;
+              statistic.course_name = statistic.status;
+              statistic.status = typeof wrong === 'string' ? wrong : '완료';
+            }
+
+            statisticsToUpload.push(statistic);
+          } catch (rowError) {
+            console.error(`Row ${index + 2} error:`, rowError);
+            errors.push(`${index + 2}번째 행: 데이터 형식 오류`);
+          }
+        });
+
+        if (errors.length > 0) {
+          throw new Error(`데이터 오류:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`);
+        }
+
+        if (statisticsToUpload.length === 0) {
+          throw new Error('업로드할 유효한 데이터가 없습니다.');
+        }
 
         const { error } = await supabase
           .from('course_statistics')
           .upsert(statisticsToUpload, { onConflict: 'year,round,course_name' });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          throw new Error(`데이터베이스 저장 오류: ${error.message}`);
+        }
 
         setUploadStatus({ 
           type: 'success', 
@@ -233,11 +285,11 @@ const CourseStatisticsManagement = () => {
         
         setIsUploadDialogOpen(false);
         fetchAllStatistics();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error uploading Excel:', error);
         setUploadStatus({ 
           type: 'error', 
-          message: 'Excel 파일 업로드 중 오류가 발생했습니다. 파일 형식을 확인해주세요.' 
+          message: error.message || 'Excel 파일 업로드 중 오류가 발생했습니다.' 
         });
       } finally {
         setLoading(false);
@@ -245,6 +297,16 @@ const CourseStatisticsManagement = () => {
         event.target.value = '';
       }
     };
+    
+    reader.onerror = () => {
+      setUploadStatus({ 
+        type: 'error', 
+        message: '파일을 읽는 중 오류가 발생했습니다.' 
+      });
+      setLoading(false);
+      event.target.value = '';
+    };
+    
     reader.readAsArrayBuffer(file);
   };
 
