@@ -125,6 +125,20 @@ export default function SurveyCreateForm({
     if (initialValues && Object.keys(initialValues).length > 0) {
       console.log('SurveyCreateForm - Applying initialValues via reset:', initialValues);
       reset({ ...DEFAULTS, ...initialValues });
+      
+      // 편집 모드에서 기존 과정이 커스텀 과정인 경우 customCourses에 추가
+      if (initialValues.course_name && 
+          initialValues.course_name !== 'BS Basic' && 
+          initialValues.course_name !== 'BS Advanced' && 
+          initialValues.course_name.trim() !== '') {
+        const courseName = initialValues.course_name.trim();
+        setCustomCourses(prev => {
+          if (!prev.includes(courseName)) {
+            return [...prev, courseName];
+          }
+          return prev;
+        });
+      }
     }
   }, [initialValues, reset]);
 
@@ -188,6 +202,12 @@ export default function SurveyCreateForm({
       return;
     }
 
+    // 과정명 검증 - 중요: 과정명이 선택되어야 함
+    if (!data.course_name || data.course_name.trim() === '') {
+      alert('과정을 선택해주세요.');
+      return;
+    }
+
     // 자동 라벨 생성 (합반일 때)
     let autoRoundLabel = data.round_label;
     if (data.course_name === 'BS Advanced' && data.is_combined && !autoRoundLabel?.trim()) {
@@ -196,12 +216,14 @@ export default function SurveyCreateForm({
 
     const submitData = {
       ...data,
+      course_name: data.course_name.trim(), // 과정명 보장
       round_label: autoRoundLabel,
       course_selections: validCourseSelections,
       start_date: toSafeISOString(data.start_date),
       end_date: toSafeISOString(data.end_date),
     };
 
+    console.log('SurveyCreateForm - Submitting data:', submitData);
     onSubmit(submitData);
   };
 
@@ -248,7 +270,8 @@ export default function SurveyCreateForm({
                     type="button" 
                     size="sm" 
                     variant="outline" 
-                    className="px-2 bg-background border-input"
+                    className="px-2 bg-background border-input shrink-0"
+                    title="새 과정 추가"
                     onClick={() => {
                       const newCourse = prompt('새 과정명을 입력하세요:');
                       if (newCourse && newCourse.trim()) {
@@ -266,20 +289,21 @@ export default function SurveyCreateForm({
                   </Button>
                 </div>
                 
-                {/* 추가된 과정 관리 */}
+                {/* 추가된 과정 관리 - 개선된 UI */}
                 {customCourses.length > 0 && (
-                  <div className="mt-3 p-3 border rounded-lg bg-muted/20">
-                    <Label className="text-xs font-medium mb-2 block">추가된 과정</Label>
-                    <div className="space-y-2">
+                  <div className="mt-2 space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground">사용자 정의 과정</Label>
+                    <div className="space-y-1">
                       {customCourses.map((course, index) => (
-                        <div key={course} className="flex items-center justify-between p-2 bg-background border rounded">
-                          <span className="text-sm">{course}</span>
-                          <div className="flex gap-1">
+                        <div key={course} className="flex items-center justify-between p-2 bg-muted/30 border border-muted-foreground/20 rounded-md">
+                          <span className="text-sm font-medium flex-1">{course}</span>
+                          <div className="flex gap-1 ml-2">
                             <Button
                               type="button"
                               size="sm"
                               variant="ghost"
-                              className="h-6 w-6 p-0"
+                              className="h-7 w-7 p-0 hover:bg-primary/10"
+                              title="과정명 수정"
                               onClick={() => {
                                 const newName = prompt('과정명을 수정하세요:', course);
                                 if (newName && newName.trim() && newName.trim() !== course) {
@@ -299,7 +323,8 @@ export default function SurveyCreateForm({
                               type="button"
                               size="sm"
                               variant="ghost"
-                              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                              className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                              title="과정 삭제"
                               onClick={() => {
                                 if (confirm(`'${course}' 과정을 삭제하시겠습니까?`)) {
                                   const updatedCourses = customCourses.filter(c => c !== course);
