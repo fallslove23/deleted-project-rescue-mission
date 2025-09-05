@@ -1,7 +1,7 @@
 // src/repositories/surveysRepo.ts
 import { supabase } from "@/integrations/supabase/client";
 
-/* util */
+/* ---------- utils ---------- */
 const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalInputStr = (d: Date) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
@@ -19,7 +19,11 @@ const getDefaultStartEndLocal = () => {
 const toISO = (local: string | null) =>
   local ? new Date(local).toISOString() : null;
 
-/* ----------------------------- Types ------------------------------ */
+function escapeOrValue(v: string) {
+  return v.replace(/[%_]/g, "\\$&");
+}
+
+/* ---------- types ---------- */
 export type SurveyListItem = {
   id: string;
   title: string | null;
@@ -52,8 +56,11 @@ export type SurveyFilters = {
   year: number | null;
   status: "draft" | "active" | "public" | "completed" | null;
   q?: string | null;
-  courseName?: string | null; // ⬅️ 추가
+  courseName?: string | null;
 };
+
+export type SortBy = "created_at" | "start_date" | "end_date";
+export type SortDir = "asc" | "desc";
 
 export type PaginatedSurveyResult = {
   data: SurveyListItem[];
@@ -61,17 +68,16 @@ export type PaginatedSurveyResult = {
   totalPages: number;
 };
 
-// Supabase .or 조건에 안전하게 쓰기 위한 이스케이프
-function escapeOrValue(v: string) {
-  return v.replace(/[%_]/g, "\\$&");
-}
+export type TemplateLite = { id: string; name: string };
 
-/* ------------------------- SurveysRepository ---------------------- */
+/* ---------- repository ---------- */
 export const SurveysRepository = {
   async fetchSurveyList(
     page: number,
     pageSize: number,
-    filters: SurveyFilters
+    filters: SurveyFilters,
+    sortBy: SortBy = "created_at",
+    sortDir: SortDir = "desc"
   ): Promise<PaginatedSurveyResult> {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
@@ -79,14 +85,13 @@ export const SurveysRepository = {
     let query = supabase
       .from("surveys_list_v1")
       .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
+      .order(sortBy, { ascending: sortDir === "asc" })
       .range(from, to);
 
     if (filters.year !== null) query = query.eq("education_year", filters.year);
     if (filters.status !== null) query = query.eq("status", filters.status);
     if (filters.courseName) query = query.eq("course_name", filters.courseName);
 
-    // 통합 검색
     const q = (filters.q ?? "").trim();
     if (q.length > 0) {
       const kw = escapeOrValue(q);
@@ -122,7 +127,6 @@ export const SurveysRepository = {
       .sort((a, b) => b - a);
   },
 
-  // ⬇️ 선택한 연도에서 사용된 과정명만 반환
   async getAvailableCourseNames(year: number | null): Promise<string[]> {
     let q = supabase
       .from("surveys")
@@ -135,9 +139,7 @@ export const SurveysRepository = {
     if (error) throw error;
 
     const set = new Set<string>();
-    (data ?? []).forEach((r: any) => {
-      if (r.course_name) set.add(r.course_name);
-    });
+    (data ?? []).forEach((r: any) => r.course_name && set.add(r.course_name));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   },
 
@@ -149,6 +151,18 @@ export const SurveysRepository = {
       .from("surveys")
       .update({ status })
       .eq("id", id);
+    if (error) throw error;
+  },
+
+  async updateStatusMany(
+    ids: string[],
+    status: "draft" | "active" | "public" | "completed"
+  ) {
+    if (!ids.length) return;
+    const { error } = await supabase
+      .from("surveys")
+      .update({ status })
+      .in("id", ids);
     if (error) throw error;
   },
 
@@ -176,12 +190,26 @@ export const SurveysRepository = {
     return created;
   },
 
+  async duplicateMany(ids: string[]) {
+    const results: any[] = [];
+    for (const id of ids) {
+      const r = await this.duplicateSurvey(id);
+      results.push(r);
+    }
+    return results;
+  },
+
   async deleteSurvey(id: string) {
     const { error } = await supabase.from("surveys").delete().eq("id", id);
     if (error) throw error;
   },
 
-  // 기본 start/end 자동 채움
+  async deleteMany(ids: string[]) {
+    if (!ids.length) return;
+    const { error } = await supabase.from("surveys").delete().in("id", ids);
+    if (error) throw error;
+  },
+
   async quickCreateSurvey(payload: {
     education_year: number;
     education_round: number;
@@ -219,9 +247,19 @@ export const SurveysRepository = {
     if (error) throw error;
     return data;
   },
+
+  async listTemplates(): Promise<TemplateLite[]> {
+    // 테이블 이름은 기존 스키마에 맞춰 조정하세요 (예: 'survey_templates')
+    const { data, error } = await supabase
+      .from("survey_templates")
+      .select("id, name")
+      .order("name", { ascending: true });
+    if (error) return []; // 템플릿 없으면 무시
+    return (data ?? []) as TemplateLite[];
+  },
 };
 
-/* ------------------------- CourseNamesRepo (편집용) -------------- */
+/* ---------- 과정명 저장/편집(편집화면에서 사용) ---------- */
 export type CourseName = { id: string; name: string; created_at: string | null };
 
 export const CourseNamesRepo = {
