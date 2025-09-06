@@ -40,7 +40,7 @@ function Dashboard() {
         <Route path="/course-reports" element={<CourseReports />} />
         <Route path="/instructors" element={<InstructorManagement showPageHeader={false} />} />
         <Route path="/users" element={<UserManagement showPageHeader={false} />} />
-        <Route path="/courses" element={<CourseManagement showPageHeader={false} />} />
+        <Route path="/courses" element={<CourseManagement />} />
         <Route path="/course-statistics" element={<PersonalDashboard />} />
         <Route path="/templates" element={<TemplateManagement showPageHeader={false} />} />
         <Route path="/email-logs" element={<EmailLogs />} />
