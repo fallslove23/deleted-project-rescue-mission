@@ -110,11 +110,14 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
 
     setLoading(true);
     try {
+      // 강사가 아닌 관리자의 경우 전체 데이터 조회
       let surveyQuery = supabase.from('surveys').select('*');
       
+      // 강사인 경우 본인 설문만, 관리자인 경우 전체 설문
       if (profile?.instructor_id && isInstructor) {
         surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
       } else if (isInstructor && !profile?.instructor_id) {
+        // instructor_id가 없는 강사의 경우 이메일로 매칭 시도
         const { data: instructorData } = await supabase
           .from('instructors')
           .select('id')
@@ -126,6 +129,7 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
         }
       }
 
+      // 필터 적용
       if (selectedYear && selectedYear !== 'all') {
         surveyQuery = surveyQuery.eq('education_year', parseInt(selectedYear));
       }
@@ -144,6 +148,7 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
       
       let filteredSurveys = surveysData || [];
       
+      // 최신 회차 필터링
       if (selectedRound === 'latest' && filteredSurveys.length > 0) {
         const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
         const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
@@ -155,6 +160,7 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
 
       setSurveys(filteredSurveys);
 
+      // 응답들 가져오기
       if (surveysData && surveysData.length > 0) {
         const allSurveyIds = surveysData.map(s => s.id);
         
@@ -166,6 +172,7 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
         if (responsesError) throw responsesError;
         setResponses(responsesData || []);
 
+        // 질문들 가져오기
         const { data: questionsData, error: questionsError } = await supabase
           .from('survey_questions')
           .select('*')
@@ -174,6 +181,7 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
         if (questionsError) throw questionsError;
         setQuestions(questionsData || []);
 
+        // 답변들 가져오기
         if (responsesData && responsesData.length > 0) {
           const responseIds = responsesData.map(r => r.id);
           
@@ -403,6 +411,10 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
     return csvContent;
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -530,6 +542,7 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
       )}
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* 통계 요약 카드 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <Card>
             <CardContent className="flex flex-col items-center text-center p-3 md:p-4 aspect-square">
@@ -577,18 +590,8 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
           </Card>
         </div>
 
+        {/* 액션 버튼들 */}
         <div className="flex gap-2 mb-4">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => window.print()}
-            className="gap-2"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a1 1 0 001-1v-4a1 1 0 00-1-1H9a1 1 0 00-1 1v4a1 1 0 001 1zm3-5h2m-2-2h2m-2-2h2" />
-            </svg>
-            인쇄
-          </Button>
           <Button 
             variant="outline" 
             size="sm"
@@ -611,23 +614,21 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
             <Download className="h-4 w-4" />
             CSV 다운로드
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handlePrint}
+            className="gap-2"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a1 1 0 001-1v-4a1 1 0 00-1-1H9a1 1 0 00-1 1v4a1 1 0 001 1zm3-5h2m-2-2h2m-2-2h2" />
+            </svg>
+            인쇄
+          </Button>
         </div>
 
+        {/* 필터 컨트롤 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="text-sm font-medium mb-2 block">기간</label>
-            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="기간 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="round">회차별</SelectItem>
-                <SelectItem value="month">월별</SelectItem>
-                <SelectItem value="year">연도별</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div>
             <label className="text-sm font-medium mb-2 block">연도</label>
             <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -675,6 +676,7 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
           </div>
         </div>
 
+        {/* 트렌드 분석 */}
         <Tabs defaultValue="trend" className="space-y-4">
           <TabsList>
             <TabsTrigger value="trend">만족도 트렌드</TabsTrigger>
@@ -839,4 +841,18 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
   );
 };
 
-export default PersonalDashboard;
+export default PersonalDashboard; font-medium mb-2 block">기간</label>
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="기간 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="round">회차별</SelectItem>
+                <SelectItem value="month">월별</SelectItem>
+                <SelectItem value="year">연도별</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm
