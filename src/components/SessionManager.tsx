@@ -9,11 +9,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
-import { Plus, Edit3, Trash2, GripVertical, User, Save } from 'lucide-react';
+import { Plus, Edit3, Trash2, User, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-/** DnD 없이도 쓰이게 간단/안정화 버전으로 정리. 필요시 dnd-kit 추가 가능 */
 interface Course { id: string; title: string; }
 interface Instructor { id: string; name: string; email?: string; photo_url?: string; bio?: string; }
 export interface SurveySession {
@@ -41,48 +40,93 @@ export const SessionManager = ({
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SurveySession | null>(null);
-  const [form, setForm] = useState({ session_name: "", course_id: "none", instructor_id: "none" });
+
+  // ▽ 사용자가 이름 입력을 직접 수정했는지 추적 (코스 선택 시 자동 채우기 제어)
+  const [userEditedName, setUserEditedName] = useState(false);
+
+  const [form, setForm] = useState({
+    session_name: "",
+    course_id: "none" as string,
+    instructor_id: "none" as string,
+  });
 
   useEffect(() => {
-    // 폼 초기화 안전장치
     if (!dialogOpen) {
       setEditing(null);
       setForm({ session_name: "", course_id: "none", instructor_id: "none" });
+      setUserEditedName(false);
     }
   }, [dialogOpen]);
 
   const openAdd = () => {
     setEditing(null);
     setForm({ session_name: "", course_id: "none", instructor_id: "none" });
+    setUserEditedName(false);
     setDialogOpen(true);
   };
 
   const openEdit = (s: SurveySession) => {
     setEditing(s);
     setForm({
-      session_name: s.session_name,
+      session_name: s.session_name ?? "",
       course_id: s.course_id ?? "none",
       instructor_id: s.instructor_id ?? "none",
     });
+    // 편집 진입 시엔 사용자가 이미 입력했다고 간주(자동 덮어쓰기 방지)
+    setUserEditedName(true);
     setDialogOpen(true);
   };
 
-  const save = async () => {
-    if (!form.session_name.trim()) {
-      toast({ title: "오류", description: "세션 이름을 입력해주세요.", variant: "destructive" });
-      return;
-    }
-    const payload = {
-      survey_id: surveyId,
-      session_name: form.session_name.trim(),
-      course_id: form.course_id === "none" ? null : form.course_id,
-      instructor_id: form.instructor_id === "none" ? null : form.instructor_id,
-    };
+  // ▽ 코스 변경 시: 사용자가 이름을 아직 직접 손대지 않았다면 자동으로 코스명 입력
+  const handleCourseChange = (value: string) => {
+    setForm(prev => {
+      const next = { ...prev, course_id: value };
+      if (!userEditedName) {
+        if (value === "none") {
+          // 과목 관련 평가가 아닐 때: 이름은 비워 둔 상태 유지(사용자가 직접 입력)
+          next.session_name = "";
+        } else {
+          const courseTitle = courses.find(c => c.id === value)?.title ?? "";
+          next.session_name = courseTitle;
+        }
+      }
+      return next;
+    });
+  };
 
+  const handleNameChange = (v: string) => {
+    setUserEditedName(true);
+    setForm(prev => ({ ...prev, session_name: v }));
+  };
+
+  const save = async () => {
     try {
+      // 세션 이름 비어 있고 과목을 선택했다면 마지막 안전 자동채움
+      let _name = form.session_name.trim();
+      if (!_name && form.course_id !== "none") {
+        _name = courses.find(c => c.id === form.course_id)?.title ?? "";
+      }
+      if (!_name) {
+        // 과목 미선택(공통 평가)인 경우에도 세션 이름은 필요: 운영평가/일반/공통 등으로 입력 요청
+        toast({
+          title: "세션 이름이 필요합니다",
+          description: "과목을 선택하지 않는 경우에도 세션 이름(예: 운영평가/공통)을 입력해 주세요.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const payload = {
+        survey_id: surveyId,
+        session_name: _name,
+        course_id: form.course_id === "none" ? null : form.course_id,
+        instructor_id: form.instructor_id === "none" ? null : form.instructor_id,
+      };
+
       if (editing) {
         const { error } = await supabase.from('survey_sessions').update(payload).eq('id', editing.id);
         if (error) throw error;
+
         const next = sessions.map(s => s.id === editing.id
           ? {
               ...s,
@@ -98,7 +142,7 @@ export const SessionManager = ({
           .from('survey_sessions')
           .insert({ ...payload, session_order: sessions.length })
           .select(`
-            *, 
+            *,
             course:courses(id,title),
             instructor:instructors(id,name,email,photo_url,bio)
           `)
@@ -118,7 +162,6 @@ export const SessionManager = ({
     try {
       const { error } = await supabase.from('survey_sessions').delete().eq('id', id);
       if (error) throw error;
-      // 남은 것들 order 재정렬
       const stay = sessions.filter(s => s.id !== id).map((s, idx) => ({ ...s, session_order: idx }));
       onSessionsChange(stay);
       await supabase.from('survey_sessions').upsert(stay.map(s => ({ id: s.id, session_order: s.session_order })));
@@ -156,20 +199,24 @@ export const SessionManager = ({
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{editing ? "세션 수정" : "세션 추가"}</DialogTitle></DialogHeader>
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="session-name">세션 이름 *</Label>
                 <Input
                   id="session-name"
-                  placeholder="예: BS Check List, 운영평가 등"
+                  placeholder="예: 과목명(자동), 운영평가/공통 등"
                   value={form.session_name}
-                  onChange={(e) => setForm(p => ({ ...p, session_name: e.target.value }))}
+                  onChange={(e) => handleNameChange(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  과목을 선택하면 이름이 자동으로 과목명으로 채워집니다. 과목 관련 평가가 아니면 과목을 ‘선택 안함’으로 두고 이름만 입력하세요.
+                </p>
               </div>
 
               <div className="space-y-2">
                 <Label>과목</Label>
-                <Select value={form.course_id} onValueChange={(v) => setForm(p => ({ ...p, course_id: v }))}>
+                <Select value={form.course_id} onValueChange={handleCourseChange}>
                   <SelectTrigger><SelectValue placeholder="선택(옵션)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">선택 안함</SelectItem>
@@ -180,7 +227,10 @@ export const SessionManager = ({
 
               <div className="space-y-2">
                 <Label>강사</Label>
-                <Select value={form.instructor_id} onValueChange={(v) => setForm(p => ({ ...p, instructor_id: v }))}>
+                <Select
+                  value={form.instructor_id}
+                  onValueChange={(v) => setForm(p => ({ ...p, instructor_id: v }))}
+                >
                   <SelectTrigger><SelectValue placeholder="선택(옵션)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">선택 안함</SelectItem>
@@ -201,12 +251,18 @@ export const SessionManager = ({
       <CardContent className="space-y-3">
         {sessions.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            아직 추가된 세션이 없습니다. “세션 추가”로 과목별 세션을 등록하세요.
+            아직 추가된 세션이 없습니다. “세션 추가”로 과목별 또는 공통(운영평가) 세션을 등록하세요.
           </div>
         ) : (
           sessions.map((s, idx) => {
-            const courseTitle = s.course?.title ?? (s.course_id ? courses.find(c => c.id === s.course_id)?.title : "") ?? "과목 미선택";
-            const instructorName = s.instructor?.name ?? (s.instructor_id ? instructors.find(i => i.id === s.instructor_id)?.name : "") ?? "강사 미선택";
+            const courseTitle =
+              s.course?.title ??
+              (s.course_id ? courses.find(c => c.id === s.course_id)?.title : "") ??
+              "과목 미선택";
+            const instructorName =
+              s.instructor?.name ??
+              (s.instructor_id ? instructors.find(i => i.id === s.instructor_id)?.name : "") ??
+              "강사 미선택";
             return (
               <div key={s.id} className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
                 <div className="flex items-center justify-center w-8 h-8 text-muted-foreground">#{idx + 1}</div>
