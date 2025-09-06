@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-type Role = "admin" | "operator" | "instructor" | "director";
+type Role = "admin" | "operator";
 
 const allItems = [
   { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator"] as Role[] },
@@ -45,38 +45,6 @@ const allItems = [
   { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen, roles: ["admin", "operator"] as Role[] },
   { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator"] as Role[] },
   { title: "시스템 로그", url: "/dashboard/system-logs", icon: ScrollText, roles: ["admin"] as Role[] },
-];
-
-// 역할별 뷰 테스트 메뉴
-const roleViewItems = [
-  { 
-    title: "관리자 뷰", 
-    url: "/role-view/admin", 
-    icon: Crown, 
-    role: "admin",
-    description: "전체 시스템 관리" 
-  },
-  { 
-    title: "운영자 뷰", 
-    url: "/role-view/operator", 
-    icon: Shield, 
-    role: "operator",
-    description: "설문 및 과정 관리" 
-  },
-  { 
-    title: "강사 뷰", 
-    url: "/role-view/instructor", 
-    icon: UserCheck, 
-    role: "instructor",
-    description: "개별 통계 및 결과" 
-  },
-  { 
-    title: "조직장 뷰", 
-    url: "/role-view/director", 
-    icon: UserCog, 
-    role: "director",
-    description: "전체 과정 결과" 
-  },
 ];
 
 export function AdminSidebar() {
@@ -151,46 +119,91 @@ export function AdminSidebar() {
           </SidebarGroup>
         ))}
 
-        {/* 역할별 뷰 테스트 섹션 - 관리자만 */}
+        {/* 역할별 뷰 테스트 섹션 - 관리자만, 컴팩트 버전 */}
         {effectiveRoles.includes("admin") && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
               {state === "expanded" && (
                 <div className="flex items-center gap-2">
                   <Eye className="h-3 w-3" />
-                  <span>역할별 뷰 테스트</span>
+                  <span>뷰 테스트</span>
                 </div>
               )}
             </SidebarGroupLabel>
 
             <SidebarGroupContent>
               <SidebarMenu>
-                {roleViewItems.map((item) => (
-                  <SidebarMenuItem key={item.role}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      className={state === "expanded" ? "pl-8" : ""}
-                    >
-                      <NavLink to={item.url} className="flex items-center">
-                        <item.icon className="h-4 w-4" />
-                        {state === "expanded" && (
-                          <div className="ml-2 flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">{item.title}</span>
-                              <Badge variant="outline" className="text-xs px-1 py-0">
-                                DEV
-                              </Badge>
-                            </div>
-                            <div className="text-xs text-muted-foreground truncate">
-                              {item.description}
-                            </div>
-                          </div>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/role-view/admin")}
+                    className={state === "expanded" ? "pl-8" : ""}
+                  >
+                    <NavLink to="/role-view/admin" className="flex items-center">
+                      <Crown className="h-4 w-4" />
+                      {state === "expanded" && (
+                        <div className="ml-2 flex items-center gap-2">
+                          <span className="text-sm">관리자</span>
+                          <Badge variant="outline" className="text-xs px-1 py-0 h-4">DEV</Badge>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/role-view/operator")}
+                    className={state === "expanded" ? "pl-8" : ""}
+                  >
+                    <NavLink to="/role-view/operator" className="flex items-center">
+                      <Shield className="h-4 w-4" />
+                      {state === "expanded" && (
+                        <div className="ml-2 flex items-center gap-2">
+                          <span className="text-sm">운영자</span>
+                          <Badge variant="outline" className="text-xs px-1 py-0 h-4">DEV</Badge>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/role-view/instructor")}
+                    className={state === "expanded" ? "pl-8" : ""}
+                  >
+                    <NavLink to="/role-view/instructor" className="flex items-center">
+                      <UserCheck className="h-4 w-4" />
+                      {state === "expanded" && (
+                        <div className="ml-2 flex items-center gap-2">
+                          <span className="text-sm">강사</span>
+                          <Badge variant="outline" className="text-xs px-1 py-0 h-4">DEV</Badge>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive("/role-view/director")}
+                    className={state === "expanded" ? "pl-8" : ""}
+                  >
+                    <NavLink to="/role-view/director" className="flex items-center">
+                      <UserCog className="h-4 w-4" />
+                      {state === "expanded" && (
+                        <div className="ml-2 flex items-center gap-2">
+                          <span className="text-sm">조직장</span>
+                          <Badge variant="outline" className="text-xs px-1 py-0 h-4">DEV</Badge>
+                        </div>
+                      )}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
