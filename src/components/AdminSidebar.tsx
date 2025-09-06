@@ -1,110 +1,98 @@
 // src/components/AdminSidebar.tsx
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
+import { 
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, 
+  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem 
 } from "@/components/ui/sidebar";
-
-import {
-  Home,
-  BarChart,
-  TrendingUp,
-  FileText,
-  Users,
-  BookOpen,
-  FileSpreadsheet,
-  Mail,
-  ScrollText,
+import { 
+  LayoutDashboard, BarChart3, Users, UserCheck, BookOpen, FileText, 
+  Mail, Settings, Eye, TrendingUp, Award, PieChart
 } from "lucide-react";
 
-type Role = "admin" | "operator";
-
-const allItems = [
-  { title: "개요", url: "/dashboard", icon: Home, roles: ["admin", "operator"] as Role[] },
-  { title: "결과분석", url: "/dashboard/results", icon: BarChart, roles: ["admin", "operator"] as Role[] },
-  { title: "결과보고", url: "/dashboard/course-reports", icon: TrendingUp, roles: ["admin", "operator"] as Role[] },
-
-  // ⬇️ v2로 교체: 설문관리(V2)
-  { title: "설문관리", url: "/surveys-v2", icon: FileText, roles: ["admin", "operator"] as Role[] },
-
-  { title: "강사관리", url: "/dashboard/instructors", icon: Users, roles: ["admin", "operator"] as Role[] },
-  { title: "사용자관리", url: "/dashboard/users", icon: Users, roles: ["admin"] as Role[] },
-  { title: "과목관리", url: "/dashboard/courses", icon: BookOpen, roles: ["admin", "operator"] as Role[] },
-  { title: "통계관리", url: "/dashboard/course-statistics", icon: FileSpreadsheet, roles: ["admin", "operator"] as Role[] },
-  { title: "템플릿관리", url: "/dashboard/templates", icon: BookOpen, roles: ["admin", "operator"] as Role[] },
-  { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, roles: ["admin", "operator"] as Role[] },
-  { title: "시스템 로그", url: "/dashboard/system-logs", icon: ScrollText, roles: ["admin"] as Role[] },
-];
-
 export function AdminSidebar() {
-  const { state } = useSidebar();
   const { userRoles } = useAuth();
   const location = useLocation();
-  const currentPath = location.pathname;
+  
+  const isAdmin = userRoles.includes('admin');
+  const isInstructor = userRoles.includes('instructor');
 
-  // 운영/관리자만 보이게 필터
-  const effectiveRoles = (userRoles as Role[]).filter((r) => r === "admin" || r === "operator");
-  const items = allItems.filter((item) =>
-    item.roles.some((role) => effectiveRoles.includes(role))
-  );
-
-  const isActive = (path: string) => {
-    if (path === "/dashboard") return currentPath === "/dashboard";
-    return currentPath.startsWith(path);
-  };
-
-  const sections = [
-    { label: "대시보드", keys: ["/dashboard", "/dashboard/course-reports"] },
-    { label: "설문", keys: ["/surveys-v2", "/dashboard/results"] }, // ⬅️ v2 반영
+  // 관리자 전용 메뉴
+  const adminMenuItems = [
     {
-      label: "관리",
-      keys: [
-        "/dashboard/instructors",
-        "/dashboard/users",
-        "/dashboard/courses",
-        "/dashboard/course-statistics",
-        "/dashboard/templates",
-      ],
+      title: "개요",
+      items: [
+        { title: "대시보드", url: "/dashboard", icon: LayoutDashboard }
+      ]
     },
-    { label: "기록", keys: ["/dashboard/email-logs", "/dashboard/system-logs"] },
+    {
+      title: "설문",
+      items: [
+        { title: "결과분석", url: "/dashboard/results", icon: BarChart3 },
+        { title: "과정 리포트", url: "/dashboard/course-reports", icon: TrendingUp },
+        { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart },
+        { title: "템플릿관리", url: "/dashboard/templates", icon: FileText }
+      ]
+    },
+    {
+      title: "관리",
+      items: [
+        { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck },
+        { title: "사용자관리", url: "/dashboard/users", icon: Users },
+        { title: "과목관리", url: "/dashboard/courses", icon: BookOpen }
+      ]
+    },
+    {
+      title: "기타",
+      items: [
+        { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail },
+        { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings }
+      ]
+    }
   ];
 
-  const sectionItems = sections
-    .map((section) => ({
-      ...section,
-      items: items.filter((i) => section.keys.includes(i.url)),
-    }))
-    .filter((sec) => sec.items.length > 0);
+  // 강사 전용 메뉴
+  const instructorMenuItems = [
+    {
+      title: "내 결과",
+      items: [
+        { title: "개인 통계", url: "/personal-dashboard", icon: Award },
+        { title: "과정별 분석", url: "/dashboard/course-reports", icon: TrendingUp },
+        { title: "상세 결과", url: "/dashboard/results", icon: BarChart3 }
+      ]
+    },
+    {
+      title: "설문",
+      items: [
+        { title: "템플릿관리", url: "/dashboard/templates", icon: FileText }
+      ]
+    }
+  ];
+
+  // 현재 사용자에 맞는 메뉴 선택
+  const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
 
   return (
-    <Sidebar className={`${state === "collapsed" ? "w-14" : "w-60"} touch-scroll mobile-scroll`}>
-      <SidebarContent className="bg-gradient-to-b from-primary/5 to-primary/10 scrollable-y">
-        {sectionItems.map((section) => (
-          <SidebarGroup key={section.label}>
-            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground">
-              {state === "expanded" && section.label}
-            </SidebarGroupLabel>
-
+    <Sidebar>
+      <SidebarContent>
+        {menuItems.map((section) => (
+          <SidebarGroup key={section.title}>
+            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.url)}
-                      className={state === "expanded" ? "pl-8" : ""}
-                    >
-                      <NavLink to={item.url} end={item.url === "/dashboard"} className="flex items-center">
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
+                            isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                          }`
+                        }
+                      >
                         <item.icon className="h-4 w-4" />
-                        {state === "expanded" && <span className="ml-2">{item.title}</span>}
+                        {item.title}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -113,9 +101,28 @@ export function AdminSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+
+        {/* 관리자 전용 - 뷰 테스트 섹션 */}
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              뷰 테스트 <span className="text-xs bg-orange-100 text-orange-600 px-1 rounded">DEV</span>
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/role-view/instructor" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent text-muted-foreground">
+                      <Eye className="h-4 w-4" />
+                      강사 뷰
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
 }
-
-export default AdminSidebar;
