@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 
-// 배럴에서 가져오면 새/옛 이름 모두 커버됨
+// 하위 페이지들
 import {
   DashboardOverview,
   DashboardSurveyResults,
@@ -15,11 +15,12 @@ import {
   DashboardTemplateManagement,
   DashboardEmailLogs,
   DashboardSystemLogs,
-  // 레거시 별칭 (혹시 레거시 경로를 유지할 때 사용)
-  SurveyResults,
-  CourseReports,
+  // (호환용) 혹시 프로젝트 어딘가에서 옛 이름을 쓴 경우까지 커버
+  SurveyResults as LegacySurveyResults,
+  CourseReports as LegacyCourseReports,
 } from "@/pages";
 
+// 페이지 메타데이터 (prefix 매칭)
 const pageMetadata: Record<string, { title: string; description: string }> = {
   "/dashboard": { title: "관리자 대시보드", description: "시스템 종합 현황" },
   "/dashboard/results": { title: "결과분석", description: "설문 결과 분석 및 통계" },
@@ -36,6 +37,7 @@ const pageMetadata: Record<string, { title: string; description: string }> = {
 export default function Dashboard() {
   const location = useLocation();
 
+  // 가장 긴 prefix로 현재 페이지 메타 선택 (하위 경로 대응)
   const currentPage = useMemo(() => {
     const pathname = location.pathname.replace(/\/+$/, "");
     const key =
@@ -48,6 +50,7 @@ export default function Dashboard() {
   return (
     <DashboardLayout title={currentPage.title} description={currentPage.description}>
       <Routes>
+        {/* ✅ 중첩 라우팅: 절대경로 금지! index/상대경로 사용 */}
         <Route index element={<DashboardOverview />} />
         <Route path="results" element={<DashboardSurveyResults />} />
         <Route path="course-reports" element={<DashboardCourseReports />} />
@@ -58,9 +61,12 @@ export default function Dashboard() {
         <Route path="templates" element={<DashboardTemplateManagement />} />
         <Route path="email-logs" element={<DashboardEmailLogs />} />
         <Route path="system-logs" element={<DashboardSystemLogs />} />
-        {/* (선택) 레거시 경로 호환 */}
-        <Route path="survey-results" element={<SurveyResults />} />
-        <Route path="reports/courses" element={<CourseReports />} />
+
+        {/* (옵션) 레거시 경로 호환 */}
+        <Route path="survey-results" element={<LegacySurveyResults />} />
+        <Route path="reports/courses" element={<LegacyCourseReports />} />
+
+        {/* Fallback */}
         <Route path="*" element={<DashboardOverview />} />
       </Routes>
     </DashboardLayout>

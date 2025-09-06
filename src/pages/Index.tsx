@@ -164,7 +164,7 @@ const Index = () => {
                           <Users className="h-4 w-4 mr-2" />
                           강사 관리
                         </Button>
-                        <Button onClick={() => navigate('/dashboard/surveys')} className="w-full justify-start" variant="outline">
+                        <Button onClick={() => navigate('/surveys-v2')} className="w-full justify-start" variant="outline">
                           <FileText className="h-4 w-4 mr-2" />
                           설문조사 관리
                         </Button>
