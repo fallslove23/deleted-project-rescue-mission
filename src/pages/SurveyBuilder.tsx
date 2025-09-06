@@ -1,67 +1,68 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Pencil, Trash2, Plus, Edit } from "lucide-react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import AdminLayout from "@/components/layouts/AdminLayout";
-import QuestionEditForm from "@/components/QuestionEditForm";
-import { SessionManager, SurveySession } from "@/components/SessionManager";
+import { Plus, Save, Eye } from "lucide-react";
 
-export default function SurveyBuilder() {
-  const { surveyId } = useParams();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const [loading, setLoading] = useState(true);
-
-  // … (기존 상태/로직 동일) …
-
-  if (loading) {
-    return (
-      <AdminLayout>
-        <div className="p-6">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로
-          </Button>
-          <div className="mt-6">로딩 중...</div>
-        </div>
-      </AdminLayout>
-    );
-  }
-
+const SurveyBuilder: React.FC = () => {
   return (
-    <AdminLayout>
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">설문 빌더</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm">
+            <Eye className="w-4 h-4 mr-2" />
+            미리보기
           </Button>
-          <div className="text-xl font-semibold">설문 편집</div>
-          <div />
+          <Button size="sm">
+            <Save className="w-4 h-4 mr-2" />
+            저장
+          </Button>
         </div>
-
-        {/* 기본 정보 카드 */}
-        {/* … 기존 코드 동일 … */}
-
-        {/* 세션 관리 */}
-        <SessionManager
-          surveyId={surveyId!}
-          sessions={[]} // 실제 state 연결
-          courses={[]} // 실제 courses state 연결
-          instructors={[]} // 실제 instructors state 연결
-          onSessionsChange={() => {}} // 실제 핸들러 연결
-        />
-
-        {/* 질문 관리 카드 */}
-        {/* … 기존 코드 동일 … */}
       </div>
-    </AdminLayout>
+
+      <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>기본 정보</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="title">설문 제목</Label>
+              <Input id="title" placeholder="설문 제목을 입력하세요" />
+            </div>
+            <div>
+              <Label htmlFor="description">설문 설명</Label>
+              <Textarea 
+                id="description" 
+                placeholder="설문에 대한 설명을 입력하세요" 
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>질문</CardTitle>
+              <Button size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                질문 추가
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-muted-foreground text-center py-8">
+              질문을 추가하여 설문을 구성해보세요.
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
-}
+};
+
+export default SurveyBuilder;
