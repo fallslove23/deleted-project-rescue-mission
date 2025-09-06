@@ -232,6 +232,7 @@ export default function SurveyManagementV2() {
 
   const [searchText, setSearchText] = useState(filters.q ?? "");
   const searchRef = useRef<HTMLInputElement>(null);
+  const debounceTimer = useRef<number | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const allChecked = useMemo(() => surveys.length > 0 && surveys.every((s) => selected.has(s.id)), [surveys, selected]);
@@ -302,6 +303,18 @@ export default function SurveyManagementV2() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // 검색 디바운스: onChange 내 return(cleanup)이 무시되는 문제를 해결
+  useEffect(() => {
+    if (debounceTimer.current) window.clearTimeout(debounceTimer.current);
+    debounceTimer.current = window.setTimeout(() => {
+      setFilters((p) => ({ ...p, q: searchText.trim() || null }));
+      setCurrentPage(1);
+    }, DEBOUNCE_MS);
+    return () => {
+      if (debounceTimer.current) window.clearTimeout(debounceTimer.current);
+    };
+  }, [searchText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formatSafeDate = (iso: string | null): string => {
     if (!iso) return "미설정";
@@ -467,35 +480,36 @@ export default function SurveyManagementV2() {
       <AdminSidebar />
 
       <main className="flex-1 min-w-0">
-        {/* 상단 Sticky 헤더 */}
+        {/* 상단 Sticky 헤더 (폰트 잘림 방지: auto height + 충분한 패딩/line-height) */}
         <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-          <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-auto min-h-[64px] md:min-h-[72px] py-2 flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <SidebarTrigger className="-ml-1" />
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">설문 관리</h1>
-                <p className="text-xs text-muted-foreground md:hidden">전체 {totalCount}개의 설문</p>
+              <div className="leading-tight md:leading-snug">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight whitespace-nowrap">설문 관리</h1>
+                <p className="text-xs text-muted-foreground md:hidden mt-0.5">전체 {totalCount}개의 설문</p>
               </div>
             </div>
+            {/* 버튼 UI 개선: 명확한 시각 계층 + 더 큰 터치영역 */}
             <div className="hidden md:flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={exportCsvAll}>
-                <Download className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" className="rounded-full px-3" onClick={exportCsvAll}>
+                <Download className="w-4 h-4 mr-1.5" />
                 CSV
               </Button>
-              <Button variant="outline" size="sm" onClick={runAutoStatus}>
-                <Wand2 className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" className="rounded-full px-3" onClick={runAutoStatus}>
+                <Wand2 className="w-4 h-4 mr-1.5" />
                 상태 동기화
               </Button>
-              <Button variant="outline" size="sm" onClick={() => loadData()}>
-                <RefreshCw className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => loadData()}>
+                <RefreshCw className="w-4 h-4 mr-1.5" />
                 새로고침
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
+              <Button variant="secondary" size="sm" className="rounded-full px-3" onClick={() => setCreateOpen(true)}>
+                <Plus className="w-4 h-4 mr-1.5" />
                 설문 추가
               </Button>
-              <Button size="sm" onClick={() => setQuickOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
+              <Button size="sm" className="rounded-full px-3" onClick={() => setQuickOpen(true)}>
+                <Plus className="w-4 h-4 mr-1.5" />
                 빠른 생성
               </Button>
             </div>
@@ -506,10 +520,10 @@ export default function SurveyManagementV2() {
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <p className="hidden md:block text-sm text-muted-foreground">전체 {totalCount}개의 설문</p>
             <div className="flex md:hidden items-center gap-2">
-              <Button variant="outline" size="sm" onClick={exportCsvAll}><Download className="w-4 h-4" /></Button>
-              <Button variant="outline" size="sm" onClick={runAutoStatus}><Wand2 className="w-4 h-4" /></Button>
-              <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /></Button>
-              <Button size="sm" onClick={() => setQuickOpen(true)}><Plus className="w-4 h-4" /></Button>
+              <Button variant="outline" size="sm" className="rounded-full" onClick={exportCsvAll}><Download className="w-4 h-4" /></Button>
+              <Button variant="outline" size="sm" className="rounded-full" onClick={runAutoStatus}><Wand2 className="w-4 h-4" /></Button>
+              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4" /></Button>
+              <Button size="sm" className="rounded-full" onClick={() => setQuickOpen(true)}><Plus className="w-4 h-4" /></Button>
             </div>
           </div>
 
@@ -526,15 +540,7 @@ export default function SurveyManagementV2() {
                   <Input
                     ref={searchRef}
                     value={searchText}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSearchText(val);
-                      const t = setTimeout(() => {
-                        setFilters((p) => ({ ...p, q: val.trim() || null }));
-                        setCurrentPage(1);
-                      }, DEBOUNCE_MS);
-                      return () => clearTimeout(t);
-                    }}
+                    onChange={(e) => setSearchText(e.target.value)}
                     placeholder="제목 / 과정 / 강사 검색"
                     className="pl-9"
                   />
@@ -606,11 +612,11 @@ export default function SurveyManagementV2() {
             </Alert>
           )}
 
-          {/* 상단 sticky 액션바 */}
-          <div className="sticky top-14 z-30 mt-6">
+          {/* 상단 sticky 액션바 (헤더 높이에 맞춰 top 조정) */}
+          <div className="sticky top-[72px] z-30 mt-6">
             <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border rounded-md px-3 py-2 flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={toggleAll}>
+                <Button variant="outline" size="sm" className="rounded-full px-3" onClick={toggleAll}>
                   <CheckSquare className="w-4 h-4 mr-1" />
                   {allChecked ? "전체 해제" : "현재 페이지 전체선택"}
                 </Button>
@@ -627,7 +633,7 @@ export default function SurveyManagementV2() {
                     toast({ title: "상태 변경 완료" });
                   }}
                 >
-                  <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-md">
+                  <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-full">
                     <SelectValue placeholder="상태 변경" />
                   </SelectTrigger>
                   <SelectContent>
@@ -638,7 +644,7 @@ export default function SurveyManagementV2() {
                   </SelectContent>
                 </Select>
 
-                <Button variant="outline" size="sm" onClick={exportCsvSelected} disabled={selected.size === 0}>
+                <Button variant="outline" size="sm" className="rounded-full px-3" onClick={exportCsvSelected} disabled={selected.size === 0}>
                   <Download className="w-4 h-4 mr-1" />
                   CSV(선택)
                 </Button>
@@ -646,6 +652,7 @@ export default function SurveyManagementV2() {
                 <Button
                   variant="destructive"
                   size="sm"
+                  className="rounded-full px-3"
                   onClick={async () => {
                     if (selected.size === 0) return;
                     if (!confirm(`${selected.size}개 설문을 삭제할까요?`)) return;
@@ -668,7 +675,7 @@ export default function SurveyManagementV2() {
               <CardContent className="py-12 text-center">
                 <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-muted-foreground mb-4">조건에 맞는 설문이 없습니다.</p>
-                <Button onClick={() => setQuickOpen(true)} size="sm">
+                <Button onClick={() => setQuickOpen(true)} size="sm" className="rounded-full px-3">
                   <Plus className="w-4 h-4 mr-2" />
                   첫 설문 만들기
                 </Button>
@@ -764,20 +771,21 @@ export default function SurveyManagementV2() {
                         </div>
                       )}
 
-                      {/* 카드 내부 버튼들: 클릭 버블링 막기 */}
+                      {/* 카드 내부 버튼들: 클릭 버블링 막기 + 둥근 버튼 */}
                       <div className="mt-4 flex flex-wrap gap-2 border-t pt-4" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="outline" size="sm" onClick={() => navigate(`/survey-builder/${s.id}`)}>
+                        <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-builder/${s.id}`)}>
                           <Settings className="w-4 h-4 mr-1" /> 질문수정
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => navigate(`/survey-preview/${s.id}`)}>
+                        <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-preview/${s.id}`)}>
                           <Eye className="w-4 h-4 mr-1" /> 미리보기
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => navigate(`/survey-results/${s.id}`)}>
+                        <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-results/${s.id}`)}>
                           <BarChart className="w-4 h-4 mr-1" /> 결과
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="rounded-full px-3"
                           onClick={() => {
                             const link = `${window.location.origin}/survey/${s.id}`;
                             navigator.clipboard.writeText(link);
@@ -795,7 +803,7 @@ export default function SurveyManagementV2() {
                             loadData();
                           }}
                         >
-                          <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-md">
+                          <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-full">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -813,14 +821,14 @@ export default function SurveyManagementV2() {
             </div>
           )}
 
-          {/* 페이지네이션 */}
+          {/* 페이지ने이션 */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-6">
-              <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+              <Button variant="outline" size="sm" className="rounded-full px-3" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
                 <ChevronLeft className="w-4 h-4 mr-1" /> 이전
               </Button>
               <span className="text-sm text-muted-foreground px-4">{currentPage} / {totalPages}</span>
-              <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+              <Button variant="outline" size="sm" className="rounded-full px-3" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
                 다음 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
@@ -863,18 +871,19 @@ export default function SurveyManagementV2() {
                 </div>
 
                 <div className="pt-4 border-t flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/survey-builder/${sheetSurvey.id}`)}>
+                  <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-builder/${sheetSurvey.id}`)}>
                     <Settings className="w-4 h-4 mr-1" /> 질문수정
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/survey-preview/${sheetSurvey.id}`)}>
+                  <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-preview/${sheetSurvey.id}`)}>
                     <Eye className="w-4 h-4 mr-1" /> 미리보기
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/survey-results/${sheetSurvey.id}`)}>
+                  <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-results/${sheetSurvey.id}`)}>
                     <BarChart className="w-4 h-4 mr-1" /> 결과
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
+                    className="rounded-full px-3"
                     onClick={() => {
                       const link = `${window.location.origin}/survey/${sheetSurvey.id}`;
                       navigator.clipboard.writeText(link);
