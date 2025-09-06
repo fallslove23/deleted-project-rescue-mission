@@ -1,57 +1,63 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { translateAuthError } from '@/utils/authErrorTranslator';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-
-/**
- * 관리자/강사 로그인 페이지
- * - container 사용하지 않아 폭이 과도하게 줄어드는 현상 방지
- * - 페이지 래퍼: max-w-7xl + side padding
- * - 로그인 카드: 적절한 max-width로 가독성 유지
- */
-export default function AuthPage() {
+const Auth = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [params] = useSearchParams();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [isResetPassword, setIsResetPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-  // 로그인 후 이동할 경로 (쿼리 ?redirect=/surveys-v2 지원)
-  const redirect = params.get("redirect") || "/surveys-v2";
-
-  const onSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast({
-        title: "입력 확인",
-        description: "이메일과 비밀번호를 입력해 주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
+    setLoading(true);
 
     try {
-      setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
       if (error) throw error;
+      
+      if (data.user) {
+        // Check if this is first login for instructor
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_login')
+          .eq('id', data.user.id)
+          .single();
 
-      toast({ title: "로그인 성공" });
-      navigate(redirect);
-    } catch (err: any) {
+        if (!profileError && profile?.first_login) {
+          // First login - redirect to password change
+          navigate('/change-password');
+          toast({
+            title: "첫 로그인",
+            description: "비밀번호를 변경해주세요.",
+          });
+        } else {
+          // Normal login - force page reload to ensure proper redirect
+          window.location.href = '/default-redirect';
+          toast({
+            title: "로그인 성공",
+            description: "대시보드로 이동합니다.",
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "로그인 실패",
-        description: err?.message || "다시 시도해 주세요.",
+        description: translateAuthError(error.message || '알 수 없는 오류가 발생했습니다.'),
         variant: "destructive",
       });
     } finally {
@@ -59,28 +65,28 @@ export default function AuthPage() {
     }
   };
 
-  const onForgotPassword = async () => {
-    if (!email) {
-      toast({
-        title: "이메일 필요",
-        description: "비밀번호 재설정 링크를 받으려면 이메일을 입력해 주세요.",
-      });
-      return;
-    }
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
     try {
-      setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/change-password`
       });
+      
       if (error) throw error;
+      
       toast({
-        title: "메일 발송",
-        description: "입력하신 주소로 비밀번호 재설정 메일을 보냈습니다.",
+        title: "비밀번호 재설정 이메일 발송",
+        description: "이메일을 확인하여 비밀번호를 재설정해주세요.",
       });
-    } catch (err: any) {
+      
+      setIsResetPassword(false);
+    } catch (error: any) {
+      console.error('Password reset error:', error);
       toast({
-        title: "실패",
-        description: err?.message || "메일 발송에 실패했습니다.",
+        title: "비밀번호 재설정 오류",
+        description: translateAuthError(error.message || '비밀번호 재설정 중 오류가 발생했습니다.'),
         variant: "destructive",
       });
     } finally {
@@ -89,80 +95,80 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen">
-      {/* 상단 헤더 */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
-        <div className="flex items-center gap-3 h-16">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            메인으로
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* Header with back button */}
+      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <div className="w-full max-w-7xl mx-auto px-4 py-3 flex items-center">
+          <Button
+            onClick={() => navigate('/')}
+            variant="ghost"
+            size="sm"
+            className="mr-3 touch-friendly"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">메인으로</span>
+            <span className="sm:hidden">메인</span>
           </Button>
-          <div>
-            <h1 className="text-2xl font-semibold text-primary">
-              관리자/강사 로그인
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              설문 결과 조회 및 관리
-            </p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">관리자/강사 로그인</h1>
+            <p className="text-xs text-muted-foreground break-words">설문 결과 조회 및 관리</p>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* 본문 */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6">
-        <div className="flex">
-          <Card className="w-full max-w-[520px] md:max-w-[560px] shadow-sm">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-lg mx-auto">
+          <Card className="w-full">
             <CardHeader>
-              <CardTitle className="text-2xl tracking-tight">로그인</CardTitle>
+              <CardTitle className="text-center text-lg sm:text-xl break-words">
+                {isResetPassword ? '비밀번호 찾기' : '로그인'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={onSubmit} className="space-y-5">
+              <form onSubmit={isResetPassword ? handleResetPassword : handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">이메일</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="username"
+                    required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">비밀번호</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full h-11 text-base"
-                  disabled={loading}
-                >
-                  {loading ? "로그인 중..." : "로그인"}
+                {!isResetPassword && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">비밀번호</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+                <Button type="submit" className="w-full touch-friendly text-sm sm:text-base" disabled={loading}>
+                  <span className="break-words">
+                    {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
+                  </span>
                 </Button>
-
-                <div className="text-center">
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-primary"
-                    onClick={onForgotPassword}
-                    disabled={loading}
-                  >
-                    비밀번호를 잊으셨나요?
-                  </Button>
-                </div>
               </form>
+              <div className="mt-4 text-center">
+                <Button
+                  variant="link"
+                  className="touch-friendly break-words hyphens-auto text-sm"
+                  onClick={() => setIsResetPassword(!isResetPassword)}
+                >
+                  {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Auth;
