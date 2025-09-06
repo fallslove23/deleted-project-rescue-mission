@@ -1,10 +1,18 @@
-import { createRoot } from 'react-dom/client'
-import { AuthProvider } from '@/hooks/useAuth'
-import App from './App.tsx'
-import './index.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from '@/hooks/useAuth';
 
-createRoot(document.getElementById("root")!).render(
-  <AuthProvider>
-    <App />
-  </AuthProvider>
-);
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <div>
+          <h1>앱이 정상적으로 로드되었습니다!</h1>
+          <p>AuthProvider가 올바르게 설정되었습니다.</p>
+        </div>
+      </AuthProvider>
+    </Router>
+  );
+}
+
+export default App;
