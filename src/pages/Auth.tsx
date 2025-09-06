@@ -116,56 +116,56 @@ const Auth = () => {
         </div>
       </header>
 
-      {/* Main content - 중앙 정렬 및 최대 너비 설정 */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md mx-auto">
+      {/* Main content - 개선된 반응형 중앙 정렬 */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto">
           <Card className="w-full shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-            <CardHeader className="text-center pb-6">
-              <CardTitle className="text-xl font-bold">
+            <CardHeader className="text-center pb-6 px-6 sm:px-8 lg:px-10 pt-8">
+              <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">
                 {isResetPassword ? '비밀번호 찾기' : '로그인'}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={isResetPassword ? handleResetPassword : handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">이메일</Label>
+            <CardContent className="px-6 sm:px-8 lg:px-10 pb-8">
+              <form onSubmit={isResetPassword ? handleResetPassword : handleLogin} className="space-y-6">
+                <div className="space-y-3">
+                  <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="이메일을 입력하세요"
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     required
                   />
                 </div>
                 {!isResetPassword && (
-                  <div className="space-y-2">
-                    <Label htmlFor="password">비밀번호</Label>
+                  <div className="space-y-3">
+                    <Label htmlFor="password" className="text-sm font-medium">비밀번호</Label>
                     <Input
                       id="password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="비밀번호를 입력하세요"
-                      className="w-full"
+                      className="w-full h-12 text-base"
                       required
                     />
                   </div>
                 )}
                 <Button 
                   type="submit" 
-                  className="w-full touch-friendly bg-purple-600 hover:bg-purple-700 text-white py-2.5" 
+                  className="w-full h-12 touch-friendly bg-purple-600 hover:bg-purple-700 text-white text-base font-medium" 
                   disabled={loading}
                 >
                   {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
                 </Button>
               </form>
               
-              <div className="mt-6 text-center">
+              <div className="mt-8 text-center">
                 <Button
                   variant="link"
-                  className="touch-friendly text-purple-600 hover:text-purple-800"
+                  className="touch-friendly text-purple-600 hover:text-purple-800 text-base"
                   onClick={() => setIsResetPassword(!isResetPassword)}
                 >
                   {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}

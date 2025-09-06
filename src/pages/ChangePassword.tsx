@@ -100,62 +100,62 @@ const ChangePassword = () => {
         </div>
       </header>
 
-      {/* Main content - 중앙 정렬 및 최대 너비 설정 */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md mx-auto">
+      {/* Main content - 개선된 반응형 중앙 정렬 */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto">
           <Card className="w-full shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-            <CardHeader className="text-center pb-6">
-              <CardTitle className="text-xl font-bold">비밀번호 변경</CardTitle>
+            <CardHeader className="text-center pb-6 px-6 sm:px-8 lg:px-10 pt-8">
+              <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">비밀번호 변경</CardTitle>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">현재 비밀번호</Label>
+            <CardContent className="px-6 sm:px-8 lg:px-10 pb-8">
+              <form onSubmit={handleChangePassword} className="space-y-6">
+                <div className="space-y-3">
+                  <Label htmlFor="currentPassword" className="text-sm font-medium">현재 비밀번호</Label>
                   <Input
                     id="currentPassword"
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="bsedu123"
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">새 비밀번호</Label>
+                <div className="space-y-3">
+                  <Label htmlFor="newPassword" className="text-sm font-medium">새 비밀번호</Label>
                   <Input
                     id="newPassword"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="최소 6자 이상"
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">새 비밀번호 확인</Label>
+                <div className="space-y-3">
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium">새 비밀번호 확인</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="새 비밀번호를 다시 입력"
-                    className="w-full"
+                    className="w-full h-12 text-base"
                     required
                   />
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full touch-friendly bg-green-600 hover:bg-green-700 text-white py-2.5" 
+                  className="w-full h-12 touch-friendly bg-green-600 hover:bg-green-700 text-white text-base font-medium" 
                   disabled={loading}
                 >
                   {loading ? '변경 중...' : '비밀번호 변경'}
                 </Button>
               </form>
               
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800">
+              <div className="mt-8 p-4 sm:p-6 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm sm:text-base text-blue-800">
                   <strong>알림:</strong> 비밀번호 변경 후 대시보드로 이동됩니다.
                 </p>
               </div>
