@@ -1,5 +1,5 @@
-// src/App.tsx - 안전한 AuthProvider 버전
-import React, { useState, useEffect } from 'react';
+// src/App.tsx
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/toaster";
@@ -62,7 +62,7 @@ import PersonalDashboard from '@/pages/PersonalDashboard';
 import RoleView from '@/pages/RoleView';
 
 // Hooks
-import { useAuth, AuthProvider } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 import './App.css';
 
@@ -71,51 +71,16 @@ const queryClient = new QueryClient();
 // SidebarProvider가 필요 없는 경로들
 const NO_SIDEBAR_PATHS = ['/auth', '/survey/', '/change-password'];
 
-// AuthProvider 초기화를 기다리는 래퍼 컴포넌트
-function AuthGuardedApp() {
-  const [authReady, setAuthReady] = useState(false);
-
-  useEffect(() => {
-    // AuthProvider가 초기화될 시간을 줌
-    const timer = setTimeout(() => {
-      setAuthReady(true);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!authReady) {
-    return <LoadingScreen />;
-  }
-
-  return <AppContent />;
-}
-
 function AppContent() {
   const location = useLocation();
-  
-  let loading = true;
-  let authError = false;
-
-  try {
-    const auth = useAuth();
-    loading = auth.loading;
-  } catch (error) {
-    console.error('AuthProvider error:', error);
-    authError = true;
-  }
-
-  // AuthProvider 오류가 있으면 Auth 페이지로 리다이렉트
-  if (authError) {
-    return <Auth />;
-  }
+  const { isLoading } = useAuth();
 
   // 현재 경로가 사이드바가 필요 없는 경로인지 확인
   const needsSidebar = !NO_SIDEBAR_PATHS.some(path => 
     location.pathname.startsWith(path)
   );
 
-  if (loading) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
@@ -273,14 +238,12 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <AuthGuardedApp />
-          <Toaster />
-        </Router>
-      </QueryClientProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <AppContent />
+        <Toaster />
+      </Router>
+    </QueryClientProvider>
   );
 }
 
