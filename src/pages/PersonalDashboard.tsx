@@ -842,18 +842,4 @@ const PersonalDashboard = ({ showPageHeader = true }: { showPageHeader?: boolean
   );
 };
 
-export default PersonalDashboard; font-medium mb-2 block">기간</label>
-            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="기간 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="round">회차별</SelectItem>
-                <SelectItem value="month">월별</SelectItem>
-                <SelectItem value="year">연도별</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="text-sm
+export default PersonalDashboard;

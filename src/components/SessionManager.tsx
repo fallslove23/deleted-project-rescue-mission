@@ -164,7 +164,11 @@ export const SessionManager = ({
       if (error) throw error;
       const stay = sessions.filter(s => s.id !== id).map((s, idx) => ({ ...s, session_order: idx }));
       onSessionsChange(stay);
-      await supabase.from('survey_sessions').upsert(stay.map(s => ({ id: s.id, session_order: s.session_order })));
+      await supabase.from('survey_sessions').upsert(stay.map(s => ({ 
+        id: s.id, 
+        session_order: s.session_order,
+        survey_id: s.survey_id
+      })));
       toast({ title: "성공", description: "세션이 삭제되었습니다." });
     } catch (e: any) {
       console.error(e);
@@ -181,8 +185,16 @@ export const SessionManager = ({
     arr[to] = { ...a, session_order: to };
     onSessionsChange(arr);
     await supabase.from('survey_sessions').upsert([
-      { id: arr[idx].id, session_order: arr[idx].session_order },
-      { id: arr[to].id, session_order: arr[to].session_order },
+      { 
+        id: arr[idx].id, 
+        session_order: arr[idx].session_order,
+        survey_id: arr[idx].survey_id
+      },
+      { 
+        id: arr[to].id, 
+        session_order: arr[to].session_order,
+        survey_id: arr[to].survey_id
+      },
     ]);
   };
 
