@@ -1,17 +1,23 @@
 // src/pages/SystemLogs.tsx
-// 안전 구현: 훅을 "항상 같은 순서"로만 호출. 조건부 훅 호출 금지.
-// 레거시 import가 남아 있더라도 이 파일 하나로 런타임 크래시를 막습니다.
+// ✅ 훅을 항상 같은 순서/같은 개수로만 호출하는 안전 구현
+//   - 조건문 안에서 useState/useEffect/useMemo/useRef 호출 금지
+//   - 조기 return 전에 훅 호출 금지 (렌더 경로가 달라지면 훅 순서가 바뀜)
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw } from "lucide-react";
 
-// 로그 레벨 타입(필터)
 type LogLevel = "ALL" | "INFO" | "WARN" | "ERROR";
 
 type LogRow = {
@@ -23,43 +29,41 @@ type LogRow = {
 };
 
 export default function SystemLogs() {
-  // ✅ 훅은 컴포넌트 최상단에서 “항상” 같은 개수/순서로 호출
+  // ✅ 모든 훅은 컴포넌트 최상단에서 한 번씩 고정 호출
   const [level, setLevel] = useState<LogLevel>("ALL");
   const [q, setQ] = useState("");
+  const [limit, setLimit] = useState<number>(100);
   const [logs, setLogs] = useState<LogRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [limit, setLimit] = useState(100);
-  const mounted = useRef(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const mounted = useRef<boolean>(true);
 
-  // 쿼리 파라미터는 useMemo로 계산 (훅 아님)
-  const filters = useMemo(() => {
-    return {
+  // 쿼리 파라미터 계산은 훅이 아님(useMemo는 훅이지만 호출 순서 고정)
+  const filters = useMemo(
+    () => ({
       level,
       q: q.trim(),
       limit,
-    };
-  }, [level, q, limit]);
+    }),
+    [level, q, limit]
+  );
 
-  // ✅ 단일 useEffect로 fetch, 조건은 effect 내부에서 if로 가지치기 (훅이 아님)
+  // ✅ 단일 effect로 fetch 실행 (조건은 effect "내부에서" 처리)
   useEffect(() => {
     mounted.current = true;
 
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        // 기본 쿼리
+        // 실제 테이블명을 확인해 맞춰주세요: "system_logs" 가 기본 가정
         let query = supabase
-          .from("system_logs") // 실제 테이블명에 맞게 수정
+          .from("system_logs")
           .select("*")
           .order("created_at", { ascending: false })
           .limit(filters.limit);
 
-        // 레벨 필터
         if (filters.level !== "ALL") {
           query = query.eq("level", filters.level);
         }
-
-        // 텍스트 검색 (message ILIKE)
         if (filters.q) {
           query = query.ilike("message", `%${filters.q}%`);
         }
@@ -68,7 +72,7 @@ export default function SystemLogs() {
         if (error) throw error;
 
         if (mounted.current) {
-          setLogs((data as LogRow[]) || []);
+          setLogs((data as LogRow[]) ?? []);
         }
       } catch (err) {
         console.error("[SystemLogs] fetch error:", err);
@@ -85,7 +89,7 @@ export default function SystemLogs() {
     };
   }, [filters]);
 
-  // ✅ 어떤 분기든 훅 호출 순서는 변하지 않습니다.
+  // ✅ 렌더 분기는 훅 호출 이후에만(훅 개수/순서 불변)
   return (
     <div className="p-2 md:p-4">
       <Card className="mb-4">
@@ -93,6 +97,7 @@ export default function SystemLogs() {
           <CardTitle className="text-base md:text-lg">시스템 로그</CardTitle>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* 레벨 선택 */}
             <Select value={level} onValueChange={(v) => setLevel(v as LogLevel)}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="레벨" />
@@ -105,6 +110,7 @@ export default function SystemLogs() {
               </SelectContent>
             </Select>
 
+            {/* 메시지 검색 */}
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -112,6 +118,7 @@ export default function SystemLogs() {
               className="w-[200px]"
             />
 
+            {/* 개수 */}
             <Select
               value={String(limit)}
               onValueChange={(v) => setLimit(Number(v))}
@@ -121,19 +128,18 @@ export default function SystemLogs() {
               </SelectTrigger>
               <SelectContent>
                 {[50, 100, 200, 500].map((n) => (
-                  <SelectItem key={n} value={String(n)}>{n}개</SelectItem>
+                  <SelectItem key={n} value={String(n)}>
+                    {n}개
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
+            {/* 새로고침: 의존성 변경으로 effect 재실행 */}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                // 의존성(filters)이 바뀌면 effect가 재실행되므로
-                // 강제 새고침은 입력값을 살짝 변경하는 식으로 트리거
-                setLimit((x) => (x === 100 ? 101 : 100));
-              }}
+              onClick={() => setLimit((x) => (x === 100 ? 101 : 100))}
               title="새로고침"
             >
               <RefreshCw className="h-4 w-4" />
@@ -143,9 +149,13 @@ export default function SystemLogs() {
 
         <CardContent>
           {loading ? (
-            <div className="text-sm text-muted-foreground py-8">불러오는 중…</div>
+            <div className="text-sm text-muted-foreground py-8">
+              불러오는 중…
+            </div>
           ) : logs.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-8">로그가 없습니다.</div>
+            <div className="text-sm text-muted-foreground py-8">
+              로그가 없습니다.
+            </div>
           ) : (
             <div className="space-y-2">
               {logs.map((row) => (
@@ -170,14 +180,16 @@ export default function SystemLogs() {
                       {row.level}
                     </Badge>
                   </div>
+
                   <div className="mt-1 whitespace-pre-wrap break-words">
                     {row.message}
                   </div>
-                  {row.context && (
+
+                  {row.context ? (
                     <pre className="mt-2 text-[11px] md:text-xs bg-muted/40 p-2 rounded overflow-auto">
 {JSON.stringify(row.context, null, 2)}
                     </pre>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
