@@ -1,219 +1,131 @@
-import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
-import { DashboardLayout } from '@/components/DashboardLayout';
+// src/pages/Dashboard.tsx
+import React from "react";
+import { Link } from "react-router-dom";
+import {
+  BarChart3,
+  BookOpenCheck,
+  Users,
+  UserCog,
+  Settings,
+  ClipboardList,
+  ClipboardCheck,
+  Mail,
+  FileText,
+  LayoutDashboard,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
-// 모든 컴포넌트를 임시로 생성 (import 오류 방지)
-const DashboardOverview = () => (
-  <div className="space-y-6">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <div className="p-6 bg-white rounded-lg shadow border">
-        <h3 className="font-semibold text-gray-600">전체 설문</h3>
-        <p className="text-3xl font-bold text-primary mt-2">24</p>
-        <p className="text-sm text-gray-500 mt-1">+2 이번 주</p>
-      </div>
-      <div className="p-6 bg-white rounded-lg shadow border">
-        <h3 className="font-semibold text-gray-600">활성 강사</h3>
-        <p className="text-3xl font-bold text-green-600 mt-2">12</p>
-        <p className="text-sm text-gray-500 mt-1">+1 신규</p>
-      </div>
-      <div className="p-6 bg-white rounded-lg shadow border">
-        <h3 className="font-semibold text-gray-600">진행중 과정</h3>
-        <p className="text-3xl font-bold text-blue-600 mt-2">8</p>
-        <p className="text-sm text-gray-500 mt-1">3개 완료 예정</p>
-      </div>
-      <div className="p-6 bg-white rounded-lg shadow border">
-        <h3 className="font-semibold text-gray-600">평균 응답률</h3>
-        <p className="text-3xl font-bold text-purple-600 mt-2">87%</p>
-        <p className="text-sm text-gray-500 mt-1">↑ 5% 지난달 대비</p>
-      </div>
-    </div>
-    
-    <div className="grid gap-6 md:grid-cols-2">
-      <div className="p-6 bg-white rounded-lg shadow border">
-        <h3 className="font-semibold mb-4">최근 활동</h3>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm">새 설문 생성</span>
-            <span className="text-xs text-gray-500">2시간 전</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">강사 계정 추가</span>
-            <span className="text-xs text-gray-500">5시간 전</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">과정 통계 업데이트</span>
-            <span className="text-xs text-gray-500">1일 전</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="p-6 bg-white rounded-lg shadow border">
-        <h3 className="font-semibold mb-4">시스템 상태</h3>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-sm">서버 상태</span>
-            <span className="text-sm text-green-600 font-medium">정상</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">데이터베이스</span>
-            <span className="text-sm text-green-600 font-medium">정상</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm">이메일 서비스</span>
-            <span className="text-sm text-green-600 font-medium">정상</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-const SurveyResults = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">설문 결과 분석</h2>
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <h3 className="font-semibold text-blue-800">총 응답 수</h3>
-          <p className="text-2xl font-bold text-blue-600">1,234</p>
-        </div>
-        <div className="p-4 bg-green-50 rounded-lg">
-          <h3 className="font-semibold text-green-800">완료율</h3>
-          <p className="text-2xl font-bold text-green-600">87%</p>
-        </div>
-        <div className="p-4 bg-purple-50 rounded-lg">
-          <h3 className="font-semibold text-purple-800">평균 만족도</h3>
-          <p className="text-2xl font-bold text-purple-600">4.2/5</p>
-        </div>
-      </div>
-      <p className="text-gray-600 mt-4">설문 결과 상세 분석 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const CourseReports = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">과정별 결과보고</h2>
-      <p className="text-gray-600">과정별 종합 보고서 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const InstructorManagement = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">강사 관리</h2>
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="p-4 border rounded-lg">
-          <h3 className="font-semibold">김강훈</h3>
-          <p className="text-sm text-gray-600">khkim1@os...</p>
-          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mt-2">instructor</span>
-        </div>
-        <div className="p-4 border rounded-lg">
-          <h3 className="font-semibold">김도헌</h3>
-          <p className="text-sm text-gray-600">danmil04@...</p>
-          <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mt-2">instructor</span>
-        </div>
-        <div className="p-4 border rounded-lg">
-          <h3 className="font-semibold">김영길</h3>
-          <p className="text-sm text-gray-600">youngkil05@...</p>
-          <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded mt-2">director</span>
-        </div>
-      </div>
-      <p className="text-gray-600 mt-4">강사 정보 및 권한 관리 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const UserManagement = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">사용자 관리</h2>
-      <p className="text-gray-600">시스템 사용자 관리 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const CourseManagement = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">과목 관리</h2>
-      <p className="text-gray-600">교육과정 및 과목 관리 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const CourseStatistics = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">통계 관리</h2>
-      <p className="text-gray-600">과정별 상세 통계 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const TemplateManagement = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">템플릿 관리</h2>
-      <p className="text-gray-600">설문 템플릿 관리 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const EmailLogs = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">이메일 로그</h2>
-      <p className="text-gray-600">이메일 발송 기록 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-const SystemLogs = () => (
-  <div className="space-y-6">
-    <div className="bg-white rounded-lg shadow border p-6">
-      <h2 className="text-2xl font-bold mb-4">시스템 로그</h2>
-      <p className="text-gray-600">시스템 활동 기록 페이지입니다.</p>
-    </div>
-  </div>
-);
-
-// 페이지별 메타데이터
-const pageMetadata: Record<string, { title: string; description: string }> = {
-  '/dashboard': { title: '관리자 대시보드', description: '시스템 종합 현황' },
-  '/dashboard/results': { title: '결과분석', description: '설문 결과 분석 및 통계' },
-  '/dashboard/course-reports': { title: '결과보고', description: '과정별 종합 보고서' },
-  '/dashboard/instructors': { title: '강사관리', description: '강사 정보 및 권한 관리' },
-  '/dashboard/users': { title: '사용자관리', description: '시스템 사용자 관리' },
-  '/dashboard/courses': { title: '과목관리', description: '교육과정 및 과목 관리' },
-  '/dashboard/course-statistics': { title: '통계관리', description: '과정별 상세 통계' },
-  '/dashboard/templates': { title: '템플릿관리', description: '설문 템플릿 관리' },
-  '/dashboard/email-logs': { title: '이메일 로그', description: '이메일 발송 기록' },
-  '/dashboard/system-logs': { title: '시스템 로그', description: '시스템 활동 기록' },
+type Section = {
+  id: string;
+  title: string;
+  description: string;
+  to: string;
+  icon: React.ElementType;
 };
 
-function Dashboard() {
-  const location = useLocation();
-  const currentPage = pageMetadata[location.pathname] || pageMetadata['/dashboard'];
+const sections: Section[] = [
+  {
+    id: "survey-results",
+    title: "Survey Results",
+    description: "설문 결과 집계 및 분석 보기",
+    to: "/surveys/results",
+    icon: BarChart3,
+  },
+  {
+    id: "course-reports",
+    title: "Course Reports",
+    description: "과정별 리포트와 성과 지표",
+    to: "/reports/courses",
+    icon: BookOpenCheck,
+  },
+  {
+    id: "instructor-management",
+    title: "Instructor Management",
+    description: "강사 정보 및 배정 관리",
+    to: "/management/instructors",
+    icon: Users,
+  },
+  {
+    id: "user-management",
+    title: "User Management",
+    description: "사용자 계정, 권한, 비밀번호 정책",
+    to: "/management/users",
+    icon: UserCog,
+  },
+  {
+    id: "course-management",
+    title: "Course Management",
+    description: "과정 생성/편집, 커리큘럼 관리",
+    to: "/management/courses",
+    icon: ClipboardList,
+  },
+  {
+    id: "personal-dashboard",
+    title: "Personal Dashboard",
+    description: "나의 업무 현황과 위젯",
+    to: "/me/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    id: "template-management",
+    title: "Template Management",
+    description: "설문/이메일/문서 템플릿 관리",
+    to: "/management/templates",
+    icon: ClipboardCheck,
+  },
+  {
+    id: "email-logs",
+    title: "Email Logs",
+    description: "이메일 발송 이력 및 실패 로그",
+    to: "/logs/emails",
+    icon: Mail,
+  },
+  {
+    id: "system-logs",
+    title: "System Logs",
+    description: "시스템 이벤트 및 오류 로그",
+    to: "/logs/system",
+    icon: FileText,
+  },
+];
 
+export default function Dashboard() {
   return (
-    <DashboardLayout title={currentPage.title} description={currentPage.description}>
-      <Routes>
-        <Route path="/" element={<DashboardOverview />} />
-        <Route path="/results" element={<SurveyResults />} />
-        <Route path="/course-reports" element={<CourseReports />} />
-        <Route path="/instructors" element={<InstructorManagement />} />
-        <Route path="/users" element={<UserManagement />} />
-        <Route path="/courses" element={<CourseManagement />} />
-        <Route path="/course-statistics" element={<CourseStatistics />} />
-        <Route path="/templates" element={<TemplateManagement />} />
-        <Route path="/email-logs" element={<EmailLogs />} />
-        <Route path="/system-logs" element={<SystemLogs />} />
-      </Routes>
-    </DashboardLayout>
+    <div className="mx-auto max-w-7xl p-4 md:p-6">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            주요 기능으로 빠르게 이동하세요.
+          </p>
+        </div>
+        <Link to="/settings">
+          <Button variant="outline" className="gap-2">
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
+        </Link>
+      </div>
+
+      <Separator className="mb-6" />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {sections.map(({ id, title, description, to, icon: Icon }) => (
+          <Link key={id} to={to}>
+            <Card className="transition hover:shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+                <Icon className="h-5 w-5" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{description}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }
-
-export default Dashboard;
