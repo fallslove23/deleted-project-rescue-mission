@@ -1,15 +1,49 @@
 import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import LoadingScreen from '@/components/LoadingScreen';
+
+// 필수 페이지만 import (오류 방지)
+import Auth from '@/pages/Auth';
+import Dashboard from '@/pages/Dashboard';
+import Index from '@/pages/Index';
+import NotFound from '@/pages/NotFound';
+import ProtectedRoute from '@/components/ProtectedRoute';
+
+import './App.css';
 
 function App() {
-  console.log('App 컴포넌트가 렌더링됩니다');
-  
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>디버깅 테스트</h1>
-      <p>현재 시간: {new Date().toLocaleString()}</p>
-      <p>이 화면이 보인다면 기본 구조는 작동합니다.</p>
-      <p>다음 단계: useAuth 추가</p>
-    </div>
+    <Routes>
+      {/* 기본 라우트 */}
+      <Route path="/" element={<Index />} />
+      <Route path="/auth" element={<Auth />} />
+      
+      {/* 보호된 라우트 */}
+      <Route
+        path="/dashboard/*"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      
+      {/* 기본 리디렉션 */}
+      <Route 
+        path="/app" 
+        element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />} 
+      />
+      
+      {/* 404 페이지 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
