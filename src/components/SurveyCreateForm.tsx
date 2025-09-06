@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import CourseNameManager from "@/components/CourseNameManager";
+import ProgramManager from "@/components/ProgramManager";
 
 interface SurveyCreateFormProps {
   onSuccess: (surveyId: string) => void;
@@ -30,8 +30,8 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     template_id: initialTemplate || "none",
     expected_participants: 0,
     
-    // 합반 관련 필드
-    course_name: "",
+    // 과정 관련 필드
+    program_name: "",
     is_combined: false,
     combined_round_start: null as number | null,
     combined_round_end: null as number | null,
@@ -43,17 +43,17 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     const year = String(form.education_year);
     const r = form.education_round;
     const d = form.education_day;
-    const program = form.course_name;
+    const program = form.program_name;
 
     if (year && r && d && program) {
       const title = `${year}-${program}-${r}차-${d}일차 설문`;
       setForm((prev) => ({ ...prev, title }));
     }
-  }, [form.education_year, form.education_round, form.education_day, form.course_name]);
+  }, [form.education_year, form.education_round, form.education_day, form.program_name]);
 
   // 합반 라벨 자동 생성
   useEffect(() => {
-    if (form.course_name !== "BS Advanced") return;
+    if (form.program_name !== "BS Advanced") return;
     if (!form.is_combined) return;
 
     const year = form.education_year;
@@ -64,7 +64,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
       const auto = `${year}년 ${s}∼${e}차 - BS Advanced`;
       setForm((prev) => ({ ...prev, round_label: prev.round_label?.trim() ? prev.round_label : auto }));
     }
-  }, [form.course_name, form.is_combined, form.education_year, form.combined_round_start, form.combined_round_end]);
+  }, [form.program_name, form.is_combined, form.education_year, form.combined_round_start, form.combined_round_end]);
 
   const onChange = <K extends keyof typeof form>(key: K, value: typeof form[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -79,7 +79,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     }
 
     // 합반 유효성 검사
-    if (form.course_name === "BS Advanced" && form.is_combined) {
+    if (form.program_name === "BS Advanced" && form.is_combined) {
       if (!form.combined_round_start || !form.combined_round_end) {
         toast({ title: "오류", description: "합반을 선택한 경우 시작/종료 차수를 입력하세요.", variant: "destructive" });
         return;
@@ -95,9 +95,16 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     try {
       // 라벨 자동 채움
       let round_label = form.round_label.trim();
-      if (form.course_name === "BS Advanced" && form.is_combined && !round_label) {
+      if (form.program_name === "BS Advanced" && form.is_combined && !round_label) {
         round_label = `${form.education_year}년 ${form.combined_round_start}∼${form.combined_round_end}차 - BS Advanced`;
       }
+
+      // Get program_id for the selected program
+      const { data: program } = await supabase
+        .from('programs')
+        .select('id')
+        .eq('name', form.program_name)
+        .single();
 
       const payload = {
         title: form.title.trim(),
@@ -112,11 +119,12 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         expected_participants: Number(form.expected_participants) || 0,
         
         // 과정 정보
-        course_name: form.course_name,
-        is_combined: form.course_name === "BS Advanced" ? form.is_combined : false,
-        combined_round_start: (form.course_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_start) : null,
-        combined_round_end: (form.course_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_end) : null,
-        round_label: (form.course_name === "BS Advanced" && form.is_combined) ? round_label : null,
+        course_name: form.program_name, // 호환성을 위해 유지
+        program_id: program?.id || null,
+        is_combined: form.program_name === "BS Advanced" ? form.is_combined : false,
+        combined_round_start: (form.program_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_start) : null,
+        combined_round_end: (form.program_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_end) : null,
+        round_label: (form.program_name === "BS Advanced" && form.is_combined) ? round_label : null,
       };
 
       const { data: survey, error: surveyError } = await supabase
@@ -224,10 +232,10 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 과정명 관리 - 템플릿 대신 과정명 관리 기능 */}
-          <CourseNameManager
-            selectedCourse={form.course_name}
-            onCourseSelect={(courseName) => onChange("course_name", courseName)}
+          {/* 과정명 관리 - 과정명 선택 및 관리 기능 */}
+          <ProgramManager
+            selectedProgram={form.program_name}
+            onProgramSelect={(programName) => onChange("program_name", programName)}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -278,7 +286,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
           </div>
 
           {/* 합반 설정 (BS Advanced일 때만) */}
-          {form.course_name === "BS Advanced" && (
+          {form.program_name === "BS Advanced" && (
             <Card className="border-orange-200 bg-orange-50/50">
               <CardHeader>
                 <CardTitle className="text-sm text-orange-800">합반 설정</CardTitle>
