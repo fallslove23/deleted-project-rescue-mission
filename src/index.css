@@ -227,8 +227,8 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
-    /* Prevent horizontal scrolling on mobile */
-    max-width: 100%;
+    /* Prevent text overflow only, not element width */
+    word-wrap: break-word;
   }
 
   html {
@@ -261,7 +261,8 @@ All colors MUST be HSL.
 
   /* Container width constraints for mobile */
   .container {
-    @apply w-full max-w-full px-4;
+    @apply w-full px-4 mx-auto;
+    max-width: 1200px;
   }
 
   /* Mobile-optimized card spacing */

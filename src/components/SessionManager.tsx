@@ -1,31 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Edit3, Trash2, GripVertical, User } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
+import { Plus, Edit3, Trash2, User, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
-interface Course {
-  id: string;
-  title: string;
-}
-
-interface Instructor {
-  id: string;
-  name: string;
-  email?: string;
-  photo_url?: string;
-  bio?: string;
-}
-
-interface SurveySession {
+interface Course { id: string; title: string; }
+interface Instructor { id: string; name: string; email?: string; photo_url?: string; bio?: string; }
+export interface SurveySession {
   id: string;
   survey_id: string;
   course_id: string | null;
@@ -44,216 +34,156 @@ interface SessionManagerProps {
   onSessionsChange: (sessions: SurveySession[]) => void;
 }
 
-interface SortableSessionItemProps {
-  session: SurveySession;
-  courses: Course[];
-  instructors: Instructor[];
-  onEdit: (session: SurveySession) => void;
-  onDelete: (sessionId: string) => void;
-}
-
-const SortableSessionItem = ({ session, courses, instructors, onEdit, onDelete }: SortableSessionItemProps) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: session.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const courseTitle = courses.find(c => c.id === session.course_id)?.title || '과목 미선택';
-  const instructorName = instructors.find(i => i.id === session.instructor_id)?.name || '강사 미선택';
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border"
-    >
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex items-center justify-center w-8 h-8 cursor-move text-muted-foreground hover:text-foreground"
-      >
-        <GripVertical size={16} />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-sm">{session.session_name}</span>
-          <span className="text-xs text-muted-foreground">#{session.session_order + 1}</span>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          <span className="font-medium">{courseTitle}</span>
-          {session.instructor_id && (
-            <>
-              <span className="mx-1">•</span>
-              <span className="flex items-center gap-1">
-                <User size={12} />
-                {instructorName}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onEdit(session)}
-        >
-          <Edit3 size={14} />
-        </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="sm">
-              <Trash2 size={14} />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>세션 삭제</AlertDialogTitle>
-              <AlertDialogDescription>
-                '{session.session_name}' 세션을 삭제하시겠습니까?<br/>
-                이 세션에 속한 질문들은 미분류로 이동됩니다.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>취소</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(session.id)}>
-                삭제
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </div>
-  );
-};
-
-export const SessionManager = ({ 
-  surveyId, 
-  sessions, 
-  courses, 
-  instructors, 
-  onSessionsChange 
+export const SessionManager = ({
+  surveyId, sessions, courses, instructors, onSessionsChange
 }: SessionManagerProps) => {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSession, setEditingSession] = useState<SurveySession | null>(null);
-  const [sessionForm, setSessionForm] = useState({
+  const [editing, setEditing] = useState<SurveySession | null>(null);
+
+  // ▽ 사용자가 이름 입력을 직접 수정했는지 추적 (코스 선택 시 자동 채우기 제어)
+  const [userEditedName, setUserEditedName] = useState(false);
+
+  const [form, setForm] = useState({
     session_name: "",
-    course_id: "",
-    instructor_id: ""
+    course_id: "none" as string,
+    instructor_id: "none" as string,
   });
 
-  const handleSessionSave = async () => {
-    if (!sessionForm.session_name.trim()) {
-      toast({ title: "오류", description: "세션 이름을 입력해주세요.", variant: "destructive" });
-      return;
+  useEffect(() => {
+    if (!dialogOpen) {
+      setEditing(null);
+      setForm({ session_name: "", course_id: "none", instructor_id: "none" });
+      setUserEditedName(false);
     }
+  }, [dialogOpen]);
 
+  const openAdd = () => {
+    setEditing(null);
+    setForm({ session_name: "", course_id: "none", instructor_id: "none" });
+    setUserEditedName(false);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (s: SurveySession) => {
+    setEditing(s);
+    setForm({
+      session_name: s.session_name ?? "",
+      course_id: s.course_id ?? "none",
+      instructor_id: s.instructor_id ?? "none",
+    });
+    // 편집 진입 시엔 사용자가 이미 입력했다고 간주(자동 덮어쓰기 방지)
+    setUserEditedName(true);
+    setDialogOpen(true);
+  };
+
+  // ▽ 코스 변경 시: 사용자가 이름을 아직 직접 손대지 않았다면 자동으로 코스명 입력
+  const handleCourseChange = (value: string) => {
+    setForm(prev => {
+      const next = { ...prev, course_id: value };
+      if (!userEditedName) {
+        if (value === "none") {
+          // 과목 관련 평가가 아닐 때: 이름은 비워 둔 상태 유지(사용자가 직접 입력)
+          next.session_name = "";
+        } else {
+          const courseTitle = courses.find(c => c.id === value)?.title ?? "";
+          next.session_name = courseTitle;
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleNameChange = (v: string) => {
+    setUserEditedName(true);
+    setForm(prev => ({ ...prev, session_name: v }));
+  };
+
+  const save = async () => {
     try {
-      if (editingSession) {
-        // 수정
-        const { error } = await supabase
-          .from('survey_sessions')
-          .update({
-            session_name: sessionForm.session_name,
-            course_id: sessionForm.course_id === "none" ? null : sessionForm.course_id,
-            instructor_id: sessionForm.instructor_id === "none" ? null : sessionForm.instructor_id,
-          })
-          .eq('id', editingSession.id);
-        
+      // 세션 이름 비어 있고 과목을 선택했다면 마지막 안전 자동채움
+      let _name = form.session_name.trim();
+      if (!_name && form.course_id !== "none") {
+        _name = courses.find(c => c.id === form.course_id)?.title ?? "";
+      }
+      if (!_name) {
+        // 과목 미선택(공통 평가)인 경우에도 세션 이름은 필요: 운영평가/일반/공통 등으로 입력 요청
+        toast({
+          title: "세션 이름이 필요합니다",
+          description: "과목을 선택하지 않는 경우에도 세션 이름(예: 운영평가/공통)을 입력해 주세요.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const payload = {
+        survey_id: surveyId,
+        session_name: _name,
+        course_id: form.course_id === "none" ? null : form.course_id,
+        instructor_id: form.instructor_id === "none" ? null : form.instructor_id,
+      };
+
+      if (editing) {
+        const { error } = await supabase.from('survey_sessions').update(payload).eq('id', editing.id);
         if (error) throw error;
-        
-        const updatedSessions = sessions.map(s => 
-          s.id === editingSession.id 
-            ? { 
-                ...s, 
-                session_name: sessionForm.session_name,
-                course_id: sessionForm.course_id === "none" ? null : sessionForm.course_id,
-                instructor_id: sessionForm.instructor_id === "none" ? null : sessionForm.instructor_id,
-                course: courses.find(c => c.id === sessionForm.course_id),
-                instructor: instructors.find(i => i.id === sessionForm.instructor_id)
-              }
-            : s
-        );
-        onSessionsChange(updatedSessions);
-        
+
+        const next = sessions.map(s => s.id === editing.id
+          ? {
+              ...s,
+              ...payload,
+              course: payload.course_id ? courses.find(c => c.id === payload.course_id) : undefined,
+              instructor: payload.instructor_id ? instructors.find(i => i.id === payload.instructor_id) : undefined,
+            }
+          : s);
+        onSessionsChange(next);
         toast({ title: "성공", description: "세션이 수정되었습니다." });
       } else {
-        // 추가
         const { data, error } = await supabase
           .from('survey_sessions')
-          .insert({
-            survey_id: surveyId,
-            session_name: sessionForm.session_name,
-            course_id: sessionForm.course_id === "none" ? null : sessionForm.course_id,
-            instructor_id: sessionForm.instructor_id === "none" ? null : sessionForm.instructor_id,
-            session_order: sessions.length,
-          })
+          .insert({ ...payload, session_order: sessions.length })
           .select(`
             *,
-            course:courses(id, title),
-            instructor:instructors(id, name, email, photo_url, bio)
+            course:courses(id,title),
+            instructor:instructors(id,name,email,photo_url,bio)
           `)
           .single();
-        
         if (error) throw error;
-        
-        onSessionsChange([...sessions, data]);
+        onSessionsChange([...sessions, data as any]);
         toast({ title: "성공", description: "세션이 추가되었습니다." });
       }
-      
       setDialogOpen(false);
-      setEditingSession(null);
-      setSessionForm({ session_name: "", course_id: "none", instructor_id: "none" });
-    } catch (error: any) {
-      console.error(error);
-      toast({ title: "오류", description: error.message || "세션 저장 중 오류가 발생했습니다.", variant: "destructive" });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "오류", description: e.message || "세션 저장 중 오류", variant: "destructive" });
     }
   };
 
-  const handleEditSession = (session: SurveySession) => {
-    setEditingSession(session);
-    setSessionForm({
-      session_name: session.session_name,
-      course_id: session.course_id || "none",
-      instructor_id: session.instructor_id || "none"
-    });
-    setDialogOpen(true);
-  };
-
-  const handleDeleteSession = async (sessionId: string) => {
+  const remove = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('survey_sessions')
-        .delete()
-        .eq('id', sessionId);
-      
+      const { error } = await supabase.from('survey_sessions').delete().eq('id', id);
       if (error) throw error;
-      
-      const updatedSessions = sessions.filter(s => s.id !== sessionId);
-      onSessionsChange(updatedSessions);
-      
+      const stay = sessions.filter(s => s.id !== id).map((s, idx) => ({ ...s, session_order: idx }));
+      onSessionsChange(stay);
+      await supabase.from('survey_sessions').upsert(stay.map(s => ({ id: s.id, session_order: s.session_order })));
       toast({ title: "성공", description: "세션이 삭제되었습니다." });
-    } catch (error: any) {
-      console.error(error);
-      toast({ title: "오류", description: error.message || "세션 삭제 중 오류가 발생했습니다.", variant: "destructive" });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "오류", description: e.message || "세션 삭제 중 오류", variant: "destructive" });
     }
   };
 
-  const openAddDialog = () => {
-    setEditingSession(null);
-    setSessionForm({ session_name: "", course_id: "none", instructor_id: "none" });
-    setDialogOpen(true);
+  const move = async (idx: number, dir: -1 | 1) => {
+    const to = idx + dir;
+    if (to < 0 || to >= sessions.length) return;
+    const arr = [...sessions];
+    const [a, b] = [arr[idx], arr[to]];
+    arr[idx] = { ...b, session_order: idx };
+    arr[to] = { ...a, session_order: to };
+    onSessionsChange(arr);
+    await supabase.from('survey_sessions').upsert([
+      { id: arr[idx].id, session_order: arr[idx].session_order },
+      { id: arr[to].id, session_order: arr[to].session_order },
+    ]);
   };
 
   return (
@@ -262,102 +192,118 @@ export const SessionManager = ({
         <CardTitle className="text-lg">과목 세션 관리</CardTitle>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openAddDialog} size="sm">
+            <Button onClick={openAdd} size="sm">
               <Plus className="w-4 h-4 mr-1" />
               세션 추가
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingSession ? "세션 수정" : "세션 추가"}
-              </DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>{editing ? "세션 수정" : "세션 추가"}</DialogTitle></DialogHeader>
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="session-name">세션 이름 *</Label>
                 <Input
                   id="session-name"
-                  placeholder="예: BS Check List, 파주조, 운영 평가"
-                  value={sessionForm.session_name}
-                  onChange={(e) => setSessionForm(prev => ({...prev, session_name: e.target.value}))}
+                  placeholder="예: 과목명(자동), 운영평가/공통 등"
+                  value={form.session_name}
+                  onChange={(e) => handleNameChange(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  과목을 선택하면 이름이 자동으로 과목명으로 채워집니다. 과목 관련 평가가 아니면 과목을 ‘선택 안함’으로 두고 이름만 입력하세요.
+                </p>
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="course">과목</Label>
-                <Select 
-                  value={sessionForm.course_id} 
-                  onValueChange={(value) => setSessionForm(prev => ({...prev, course_id: value}))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="과목을 선택하세요 (선택사항)" />
-                  </SelectTrigger>
+                <Label>과목</Label>
+                <Select value={form.course_id} onValueChange={handleCourseChange}>
+                  <SelectTrigger><SelectValue placeholder="선택(옵션)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">선택 안함</SelectItem>
-                    {courses.map(course => (
-                      <SelectItem key={course.id} value={course.id}>
-                        {course.title}
-                      </SelectItem>
-                    ))}
+                    {courses.map(c => (<SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="instructor">강사</Label>
-                <Select 
-                  value={sessionForm.instructor_id} 
-                  onValueChange={(value) => setSessionForm(prev => ({...prev, instructor_id: value}))}
+                <Label>강사</Label>
+                <Select
+                  value={form.instructor_id}
+                  onValueChange={(v) => setForm(p => ({ ...p, instructor_id: v }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="강사를 선택하세요 (선택사항)" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="선택(옵션)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">선택 안함</SelectItem>
-                    {instructors.map(instructor => (
-                      <SelectItem key={instructor.id} value={instructor.id}>
-                        {instructor.name}
-                      </SelectItem>
-                    ))}
+                    {instructors.map(i => (<SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button onClick={handleSessionSave}>
-                  {editingSession ? "수정" : "추가"}
-                </Button>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
+                <Button onClick={save}><Save className="w-4 h-4 mr-1" />{editing ? "수정" : "추가"}</Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
       </CardHeader>
-      
+
       <CardContent className="space-y-3">
         {sessions.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            <div className="mb-2">아직 추가된 세션이 없습니다</div>
-            <div className="text-sm">
-              "세션 추가" 버튼을 클릭하여 과목별 세션을 만들어보세요
-            </div>
+            아직 추가된 세션이 없습니다. “세션 추가”로 과목별 또는 공통(운영평가) 세션을 등록하세요.
           </div>
         ) : (
-          sessions.map(session => (
-            <SortableSessionItem
-              key={session.id}
-              session={session}
-              courses={courses}
-              instructors={instructors}
-              onEdit={handleEditSession}
-              onDelete={handleDeleteSession}
-            />
-          ))
+          sessions.map((s, idx) => {
+            const courseTitle =
+              s.course?.title ??
+              (s.course_id ? courses.find(c => c.id === s.course_id)?.title : "") ??
+              "과목 미선택";
+            const instructorName =
+              s.instructor?.name ??
+              (s.instructor_id ? instructors.find(i => i.id === s.instructor_id)?.name : "") ??
+              "강사 미선택";
+            return (
+              <div key={s.id} className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg border">
+                <div className="flex items-center justify-center w-8 h-8 text-muted-foreground">#{idx + 1}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-sm truncate">{s.session_name}</span>
+                    <span className="text-xs text-muted-foreground">({s.session_order + 1}위치)</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground truncate">
+                    <span className="font-medium">{courseTitle}</span>
+                    <span className="mx-1">•</span>
+                    <span className="inline-flex items-center gap-1"><User size={12} />{instructorName}</span>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => move(idx, -1)} disabled={idx === 0}>↑</Button>
+                  <Button size="sm" variant="outline" onClick={() => move(idx, +1)} disabled={idx === sessions.length - 1}>↓</Button>
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(s)}><Edit3 size={14} /></Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild><Button variant="ghost" size="sm"><Trash2 size={14} /></Button></AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>세션 삭제</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          '{s.session_name}' 세션을 삭제하시겠습니까?<br/>이 세션에 속한 질문들은 미분류로 이동됩니다.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => remove(s.id)}>삭제</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            );
+          })
         )}
       </CardContent>
     </Card>
   );
 };
+
+export default SessionManager;

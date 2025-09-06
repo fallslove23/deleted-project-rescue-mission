@@ -185,26 +185,26 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
 
   if (loading) {
     return (
-      <div className="w-full">
+      <div className="p-6">
         {showPageHeader && (
           <div className="mb-6">
-            <h1 className="text-xl sm:text-2xl font-bold">사용자 관리</h1>
+            <h1 className="text-2xl font-bold">사용자 관리</h1>
             <p className="text-muted-foreground">시스템 사용자 및 권한 관리</p>
           </div>
         )}
         <div className="flex items-center justify-center py-8">
-          <div className="text-muted-foreground">로딩중...</div>
+          <div>로딩중...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-4 sm:space-y-6">
+    <div className="p-6 space-y-6">
       {showPageHeader && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold">사용자 관리</h1>
+            <h1 className="text-2xl font-bold">사용자 관리</h1>
             <p className="text-muted-foreground">시스템 사용자 및 권한 관리</p>
           </div>
           <div className="flex items-center gap-2">
@@ -228,30 +228,30 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
       </div>
 
       {/* 사용자 목록 */}
-      <div className="grid gap-3 sm:gap-4">
+      <div className="grid gap-4">
         {filteredUsers.map((user) => {
           const instructor = getUserInstructor(user.id);
           const roles = userRoles[user.id] || [];
           
           return (
             <Card key={user.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12">
                       <AvatarImage src={instructor?.photo_url} />
                       <AvatarFallback>
                         {instructor ? instructor.name.charAt(0) : user.email?.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm sm:text-base truncate">
+                    <div>
+                      <div className="font-medium">
                         {instructor ? instructor.name : user.email}
                       </div>
-                      <div className="text-xs sm:text-sm text-muted-foreground truncate">
+                      <div className="text-sm text-muted-foreground">
                         {user.email}
                       </div>
-                      <div className="flex flex-wrap gap-1 mt-1">
+                      <div className="flex gap-1 mt-1">
                         {roles.length > 0 ? (
                           roles.map(role => (
                             <Badge key={role} variant="secondary" className="text-xs">
@@ -266,7 +266,7 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center gap-2">
                     {user.first_login && (
                       <Badge variant="outline" className="text-xs">
                         첫 로그인 대기
@@ -276,21 +276,17 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
                       variant="outline"
                       size="sm"
                       onClick={() => handleResetPassword(user)}
-                      className="text-xs min-w-0"
                     >
-                      <Key className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">비밀번호 초기화</span>
-                      <span className="sm:hidden">초기화</span>
+                      <Key className="h-4 w-4 mr-1" />
+                      비밀번호 초기화
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEditRoles(user)}
-                      className="text-xs min-w-0"
                     >
-                      <Shield className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">권한 편집</span>
-                      <span className="sm:hidden">권한</span>
+                      <Shield className="h-4 w-4 mr-1" />
+                      권한 편집
                     </Button>
                   </div>
                 </div>

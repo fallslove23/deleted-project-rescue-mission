@@ -1,8 +1,12 @@
-// src/pages/DashboardSystemLogs.tsx
-// ✅ 대시보드 하위 라우트에서 사용할 래퍼 (레이아웃은 상위에서 적용)
-import React from "react";
-import SystemLogs from "./SystemLogs";
+import { DashboardLayout } from '@/components/DashboardLayout';
+import SystemLogs from './SystemLogs';
 
-export default function DashboardSystemLogs() {
-  return <SystemLogs />;
-}
+const DashboardSystemLogs = () => {
+  return (
+    <DashboardLayout title="시스템 로그" description="시스템 운영 및 관리 관련 로그 모니터링">
+      <SystemLogs />
+    </DashboardLayout>
+  );
+};
+
+export default DashboardSystemLogs;
