@@ -36,15 +36,15 @@ function Dashboard() {
     <DashboardLayout title={currentPage.title} description={currentPage.description}>
       <Routes>
         <Route path="/" element={<DashboardOverview />} />
-        <Route path="/results" element={<DashboardSurveyResults />} />
-        <Route path="/course-reports" element={<DashboardCourseReports />} />
-        <Route path="/instructors" element={<DashboardInstructorManagement />} />
-        <Route path="/users" element={<DashboardUserManagement />} />
-        <Route path="/courses" element={<DashboardCourseManagement />} />
-        <Route path="/course-statistics" element={<DashboardCourseStatistics />} />
-        <Route path="/templates" element={<DashboardTemplateManagement />} />
-        <Route path="/email-logs" element={<DashboardEmailLogs />} />
-        <Route path="/system-logs" element={<DashboardSystemLogs />} />
+        <Route path="/results" element={<SurveyResults />} />
+        <Route path="/course-reports" element={<CourseReports />} />
+        <Route path="/instructors" element={<InstructorManagement showPageHeader={false} />} />
+        <Route path="/users" element={<UserManagement showPageHeader={false} />} />
+        <Route path="/courses" element={<CourseManagement showPageHeader={false} />} />
+        <Route path="/course-statistics" element={<PersonalDashboard />} />
+        <Route path="/templates" element={<TemplateManagement showPageHeader={false} />} />
+        <Route path="/email-logs" element={<EmailLogs />} />
+        <Route path="/system-logs" element={<SystemLogs />} />
       </Routes>
     </DashboardLayout>
   );
