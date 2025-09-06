@@ -1,247 +1,243 @@
-// src/App.tsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from "@/components/ui/toaster";
-import { SidebarProvider } from "@/components/ui/sidebar";
-
-// Auth & Layout Components
-import ProtectedRoute from '@/components/ProtectedRoute';
-import RoleBasedRoute from '@/components/RoleBasedRoute';
-import DefaultRedirect from '@/components/DefaultRedirect';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { Toaster } from '@/components/ui/toaster';
 import LoadingScreen from '@/components/LoadingScreen';
 
-// Pages
+// 페이지 컴포넌트 imports
 import Auth from '@/pages/Auth';
-import NotFound from '@/pages/NotFound';
-import Index from '@/pages/Index';
-import ChangePassword from '@/pages/ChangePassword';
-
-// Dashboard Pages
 import Dashboard from '@/pages/Dashboard';
-import DashboardOverview from '@/pages/DashboardOverview';
-import DashboardSurveyManagement from '@/pages/DashboardSurveyManagement';
-import DashboardSurveyResults from '@/pages/DashboardSurveyResults';
-import DashboardCourseManagement from '@/pages/DashboardCourseManagement';
-import DashboardCourseReports from '@/pages/DashboardCourseReports';
-import DashboardCourseStatistics from '@/pages/DashboardCourseStatistics';
-import DashboardInstructorManagement from '@/pages/DashboardInstructorManagement';
-import DashboardUserManagement from '@/pages/DashboardUserManagement';
-import DashboardTemplateManagement from '@/pages/DashboardTemplateManagement';
-import DashboardEmailLogs from '@/pages/DashboardEmailLogs';
-import DashboardSystemLogs from '@/pages/DashboardSystemLogs';
-import DashboardCumulativeData from '@/pages/DashboardCumulativeData';
-import DashboardMyStats from '@/pages/DashboardMyStats';
-
-// Survey Pages
-import SurveyBuilder from '@/pages/SurveyBuilder';
-import SurveyPreview from '@/pages/SurveyPreview';
+import PersonalDashboard from '@/pages/PersonalDashboard';
+import InstructorManagement from '@/pages/InstructorManagement';
+import CourseManagement from '@/pages/CourseManagement';
 import SurveyManagement from '@/pages/SurveyManagement';
 import SurveyManagementV2 from '@/pages/SurveyManagementV2';
 import SurveyResults from '@/pages/SurveyResults';
-import SurveyAnalysis from '@/pages/SurveyAnalysis';
-import SurveyDetailedAnalysis from '@/pages/SurveyDetailedAnalysis';
+import UserManagement from '@/pages/UserManagement';
+import TemplateManagement from '@/pages/TemplateManagement';
+import SurveyBuilder from '@/pages/SurveyBuilder';
+import TemplateBuilder from '@/pages/TemplateBuilder';
 import SurveyParticipate from '@/pages/SurveyParticipate';
 import SurveyParticipateSession from '@/pages/SurveyParticipateSession';
-
-// Template & Course Pages
-import TemplateBuilder from '@/pages/TemplateBuilder';
-import TemplateManagement from '@/pages/TemplateManagement';
-import CourseManagement from '@/pages/CourseManagement';
+import SurveyPreview from '@/pages/SurveyPreview';
+import SurveyAnalysis from '@/pages/SurveyAnalysis';
+import SurveyDetailedAnalysis from '@/pages/SurveyDetailedAnalysis';
 import CourseReports from '@/pages/CourseReports';
-
-// User & System Pages
-import InstructorManagement from '@/pages/InstructorManagement';
-import UserManagement from '@/pages/UserManagement';
+import CumulativeDataTable from '@/pages/CumulativeDataTable';
 import EmailLogs from '@/pages/EmailLogs';
 import SystemLogs from '@/pages/SystemLogs';
-import CumulativeDataTable from '@/pages/CumulativeDataTable';
-import PersonalDashboard from '@/pages/PersonalDashboard';
+import ChangePassword from '@/pages/ChangePassword';
+import NotFound from '@/pages/NotFound';
+import Index from '@/pages/Index';
 
-// Role View Test Page
-import RoleView from '@/pages/RoleView';
-
-// Hooks
-import { useAuth } from '@/hooks/useAuth';
+// 컴포넌트 imports
+import ProtectedRoute from '@/components/ProtectedRoute';
+import RoleBasedRoute from '@/components/RoleBasedRoute';
+import DefaultRedirect from '@/components/DefaultRedirect';
 
 import './App.css';
 
 const queryClient = new QueryClient();
 
-// SidebarProvider가 필요 없는 경로들
-const NO_SIDEBAR_PATHS = ['/auth', '/survey/', '/change-password'];
-
+// useAuth를 사용하는 메인 앱 로직
 function AppContent() {
-  const location = useLocation();
-  const { isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
-  // 현재 경로가 사이드바가 필요 없는 경로인지 확인
-  const needsSidebar = !NO_SIDEBAR_PATHS.some(path => 
-    location.pathname.startsWith(path)
-  );
-
-  if (isLoading) {
+  if (loading) {
     return <LoadingScreen />;
   }
 
-  const routesContent = (
+  return (
     <Routes>
-      {/* Public Routes */}
+      {/* 공개 라우트 */}
+      <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
+      <Route path="/survey-participate/:sessionId" element={<SurveyParticipate />} />
+      <Route path="/survey-participate-session/:sessionId" element={<SurveyParticipateSession />} />
+      <Route path="/survey-preview/:surveyId" element={<SurveyPreview />} />
       <Route path="/change-password" element={<ChangePassword />} />
+
+      {/* 보호된 라우트 */}
+      <Route
+        path="/dashboard/*"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
       
-      {/* Survey Participation Routes (No Auth Required) */}
-      <Route path="/survey/:surveyId" element={<SurveyParticipate />} />
-      <Route path="/survey/:surveyId/session/:sessionId" element={<SurveyParticipateSession />} />
-      
-      {/* Protected Routes */}
-      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      
-      {/* Dashboard Routes */}
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
-        <Route index element={<DefaultRedirect />} />
-        <Route path="overview" element={<DashboardOverview />} />
-        
-        {/* Survey Management */}
-        <Route path="surveys" element={<DashboardSurveyManagement />} />
-        <Route path="results" element={<DashboardSurveyResults />} />
-        
-        {/* Course Management */}
-        <Route path="courses" element={<DashboardCourseManagement />} />
-        <Route path="course-reports" element={<DashboardCourseReports />} />
-        <Route path="course-statistics" element={<DashboardCourseStatistics />} />
-        
-        {/* User Management */}
-        <Route path="instructors" element={
-          <RoleBasedRoute allowedRoles={['admin']}>
-            <DashboardInstructorManagement />
-          </RoleBasedRoute>
-        } />
-        <Route path="users" element={
-          <RoleBasedRoute allowedRoles={['admin']}>
-            <DashboardUserManagement />
-          </RoleBasedRoute>
-        } />
-        
-        {/* Template Management */}
-        <Route path="templates" element={<DashboardTemplateManagement />} />
-        
-        {/* System Management */}
-        <Route path="email-logs" element={
-          <RoleBasedRoute allowedRoles={['admin']}>
-            <DashboardEmailLogs />
-          </RoleBasedRoute>
-        } />
-        <Route path="system-logs" element={
-          <RoleBasedRoute allowedRoles={['admin']}>
-            <DashboardSystemLogs />
-          </RoleBasedRoute>
-        } />
-        
-        {/* Data Management */}
-        <Route path="cumulative-data" element={<DashboardCumulativeData />} />
-        
-        {/* Personal Stats (Instructor View) */}
-        <Route path="my-stats" element={
-          <RoleBasedRoute allowedRoles={['instructor']}>
-            <DashboardMyStats />
-          </RoleBasedRoute>
-        } />
-      </Route>
-      
-      {/* Individual Page Routes */}
-      <Route path="/survey-builder" element={<ProtectedRoute><SurveyBuilder /></ProtectedRoute>} />
-      <Route path="/survey-builder/:surveyId" element={<ProtectedRoute><SurveyBuilder /></ProtectedRoute>} />
-      <Route path="/survey-preview/:surveyId" element={<ProtectedRoute><SurveyPreview /></ProtectedRoute>} />
-      <Route path="/survey-management" element={<ProtectedRoute><SurveyManagement /></ProtectedRoute>} />
-      <Route path="/survey-management-v2" element={<ProtectedRoute><SurveyManagementV2 /></ProtectedRoute>} />
-      <Route path="/survey-results" element={<ProtectedRoute><SurveyResults /></ProtectedRoute>} />
-      <Route path="/survey-analysis/:surveyId" element={<ProtectedRoute><SurveyAnalysis /></ProtectedRoute>} />
-      <Route path="/survey-detailed-analysis/:surveyId" element={<ProtectedRoute><SurveyDetailedAnalysis /></ProtectedRoute>} />
-      
-      {/* Template Routes */}
-      <Route path="/template-builder" element={<ProtectedRoute><TemplateBuilder /></ProtectedRoute>} />
-      <Route path="/template-builder/:templateId" element={<ProtectedRoute><TemplateBuilder /></ProtectedRoute>} />
-      <Route path="/template-management" element={<ProtectedRoute><TemplateManagement /></ProtectedRoute>} />
-      
-      {/* Course Routes */}
-      <Route path="/course-management" element={<ProtectedRoute><CourseManagement /></ProtectedRoute>} />
-      <Route path="/course-reports" element={<ProtectedRoute><CourseReports /></ProtectedRoute>} />
-      
-      {/* User Management Routes */}
-      <Route path="/instructor-management" element={
-        <ProtectedRoute>
-          <RoleBasedRoute allowedRoles={['admin']}>
+      <Route
+        path="/personal-dashboard"
+        element={
+          <ProtectedRoute>
+            <PersonalDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 관리자 전용 라우트 */}
+      <Route
+        path="/instructor-management"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
             <InstructorManagement />
           </RoleBasedRoute>
-        </ProtectedRoute>
-      } />
-      <Route path="/user-management" element={
-        <ProtectedRoute>
-          <RoleBasedRoute allowedRoles={['admin']}>
+        }
+      />
+
+      <Route
+        path="/user-management"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
             <UserManagement />
           </RoleBasedRoute>
-        </ProtectedRoute>
-      } />
-      
-      {/* System Routes */}
-      <Route path="/email-logs" element={
-        <ProtectedRoute>
-          <RoleBasedRoute allowedRoles={['admin']}>
+        }
+      />
+
+      <Route
+        path="/course-management"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <CourseManagement />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/surveys"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <SurveyManagement />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/surveys-v2"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <SurveyManagementV2 />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-results"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <SurveyResults />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/templates"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+            <TemplateManagement />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-builder/:surveyId?"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <SurveyBuilder />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/template-builder/:templateId?"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+            <TemplateBuilder />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-analysis/:surveyId"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <SurveyAnalysis />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-detailed-analysis/:surveyId"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <SurveyDetailedAnalysis />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/course-reports"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'instructor']}>
+            <CourseReports />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/cumulative-data"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+            <CumulativeDataTable />
+          </RoleBasedRoute>
+        }
+      />
+
+      <Route
+        path="/email-logs"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
             <EmailLogs />
           </RoleBasedRoute>
-        </ProtectedRoute>
-      } />
-      <Route path="/system-logs" element={
-        <ProtectedRoute>
-          <RoleBasedRoute allowedRoles={['admin']}>
+        }
+      />
+
+      <Route
+        path="/system-logs"
+        element={
+          <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
             <SystemLogs />
           </RoleBasedRoute>
-        </ProtectedRoute>
-      } />
-      
-      {/* Data Routes */}
-      <Route path="/cumulative-data" element={<ProtectedRoute><CumulativeDataTable /></ProtectedRoute>} />
-      <Route path="/personal-dashboard" element={
-        <ProtectedRoute>
-          <RoleBasedRoute allowedRoles={['instructor']}>
-            <PersonalDashboard />
-          </RoleBasedRoute>
-        </ProtectedRoute>
-      } />
-      
-      {/* Role View Test Routes (Admin Only) */}
-      <Route path="/role-view/:role" element={
-        <ProtectedRoute>
-          <RoleBasedRoute allowedRoles={['admin']}>
-            <RoleView />
-          </RoleBasedRoute>
-        </ProtectedRoute>
-      } />
-      
-      {/* 404 Route */}
+        }
+      />
+
+      {/* 기본 리디렉션 */}
+      <Route
+        path="/default-redirect"
+        element={
+          <ProtectedRoute>
+            <DefaultRedirect />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 404 페이지 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
-
-  // SidebarProvider가 필요한 경우에만 감싸기
-  if (needsSidebar) {
-    return (
-      <SidebarProvider>
-        {routesContent}
-      </SidebarProvider>
-    );
-  }
-
-  return routesContent;
 }
 
+// 메인 App 컴포넌트
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <AppContent />
-        <Toaster />
+        <AuthProvider>  {/* 🔥 여기가 핵심! AuthProvider로 모든 것을 감쌈 */}
+          <AppContent />  {/* useAuth를 사용하는 모든 로직이 AuthProvider 내부에 있음 */}
+          <Toaster />
+        </AuthProvider>
       </Router>
     </QueryClientProvider>
   );
