@@ -279,7 +279,7 @@ export default function SurveyManagementV2() {
   };
 
   const loadCourseNames = async (year: number | null) => {
-    const names = await SurveysRepository.getAvailableCourseNames(year);
+    const names = await SurveysRepository.getAvailableCourseNames();
     setAvailableCourseNames(names);
     if (filters.courseName && !names.includes(filters.courseName)) {
       setFilters((p) => ({ ...p, courseName: null }));
