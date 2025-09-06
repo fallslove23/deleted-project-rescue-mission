@@ -95,7 +95,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-purple-50">
       {/* Header with back button */}
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="w-full max-w-7xl mx-auto px-4 py-3 flex items-center">
@@ -109,18 +109,19 @@ const Auth = () => {
             <span className="hidden sm:inline">메인으로</span>
             <span className="sm:hidden">메인</span>
           </Button>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-sm sm:text-lg font-semibold text-primary break-words">관리자/강사 로그인</h1>
-            <p className="text-xs text-muted-foreground break-words">설문 결과 조회 및 관리</p>
+          <div className="min-w-0 flex-1 text-center">
+            <h1 className="text-lg sm:text-2xl font-bold text-primary">관리자/강사 로그인</h1>
+            <p className="text-sm text-muted-foreground">설문 결과 조회 및 관리</p>
           </div>
         </div>
       </header>
 
+      {/* Main content - 중앙 정렬 및 최대 너비 설정 */}
       <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-lg mx-auto">
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle className="text-center text-lg sm:text-xl break-words">
+        <div className="w-full max-w-md mx-auto">
+          <Card className="w-full shadow-xl border-0 bg-white/95 backdrop-blur-sm">
+            <CardHeader className="text-center pb-6">
+              <CardTitle className="text-xl font-bold">
                 {isResetPassword ? '비밀번호 찾기' : '로그인'}
               </CardTitle>
             </CardHeader>
@@ -133,6 +134,8 @@ const Auth = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="이메일을 입력하세요"
+                    className="w-full"
                     required
                   />
                 </div>
@@ -144,20 +147,25 @@ const Auth = () => {
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      placeholder="비밀번호를 입력하세요"
+                      className="w-full"
                       required
                     />
                   </div>
                 )}
-                <Button type="submit" className="w-full touch-friendly text-sm sm:text-base" disabled={loading}>
-                  <span className="break-words">
-                    {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
-                  </span>
+                <Button 
+                  type="submit" 
+                  className="w-full touch-friendly bg-purple-600 hover:bg-purple-700 text-white py-2.5" 
+                  disabled={loading}
+                >
+                  {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
                 </Button>
               </form>
-              <div className="mt-4 text-center">
+              
+              <div className="mt-6 text-center">
                 <Button
                   variant="link"
-                  className="touch-friendly break-words hyphens-auto text-sm"
+                  className="touch-friendly text-purple-600 hover:text-purple-800"
                   onClick={() => setIsResetPassword(!isResetPassword)}
                 >
                   {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}
