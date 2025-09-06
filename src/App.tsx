@@ -1,9 +1,10 @@
+// src/App.tsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import LoadingScreen from '@/components/LoadingScreen';
 
-// 존재하는 페이지만 import (오류 방지)
+// 존재하는 페이지만 import
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
 import Index from '@/pages/Index';
@@ -11,24 +12,15 @@ import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleBasedRoute from '@/components/RoleBasedRoute';
 
-// 존재하는 경우에만 import (주석처리된 것들은 나중에 추가)
-// import SurveyManagement from '@/pages/SurveyManagement';
+// 설문관리 V2만 사용
 import SurveyManagementV2 from '@/pages/SurveyManagementV2';
-// import PersonalDashboard from '@/pages/PersonalDashboard';
-// import InstructorManagement from '@/pages/InstructorManagement';
-// import CourseManagement from '@/pages/CourseManagement';
-// import SurveyResults from '@/pages/SurveyResults';
-// import UserManagement from '@/pages/UserManagement';
-// import TemplateManagement from '@/pages/TemplateManagement';
 
 import './App.css';
 
 function App() {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (loading) return <LoadingScreen />;
 
   return (
     <Routes>
@@ -36,7 +28,7 @@ function App() {
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
 
-      {/* 보호된 라우트 */}
+      {/* 보호된 라우트: 대시보드 (중첩 라우팅) */}
       <Route
         path="/dashboard/*"
         element={
@@ -46,7 +38,7 @@ function App() {
         }
       />
 
-      {/* 설문관리 - V2만 사용 */}
+      {/* 설문관리 - V2 */}
       <Route
         path="/surveys-v2"
         element={
@@ -57,12 +49,12 @@ function App() {
       />
 
       {/* 기본 리디렉션 */}
-      <Route 
-        path="/app" 
-        element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />} 
+      <Route
+        path="/app"
+        element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />}
       />
 
-      {/* 404 페이지 */}
+      {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

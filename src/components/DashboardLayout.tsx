@@ -1,28 +1,29 @@
-import { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/hooks/useAuth'
-import { Button } from '@/components/ui/button'
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-import { AdminSidebar } from './AdminSidebar'
-import { BarChart, Activity, Home, LogOut } from 'lucide-react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+// src/components/DashboardLayout.tsx
+import { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AdminSidebar } from './AdminSidebar';
+import { BarChart, Activity, Home, LogOut } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface DashboardLayoutProps {
-  children: ReactNode
-  title: string
-  description?: string
+  children: ReactNode;
+  title: string;
+  description?: string;
 }
 
 export function DashboardLayout({ children, title, description }: DashboardLayoutProps) {
-  const { user, userRoles, signOut } = useAuth()
-  const navigate = useNavigate()
+  const { user, userRoles, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
         <AdminSidebar />
-        
-        <div className="flex-1 flex flex-col min-w-0 scrollable-y">
+
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
           <header className="h-14 border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm ios-safe-area">
             <div className="flex items-center h-full px-2 sm:px-4 max-w-full overflow-hidden">
@@ -50,12 +51,10 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
 
               {/* Right: User Actions */}
               <div className="flex items-center space-x-1 shrink-0">
-                {/* User Email - Only on larger screens */}
                 <span className="hidden lg:block text-xs text-muted-foreground max-w-20 truncate">
                   {user?.email}
                 </span>
 
-                {/* Student View Button */}
                 <Button
                   onClick={() => navigate('/student')}
                   variant="outline"
@@ -67,7 +66,6 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
                   <span className="hidden lg:inline">교육생 화면</span>
                 </Button>
 
-                {/* Activity Popover */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -93,13 +91,7 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
                   </PopoverContent>
                 </Popover>
 
-                {/* Logout Button */}
-                <Button
-                  onClick={signOut}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                >
+                <Button onClick={signOut} variant="ghost" size="sm" className="h-8 w-8 p-0">
                   <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </div>
@@ -108,12 +100,10 @@ export function DashboardLayout({ children, title, description }: DashboardLayou
 
           {/* Main content */}
           <main className="flex-1 p-2 sm:p-3 md:p-6 touch-scroll safe-bottom">
-            <div className="max-w-full overflow-hidden">
-              {children}
-            </div>
+            <div className="max-w-full overflow-hidden">{children}</div>
           </main>
         </div>
       </div>
     </SidebarProvider>
-  )
+  );
 }
