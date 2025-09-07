@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Users, BookOpen, FileText, BarChart, TrendingUp, Clock, Activity, Menu, RefreshCw } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { AdminLayout } from '@/components/AdminLayout';
+import { AdminLayout } from '@/components/layouts/AdminLayout';
 
 interface Profile {
   role: string;
