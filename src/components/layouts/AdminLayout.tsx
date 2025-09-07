@@ -1,54 +1,93 @@
-// src/components/layouts/AdminLayout.tsx
-import { PropsWithChildren, ReactNode } from "react";
+import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 
 interface AdminLayoutProps {
-  children: ReactNode;
-  // 헤더 관련 props
+  children: React.ReactNode;
   title?: string;
   subtitle?: string;
   totalCount?: number;
-  // 액션 버튼들
-  actions?: ReactNode[];
-  mobileActions?: ReactNode[];
-  // 새로고침 기능
+  actions?: React.ReactNode[];
+  mobileActions?: React.ReactNode[];
   onRefresh?: () => void;
   loading?: boolean;
-  // 기존 topbar prop (하위 호환성)
-  topbar?: ReactNode;
-  // 헤더 숨김 여부
+  topbar?: React.ReactNode;
   hideHeader?: boolean;
 }
 
-/**
- * 관리자 페이지 공용 레이아웃 (SurveyManagementV2 스타일)
- * - SidebarProvider 포함
- * - 좌측 AdminSidebar + 우측 페이지 내용
- * - Sticky 헤더 + 액션 버튼들
- * - 반응형 디자인
- */
-export default function AdminLayout({
-  children,
-  title,
-  subtitle,
-  totalCount,
-  actions = [],
-  mobileActions = [],
-  onRefresh,
-  loading = false,
-  topbar,
-  hideHeader = false,
-}: PropsWithChildren<AdminLayoutProps>) {
+export default function AdminLayout(props: AdminLayoutProps) {
+  const {
+    children,
+    title,
+    subtitle,
+    totalCount,
+    actions = [],
+    mobileActions = [],
+    onRefresh,
+    loading = false,
+    topbar,
+    hideHeader = false,
+  } = props;
+
+  const renderDesktopActions = () => {
+    const elements = [];
+    
+    if (onRefresh) {
+      elements.push(
+        <Button 
+          key="refresh"
+          variant="outline" 
+          size="sm" 
+          className="rounded-full px-3" 
+          onClick={onRefresh}
+          disabled={loading}
+        >
+          <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+          새로고침
+        </Button>
+      );
+    }
+    
+    actions.forEach((action, index) => {
+      elements.push(<div key={`action-${index}`}>{action}</div>);
+    });
+    
+    return elements;
+  };
+
+  const renderMobileActions = () => {
+    const elements = [];
+    
+    if (onRefresh) {
+      elements.push(
+        <Button 
+          key="refresh-mobile"
+          variant="outline" 
+          size="sm" 
+          className="rounded-full" 
+          onClick={onRefresh}
+          disabled={loading}
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
+      );
+    }
+    
+    mobileActions.forEach((action, index) => {
+      elements.push(<div key={`mobile-${index}`}>{action}</div>);
+    });
+    
+    return elements;
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-background">
         <AdminSidebar />
         
         <main className="flex-1 min-w-0">
-          {/* 기존 topbar 방식 (하위 호환성) */}
           {topbar && (
             <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
               <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center">
@@ -57,7 +96,6 @@ export default function AdminLayout({
             </div>
           )}
 
-          {/* 새로운 Modern 헤더 (SurveyManagementV2 스타일) */}
           {!hideHeader && !topbar && title && (
             <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
               <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-auto min-h-[64px] md:min-h-[72px] py-2 flex items-center justify-between">
@@ -80,34 +118,17 @@ export default function AdminLayout({
                   </div>
                 </div>
 
-                {/* 데스크톱 액션 버튼들 */}
                 <div className="hidden md:flex items-center gap-2">
-                  {onRefresh && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="rounded-full px-3" 
-                      onClick={onRefresh}
-                      disabled={loading}
-                    >
-                      <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-                      새로고침
-                    </Button>
-                  )}
-                  {actions.map((action, index) => (
-                    <div key={index}>{action}</div>
-                  ))}
+                  {renderDesktopActions()}
                 </div>
               </div>
             </div>
           )}
 
-          {/* 메인 콘텐츠 영역 */}
           <div className={hideHeader && !topbar ? "h-full" : ""}>
-            {!hideHeader && !topbar && title && (
+            {!hideHeader && !topbar && title ? (
               <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
                 <div className="flex items-center justify-between mb-4 md:mb-6">
-                  {/* 데스크톱에서만 표시되는 서브타이틀 */}
                   {(subtitle || totalCount !== undefined) && (
                     <p className="hidden md:block text-sm text-muted-foreground">
                       {subtitle}
@@ -115,23 +136,9 @@ export default function AdminLayout({
                     </p>
                   )}
 
-                  {/* 모바일 액션 버튼들 */}
                   {(mobileActions.length > 0 || onRefresh) && (
                     <div className="flex md:hidden items-center gap-2">
-                      {onRefresh && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="rounded-full" 
-                          onClick={onRefresh}
-                          disabled={loading}
-                        >
-                          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-                        </Button>
-                      )}
-                      {mobileActions.map((action, index) => (
-                        <div key={index}>{action}</div>
-                      ))}
+                      {renderMobileActions()}
                     </div>
                   )}
                 </div>
