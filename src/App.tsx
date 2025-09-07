@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DefaultRedirect from "@/components/DefaultRedirect";
-import { SidebarProvider } from "@/components/ui/sidebar"; // ✅ 추가
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 // pages
 import Index from "./pages/Index";
@@ -25,7 +25,7 @@ import DashboardUserManagement from "./pages/DashboardUserManagement";
 import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
 import InstructorManagement from "./pages/InstructorManagement";
-import SurveyManagement from "./pages/SurveyManagement";
+// import SurveyManagement from "./pages/SurveyManagement"; // 제거 - 파일이 없음
 import SurveyManagementV2 from "./pages/SurveyManagementV2";
 import SurveyBuilder from "./pages/SurveyBuilder";
 import SurveyParticipate from "./pages/SurveyParticipate";
@@ -44,7 +44,6 @@ const App = () => (
       <AuthProvider>
         <Toaster />
         <Sonner />
-        {/* ✅ 앱 전체를 SidebarProvider로 감싼다 */}
         <SidebarProvider>
           <BrowserRouter>
             <Routes>
@@ -150,11 +149,12 @@ const App = () => (
                 }
               />
 
+              {/* SurveyManagement 경로들을 모두 SurveyManagementV2로 연결 */}
               <Route
                 path="/surveys"
                 element={
                   <ProtectedRoute>
-                    <SurveyManagement />
+                    <SurveyManagementV2 />
                   </ProtectedRoute>
                 }
               />
@@ -163,12 +163,12 @@ const App = () => (
                 path="/survey-management"
                 element={
                   <ProtectedRoute>
-                    <SurveyManagement />
+                    <SurveyManagementV2 />
                   </ProtectedRoute>
                 }
               />
 
-              {/* ✅ V2 페이지 */}
+              {/* V2 페이지 */}
               <Route
                 path="/surveys-v2"
                 element={

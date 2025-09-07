@@ -1,5 +1,5 @@
 import { DashboardLayout } from '@/components/DashboardLayout';
-import SurveyManagement from './SurveyManagement';
+import SurveyManagement from './SurveyManagementV2';
 
 const DashboardSurveyManagement = () => {
   return (

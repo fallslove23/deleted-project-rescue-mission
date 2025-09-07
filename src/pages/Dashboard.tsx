@@ -9,7 +9,7 @@ import { Users, BookOpen, FileText, BarChart, Plus, Settings, TrendingUp, Clock,
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Separator } from '@/components/ui/separator';
-import SurveyManagement from './SurveyManagement';
+import SurveyManagement from './SurveyManagementV2';
 import SurveyResults from './SurveyResults';
 import InstructorManagement from './InstructorManagement';
 import TemplateManagement from './TemplateManagement';
