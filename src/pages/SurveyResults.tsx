@@ -9,11 +9,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { BarChart, FileText, TrendingUp, Send, Menu, BarChart3, FileSpreadsheet } from 'lucide-react';
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { BarChart as IconBarChart, FileText, TrendingUp, Send, Menu, BarChart3, FileSpreadsheet } from 'lucide-react';
+import {
+  BarChart as RechartsBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+} from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { exportResponsesAsCSV, exportSummaryAsCSV, downloadCSV, generateCSVFilename, SurveyResultData } from '@/utils/csvExport';
+import {
+  exportResponsesAsCSV,
+  exportSummaryAsCSV,
+  downloadCSV,
+  generateCSVFilename,
+  SurveyResultData,
+} from '@/utils/csvExport';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { AdminLayout } from '@/components/AdminLayout';
@@ -71,8 +89,10 @@ interface SurveyQuestion {
 const SurveyResults = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
+  const { toast } = useToast();
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [allInstructors, setAllInstructors] = useState<Instructor[]>([]);
@@ -88,22 +108,21 @@ const SurveyResults = () => {
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<string>('');
   const [selectedCourse, setSelectedCourse] = useState<string>('');
-  const [availableCourses, setAvailableCourses] = useState<{year: number, round: number, course_name: string, key: string}[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<
+    { year: number; round: number; course_name: string; key: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false); // 향후 다이얼로그 적용 대비
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
-  const { toast } = useToast();
 
-  // roles
-  const { userRoles } = useAuth();
   const isAdmin = userRoles.includes('admin');
   const isOperator = userRoles.includes('operator');
   const isDirector = userRoles.includes('director');
   const isInstructor = userRoles.includes('instructor');
   const canViewAll = isAdmin || isOperator || isDirector;
 
-  // Refresh when test-data toggle changes
+  // test data 토글 변경 시 리프레시
   useEffect(() => {
     if (profile) {
       fetchAllResponses();
@@ -120,18 +139,17 @@ const SurveyResults = () => {
   }, [user]);
 
   useEffect(() => {
-    if (profile) {
-      fetchInstructorInfo();
-      fetchAllInstructors();
-      fetchAvailableCourses();
-      fetchSurveys();
-      fetchAllResponses();
-      fetchAllQuestionsAndAnswers();
+    if (!profile) return;
 
-      // preselect survey via URL param
-      const surveyIdFromUrl = searchParams.get('surveyId');
-      if (surveyIdFromUrl) setSelectedSurvey(surveyIdFromUrl);
-    }
+    fetchInstructorInfo();
+    fetchAllInstructors();
+    fetchAvailableCourses();
+    fetchSurveys();
+    fetchAllResponses();
+    fetchAllQuestionsAndAnswers();
+
+    const surveyIdFromUrl = searchParams.get('surveyId');
+    if (surveyIdFromUrl) setSelectedSurvey(surveyIdFromUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, searchParams]);
 
@@ -143,6 +161,7 @@ const SurveyResults = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSurvey]);
 
+  // ======= Data fetchers =======
   const fetchAllResponses = async () => {
     try {
       let query = testDataOptions.includeTestData
@@ -153,19 +172,19 @@ const SurveyResults = () => {
         const surveyQuery = testDataOptions.includeTestData
           ? supabase.from('surveys').select('id').eq('instructor_id', profile.instructor_id)
           : supabase.from('analytics_surveys').select('id').eq('instructor_id', profile.instructor_id);
-
         const { data: instructorSurveys } = await surveyQuery;
+
         if (instructorSurveys && instructorSurveys.length > 0) {
-          const surveyIds = instructorSurveys.map((s: any) => s.id);
-          query = query.in('survey_id', surveyIds);
+          const ids = instructorSurveys.map((s: any) => s.id);
+          query = query.in('survey_id', ids);
         }
       }
 
       const { data, error } = await query.order('submitted_at', { ascending: false });
       if (error) throw error;
       setAllResponses((data ?? []) as SurveyResponse[]);
-    } catch (err) {
-      console.error('Error fetching all responses:', err);
+    } catch (e) {
+      console.error('Error fetching all responses:', e);
     }
   };
 
@@ -189,71 +208,70 @@ const SurveyResults = () => {
         return;
       }
 
-      const { data: questionsData, error: questionsError } = await supabase
+      const { data: qData, error: qErr } = await supabase
         .from('survey_questions')
         .select('*')
         .in('survey_id', surveyIds)
         .order('order_index');
-      if (questionsError) throw questionsError;
-      setAllQuestions((questionsData ?? []) as SurveyQuestion[]);
+      if (qErr) throw qErr;
+      setAllQuestions((qData ?? []) as SurveyQuestion[]);
 
-      const responseQuery = testDataOptions.includeTestData
+      const respQuery = testDataOptions.includeTestData
         ? supabase.from('survey_responses').select('id').in('survey_id', surveyIds)
         : supabase.from('analytics_responses').select('id').in('survey_id', surveyIds);
+      const { data: respIds, error: rErr } = await respQuery;
+      if (rErr) throw rErr;
 
-      const { data: responseIds, error: responseError } = await responseQuery;
-      if (responseError) throw responseError;
-
-      if (responseIds && responseIds.length > 0) {
-        const ids = responseIds.map((r: any) => r.id);
-        const { data: answersData, error: answersError } = await supabase
+      if (respIds && respIds.length) {
+        const ids = respIds.map((r: any) => r.id);
+        const { data: aData, error: aErr } = await supabase
           .from('question_answers')
           .select('*')
           .in('response_id', ids)
           .order('created_at');
-        if (answersError) throw answersError;
-        setAllAnswers((answersData ?? []) as QuestionAnswer[]);
+        if (aErr) throw aErr;
+        setAllAnswers((aData ?? []) as QuestionAnswer[]);
       } else {
         setAllAnswers([]);
       }
-    } catch (err) {
-      console.error('Error fetching all questions and answers:', err);
+    } catch (e) {
+      console.error('Error fetching all questions/answers:', e);
     }
   };
 
   const fetchQuestionsAndAnswers = async () => {
     if (!selectedSurvey) return;
     try {
-      const { data: questionsData, error: questionsError } = await supabase
+      const { data: qData, error: qErr } = await supabase
         .from('survey_questions')
         .select('*')
         .eq('survey_id', selectedSurvey)
         .order('order_index');
-      if (questionsError) throw questionsError;
+      if (qErr) throw qErr;
 
-      const { data: responseIds, error: responseError } = await supabase
+      const { data: rIds, error: rErr } = await supabase
         .from('survey_responses')
         .select('id')
         .eq('survey_id', selectedSurvey);
-      if (responseError) throw responseError;
+      if (rErr) throw rErr;
 
-      if (responseIds && responseIds.length > 0) {
-        const ids = responseIds.map((r: any) => r.id);
-        const { data: answersData, error: answersError } = await supabase
+      if (rIds && rIds.length) {
+        const ids = rIds.map((r: any) => r.id);
+        const { data: aData, error: aErr } = await supabase
           .from('question_answers')
           .select('*')
           .in('response_id', ids)
           .order('created_at');
-        if (answersError) throw answersError;
+        if (aErr) throw aErr;
 
-        setQuestions((questionsData ?? []) as SurveyQuestion[]);
-        setAnswers((answersData ?? []) as QuestionAnswer[]);
+        setQuestions((qData ?? []) as SurveyQuestion[]);
+        setAnswers((aData ?? []) as QuestionAnswer[]);
       } else {
-        setQuestions((questionsData ?? []) as SurveyQuestion[]);
+        setQuestions((qData ?? []) as SurveyQuestion[]);
         setAnswers([]);
       }
-    } catch (err) {
-      console.error('Error fetching questions and answers:', err);
+    } catch (e) {
+      console.error('Error fetching questions/answers:', e);
     }
   };
 
@@ -273,11 +291,7 @@ const SurveyResults = () => {
       if (!data) {
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email,
-            role: 'user',
-          })
+          .insert({ id: user.id, email: user.email, role: 'user' })
           .select()
           .single();
         if (insertError) {
@@ -288,8 +302,8 @@ const SurveyResults = () => {
       } else {
         setProfile(data as unknown as Profile);
       }
-    } catch (err) {
-      console.error('Error in fetchProfile:', err);
+    } catch (e) {
+      console.error('Error in fetchProfile:', e);
     } finally {
       setLoading(false);
     }
@@ -305,8 +319,8 @@ const SurveyResults = () => {
         .single();
       if (error) throw error;
       setInstructor(data as Instructor);
-    } catch (err) {
-      console.error('Error fetching instructor info:', err);
+    } catch (e) {
+      console.error('Error fetching instructor info:', e);
     }
   };
 
@@ -319,7 +333,7 @@ const SurveyResults = () => {
       if (rolesError) throw rolesError;
 
       const instructorUserIds = (instructorUsers ?? []).map((ur: any) => ur.user_id);
-      if (instructorUserIds.length === 0) {
+      if (!instructorUserIds.length) {
         setAllInstructors([]);
         return;
       }
@@ -331,11 +345,8 @@ const SurveyResults = () => {
         .not('instructor_id', 'is', null);
       if (profileError) throw profileError;
 
-      const instructorIds = (instructorProfiles ?? [])
-        .map((p: any) => p.instructor_id)
-        .filter(Boolean);
-
-      if (instructorIds.length === 0) {
+      const instructorIds = (instructorProfiles ?? []).map((p: any) => p.instructor_id).filter(Boolean);
+      if (!instructorIds.length) {
         setAllInstructors([]);
         return;
       }
@@ -348,8 +359,8 @@ const SurveyResults = () => {
       if (error) throw error;
 
       setAllInstructors((data ?? []) as Instructor[]);
-    } catch (err) {
-      console.error('Error fetching all instructors:', err);
+    } catch (e) {
+      console.error('Error fetching all instructors:', e);
     }
   };
 
@@ -362,38 +373,19 @@ const SurveyResults = () => {
       const { data, error } = await query
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching surveys:', error);
-        setSurveys([]);
-      } else {
-        setSurveys((data ?? []) as Survey[]);
-      }
-    } catch (err) {
-      console.error('Error fetching surveys:', err);
+      if (error) throw error;
+      setSurveys((data ?? []) as Survey[]);
+    } catch (e) {
+      console.error('Error fetching surveys:', e);
       setSurveys([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchResponses = async () => {
-    if (!selectedSurvey) return;
-    try {
-      const { data, error } = await supabase
-        .from('survey_responses')
-        .select('*')
-        .eq('survey_id', selectedSurvey)
-        .order('submitted_at', { ascending: false });
-      if (error) throw error;
-      setResponses((data ?? []) as SurveyResponse[]);
-    } catch (err) {
-      console.error('Error fetching responses:', err);
-    }
-  };
-
+  // ======= Selectors / stats =======
   const getUniqueYears = () => {
-    const years = [...new Set(surveys.map(s => s.education_year))];
+    const years = [...new Set(surveys.map((s) => s.education_year))];
     return years.sort((a, b) => b - a);
   };
 
@@ -409,15 +401,12 @@ const SurveyResults = () => {
         query = query.eq('instructor_id', profile.instructor_id);
       }
 
-      const { data: courseSurveys, error } = await query;
+      const { data, error } = await query;
       if (error) throw error;
 
-      const uniqueCourses = Array.from(
+      const unique = Array.from(
         new Map(
-          (courseSurveys ?? []).map((s: any) => [
-            `${s.education_year}-${s.education_round}-${s.course_name}`,
-            s,
-          ])
+          (data ?? []).map((s: any) => [`${s.education_year}-${s.education_round}-${s.course_name}`, s])
         ).values()
       ).map((s: any) => ({
         year: s.education_year,
@@ -426,41 +415,37 @@ const SurveyResults = () => {
         key: `${s.education_year}-${s.education_round}-${s.course_name}`,
       }));
 
-      uniqueCourses.sort((a, b) => (b.year - a.year) || (b.round - a.round));
-      setAvailableCourses(uniqueCourses);
-    } catch (err) {
-      console.error('Error fetching courses:', err);
+      unique.sort((a, b) => b.year - a.year || b.round - a.round);
+      setAvailableCourses(unique);
+    } catch (e) {
+      console.error('Error fetching courses:', e);
     }
   };
 
   const getUniqueRounds = () => {
-    const filtered = selectedYear
-      ? surveys.filter(s => String(s.education_year) === selectedYear)
-      : surveys;
-    const rounds = [...new Set(filtered.map(s => s.education_round))];
+    const filtered = selectedYear ? surveys.filter((s) => String(s.education_year) === selectedYear) : surveys;
+    const rounds = [...new Set(filtered.map((s) => s.education_round))];
     return rounds.sort((a, b) => b - a);
   };
 
   const getFilteredSurveys = () => {
     let filtered = surveys;
-    if (selectedYear) {
-      filtered = filtered.filter(s => String(s.education_year) === selectedYear);
-    }
-    if (selectedRound) {
-      filtered = filtered.filter(s => String(s.education_round) === selectedRound);
-    }
+    if (selectedYear) filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
+    if (selectedRound) filtered = filtered.filter((s) => String(s.education_round) === selectedRound);
+
     if (selectedCourse) {
-      const [year, round, ...rest] = selectedCourse.split('-');
-      const courseName = rest.join('-'); // course name에 '-'가 있을 수도 있으므로
+      const [year, round, ...rest] = selectedCourse.split('-'); // 코스명에 '-' 포함 가능성
+      const courseName = rest.join('-');
       filtered = filtered.filter(
-        s =>
+        (s) =>
           String(s.education_year) === year &&
           String(s.education_round) === round &&
           s.course_name === courseName
       );
     }
+
     if (canViewAll && selectedInstructor !== 'all') {
-      filtered = filtered.filter(s => s.instructor_id === selectedInstructor);
+      filtered = filtered.filter((s) => s.instructor_id === selectedInstructor);
     }
     return filtered;
   };
@@ -468,16 +453,16 @@ const SurveyResults = () => {
   const getStatistics = () => {
     const relevantSurveys = canViewAll
       ? getFilteredSurveys()
-      : getFilteredSurveys().filter(s => profile?.instructor_id && s.instructor_id === profile.instructor_id);
+      : getFilteredSurveys().filter((s) => profile?.instructor_id && s.instructor_id === profile.instructor_id);
 
     const relevantResponses = selectedSurvey
       ? responses
-      : allResponses.filter(r => relevantSurveys.some(s => s.id === r.survey_id));
+      : allResponses.filter((r) => relevantSurveys.some((s) => s.id === r.survey_id));
 
     const totalSurveys = relevantSurveys.length;
     const totalResponses = relevantResponses.length;
-    const activeSurveys = relevantSurveys.filter(s => s.status === 'active').length;
-    const completedSurveys = relevantSurveys.filter(s => s.status === 'completed').length;
+    const activeSurveys = relevantSurveys.filter((s) => s.status === 'active').length;
+    const completedSurveys = relevantSurveys.filter((s) => s.status === 'completed').length;
 
     return {
       totalSurveys,
@@ -491,10 +476,10 @@ const SurveyResults = () => {
   const getCourseStatistics = () => {
     const relevantSurveys = canViewAll
       ? getFilteredSurveys()
-      : getFilteredSurveys().filter(s => profile?.instructor_id && s.instructor_id === profile.instructor_id);
+      : getFilteredSurveys().filter((s) => profile?.instructor_id && s.instructor_id === profile.instructor_id);
 
     const currentYear = new Date().getFullYear();
-    const recentSurveys = relevantSurveys.filter(s => s.education_year >= currentYear - 1);
+    const recent = relevantSurveys.filter((s) => s.education_year >= currentYear - 1);
 
     const courseStats: Record<
       string,
@@ -511,7 +496,7 @@ const SurveyResults = () => {
       }
     > = {};
 
-    recentSurveys.forEach(survey => {
+    recent.forEach((survey) => {
       const key = `${survey.education_year}-${survey.education_round}-${survey.course_name}`;
       if (!courseStats[key]) {
         courseStats[key] = {
@@ -527,60 +512,54 @@ const SurveyResults = () => {
         };
       }
       courseStats[key].surveys.push(survey);
-      const surveyResponses = allResponses.filter(r => r.survey_id === survey.id).length;
-      courseStats[key].responses += surveyResponses;
+      const respCount = allResponses.filter((r) => r.survey_id === survey.id).length;
+      courseStats[key].responses += respCount;
 
-      if (survey.expected_participants && survey.expected_participants > 0) {
-        courseStats[key].responseRate = Math.round((surveyResponses / survey.expected_participants) * 100);
+      const expected = survey.expected_participants ?? 0;
+      if (expected > 0) {
+        courseStats[key].responseRate = Math.round((respCount / expected) * 100);
       }
     });
 
-    Object.values(courseStats).forEach(course => {
-      let totalSubjectSatisfaction = 0;
-      let totalInstructorSatisfaction = 0;
-      let totalOperationSatisfaction = 0;
-      let subjectCount = 0;
-      let instructorCount = 0;
-      let operationCount = 0;
+    Object.values(courseStats).forEach((course) => {
+      let subjectSum = 0;
+      let instructorSum = 0;
+      let operationSum = 0;
+      let subjectCnt = 0;
+      let instructorCnt = 0;
+      let operationCnt = 0;
 
-      course.surveys.forEach(survey => {
-        const surveyQuestions = allQuestions.filter(q => q.survey_id === survey.id);
-        const surveyResponses = allResponses.filter(r => r.survey_id === survey.id);
-        const surveyAnswers = allAnswers.filter(a => surveyResponses.some(r => r.id === a.response_id));
+      course.surveys.forEach((survey) => {
+        const qs = allQuestions.filter((q) => q.survey_id === survey.id);
+        const rs = allResponses.filter((r) => r.survey_id === survey.id);
+        const as = allAnswers.filter((a) => rs.some((r) => r.id === a.response_id));
 
-        surveyQuestions.forEach(question => {
-          const satisfactionType = question.satisfaction_type;
-          const asNums = (arr: QuestionAnswer[]) =>
-            arr
-              .map(a => parseInt(a.answer_text, 10))
-              .filter(n => !Number.isNaN(n) && n > 0)
-              .map(n => (n <= 5 ? n * 2 : n)); // 5점척도 → 10점 환산
+        const toNums = (arr: QuestionAnswer[]) =>
+          arr
+            .map((a) => parseInt(a.answer_text, 10))
+            .filter((n) => !Number.isNaN(n) && n > 0)
+            .map((n) => (n <= 5 ? n * 2 : n));
 
-          if (satisfactionType === 'course' || satisfactionType === 'subject') {
-            const nums = asNums(surveyAnswers.filter(a => a.question_id === question.id));
-            if (nums.length) {
-              totalSubjectSatisfaction += nums.reduce((s, n) => s + n, 0);
-              subjectCount += nums.length;
-            }
-          } else if (satisfactionType === 'instructor') {
-            const nums = asNums(surveyAnswers.filter(a => a.question_id === question.id));
-            if (nums.length) {
-              totalInstructorSatisfaction += nums.reduce((s, n) => s + n, 0);
-              instructorCount += nums.length;
-            }
-          } else if (satisfactionType === 'operation') {
-            const nums = asNums(surveyAnswers.filter(a => a.question_id === question.id));
-            if (nums.length) {
-              totalOperationSatisfaction += nums.reduce((s, n) => s + n, 0);
-              operationCount += nums.length;
-            }
+        qs.forEach((q) => {
+          const nums = toNums(as.filter((a) => a.question_id === q.id));
+          if (!nums.length) return;
+
+          if (q.satisfaction_type === 'course' || q.satisfaction_type === 'subject') {
+            subjectSum += nums.reduce((s, n) => s + n, 0);
+            subjectCnt += nums.length;
+          } else if (q.satisfaction_type === 'instructor') {
+            instructorSum += nums.reduce((s, n) => s + n, 0);
+            instructorCnt += nums.length;
+          } else if (q.satisfaction_type === 'operation') {
+            operationSum += nums.reduce((s, n) => s + n, 0);
+            operationCnt += nums.length;
           }
         });
       });
 
-      course.subjectSatisfaction = subjectCount ? parseFloat((totalSubjectSatisfaction / subjectCount).toFixed(1)) : 0;
-      course.instructorSatisfaction = instructorCount ? parseFloat((totalInstructorSatisfaction / instructorCount).toFixed(1)) : 0;
-      course.operationSatisfaction = operationCount ? parseFloat((totalOperationSatisfaction / operationCount).toFixed(1)) : 0;
+      course.subjectSatisfaction = subjectCnt ? parseFloat((subjectSum / subjectCnt).toFixed(1)) : 0;
+      course.instructorSatisfaction = instructorCnt ? parseFloat((instructorSum / instructorCnt).toFixed(1)) : 0;
+      course.operationSatisfaction = operationCnt ? parseFloat((operationSum / operationCnt).toFixed(1)) : 0;
     });
 
     return Object.entries(courseStats)
@@ -596,64 +575,48 @@ const SurveyResults = () => {
       });
   };
 
-  const getQuestionAnalysis = () => {
-    const sortedQuestions = [...questions].sort((a, b) => a.order_index - b.order_index);
-    return sortedQuestions.map(question => {
-      const questionAnswers = answers.filter(a => a.question_id === question.id);
+  // ======= UI helpers =======
+  const questionAnalyses = selectedSurvey
+    ? (() => {
+        const sorted = [...questions].sort((a, b) => a.order_index - b.order_index);
+        return sorted.map((q) => {
+          const qAnswers = answers.filter((a) => a.question_id === q.id);
 
-      if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
-        const opts = (question.options ?? []) as string[];
-        const answerCounts: Record<string, number> = {};
-        opts.forEach(option => {
-          answerCounts[option] = 0;
-        });
-        questionAnswers.forEach(answer => {
-          if (answer.answer_text in answerCounts) {
-            answerCounts[answer.answer_text] += 1;
+          if (q.question_type === 'multiple_choice' || q.question_type === 'single_choice') {
+            const opts = (q.options ?? []) as string[];
+            const counts: Record<string, number> = {};
+            opts.forEach((o) => (counts[o] = 0));
+            qAnswers.forEach((a) => {
+              if (a.answer_text in counts) counts[a.answer_text] += 1;
+            });
+            const chartData = Object.entries(counts).map(([name, count]) => ({
+              name,
+              value: count as number,
+              percentage: qAnswers.length > 0 ? Math.round(((count as number) / qAnswers.length) * 100) : 0,
+            }));
+            return { question: q, totalAnswers: qAnswers.length, chartData, type: 'chart' as const };
           }
-        });
-        const chartData = Object.entries(answerCounts).map(([option, count]) => ({
-          name: option,
-          value: count as number,
-          percentage: questionAnswers.length > 0 ? Math.round(((count as number) / questionAnswers.length) * 100) : 0,
-        }));
-        return {
-          question,
-          totalAnswers: questionAnswers.length,
-          chartData,
-          type: 'chart' as const,
-        };
-      } else if (question.question_type === 'rating') {
-        const ratings = questionAnswers.map(a => parseInt(a.answer_text, 10)).filter(r => !Number.isNaN(r));
-        const average = ratings.length > 0 ? (ratings.reduce((s, n) => s + n, 0) / ratings.length).toFixed(1) : '0';
-        const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-        ratings.forEach(r => {
-          if (distribution[r as 1 | 2 | 3 | 4 | 5] !== undefined) distribution[r as 1 | 2 | 3 | 4 | 5] += 1;
-        });
-        const chartData = Object.entries(distribution).map(([score, count]) => ({
-          name: `${score}점`,
-          value: count as number,
-          percentage: ratings.length > 0 ? Math.round(((count as number) / ratings.length) * 100) : 0,
-        }));
-        return {
-          question,
-          totalAnswers: questionAnswers.length,
-          average,
-          chartData,
-          type: 'rating' as const,
-        };
-      } else {
-        return {
-          question,
-          totalAnswers: questionAnswers.length,
-          answers: questionAnswers.slice(0, 10),
-          type: 'text' as const,
-        };
-      }
-    });
-  };
 
-  const questionAnalyses = selectedSurvey ? getQuestionAnalysis() : [];
+          if (q.question_type === 'rating') {
+            const ratings = qAnswers.map((a) => parseInt(a.answer_text, 10)).filter((n) => !Number.isNaN(n));
+            const avg = ratings.length ? (ratings.reduce((s, n) => s + n, 0) / ratings.length).toFixed(1) : '0';
+            const dist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            ratings.forEach((n) => {
+              if (dist[n as 1 | 2 | 3 | 4 | 5] !== undefined) dist[n as 1 | 2 | 3 | 4 | 5] += 1;
+            });
+            const chartData = Object.entries(dist).map(([score, count]) => ({
+              name: `${score}점`,
+              value: count as number,
+              percentage: ratings.length > 0 ? Math.round(((count as number) / ratings.length) * 100) : 0,
+            }));
+            return { question: q, totalAnswers: qAnswers.length, average: avg, chartData, type: 'rating' as const };
+          }
+
+          return { question: q, totalAnswers: qAnswers.length, answers: qAnswers.slice(0, 10), type: 'text' as const };
+        });
+      })()
+    : [];
+
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
 
   const handleSendResults = async () => {
@@ -665,7 +628,6 @@ const SurveyResults = () => {
       toast({ title: '오류', description: '발송할 수신자를 선택해주세요.', variant: 'destructive' });
       return;
     }
-
     setSendingResults(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-survey-results', {
@@ -673,28 +635,28 @@ const SurveyResults = () => {
       });
       if (error) throw error;
 
-      const results = (data as any)?.results as Array<{ to: string; name?: string; status: 'sent' | 'failed' }> | undefined;
+      const results =
+        (data as any)?.results as Array<{ to: string; name?: string; status: 'sent' | 'failed' }> | undefined;
       const recipientNames = (data as any)?.recipientNames as Record<string, string> | undefined;
-
-      const sent = results?.filter(r => r.status === 'sent') ?? [];
-      const failed = results?.filter(r => r.status === 'failed') ?? [];
-
-      const label = (arr: typeof sent) => arr.map(r => r.name || recipientNames?.[r.to] || r.to.split('@')[0]).join(', ');
-
+      const sent = results?.filter((r) => r.status === 'sent') ?? [];
+      const failed = results?.filter((r) => r.status === 'failed') ?? [];
+      const label = (arr: typeof sent) =>
+        arr.map((r) => r.name || recipientNames?.[r.to] || r.to.split('@')[0]).join(', ');
       toast({
         title: failed.length === 0 ? '✅ 이메일 전송 완료!' : '⚠️ 일부 전송 실패',
         description:
           failed.length === 0
             ? `${sent.length}명에게 설문 결과가 성공적으로 전송되었습니다. 📧\n받는 분: ${label(sent)}`
-            : `성공 ${sent.length}건${sent.length ? `: ${label(sent)}` : ''}\n실패 ${failed.length}건: ${label(failed as any)}`,
+            : `성공 ${sent.length}건${sent.length ? `: ${label(sent)}` : ''}\n실패 ${failed.length}건: ${label(
+                failed as any
+              )}`,
         duration: 6000,
       });
-
       setEmailDialogOpen(false);
       setSelectedRecipients([]);
-    } catch (err: any) {
-      console.error('Error sending results:', err);
-      toast({ title: '오류', description: err?.message || '결과 전송 중 오류가 발생했습니다.', variant: 'destructive' });
+    } catch (e: any) {
+      console.error('Error sending results:', e);
+      toast({ title: '오류', description: e?.message || '결과 전송 중 오류가 발생했습니다.', variant: 'destructive' });
     } finally {
       setSendingResults(false);
     }
@@ -705,7 +667,7 @@ const SurveyResults = () => {
       toast({ title: '오류', description: '내보낼 설문을 선택해주세요.', variant: 'destructive' });
       return;
     }
-    const survey = surveys.find(s => s.id === selectedSurvey);
+    const survey = surveys.find((s) => s.id === selectedSurvey);
     if (!survey) return;
 
     try {
@@ -722,13 +684,15 @@ const SurveyResults = () => {
         questions,
         answers,
       };
-
       const filename = generateCSVFilename(exportData.survey, type);
       const csv = type === 'responses' ? exportResponsesAsCSV(exportData) : exportSummaryAsCSV(exportData);
       downloadCSV(csv, filename);
-      toast({ title: '성공', description: `${type === 'responses' ? '응답 데이터' : '요약 통계'}가 CSV 파일로 다운로드되었습니다.` });
-    } catch (err) {
-      console.error('CSV export error:', err);
+      toast({
+        title: '성공',
+        description: `${type === 'responses' ? '응답 데이터' : '요약 통계'}가 CSV 파일로 다운로드되었습니다.`,
+      });
+    } catch (e) {
+      console.error('CSV export error:', e);
       toast({ title: '오류', description: 'CSV 내보내기 중 오류가 발생했습니다.', variant: 'destructive' });
     }
   };
@@ -745,7 +709,7 @@ const SurveyResults = () => {
   };
 
   const toggleRecipient = (t: string) => {
-    setSelectedRecipients(prev => (prev.includes(t) ? prev.filter(r => r !== t) : [...prev, t]));
+    setSelectedRecipients((prev) => (prev.includes(t) ? prev.filter((r) => r !== t) : [...prev, t]));
   };
 
   const stats = getStatistics();
@@ -811,8 +775,8 @@ const SurveyResults = () => {
         canViewAll
           ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다'
           : instructor
-            ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다`
-            : '담당 강의의 설문조사 결과를 확인할 수 있습니다'
+          ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다`
+          : '담당 강의의 설문조사 결과를 확인할 수 있습니다'
       }
       loading={loading}
       desktopActions={<DesktopActions />}
@@ -850,7 +814,9 @@ const SurveyResults = () => {
             </SelectTrigger>
             <SelectContent className="bg-background z-50">
               {getUniqueYears().map((year) => (
-                <SelectItem key={year} value={String(year)}>{year}년</SelectItem>
+                <SelectItem key={year} value={String(year)}>
+                  {year}년
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -861,7 +827,9 @@ const SurveyResults = () => {
             </SelectTrigger>
             <SelectContent className="bg-background z-50">
               {getUniqueRounds().map((round) => (
-                <SelectItem key={round} value={String(round)}>{round}차</SelectItem>
+                <SelectItem key={round} value={String(round)}>
+                  {round}차
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -923,7 +891,7 @@ const SurveyResults = () => {
               <div className="text-xs text-muted-foreground">총 설문</div>
             </div>
           </Card>
-        <Card className="p-3">
+          <Card className="p-3">
             <div className="text-center">
               <div className="text-lg sm:text-xl font-bold text-primary">{stats.totalResponses}</div>
               <div className="text-xs text-muted-foreground">총 응답</div>
@@ -970,8 +938,8 @@ const SurveyResults = () => {
                       name === 'subjectSatisfaction'
                         ? '과정 만족도'
                         : name === 'instructorSatisfaction'
-                          ? '강사 만족도'
-                          : '운영 만족도',
+                        ? '강사 만족도'
+                        : '운영 만족도',
                     ]}
                   />
                   <Legend
@@ -979,12 +947,17 @@ const SurveyResults = () => {
                       value === 'subjectSatisfaction'
                         ? '과정 만족도'
                         : value === 'instructorSatisfaction'
-                          ? '강사 만족도'
-                          : '운영 만족도'
+                        ? '강사 만족도'
+                        : '운영 만족도'
                     }
                   />
                   <Bar dataKey="subjectSatisfaction" name="subjectSatisfaction" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Bar dataKey="instructorSatisfaction" name="instructorSatisfaction" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar
+                    dataKey="instructorSatisfaction"
+                    name="instructorSatisfaction"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
+                  />
                   <Bar dataKey="operationSatisfaction" name="operationSatisfaction" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </RechartsBarChart>
               </ResponsiveContainer>
@@ -1050,8 +1023,8 @@ const SurveyResults = () => {
                                 course.subjectSatisfaction >= 8
                                   ? 'default'
                                   : course.subjectSatisfaction >= 6
-                                    ? 'secondary'
-                                    : 'destructive'
+                                  ? 'secondary'
+                                  : 'destructive'
                               }
                             >
                               {course.subjectSatisfaction >= 8 ? '우수' : course.subjectSatisfaction >= 6 ? '보통' : '개선필요'}
@@ -1071,8 +1044,8 @@ const SurveyResults = () => {
                                 course.instructorSatisfaction >= 8
                                   ? 'default'
                                   : course.instructorSatisfaction >= 6
-                                    ? 'secondary'
-                                    : 'destructive'
+                                  ? 'secondary'
+                                  : 'destructive'
                               }
                             >
                               {course.instructorSatisfaction >= 8 ? '우수' : course.instructorSatisfaction >= 6 ? '보통' : '개선필요'}
@@ -1089,11 +1062,7 @@ const SurveyResults = () => {
                           {course.operationSatisfaction > 0 && (
                             <Badge
                               variant={
-                                course.operationSatisfaction >= 8
-                                  ? 'default'
-                                  : course.operationSatisfaction >= 6
-                                    ? 'secondary'
-                                    : 'destructive'
+                                course.operationSatisfaction >= 8 ? 'default' : course.operationSatisfaction >= 6 ? 'secondary' : 'destructive'
                               }
                             >
                               {course.operationSatisfaction >= 8 ? '우수' : course.operationSatisfaction >= 6 ? '보통' : '개선필요'}
@@ -1140,10 +1109,7 @@ const SurveyResults = () => {
                 </div>
               ) : (
                 getFilteredSurveys().map((survey) => (
-                  <div
-                    key={survey.id}
-                    className="p-3 border rounded-lg transition-colors hover:bg-muted/50"
-                  >
+                  <div key={survey.id} className="p-3 border rounded-lg transition-colors hover:bg-muted/50">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                       <div className="min-w-0 flex-1">
                         <h4 className="font-medium break-words">{survey.title}</h4>
@@ -1155,7 +1121,7 @@ const SurveyResults = () => {
                             {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            응답 수: {allResponses.filter(r => r.survey_id === survey.id).length}개
+                            응답 수: {allResponses.filter((r) => r.survey_id === survey.id).length}개
                           </span>
                         </div>
                       </div>
@@ -1198,14 +1164,18 @@ const SurveyResults = () => {
             <CardContent>
               <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="overview" className="text-sm">전체 분석</TabsTrigger>
-                  <TabsTrigger value="round-stats" className="text-sm">회차별 통계</TabsTrigger>
+                  <TabsTrigger value="overview" className="text-sm">
+                    전체 분석
+                  </TabsTrigger>
+                  <TabsTrigger value="round-stats" className="text-sm">
+                    회차별 통계
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-4">
                   {questionAnalyses.length > 0 ? (
                     <div className="space-y-6">
-                      {/* 상단 카드 4 */}
+                      {/* 상단 카드 */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Card>
                           <CardContent className="pt-6">
@@ -1295,7 +1265,7 @@ const SurveyResults = () => {
                                   ) : (
                                     <div className="flex items-center justify-center h-full text-muted-foreground">
                                       <div className="text-center">
-                                        <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                        <IconBarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
                                         <p className="text-sm">데이터가 없습니다</p>
                                       </div>
                                     </div>
@@ -1322,7 +1292,7 @@ const SurveyResults = () => {
                                     ) : (
                                       <div className="flex items-center justify-center h-full text-muted-foreground">
                                         <div className="text-center">
-                                          <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                          <IconBarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
                                           <p className="text-sm">데이터가 없습니다</p>
                                         </div>
                                       </div>
@@ -1351,13 +1321,13 @@ const SurveyResults = () => {
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
-                      <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <IconBarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>분석할 응답이 없습니다.</p>
                     </div>
                   )}
                 </TabsContent>
 
-                {/* 회차별 통계 탭(향후 확장 자리표시자) */}
+                {/* 회차별 통계 (자리표시자) */}
                 <TabsContent value="round-stats">
                   <div className="text-sm text-muted-foreground py-8 text-center">
                     회차별 통계는 곧 제공될 예정입니다.
