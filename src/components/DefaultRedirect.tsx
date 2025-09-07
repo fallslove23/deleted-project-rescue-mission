@@ -1,3 +1,4 @@
+// src/components/DefaultRedirect.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,28 +11,41 @@ const DefaultRedirect = () => {
   const [searchParams] = useSearchParams();
   const didRedirect = useRef(false);
 
-  // next 파라미터 지원
+  // next 파라미터와 preview 모드
   const next = useMemo(() => searchParams.get('next'), [searchParams]);
   const isPreview = useMemo(() => searchParams.get('preview') === 'true', [searchParams]);
 
-  // roles가 비어 있을 때 보강 RPC (일부 환경에서 roles가 늦게 채워지는 문제 대응)
+  // roles가 늦게 채워지는 환경을 대비하여 한 번 더 조회
   const [extraRoles, setExtraRoles] = useState<string[] | null>(null);
+
   useEffect(() => {
     if (!loading && user && userRoles.length === 0 && extraRoles === null) {
-      supabase
-        .rpc('get_user_roles', { target_user_id: user.id })
-        .then(({ data, error }) => {
+      let canceled = false;
+
+      (async () => {
+        try {
+          const { data, error } = await supabase.rpc('get_user_roles', {
+            target_user_id: user.id,
+          });
+          if (canceled) return;
+
           if (!error && Array.isArray(data)) {
             setExtraRoles(data.map((d: any) => d.role));
           } else {
             setExtraRoles([]);
           }
-        })
-        .catch(() => setExtraRoles([]));
+        } catch {
+          if (!canceled) setExtraRoles([]);
+        }
+      })();
+
+      return () => {
+        canceled = true;
+      };
     }
   }, [loading, user, userRoles, extraRoles]);
 
-  const finalRoles = (userRoles.length ? userRoles : (extraRoles ?? []));
+  const finalRoles = userRoles.length ? userRoles : (extraRoles ?? []);
 
   useEffect(() => {
     if (loading || didRedirect.current || isPreview) return;
