@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, BarChart3, Users, UserCheck, BookOpen, FileText, 
-  Mail, Settings, Eye, TrendingUp, Award, PieChart
+  Mail, Settings, Eye, TrendingUp, Award, PieChart, Database, BarChart
 } from "lucide-react";
 
 export function AdminSidebar() {
@@ -31,7 +31,8 @@ export function AdminSidebar() {
         { title: "결과분석", url: "/dashboard/results", icon: BarChart3 },
         { title: "과정 리포트", url: "/dashboard/course-reports", icon: TrendingUp },
         { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart },
-        { title: "템플릿관리", url: "/dashboard/templates", icon: FileText }
+        { title: "템플릿관리", url: "/dashboard/templates", icon: FileText },
+        { title: "설문관리", url: "/dashboard/surveys", icon: FileText }
       ]
     },
     {
@@ -46,7 +47,8 @@ export function AdminSidebar() {
       title: "기타",
       items: [
         { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail },
-        { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings }
+        { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings },
+        { title: "누적 데이터", url: "/dashboard/cumulative-data", icon: Database }
       ]
     }
   ];
@@ -54,17 +56,24 @@ export function AdminSidebar() {
   // 강사 전용 메뉴
   const instructorMenuItems = [
     {
-      title: "내 결과",
+      title: "내 피드백",
       items: [
-        { title: "개인 통계", url: "/personal-dashboard", icon: Award },
-        { title: "과정별 분석", url: "/dashboard/course-reports", icon: TrendingUp },
-        { title: "상세 결과", url: "/dashboard/results", icon: BarChart3 }
+        { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award },
+        { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp }
       ]
     },
     {
       title: "설문",
       items: [
+        { title: "결과분석", url: "/dashboard/results", icon: BarChart3 },
+        { title: "설문관리", url: "/dashboard/surveys", icon: FileText },
         { title: "템플릿관리", url: "/dashboard/templates", icon: FileText }
+      ]
+    },
+    {
+      title: "관리",
+      items: [
+        { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck }
       ]
     }
   ];
@@ -77,7 +86,7 @@ export function AdminSidebar() {
       <SidebarContent>
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+            <SidebarGroupLabel className="font-sans">{section.title}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => (
@@ -86,7 +95,7 @@ export function AdminSidebar() {
                       <NavLink
                         to={item.url}
                         className={({ isActive }) =>
-                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent ${
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent font-sans ${
                             isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
                           }`
                         }
@@ -105,14 +114,17 @@ export function AdminSidebar() {
         {/* 관리자 전용 - 뷰 테스트 섹션 */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel>
-              뷰 테스트 <span className="text-xs bg-orange-100 text-orange-600 px-1 rounded">DEV</span>
+            <SidebarGroupLabel className="font-sans">
+              뷰 테스트 <span className="text-xs bg-orange-100 text-orange-600 px-1 rounded font-sans">DEV</span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/role-view/instructor" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent text-muted-foreground">
+                    <NavLink 
+                      to="/role-view/instructor" 
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent text-muted-foreground font-sans"
+                    >
                       <Eye className="h-4 w-4" />
                       강사 뷰
                     </NavLink>
