@@ -7,26 +7,18 @@ import { RefreshCw } from "lucide-react";
 export interface AdminLayoutProps {
   children: React.ReactNode;
   title?: string;
-  /** 페이지 부제목 */
   subtitle?: string;
-  /** 일부 페이지에서 description으로 넘기는 걸 지원 (subtitle과 동일 의미) */
   description?: string;
   totalCount?: number;
-
-  /** 데스크톱 액션(단일/배열 모두 허용) — 기존 actions와 병행 지원 */
   actions?: React.ReactNode | React.ReactNode[];
   desktopActions?: React.ReactNode | React.ReactNode[];
-
-  /** 모바일 액션(단일/배열 모두 허용) */
   mobileActions?: React.ReactNode | React.ReactNode[];
-
   onRefresh?: () => void;
   loading?: boolean;
   topbar?: React.ReactNode;
   hideHeader?: boolean;
 }
 
-/** 단일/배열을 항상 배열로 정규화 */
 function toArray<T>(v: T | T[] | undefined | null): T[] {
   if (v == null) return [];
   return Array.isArray(v) ? v : [v];
@@ -39,21 +31,17 @@ export default function AdminLayout(props: AdminLayoutProps) {
     subtitle,
     description,
     totalCount,
-
     actions,
     desktopActions,
     mobileActions,
-
     onRefresh,
     loading = false,
     topbar,
     hideHeader = false,
   } = props;
 
-  // actions 우선순위: desktopActions > actions (하위호환)
   const desktopActionItems = toArray(desktopActions ?? actions);
   const mobileActionItems = toArray(mobileActions);
-
   const subline = description ?? subtitle;
 
   const renderDesktopActions = () => {
@@ -108,22 +96,21 @@ export default function AdminLayout(props: AdminLayoutProps) {
   };
 
   return (
-    // SidebarProvider 제거 - App.tsx에서 이미 제공됨
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar />
 
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 flex flex-col">
         {topbar && (
-          <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-            <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center">
+          <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
+            <div className="px-4 md:px-6 lg:px-8 h-14 flex items-center">
               {topbar}
             </div>
           </div>
         )}
 
         {!hideHeader && !topbar && title && (
-          <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-            <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-auto min-h-[64px] md:min-h-[72px] py-2 flex items-center justify-between">
+          <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
+            <div className="px-4 md:px-6 lg:px-8 h-auto min-h-[64px] md:min-h-[72px] py-2 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <SidebarTrigger className="-ml-1" />
                 <div className="leading-tight md:leading-snug">
@@ -152,10 +139,11 @@ export default function AdminLayout(props: AdminLayoutProps) {
           </div>
         )}
 
-        <div className={hideHeader && !topbar ? "h-full" : ""}>
+        {/* 메인 콘텐츠 - 전체 너비 사용 */}
+        <div className="flex-1 overflow-auto">
           {!hideHeader && !topbar && title ? (
-            <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-              <div className="flex items-center justify-between mb-4 md:mb-6">
+            <div className="w-full px-4 md:px-6 lg:px-8 py-6">
+              <div className="flex items-center justify-between mb-6">
                 {(subline || typeof totalCount === "number") && (
                   <p className="hidden md:block text-sm text-muted-foreground">
                     {subline}
@@ -173,7 +161,9 @@ export default function AdminLayout(props: AdminLayoutProps) {
               {children}
             </div>
           ) : (
-            children
+            <div className="w-full px-4 md:px-6 lg:px-8 py-6">
+              {children}
+            </div>
           )}
         </div>
       </main>
