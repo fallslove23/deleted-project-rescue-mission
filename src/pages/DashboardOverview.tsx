@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, BookOpen, FileText, BarChart, TrendingUp, Clock, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Users, BookOpen, FileText, BarChart, TrendingUp, Clock, Activity, Menu, RefreshCw } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { DashboardLayout } from '@/components/DashboardLayout';
+import { AdminLayout } from '@/components/AdminLayout';
 
 interface Profile {
   role: string;
@@ -163,15 +165,14 @@ const DashboardOverview = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout title="관리자 대시보드" description="시스템 개요">
-        <div className="flex items-center justify-center py-8">
-          <div>로딩중...</div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      await fetchDashboardStats();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const isAdmin = profile?.role === 'admin';
 
@@ -207,10 +208,77 @@ const DashboardOverview = () => {
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658'];
 
+  // 데스크톱 액션 버튼들
+  const DesktopActions = () => (
+    <Button onClick={refreshData} disabled={loading}>
+      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+      새로고침
+    </Button>
+  );
+
+  // 모바일 액션 버튼들  
+  const MobileActions = () => (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Menu className="h-4 w-4" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>대시보드 메뉴</SheetTitle>
+        </SheetHeader>
+        <div className="py-4 space-y-4">
+          <Button 
+            className="w-full justify-start" 
+            onClick={refreshData} 
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
+          
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="font-medium">통계 요약</div>
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <span>총 설문:</span>
+                <span className="font-medium">{stats.totalSurveys}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>진행중:</span>
+                <span className="font-medium">{stats.activeSurveys}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>총 응답:</span>
+                <span className="font-medium">{stats.totalResponses}</span>
+              </div>
+              {isAdmin && (
+                <>
+                  <div className="flex justify-between">
+                    <span>강사 수:</span>
+                    <span className="font-medium">{stats.totalInstructors}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>강좌 수:</span>
+                    <span className="font-medium">{stats.totalCourses}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
-    <DashboardLayout 
-      title="관리자 대시보드" 
-      description={isAdmin ? '시스템 관리자' : '강사'} 
+    <AdminLayout
+      title="관리자 대시보드"
+      description={isAdmin ? '시스템 관리자' : '강사'}
+      loading={loading}
+      desktopActions={<DesktopActions />}
+      mobileActions={<MobileActions />}
     >
       <div className="space-y-6">
         {/* 주요 통계 카드들 */}
@@ -385,7 +453,7 @@ const DashboardOverview = () => {
           </Card>
         </div>
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 };
 
