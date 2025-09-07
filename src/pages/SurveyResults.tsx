@@ -275,6 +275,21 @@ const SurveyResults = () => {
     }
   };
 
+  const fetchResponses = async () => {
+    if (!selectedSurvey) return;
+    try {
+      const { data, error } = await supabase
+        .from('survey_responses')
+        .select('*')
+        .eq('survey_id', selectedSurvey)
+        .order('submitted_at', { ascending: false });
+      if (error) throw error;
+      setResponses((data ?? []) as SurveyResponse[]);
+    } catch (e) {
+      console.error('Error fetching responses:', e);
+    }
+  };
+
   const fetchProfile = async () => {
     if (!user) return;
     try {
