@@ -12,8 +12,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, BookOpen, Trash2, Users, Grid3X3, List, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AdminSidebar } from '@/components/AdminSidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import AdminLayout from '@/components/layouts/AdminLayout';
 
 interface Course {
   id: string;
@@ -196,67 +196,33 @@ const CourseManagement = () => {
   if (loading) {
     return (
       <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AdminSidebar />
-          <main className="flex-1 flex flex-col">
-            <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-              <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger />
-                  <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                    <BookOpen className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">과목 관리</h1>
-                    <p className="text-xs md:text-sm text-muted-foreground">과목 정보 및 강사 배정 관리</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                  <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
-                </div>
-              </div>
-            </header>
-            <div className="flex-1 flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">데이터를 불러오는 중...</p>
-              </div>
+        <AdminLayout title="과목 관리" description="과목 정보 및 강사 배정 관리">
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">데이터를 불러오는 중...</p>
             </div>
-          </main>
-        </div>
+          </div>
+        </AdminLayout>
       </SidebarProvider>
     );
   }
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AdminSidebar />
-        
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-            <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <SidebarTrigger />
-                <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                  <BookOpen className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div>
-                  <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">과목 관리</h1>
-                  <p className="text-xs md:text-sm text-muted-foreground">과목 정보 및 강사 배정 관리</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
-              </div>
-            </div>
-          </header>
-
-          {/* Content */}
-          <div className="flex-1 container mx-auto px-4 py-6 space-y-6">
+      <AdminLayout 
+        title="과목 관리" 
+        description="과목을 추가, 수정, 삭제할 수 있습니다"
+        actions={
+          <Button onClick={openAddDialog} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <BookOpen className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">새 과목 추가</span>
+            <span className="sm:hidden">추가</span>
+          </Button>
+        }
+      >
+        {/* Content */}
+        <div className="container mx-auto px-4 py-6 space-y-6">
             {/* Action Bar */}
             <div className="flex justify-between items-center">
               <div>
@@ -562,9 +528,8 @@ const CourseManagement = () => {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
-        </main>
-      </div>
+        </div>
+      </AdminLayout>
     </SidebarProvider>
   );
 };

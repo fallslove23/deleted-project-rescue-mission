@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, Database, BarChart } from 'lucide-react';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AdminSidebar } from '@/components/AdminSidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import AdminLayout from '@/components/layouts/AdminLayout';
 
 interface CumulativeData {
   survey_id: string;
@@ -260,50 +260,32 @@ const CumulativeDataTable = () => {
   if (!canViewAll) {
     return (
       <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AdminSidebar />
-          <main className="flex-1 flex flex-col">
-            <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-              <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger />
-                  <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                    <Database className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">누적 데이터</h1>
-                    <p className="text-xs md:text-sm text-muted-foreground">전체 설문 데이터 조회</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                  <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
-                </div>
+        <AdminLayout title="누적 데이터" description="전체 설문 데이터 조회">
+          <Card>
+            <CardContent className="py-8 text-center">
+              <div className="text-muted-foreground">
+                이 기능을 사용하려면 관리자 권한이 필요합니다.
               </div>
-            </header>
-            <div className="flex-1 container mx-auto px-4 py-6">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <div className="text-muted-foreground">
-                    이 기능을 사용하려면 관리자 권한이 필요합니다.
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </main>
-        </div>
+            </CardContent>
+          </Card>
+        </AdminLayout>
       </SidebarProvider>
     );
   }
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AdminSidebar />
-        
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+      <AdminLayout 
+        title="누적 데이터" 
+        description="전체 설문 데이터 조회"
+        actions={
+          <Button onClick={exportToCSV} disabled={data.length === 0}>
+            <Download className="h-4 w-4 mr-2" />
+            CSV 다운로드
+          </Button>
+        }
+      >
+        <div className="container mx-auto px-4 py-6 space-y-6">
             <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
@@ -384,8 +366,8 @@ const CumulativeDataTable = () => {
               </div>
             )}
           </div>
-        </main>
-      </div>
+        </div>
+      </AdminLayout>
     </SidebarProvider>
   );
 };

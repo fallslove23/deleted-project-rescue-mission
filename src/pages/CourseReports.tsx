@@ -29,8 +29,8 @@ import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AdminSidebar } from '@/components/AdminSidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import AdminLayout from '@/components/layouts/AdminLayout';
 
 const CourseReports = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -239,37 +239,14 @@ const CourseReports = () => {
   if (loading) {
     return (
       <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AdminSidebar />
-          <main className="flex-1 flex flex-col">
-            <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-              <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger />
-                  <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                    <BarChart3 className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">과정별 분석</h1>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      {isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                  <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
-                </div>
-              </div>
-            </header>
-            <div className="flex-1 flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">데이터를 불러오는 중...</p>
-              </div>
+        <AdminLayout title="과정별 분석" description={isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}>
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">데이터를 불러오는 중...</p>
             </div>
-          </main>
-        </div>
+          </div>
+        </AdminLayout>
       </SidebarProvider>
     );
   }
@@ -282,12 +259,9 @@ const CourseReports = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AdminSidebar />
-        
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+      <AdminLayout title="과정별 분석" description={isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}>
+        {/* Content */}
+        <div className="container mx-auto px-4 py-6 space-y-6">
             <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
@@ -821,8 +795,8 @@ const CourseReports = () => {
               textualResponses={textualResponses}
             />
           </div>
-        </main>
-      </div>
+        </div>
+      </AdminLayout>
     </SidebarProvider>
   );
 };
