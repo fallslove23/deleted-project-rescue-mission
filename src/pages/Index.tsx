@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Menu, Clock, Calendar, Users, BarChart, TrendingUp, BookOpen, FileText } from 'lucide-react';
+import { Menu, Clock, Calendar, Users, BarChart, TrendingUp, BookOpen, FileText, Filter } from 'lucide-react';
 import { MobileOptimizedContainer } from '@/components/MobileOptimizedContainer';
 import LoadingScreen from '@/components/LoadingScreen';
 
@@ -22,23 +23,40 @@ interface Survey {
   instructors?: {
     name: string;
   };
+  courses?: {
+    title: string;
+  };
+}
+
+interface Course {
+  id: string;
+  title: string;
 }
 
 const Index = () => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [allSurveys, setAllSurveys] = useState<Survey[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchSurveys();
+    fetchData();
   }, []);
 
-  const fetchSurveys = async () => {
+  useEffect(() => {
+    filterSurveys();
+  }, [selectedCourse, allSurveys]);
+
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // 설문조사 데이터 조회
+      const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
         .select(`
           id,
@@ -48,18 +66,32 @@ const Index = () => {
           created_at,
           instructor_id,
           course_id,
-          instructors(name)
+          instructors(name),
+          courses(title)
         `)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setSurveys(data || []);
+      if (surveyError) throw surveyError;
+      
+      const surveysWithRelations = surveyData || [];
+      setAllSurveys(surveysWithRelations);
+      setSurveys(surveysWithRelations);
+
+      // 과정 데이터 조회
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
+        .select('id, title')
+        .order('title');
+
+      if (courseError) throw courseError;
+      setCourses(courseData || []);
+
     } catch (error) {
-      console.error('Error fetching surveys:', error);
+      console.error('Error fetching data:', error);
       toast({
         title: "오류",
-        description: "설문조사를 불러오는데 실패했습니다.",
+        description: "데이터를 불러오는데 실패했습니다.",
         variant: "destructive",
       });
     } finally {
@@ -67,14 +99,23 @@ const Index = () => {
     }
   };
 
+  const filterSurveys = () => {
+    if (selectedCourse === 'all') {
+      setSurveys(allSurveys);
+    } else {
+      const filtered = allSurveys.filter(survey => survey.course_id === selectedCourse);
+      setSurveys(filtered);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <Badge variant="default">진행중</Badge>;
+        return <Badge variant="default" className="font-sans">진행중</Badge>;
       case 'completed':
-        return <Badge variant="secondary">완료</Badge>;
+        return <Badge variant="secondary" className="font-sans">완료</Badge>;
       default:
-        return <Badge variant="outline">준비중</Badge>;
+        return <Badge variant="outline" className="font-sans">준비중</Badge>;
     }
   };
 
@@ -92,7 +133,7 @@ const Index = () => {
         <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-primary">설문조사 시스템</h1>
+              <h1 className="text-2xl font-bold text-primary font-display">설문조사 시스템</h1>
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -105,8 +146,8 @@ const Index = () => {
                     {user ? (
                       <>
                         <div className="border-b pb-4">
-                          <h2 className="text-lg font-semibold text-primary">관리자 메뉴</h2>
-                          <p className="text-sm text-muted-foreground mt-1 break-words">환영합니다, {user.email}</p>
+                          <h2 className="text-lg font-semibold text-primary font-display">관리자 메뉴</h2>
+                          <p className="text-sm text-muted-foreground mt-1 break-words font-sans">환영합니다, {user.email}</p>
                         </div>
                         <div className="space-y-3">
                           <Button onClick={() => navigate('/dashboard')} className="w-full justify-start" variant="default">
@@ -116,7 +157,7 @@ const Index = () => {
                           
                           {/* 강사 전용 메뉴 추가 */}
                           <div className="border-t pt-3">
-                            <h3 className="text-sm font-medium text-muted-foreground mb-2">📊 내 피드백</h3>
+                            <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">📊 내 피드백</h3>
                             <Button onClick={() => navigate('/dashboard/my-stats')} className="w-full justify-start" variant="outline">
                               <TrendingUp className="h-4 w-4 mr-2" />
                               나의 만족도 통계
@@ -129,7 +170,7 @@ const Index = () => {
 
                           {/* 관리 메뉴 */}
                           <div className="border-t pt-3">
-                            <h3 className="text-sm font-medium text-muted-foreground mb-2">🔧 관리</h3>
+                            <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">🔧 관리</h3>
                             <Button onClick={() => navigate('/dashboard/instructors')} className="w-full justify-start" variant="outline">
                               <Users className="h-4 w-4 mr-2" />
                               강사 관리
@@ -150,7 +191,7 @@ const Index = () => {
 
                           {/* 기타 메뉴 */}
                           <div className="border-t pt-3">
-                            <h3 className="text-sm font-medium text-muted-foreground mb-2">📋 기타</h3>
+                            <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">📋 기타</h3>
                             <Button onClick={() => navigate('/')} className="w-full justify-start" variant="outline">
                               <FileText className="h-4 w-4 mr-2" />
                               설문 리스트
@@ -164,8 +205,8 @@ const Index = () => {
                     ) : (
                       <>
                         <div className="border-b pb-4">
-                          <h2 className="text-lg font-semibold">관리자/강사 로그인</h2>
-                          <p className="text-sm text-muted-foreground mt-1">설문 결과 조회 및 관리</p>
+                          <h2 className="text-lg font-semibold font-display">관리자/강사 로그인</h2>
+                          <p className="text-sm text-muted-foreground mt-1 font-sans">설문 결과 조회 및 관리</p>
                         </div>
                         <Button onClick={() => navigate('/auth')} className="w-full">
                           로그인하기
@@ -181,15 +222,62 @@ const Index = () => {
 
         <main className="container mx-auto px-4 py-8">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-2">진행중인 설문조사</h2>
-            <p className="text-muted-foreground">
+            <h2 className="text-3xl font-bold text-foreground mb-2 font-display">진행중인 설문조사</h2>
+            <p className="text-muted-foreground font-sans">
               참여 가능한 설문조사 목록입니다. 설문조사를 클릭하여 참여해주세요.
             </p>
           </div>
 
+          {/* 과정별 필터 */}
+          {courses.length > 0 && (
+            <Card className="mb-6 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg font-display">
+                  <Filter className="h-5 w-5 text-primary" />
+                  과정별 필터
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium font-sans">과정 선택:</label>
+                  <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                    <SelectTrigger className="w-[200px] font-sans">
+                      <SelectValue placeholder="과정을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="font-sans">전체 과정</SelectItem>
+                      {courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id} className="font-sans">
+                          {course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground font-sans">
+                    ({surveys.length}개 설문)
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {surveys.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground text-lg">현재 진행중인 설문조사가 없습니다.</p>
+              <p className="text-muted-foreground text-lg font-sans">
+                {selectedCourse === 'all' 
+                  ? '현재 진행중인 설문조사가 없습니다.' 
+                  : '선택한 과정에 진행중인 설문조사가 없습니다.'
+                }
+              </p>
+              {selectedCourse !== 'all' && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSelectedCourse('all')}
+                  className="mt-4"
+                >
+                  전체 설문 보기
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -197,15 +285,21 @@ const Index = () => {
                 <Card key={survey.id} className="cursor-pointer hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg">{survey.title}</CardTitle>
+                      <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
                       {getStatusBadge(survey.status)}
                     </div>
                     {survey.description && (
-                      <CardDescription>{survey.description}</CardDescription>
+                      <CardDescription className="font-sans">{survey.description}</CardDescription>
                     )}
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 text-sm font-sans">
+                      {survey.courses?.title && (
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-muted-foreground" />
+                          <span>과정: {survey.courses.title}</span>
+                        </div>
+                      )}
                       {survey.instructors?.name && (
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-muted-foreground" />

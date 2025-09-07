@@ -1,3 +1,6 @@
+/* Google Fonts 한글 폰트 import */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
 html, body, #root {
   min-height: 100%;
 }
@@ -242,6 +245,8 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    /* 한글 폰트 우선 적용 */
+    font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Helvetica Neue", Helvetica, Arial, sans-serif;
     /* Prevent horizontal overflow */
     overflow-x: hidden;
     /* Enable smooth scrolling */
@@ -343,5 +348,19 @@ All colors MUST be HSL.
 
   .safe-right {
     padding-right: env(safe-area-inset-right);
+  }
+
+  /* 한글 텍스트 최적화 */
+  .font-korean {
+    font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+    font-feature-settings: "kern" 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Badge 컴포넌트 한글 폰트 강제 적용 */
+  .badge-korean {
+    font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif !important;
+    font-weight: 500;
+    letter-spacing: -0.025em;
   }
 }
