@@ -1,5 +1,5 @@
-/* Google Fonts 한글 폰트 import */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+/* Pretendard 폰트 import */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
 html, body, #root {
   min-height: 100%;
@@ -74,15 +74,15 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
-    /* 보라색 사이드바 색상 변수 */
-    --sidebar-background: 248 250 252; /* slate-50 */
-    --sidebar-foreground: 99 102 241; /* indigo-500 */
-    --sidebar-primary: 129 140 248; /* indigo-400 */
+    /* 연보라색 사이드바 색상 변수 */
+    --sidebar-background: 252 251 255; /* purple-25 */
+    --sidebar-foreground: 124 58 237; /* purple-600 */
+    --sidebar-primary: 147 51 234; /* purple-500 */
     --sidebar-primary-foreground: 255 255 255;
-    --sidebar-accent: 238 242 255; /* indigo-50 */
-    --sidebar-accent-foreground: 67 56 202; /* indigo-700 */
-    --sidebar-border: 224 231 255; /* indigo-200 */
-    --sidebar-ring: 129 140 248; /* indigo-400 */
+    --sidebar-accent: 245 243 255; /* purple-50 */
+    --sidebar-accent-foreground: 109 40 217; /* purple-700 */
+    --sidebar-border: 233 213 255; /* purple-200 */
+    --sidebar-ring: 147 51 234; /* purple-500 */
   }
 
   .dark {
@@ -239,8 +239,8 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    /* 한글 폰트 우선 적용 */
-    font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    /* Pretendard 폰트 우선 적용 */
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, "Roboto", "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
     /* Prevent horizontal overflow */
     overflow-x: hidden;
     /* Enable smooth scrolling */
@@ -346,49 +346,49 @@ All colors MUST be HSL.
 
   /* 한글 텍스트 최적화 */
   .font-korean {
-    font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     font-feature-settings: "kern" 1;
     text-rendering: optimizeLegibility;
   }
 
   /* Badge 컴포넌트 한글 폰트 강제 적용 */
   .badge-korean {
-    font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif !important;
+    font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
     font-weight: 500;
     letter-spacing: -0.025em;
   }
 }
 
-/* 보라색 사이드바 스타일 - 최우선 적용 */
+/* 연보라색 사이드바 스타일 - 최우선 적용 */
 .sidebar-purple,
 .sidebar-purple *,
 .sidebar-purple [data-sidebar],
 .sidebar-purple .sidebar {
-  --sidebar-background: 248 250 252 !important;
-  --sidebar-foreground: 99 102 241 !important;
-  --sidebar-primary: 129 140 248 !important;
+  --sidebar-background: 252 251 255 !important; /* 연보라 배경 */
+  --sidebar-foreground: 124 58 237 !important; /* 보라 텍스트 */
+  --sidebar-primary: 147 51 234 !important; /* 보라 primary */
   --sidebar-primary-foreground: 255 255 255 !important;
-  --sidebar-accent: 238 242 255 !important;
-  --sidebar-accent-foreground: 67 56 202 !important;
-  --sidebar-border: 224 231 255 !important;
-  --sidebar-ring: 129 140 248 !important;
+  --sidebar-accent: 245 243 255 !important; /* 매우 연한 보라 accent */
+  --sidebar-accent-foreground: 109 40 217 !important; /* 진한 보라 텍스트 */
+  --sidebar-border: 233 213 255 !important; /* 연보라 보더 */
+  --sidebar-ring: 147 51 234 !important;
 }
 
 /* 사이드바 배경 강제 적용 */
 .sidebar-purple [data-sidebar="sidebar"],
 .sidebar-purple aside[data-sidebar="sidebar"] {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
-  border-right: 1px solid #e0e7ff !important;
+  background: linear-gradient(180deg, #fcfbff 0%, #f5f3ff 100%) !important;
+  border-right: 1px solid #e9d5ff !important;
 }
 
 /* 그룹 라벨 스타일 */
 .sidebar-purple [data-sidebar="group-label"] {
-  color: #6366f1 !important;
+  color: #7c3aed !important;
   font-weight: 600 !important;
   font-size: 0.75rem !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
-  font-family: "Noto Sans KR", "Malgun Gothic", sans-serif !important;
+  font-family: "Pretendard", system-ui, sans-serif !important;
 }
 
 /* 메뉴 버튼 기본 스타일 */
@@ -397,14 +397,14 @@ All colors MUST be HSL.
   color: #64748b !important;
   background: transparent !important;
   transition: all 0.2s ease !important;
-  font-family: "Noto Sans KR", "Malgun Gothic", sans-serif !important;
+  font-family: "Pretendard", system-ui, sans-serif !important;
 }
 
 /* 메뉴 버튼 호버 */
 .sidebar-purple [data-sidebar="menu-button"]:hover,
 .sidebar-purple a:hover {
-  background: #eef2ff !important;
-  color: #4338ca !important;
+  background: #f5f3ff !important;
+  color: #7c3aed !important;
 }
 
 /* 활성 메뉴 스타일 */
@@ -413,15 +413,15 @@ All colors MUST be HSL.
 .sidebar-purple a.active,
 .sidebar-purple a[aria-current="page"],
 .sidebar-purple .bg-accent {
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%) !important;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%) !important;
   color: white !important;
-  box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4) !important;
 }
 
 /* DEV 태그 */
 .sidebar-purple .dev-tag,
 .sidebar-purple span[class*="bg-orange"] {
-  background: #a855f7 !important;
+  background: #8b5cf6 !important;
   color: white !important;
   font-size: 0.625rem !important;
   padding: 0.125rem 0.375rem !important;
