@@ -1382,9 +1382,30 @@ const SurveyResults = () => {
                                              ))}
                                            </Pie>
                                            <Tooltip />
-                                         </PieChart>
-                                       </ResponsiveContainer>
-                                     ) : (
-                                       <div className="flex items-center justify-center h-full text-muted-foreground">
-                                         <div className="text-center">
-                                           <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                          </PieChart>
+                                        </ResponsiveContainer>
+                                      ) : (
+                                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                                          <div className="text-center">
+                                            <BarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                            <p className="text-sm">데이터가 없습니다</p>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </AdminLayout>
+  );
+};
+
+export default SurveyResults;

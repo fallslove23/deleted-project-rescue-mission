@@ -12,7 +12,10 @@ const DefaultRedirect = () => {
     // preview 모드일 때는 리다이렉트하지 않음
     const isPreview = searchParams.get('preview') === 'true';
     
-    if (!loading && userRoles.length > 0 && !isPreview) {
+    // 현재 페이지가 루트(/)이고 Lovable 미리보기 환경인 경우에도 리다이렉트하지 않음
+    const isLovablePreview = window.location.hostname.includes('lovable.app');
+    
+    if (!loading && userRoles.length > 0 && !isPreview && !isLovablePreview) {
       // 역할별 기본 페이지로 리디렉션
       if (userRoles.includes('admin') || userRoles.includes('operator')) {
         navigate('/dashboard');

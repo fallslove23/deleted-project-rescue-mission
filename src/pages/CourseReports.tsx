@@ -538,3 +538,57 @@ const CourseReports = () => {
                       </Button>
                     </CardContent>
                   </Card>
+
+                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown('course')}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">과정 만족도</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-3xl font-bold text-green-600">{currentReport.avg_course_satisfaction.toFixed(1)}</span>
+                        <SatisfactionStatusBadge score={currentReport.avg_course_satisfaction} />
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full">
+                        세부 보기
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown('operation')}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">운영 만족도</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-3xl font-bold text-orange-600">{(currentReport.report_data?.operation_satisfaction || 0).toFixed(1)}</span>
+                        <SatisfactionStatusBadge score={currentReport.report_data?.operation_satisfaction || 0} />
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full">
+                        세부 보기
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
+
+            {/* 드릴다운 모달 */}
+            {drillDownModal.isOpen && (
+              <DrillDownModal
+                isOpen={drillDownModal.isOpen}
+                onClose={() => setDrillDownModal({ ...drillDownModal, isOpen: false })}
+                type={drillDownModal.type}
+                title={drillDownModal.title}
+                data={textualResponses}
+                courseTitle={currentReport?.course_title}
+                round={currentReport?.education_round}
+              />
+            )}
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+};
+
+export default CourseReports;
