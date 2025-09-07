@@ -66,13 +66,13 @@ export function AdminSidebar() {
       title: "설문",
       items: [
         { title: "결과분석", url: "/dashboard/results", icon: BarChart3 },
-        { title: "설문관리", url: "/dashboard/surveys", icon: FileText },
         { title: "템플릿관리", url: "/dashboard/templates", icon: FileText }
       ]
     },
     {
       title: "관리",
       items: [
+        { title: "설문관리", url: "/dashboard/survey-management-v2", icon: FileText },
         { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck }
       ]
     }
