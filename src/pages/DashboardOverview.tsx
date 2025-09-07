@@ -1,6 +1,7 @@
+import AdminLayout from "@/components/layouts/AdminLayout";
+
 // src/pages/DashboardOverview.tsx
 // ... (기존 import 유지)
-import AdminLayout from "@/components/layouts/AdminLayout";
 
 const DashboardOverview = () => {
   // ... (기존 state와 useEffect 유지)
