@@ -31,7 +31,7 @@ export function AdminSidebar() {
     {
       title: "설문",
       items: [
-        { title: "결과분석", url: "/dashboard/survey-results", icon: BarChart3 },
+        { title: "결과분석", url: "/dashboard/results", icon: BarChart3 },
         { title: "과정 리포트", url: "/dashboard/course-reports", icon: TrendingUp },
         { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart },
         { title: "템플릿관리", url: "/dashboard/templates", icon: FileText }
@@ -40,7 +40,7 @@ export function AdminSidebar() {
     {
       title: "관리",
       items: [
-        { title: "설문관리", url: "/dashboard/survey-management-v2", icon: FileText },
+        { title: "설문관리", url: "/surveys-v2", icon: FileText },
         { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck },
         { title: "사용자관리", url: "/dashboard/users", icon: Users },
         { title: "과목관리", url: "/dashboard/courses", icon: BookOpen }
