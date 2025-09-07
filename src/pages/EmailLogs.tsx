@@ -10,12 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, Legend } from 'recharts';
-import { Mail, CheckCircle, XCircle, Clock, Calendar as CalendarIcon, Filter, TrendingUp, RefreshCw, Eye } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, Clock, Calendar as CalendarIcon, Filter, TrendingUp, RefreshCw, Eye, Menu, BarChart3 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
+import { AdminLayout } from '@/components/AdminLayout';
 
 interface EmailLog {
   id: string;
@@ -206,364 +207,411 @@ const EmailLogs = () => {
       : 0
   };
 
+  // 데스크톱 액션 버튼들
+  const DesktopActions = () => (
+    <Button onClick={fetchEmailLogs} disabled={loading}>
+      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+      새로고침
+    </Button>
+  );
+
+  // 모바일 액션 버튼들  
+  const MobileActions = () => (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Menu className="h-4 w-4" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>이메일 로그 메뉴</SheetTitle>
+        </SheetHeader>
+        <div className="py-4 space-y-4">
+          <Button 
+            className="w-full justify-start" 
+            onClick={fetchEmailLogs} 
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
+          
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              <span>총 {totalStats.totalLogs}건의 발송 기록</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>성공률 {totalStats.successRate}%</span>
+            </div>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   if (!canViewLogs) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">접근 권한 없음</h3>
-            <p className="text-muted-foreground">이메일 로그를 조회할 권한이 없습니다.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <AdminLayout
+        title="이메일 발송 로그"
+        description="설문 결과 이메일 발송 기록 및 통계"
+        loading={false}
+      >
+        <div className="flex items-center justify-center py-8">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6 text-center">
+              <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">접근 권한 없음</h3>
+              <p className="text-muted-foreground">이메일 로그를 조회할 권한이 없습니다.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary">이메일 발송 로그</h1>
-          <p className="text-muted-foreground">설문 결과 이메일 발송 기록 및 통계</p>
+    <AdminLayout
+      title="이메일 발송 로그"
+      description="설문 결과 이메일 발송 기록 및 통계"
+      loading={loading}
+      desktopActions={<DesktopActions />}
+      mobileActions={<MobileActions />}
+    >
+      <div className="space-y-6">
+        {/* 통계 카드 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center">
+                <Mail className="h-4 w-4 text-blue-600" />
+                <div className="ml-2">
+                  <p className="text-sm font-medium text-muted-foreground">총 발송 기록</p>
+                  <div className="text-2xl font-bold">{totalStats.totalLogs}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className="ml-2">
+                  <p className="text-sm font-medium text-muted-foreground">총 성공 발송</p>
+                  <div className="text-2xl font-bold text-green-600">{totalStats.totalSent}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center">
+                <XCircle className="h-4 w-4 text-red-600" />
+                <div className="ml-2">
+                  <p className="text-sm font-medium text-muted-foreground">총 실패 건수</p>
+                  <div className="text-2xl font-bold text-red-600">{totalStats.totalFailed}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center">
+                <TrendingUp className="h-4 w-4 text-purple-600" />
+                <div className="ml-2">
+                  <p className="text-sm font-medium text-muted-foreground">성공률</p>
+                  <div className="text-2xl font-bold text-purple-600">{totalStats.successRate}%</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <Button onClick={fetchEmailLogs} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          새로고침
-        </Button>
-      </div>
 
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <Mail className="h-4 w-4 text-blue-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">총 발송 기록</p>
-                <div className="text-2xl font-bold">{totalStats.totalLogs}</div>
+        {/* 차트 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>상태별 분포</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={getStatusStats()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {getStatusStats().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">총 성공 발송</p>
-                <div className="text-2xl font-bold text-green-600">{totalStats.totalSent}</div>
+          <Card>
+            <CardHeader>
+              <CardTitle>월별 발송 통계</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={getMonthlyStats()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="sent" stroke="#10b981" name="성공" />
+                    <Line type="monotone" dataKey="failed" stroke="#ef4444" name="실패" />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <XCircle className="h-4 w-4 text-red-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">총 실패 건수</p>
-                <div className="text-2xl font-bold text-red-600">{totalStats.totalFailed}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <TrendingUp className="h-4 w-4 text-purple-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-muted-foreground">성공률</p>
-                <div className="text-2xl font-bold text-purple-600">{totalStats.successRate}%</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 차트 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 필터 */}
         <Card>
           <CardHeader>
-            <CardTitle>상태별 분포</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              필터
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={getStatusStats()}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {getStatusStats().map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">설문</label>
+                <Select value={selectedSurvey} onValueChange={setSelectedSurvey}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 설문" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 설문</SelectItem>
+                    {surveys.map(survey => (
+                      <SelectItem key={survey.id} value={survey.id}>
+                        {survey.title} ({survey.education_year}년 {survey.education_round}차)
+                      </SelectItem>
                     ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">상태</label>
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 상태" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 상태</SelectItem>
+                    <SelectItem value="success">성공</SelectItem>
+                    <SelectItem value="failed">실패</SelectItem>
+                    <SelectItem value="partial">부분성공</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">기간</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange ? format(dateRange, 'yyyy년 MM월', { locale: ko }) : '전체 기간'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      disabled={(date) => date > new Date()}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">이메일 검색</label>
+                <Input
+                  placeholder="이메일 주소로 검색"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* 로그 테이블 */}
         <Card>
           <CardHeader>
-            <CardTitle>월별 발송 통계</CardTitle>
+            <CardTitle>발송 기록 ({getFilteredLogs().length}건)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={getMonthlyStats()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="sent" stroke="#10b981" name="성공" />
-                  <Line type="monotone" dataKey="failed" stroke="#ef4444" name="실패" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 필터 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            필터
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">설문</label>
-              <Select value={selectedSurvey} onValueChange={setSelectedSurvey}>
-                <SelectTrigger>
-                  <SelectValue placeholder="전체 설문" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 설문</SelectItem>
-                  {surveys.map(survey => (
-                    <SelectItem key={survey.id} value={survey.id}>
-                      {survey.title} ({survey.education_year}년 {survey.education_round}차)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">상태</label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="전체 상태" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 상태</SelectItem>
-                  <SelectItem value="success">성공</SelectItem>
-                  <SelectItem value="failed">실패</SelectItem>
-                  <SelectItem value="partial">부분성공</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">기간</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange ? format(dateRange, 'yyyy년 MM월', { locale: ko }) : '전체 기간'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    disabled={(date) => date > new Date()}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">이메일 검색</label>
-              <Input
-                placeholder="이메일 주소로 검색"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 로그 테이블 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>발송 기록 ({getFilteredLogs().length}건)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>설문</TableHead>
-                  <TableHead>상태</TableHead>
-                  <TableHead>수신자</TableHead>
-                  <TableHead>성공/실패</TableHead>
-                  <TableHead>발송일시</TableHead>
-                  <TableHead>상세</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      로딩 중...
-                    </TableCell>
+                    <TableHead>설문</TableHead>
+                    <TableHead>상태</TableHead>
+                    <TableHead>수신자</TableHead>
+                    <TableHead>성공/실패</TableHead>
+                    <TableHead>발송일시</TableHead>
+                    <TableHead>상세</TableHead>
                   </TableRow>
-                ) : getFilteredLogs().length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      발송 기록이 없습니다.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  getFilteredLogs().map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="max-w-xs">
-                        <div className="truncate">{getSurveyTitle(log.survey_id)}</div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(log.status)}</TableCell>
-                       <TableCell className="max-w-xs">
-                         <div className="space-y-1">
-                           {log.recipients.length > 0 ? (
-                             <>
-                               <div className="text-sm font-medium">
-                                 {log.recipients.length}명
-                               </div>
-                               <div className="text-xs text-muted-foreground truncate">
-                                 {log.recipients.slice(0, 2).join(', ')}
-                                 {log.recipients.length > 2 && ` 외 ${log.recipients.length - 2}명`}
-                               </div>
-                             </>
-                           ) : (
-                             <div className="text-sm text-muted-foreground">없음</div>
-                           )}
-                         </div>
-                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <span className="text-green-600 font-medium">{log.sent_count}</span>
-                          {log.failed_count > 0 && (
-                            <>
-                              <span className="text-muted-foreground"> / </span>
-                              <span className="text-red-600 font-medium">{log.failed_count}</span>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {format(new Date(log.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setSelectedLog(log)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>발송 상세 정보</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="font-medium mb-2">기본 정보</h4>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div>
-                                    <span className="text-muted-foreground">설문:</span>
-                                    <div>{getSurveyTitle(log.survey_id)}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">상태:</span>
-                                    <div>{getStatusBadge(log.status)}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">발송일시:</span>
-                                    <div>{format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss', { locale: ko })}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">성공/실패:</span>
-                                    <div>{log.sent_count} / {log.failed_count}</div>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                               <div>
-                                 <h4 className="font-medium mb-2">수신자 목록 ({log.recipients.length}명)</h4>
-                                 <div className="max-h-32 overflow-y-auto bg-muted/30 p-3 rounded text-sm space-y-1">
-                                   {log.recipients.map((email, index) => (
-                                     <div key={index} className="py-1 px-2 bg-background rounded border text-sm">
-                                       {email}
-                                     </div>
-                                   ))}
-                                 </div>
-                               </div>
-
-                              {log.error && (
-                                <div>
-                                  <h4 className="font-medium mb-2 text-red-600">오류 정보</h4>
-                                  <div className="bg-red-50 border border-red-200 p-3 rounded text-sm text-red-800">
-                                    {log.error}
-                                  </div>
-                                </div>
-                              )}
-
-                              {log.results && (
-                                <div>
-                                  <h4 className="font-medium mb-2">상세 결과</h4>
-                                  <div className="max-h-40 overflow-y-auto bg-muted/30 p-3 rounded text-sm">
-                                    <pre className="whitespace-pre-wrap">
-                                      {JSON.stringify(log.results, null, 2)}
-                                    </pre>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        로딩 중...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                  ) : getFilteredLogs().length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        발송 기록이 없습니다.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    getFilteredLogs().map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="max-w-xs">
+                          <div className="truncate">{getSurveyTitle(log.survey_id)}</div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(log.status)}</TableCell>
+                         <TableCell className="max-w-xs">
+                           <div className="space-y-1">
+                             {log.recipients.length > 0 ? (
+                               <>
+                                 <div className="text-sm font-medium">
+                                   {log.recipients.length}명
+                                 </div>
+                                 <div className="text-xs text-muted-foreground truncate">
+                                   {log.recipients.slice(0, 2).join(', ')}
+                                   {log.recipients.length > 2 && ` 외 ${log.recipients.length - 2}명`}
+                                 </div>
+                               </>
+                             ) : (
+                               <div className="text-sm text-muted-foreground">없음</div>
+                             )}
+                           </div>
+                         </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <span className="text-green-600 font-medium">{log.sent_count}</span>
+                            {log.failed_count > 0 && (
+                              <>
+                                <span className="text-muted-foreground"> / </span>
+                                <span className="text-red-600 font-medium">{log.failed_count}</span>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {format(new Date(log.created_at), 'yyyy-MM-dd HH:mm', { locale: ko })}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setSelectedLog(log)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>발송 상세 정보</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div>
+                                  <h4 className="font-medium mb-2">기본 정보</h4>
+                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">설문:</span>
+                                      <div>{getSurveyTitle(log.survey_id)}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">상태:</span>
+                                      <div>{getStatusBadge(log.status)}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">발송일시:</span>
+                                      <div>{format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss', { locale: ko })}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">성공/실패:</span>
+                                      <div>{log.sent_count} / {log.failed_count}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                 <div>
+                                   <h4 className="font-medium mb-2">수신자 목록 ({log.recipients.length}명)</h4>
+                                   <div className="max-h-32 overflow-y-auto bg-muted/30 p-3 rounded text-sm space-y-1">
+                                     {log.recipients.map((email, index) => (
+                                       <div key={index} className="py-1 px-2 bg-background rounded border text-sm">
+                                         {email}
+                                       </div>
+                                     ))}
+                                   </div>
+                                 </div>
+
+                                {log.error && (
+                                  <div>
+                                    <h4 className="font-medium mb-2 text-red-600">오류 정보</h4>
+                                    <div className="bg-red-50 border border-red-200 p-3 rounded text-sm text-red-800">
+                                      {log.error}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {log.results && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">상세 결과</h4>
+                                    <div className="max-h-40 overflow-y-auto bg-muted/30 p-3 rounded text-sm">
+                                      <pre className="whitespace-pre-wrap">
+                                        {JSON.stringify(log.results, null, 2)}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </AdminLayout>
   );
 };
 
