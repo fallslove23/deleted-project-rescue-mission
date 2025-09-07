@@ -1,5 +1,5 @@
 import React from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -108,76 +108,75 @@ export default function AdminLayout(props: AdminLayoutProps) {
   };
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen bg-background">
-        <AdminSidebar />
+    // SidebarProvider 제거 - App.tsx에서 이미 제공됨
+    <div className="flex min-h-screen bg-background">
+      <AdminSidebar />
 
-        <main className="flex-1 min-w-0">
-          {topbar && (
-            <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-              <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center">
-                {topbar}
-              </div>
+      <main className="flex-1 min-w-0">
+        {topbar && (
+          <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-14 flex items-center">
+              {topbar}
             </div>
-          )}
+          </div>
+        )}
 
-          {!hideHeader && !topbar && title && (
-            <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-              <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-auto min-h-[64px] md:min-h-[72px] py-2 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger className="-ml-1" />
-                  <div className="leading-tight md:leading-snug">
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight whitespace-nowrap">
-                      {title}
-                    </h1>
+        {!hideHeader && !topbar && title && (
+          <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-auto min-h-[64px] md:min-h-[72px] py-2 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger className="-ml-1" />
+                <div className="leading-tight md:leading-snug">
+                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight whitespace-nowrap">
+                    {title}
+                  </h1>
 
-                    {subline && (
-                      <p className="text-xs text-muted-foreground md:hidden mt-0.5">
-                        {subline}
-                      </p>
-                    )}
-
-                    {typeof totalCount === "number" && (
-                      <p className="text-xs text-muted-foreground md:hidden mt-0.5">
-                        전체 {totalCount}개
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="hidden md:flex items-center gap-2">
-                  {renderDesktopActions()}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className={hideHeader && !topbar ? "h-full" : ""}>
-            {!hideHeader && !topbar && title ? (
-              <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-                <div className="flex items-center justify-between mb-4 md:mb-6">
-                  {(subline || typeof totalCount === "number") && (
-                    <p className="hidden md:block text-sm text-muted-foreground">
+                  {subline && (
+                    <p className="text-xs text-muted-foreground md:hidden mt-0.5">
                       {subline}
-                      {typeof totalCount === "number" && ` - 전체 ${totalCount}개`}
                     </p>
                   )}
 
-                  {(mobileActionItems.length > 0 || onRefresh) && (
-                    <div className="flex md:hidden items-center gap-2">
-                      {renderMobileActions()}
-                    </div>
+                  {typeof totalCount === "number" && (
+                    <p className="text-xs text-muted-foreground md:hidden mt-0.5">
+                      전체 {totalCount}개
+                    </p>
                   )}
                 </div>
-
-                {children}
               </div>
-            ) : (
-              children
-            )}
+
+              <div className="hidden md:flex items-center gap-2">
+                {renderDesktopActions()}
+              </div>
+            </div>
           </div>
-        </main>
-      </div>
-    </SidebarProvider>
+        )}
+
+        <div className={hideHeader && !topbar ? "h-full" : ""}>
+          {!hideHeader && !topbar && title ? (
+            <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                {(subline || typeof totalCount === "number") && (
+                  <p className="hidden md:block text-sm text-muted-foreground">
+                    {subline}
+                    {typeof totalCount === "number" && ` - 전체 ${totalCount}개`}
+                  </p>
+                )}
+
+                {(mobileActionItems.length > 0 || onRefresh) && (
+                  <div className="flex md:hidden items-center gap-2">
+                    {renderMobileActions()}
+                  </div>
+                )}
+              </div>
+
+              {children}
+            </div>
+          ) : (
+            children
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
