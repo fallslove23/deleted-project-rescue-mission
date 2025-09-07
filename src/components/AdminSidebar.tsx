@@ -103,25 +103,10 @@ export function AdminSidebar() {
                         className={({ isActive }) =>
                           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all font-sans ${
                             isActive 
-                              ? 'bg-purple-600 text-white !important' 
-                              : 'text-purple-900 hover:bg-purple-500 hover:text-white !important'
+                              ? 'bg-purple-600 text-white' 
+                              : 'text-purple-900 hover:bg-purple-500 hover:text-white'
                           }`
                         }
-                        style={{
-                          color: isActive ? 'white' : 'rgb(88 28 135)', // purple-900
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!e.currentTarget.classList.contains('bg-purple-600')) {
-                            e.currentTarget.style.backgroundColor = 'rgb(168 85 247)'; // purple-500
-                            e.currentTarget.style.color = 'white';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!e.currentTarget.classList.contains('bg-purple-600')) {
-                            e.currentTarget.style.backgroundColor = '';
-                            e.currentTarget.style.color = 'rgb(88 28 135)'; // purple-900
-                          }
-                        }}
                       >
                         <item.icon className="h-4 w-4" />
                         {item.title}
