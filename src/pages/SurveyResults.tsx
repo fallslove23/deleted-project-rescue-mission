@@ -34,7 +34,9 @@ import {
 } from '@/utils/csvExport';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
+// 변경 전: import { AdminLayout } from "@/components/layouts/AdminLayout";
+import AdminLayout from "@/components/layouts/AdminLayout";
+
 
 interface Survey {
   id: string;
@@ -155,7 +157,7 @@ const SurveyResults = () => {
 
   useEffect(() => {
     if (selectedSurvey) {
-      fetchResponses();
+      fetchReports();
       fetchQuestionsAndAnswers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit, RefreshCcw } from "lucide-react";
 
-import AdminLayout from "@/layouts/AdminLayout"; // ✅ 기본 내보내기 사용
+import AdminLayout from "@/components/layouts/AdminLayout"; // ✅ 기본 내보내기 사용
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import QuestionEditForm from "@/components/QuestionEditForm";
 import { SessionManager, SurveySession } from "@/components/SessionManager";

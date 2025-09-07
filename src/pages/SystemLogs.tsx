@@ -12,7 +12,9 @@ import { RefreshCw, Calendar, Search, Filter, AlertCircle, CheckCircle, XCircle,
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
+// 변경 전: import { AdminLayout } from "@/components/layouts/AdminLayout";
+import AdminLayout from "@/components/layouts/AdminLayout";
+
 
 interface SystemLog {
   id: string;

@@ -16,7 +16,7 @@ import { Mail, CheckCircle, XCircle, Clock, Calendar as CalendarIcon, Filter, Tr
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { AdminLayout } from '@/components/layouts/AdminLayout';
+import AdminLayout from "@/components/layouts/AdminLayout";
 
 interface EmailLog {
   id: string;
