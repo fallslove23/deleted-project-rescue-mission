@@ -12,7 +12,7 @@ import { RefreshCw, Calendar, Search, Filter, AlertCircle, CheckCircle, XCircle,
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { AdminLayout } from '@/components/AdminLayout';
+import { AdminLayout } from '@/components/layouts/AdminLayout';
 
 interface SystemLog {
   id: string;
