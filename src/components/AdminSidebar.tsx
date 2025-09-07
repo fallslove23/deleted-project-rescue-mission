@@ -1,4 +1,4 @@
-// src/components/AdminSidebar.tsx - 긴급 복구용
+// src/components/AdminSidebar.tsx
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { 
@@ -100,7 +100,13 @@ export function AdminSidebar() {
                       <NavLink
                         to={item.url}
                         end={item.exact}
-                        className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all font-sans text-purple-900 hover:bg-purple-500 hover:text-white"
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all font-sans ${
+                            isActive 
+                              ? 'bg-purple-600 text-white' 
+                              : 'text-purple-900 hover:bg-purple-500 hover:text-white'
+                          }`
+                        }
                       >
                         <item.icon className="h-4 w-4" />
                         {item.title}

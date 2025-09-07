@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, BookOpen, FileText, BarChart, TrendingUp, Clock, Activity } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import AdminLayout from '@/components/layouts/AdminLayout';
+import { AdminSidebar } from '@/components/AdminSidebar';
 import SurveyManagementV2 from './SurveyManagementV2';
 import SurveyResults from './SurveyResults';
 import InstructorManagement from './InstructorManagement';
@@ -219,8 +219,10 @@ const Dashboard = () => {
 
   return (
     <SidebarProvider>
-      <AdminLayout title="설문 관리 시스템" description="설문 관리 및 결과 분석을 위한 대시보드">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="min-h-screen flex w-full">
+        <AdminSidebar />
+        
+        <main className="flex-1 flex flex-col">
           {/* Header */}
           <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
             <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
@@ -509,8 +511,8 @@ const Dashboard = () => {
               )}
             </Tabs>
           </div>
-        </div>
-      </AdminLayout>
+        </main>
+      </div>
     </SidebarProvider>
   );
 };

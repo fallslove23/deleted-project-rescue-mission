@@ -5,10 +5,10 @@ import { useToast } from '@/hooks/use-toast';
 import { DataTable } from '@/components/data-table/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Download } from 'lucide-react';
-import { SidebarProvider } from '@/components/ui/sidebar';
-import AdminLayout from '@/components/layouts/AdminLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Download, Database, BarChart } from 'lucide-react';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AdminSidebar } from '@/components/AdminSidebar';
 
 interface CumulativeData {
   survey_id: string;
@@ -25,7 +25,7 @@ interface CumulativeData {
 }
 
 const CumulativeDataTable = () => {
-  const { userRoles } = useAuth();
+  const { userRoles, user, signOut } = useAuth();
   const { toast } = useToast();
   const [data, setData] = useState<CumulativeData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +45,7 @@ const CumulativeDataTable = () => {
     try {
       setLoading(true);
       
+      // 설문 기본 정보와 통계를 한 번에 조회 (성능 최적화)
       const { data: surveysData, error: surveysError } = await supabase
         .from('surveys')
         .select(`
@@ -63,15 +64,17 @@ const CumulativeDataTable = () => {
         `)
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false })
-        .limit(500);
+        .limit(500); // 확장성을 위한 제한
 
       if (surveysError) throw surveysError;
 
+      // 각 설문의 만족도 점수 계산
       const cumulativeData: CumulativeData[] = [];
       
       for (const survey of surveysData || []) {
         const responseCount = survey.survey_responses?.length || 0;
         
+        // 만족도 점수 계산 (rating/scale 질문만)
         let avgSatisfaction = 0;
         if (responseCount > 0) {
           const { data: satisfactionData } = await supabase
@@ -91,7 +94,7 @@ const CumulativeDataTable = () => {
               .map(a => {
                 const value = typeof a.answer_value === 'number' ? a.answer_value : 
                              typeof a.answer_value === 'string' ? Number(a.answer_value) : 0;
-                return value <= 5 ? value * 2 : value;
+                return value <= 5 ? value * 2 : value; // 5점 척도를 10점으로 변환
               })
               .filter(score => score > 0);
             
@@ -110,7 +113,7 @@ const CumulativeDataTable = () => {
           instructor_name: survey.instructors?.name || '미지정',
           total_responses: responseCount,
           avg_satisfaction: Math.round(avgSatisfaction * 10) / 10,
-          completion_rate: 0,
+          completion_rate: 0, // 완료율은 별도 계산 필요
           created_at: survey.created_at,
           status: survey.status
         });
@@ -157,9 +160,12 @@ const CumulativeDataTable = () => {
   };
 
   const generateCSV = () => {
-    let csvContent = '\uFEFF';
+    let csvContent = '\uFEFF'; // BOM for Excel
+    
+    // 헤더
     csvContent += '설문ID,설문제목,교육연도,교육차수,과정명,강사명,총응답수,평균만족도,상태,생성일\n';
     
+    // 데이터
     data.forEach(row => {
       csvContent += `"${row.survey_id}","${row.survey_title}",${row.education_year},${row.education_round},"${row.course_name}","${row.instructor_name}",${row.total_responses},${row.avg_satisfaction},"${row.status}","${new Date(row.created_at).toLocaleDateString()}"\n`;
     });
@@ -254,93 +260,132 @@ const CumulativeDataTable = () => {
   if (!canViewAll) {
     return (
       <SidebarProvider>
-        <AdminLayout title="누적 데이터" description="전체 설문 데이터 조회">
-          <Card>
-            <CardContent className="py-8 text-center">
-              <div className="text-muted-foreground">
-                이 기능을 사용하려면 관리자 권한이 필요합니다.
+        <div className="min-h-screen flex w-full">
+          <AdminSidebar />
+          <main className="flex-1 flex flex-col">
+            <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+              <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <SidebarTrigger />
+                  <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
+                    <Database className="h-5 w-5 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">누적 데이터</h1>
+                    <p className="text-xs md:text-sm text-muted-foreground">전체 설문 데이터 조회</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
+                  <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </AdminLayout>
+            </header>
+            <div className="flex-1 container mx-auto px-4 py-6">
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <div className="text-muted-foreground">
+                    이 기능을 사용하려면 관리자 권한이 필요합니다.
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
+        </div>
       </SidebarProvider>
     );
   }
 
   return (
     <SidebarProvider>
-      <AdminLayout 
-        title="누적 데이터" 
-        description="전체 설문 데이터 조회"
-        actions={
-          <Button onClick={exportData} disabled={data.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            CSV 다운로드
-          </Button>
-        }
-      >
-        <div className="space-y-6">
-          {loading ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <div className="text-muted-foreground">
-                  데이터를 불러오는 중...
+      <div className="min-h-screen flex w-full">
+        <AdminSidebar />
+        
+        <main className="flex-1 flex flex-col">
+          {/* Header */}
+          <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+            <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger />
+                <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
+                  <Database className="h-5 w-5 text-primary-foreground" />
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {/* 요약 통계 */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold">{data.length}</div>
-                    <div className="text-sm text-muted-foreground">총 설문수</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold">
-                      {data.reduce((sum, d) => sum + d.total_responses, 0).toLocaleString()}
-                    </div>
-                    <div className="text-sm text-muted-foreground">총 응답수</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold">
-                      {data.length > 0 
-                        ? (data.reduce((sum, d) => sum + d.avg_satisfaction, 0) / data.length).toFixed(1)
-                        : '0.0'
-                      }
-                    </div>
-                    <div className="text-sm text-muted-foreground">전체 평균만족도</div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl font-bold">
-                      {[...new Set(data.map(d => d.course_name))].length}
-                    </div>
-                    <div className="text-sm text-muted-foreground">총 과정수</div>
-                  </CardContent>
-                </Card>
+                <div>
+                  <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">누적 데이터</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">전체 설문 데이터 조회 및 분석</p>
+                </div>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
+                <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
+              </div>
+            </div>
+          </header>
 
-              {/* 데이터 테이블 */}
-              <DataTable
-                title="전체 누적 설문 데이터"
-                data={data}
-                columns={columns}
-                searchable={true}
-                exportable={true}
-                pageSize={25}
-                onExport={exportData}
-              />
-            </>
-          )}
-        </div>
-      </AdminLayout>
+          {/* Content */}
+          <div className="flex-1 container mx-auto px-4 py-6">
+            {loading ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <div className="text-muted-foreground">
+                    데이터를 불러오는 중...
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {/* 요약 통계 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <div className="text-2xl font-bold">{data.length}</div>
+                      <div className="text-sm text-muted-foreground">총 설문수</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <div className="text-2xl font-bold">
+                        {data.reduce((sum, d) => sum + d.total_responses, 0).toLocaleString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">총 응답수</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <div className="text-2xl font-bold">
+                        {data.length > 0 
+                          ? (data.reduce((sum, d) => sum + d.avg_satisfaction, 0) / data.length).toFixed(1)
+                          : '0.0'
+                        }
+                      </div>
+                      <div className="text-sm text-muted-foreground">전체 평균만족도</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <div className="text-2xl font-bold">
+                        {[...new Set(data.map(d => d.course_name))].length}
+                      </div>
+                      <div className="text-sm text-muted-foreground">총 과정수</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* 데이터 테이블 */}
+                <DataTable
+                  title="전체 누적 설문 데이터"
+                  data={data}
+                  columns={columns}
+                  searchable={true}
+                  exportable={true}
+                  pageSize={25}
+                  onExport={exportData}
+                />
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </SidebarProvider>
   );
 };
