@@ -85,11 +85,13 @@ export function AdminSidebar() {
   const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
 
   return (
-    <Sidebar>
-      <SidebarContent>
+    <Sidebar className="bg-purple-100 border-r border-purple-200">
+      <SidebarContent className="bg-purple-100">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="font-sans">{section.title}</SidebarGroupLabel>
+            <SidebarGroupLabel className="font-sans text-purple-900 font-semibold">
+              {section.title}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {section.items.map((item) => (
@@ -99,8 +101,10 @@ export function AdminSidebar() {
                         to={item.url}
                         end={item.exact}
                         className={({ isActive }) =>
-                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent font-sans ${
-                            isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all font-sans ${
+                            isActive 
+                              ? 'bg-purple-600 text-white' 
+                              : 'text-purple-900 hover:bg-purple-500 hover:text-white'
                           }`
                         }
                       >
@@ -118,26 +122,26 @@ export function AdminSidebar() {
         {/* 관리자 전용 - 뷰 테스트 섹션 */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="font-sans">
-              뷰 테스트 <span className="text-xs bg-purple-500 text-white px-1 rounded font-sans dev-tag">DEV</span>
+            <SidebarGroupLabel className="font-sans text-purple-900 font-semibold">
+              뷰 테스트 <span className="text-xs bg-purple-600 text-white px-1 rounded font-sans dev-tag">DEV</span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton className="w-full justify-between">
+                      <SidebarMenuButton className="w-full justify-between text-purple-900 hover:bg-purple-500 hover:text-white">
                         <div className="flex items-center gap-3">
                           <Eye className="h-4 w-4" />
                           <span className="font-sans">뷰 선택</span>
                         </div>
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuContent align="end" className="w-48 bg-white border-purple-200">
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/admin" 
-                          className="flex items-center gap-2 cursor-pointer font-sans"
+                          className="flex items-center gap-2 cursor-pointer font-sans hover:bg-purple-100"
                         >
                           <LayoutDashboard className="h-4 w-4" />
                           관리자 뷰
@@ -146,7 +150,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/instructor" 
-                          className="flex items-center gap-2 cursor-pointer font-sans"
+                          className="flex items-center gap-2 cursor-pointer font-sans hover:bg-purple-100"
                         >
                           <UserCheck className="h-4 w-4" />
                           강사 뷰
@@ -155,7 +159,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/" 
-                          className="flex items-center gap-2 cursor-pointer font-sans"
+                          className="flex items-center gap-2 cursor-pointer font-sans hover:bg-purple-100"
                         >
                           <Users className="h-4 w-4" />
                           교육생 뷰
