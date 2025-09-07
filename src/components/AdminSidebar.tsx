@@ -130,7 +130,7 @@ export function AdminSidebar() {
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton className="w-full justify-between text-purple-900 hover:bg-purple-500 hover:text-white">
+                      <SidebarMenuButton className="w-full justify-between text-purple-800 hover:bg-purple-500 hover:text-white">
                         <div className="flex items-center gap-3">
                           <Eye className="h-4 w-4" />
                           <span className="font-sans">뷰 선택</span>
