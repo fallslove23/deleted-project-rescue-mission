@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Edit, Search, UserX, Shield, Key } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Users, Edit, Search, UserX, Shield, Key, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AdminLayout } from '@/components/AdminLayout';
 
 interface UserProfile {
   id: string;
@@ -32,7 +34,7 @@ interface Instructor {
   photo_url?: string;
 }
 
-const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
+const UserManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -183,163 +185,227 @@ const UserManagement = ({ showPageHeader = true }: { showPageHeader?: boolean })
     );
   });
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        {showPageHeader && (
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold">사용자 관리</h1>
-            <p className="text-muted-foreground">시스템 사용자 및 권한 관리</p>
+  // 데스크톱 액션 버튼들
+  const DesktopActions = () => (
+    <div className="flex items-center gap-2">
+      <Users className="h-5 w-5" />
+      <span className="font-medium">{users.length}명</span>
+    </div>
+  );
+
+  // 모바일 액션 버튼들  
+  const MobileActions = () => (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Menu className="h-4 w-4" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>사용자 관리 메뉴</SheetTitle>
+        </SheetHeader>
+        <div className="py-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            <span>총 {users.length}명의 사용자</span>
           </div>
-        )}
-        <div className="flex items-center justify-center py-8">
-          <div>로딩중...</div>
         </div>
-      </div>
-    );
-  }
+      </SheetContent>
+    </Sheet>
+  );
 
   return (
-    <div className="p-6 space-y-6">
-      {showPageHeader && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">사용자 관리</h1>
-            <p className="text-muted-foreground">시스템 사용자 및 권한 관리</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            <span className="font-medium">{users.length}명</span>
+    <AdminLayout
+      title="사용자 관리"
+      description="시스템 사용자 및 권한 관리"
+      loading={loading}
+      desktopActions={<DesktopActions />}
+      mobileActions={<MobileActions />}
+    >
+      <div className="space-y-6">
+        {/* 검색 */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="이메일, 이름, 역할로 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
-      )}
 
-      {/* 검색 */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="이메일, 이름, 역할로 검색..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      {/* 사용자 목록 */}
-      <div className="grid gap-4">
-        {filteredUsers.map((user) => {
-          const instructor = getUserInstructor(user.id);
-          const roles = userRoles[user.id] || [];
-          
-          return (
-            <Card key={user.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={instructor?.photo_url} />
-                      <AvatarFallback>
-                        {instructor ? instructor.name.charAt(0) : user.email?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">
-                        {instructor ? instructor.name : user.email}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {user.email}
-                      </div>
-                      <div className="flex gap-1 mt-1">
-                        {roles.length > 0 ? (
-                          roles.map(role => (
-                            <Badge key={role} variant="secondary" className="text-xs">
-                              {role}
+        {/* 사용자 목록 */}
+        <div className="grid gap-4">
+          {filteredUsers.map((user) => {
+            const instructor = getUserInstructor(user.id);
+            const roles = userRoles[user.id] || [];
+            
+            return (
+              <Card key={user.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={instructor?.photo_url} />
+                        <AvatarFallback>
+                          {instructor ? instructor.name.charAt(0) : user.email?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">
+                          {instructor ? instructor.name : user.email}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {user.email}
+                        </div>
+                        <div className="flex gap-1 mt-1">
+                          {roles.length > 0 ? (
+                            roles.map(role => (
+                              <Badge key={role} variant="secondary" className="text-xs">
+                                {role}
+                              </Badge>
+                            ))
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              권한 없음
                             </Badge>
-                          ))
-                        ) : (
-                          <Badge variant="outline" className="text-xs">
-                            권한 없음
-                          </Badge>
-                        )}
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {user.first_login && (
+                        <Badge variant="outline" className="text-xs">
+                          첫 로그인 대기
+                        </Badge>
+                      )}
+                      <div className="hidden sm:flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResetPassword(user)}
+                        >
+                          <Key className="h-4 w-4 mr-1" />
+                          비밀번호 초기화
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditRoles(user)}
+                        >
+                          <Shield className="h-4 w-4 mr-1" />
+                          권한 편집
+                        </Button>
+                      </div>
+                      
+                      {/* 모바일 액션 버튼 */}
+                      <div className="sm:hidden">
+                        <Sheet>
+                          <SheetTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </SheetTrigger>
+                          <SheetContent>
+                            <SheetHeader>
+                              <SheetTitle>사용자 관리</SheetTitle>
+                            </SheetHeader>
+                            <div className="py-4 space-y-4">
+                              <div className="p-4 bg-muted rounded-lg">
+                                <div className="font-medium">
+                                  {instructor ? instructor.name : user.email}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {user.email}
+                                </div>
+                              </div>
+                              <Button
+                                className="w-full justify-start"
+                                variant="outline"
+                                onClick={() => handleResetPassword(user)}
+                              >
+                                <Key className="h-4 w-4 mr-2" />
+                                비밀번호 초기화
+                              </Button>
+                              <Button
+                                className="w-full justify-start"
+                                variant="outline"
+                                onClick={() => handleEditRoles(user)}
+                              >
+                                <Shield className="h-4 w-4 mr-2" />
+                                권한 편집
+                              </Button>
+                            </div>
+                          </SheetContent>
+                        </Sheet>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {user.first_login && (
-                      <Badge variant="outline" className="text-xs">
-                        첫 로그인 대기
-                      </Badge>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleResetPassword(user)}
-                    >
-                      <Key className="h-4 w-4 mr-1" />
-                      비밀번호 초기화
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditRoles(user)}
-                    >
-                      <Shield className="h-4 w-4 mr-1" />
-                      권한 편집
-                    </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* 검색 결과 없음 */}
+        {filteredUsers.length === 0 && (
+          <div className="text-center py-8">
+            <UserX className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">검색 결과가 없습니다</h3>
+            <p className="text-muted-foreground">
+              다른 검색어를 시도해보세요.
+            </p>
+          </div>
+        )}
+
+        {/* 역할 편집 다이얼로그 */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>사용자 권한 편집</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {editingUser && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="font-medium">{editingUser.email}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {getUserInstructor(editingUser.id)?.name || '일반 사용자'}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* 역할 편집 다이얼로그 */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>사용자 권한 편집</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {editingUser && (
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="font-medium">{editingUser.email}</div>
-                <div className="text-sm text-muted-foreground">
-                  {getUserInstructor(editingUser.id)?.name || '일반 사용자'}
-                </div>
+              )}
+              
+              <div className="space-y-3">
+                <div className="font-medium">권한 설정</div>
+                {availableRoles.map(role => (
+                  <div key={role} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={role}
+                      checked={selectedRoles.includes(role)}
+                      onCheckedChange={(checked) => handleRoleChange(role, checked as boolean)}
+                    />
+                    <label htmlFor={role} className="text-sm font-medium">
+                      {role}
+                    </label>
+                  </div>
+                ))}
               </div>
-            )}
-            
-            <div className="space-y-3">
-              <div className="font-medium">권한 설정</div>
-              {availableRoles.map(role => (
-                <div key={role} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={role}
-                    checked={selectedRoles.includes(role)}
-                    onCheckedChange={(checked) => handleRoleChange(role, checked as boolean)}
-                  />
-                  <label htmlFor={role} className="text-sm font-medium">
-                    {role}
-                  </label>
-                </div>
-              ))}
-            </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                취소
-              </Button>
-              <Button onClick={handleSaveRoles}>
-                저장
-              </Button>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  취소
+                </Button>
+                <Button onClick={handleSaveRoles}>
+                  저장
+                </Button>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AdminLayout>
   );
 };
 
