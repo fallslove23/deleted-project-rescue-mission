@@ -1,21 +1,133 @@
-import AdminLayout from "@/components/layouts/AdminLayout";
-
 // src/pages/DashboardOverview.tsx
-// ... (기존 import 유지)
 
-const DashboardOverview = () => {
-  // ... (기존 state와 useEffect 유지)
+import React, { useEffect, useState, useCallback } from "react";
+import AdminLayout from "@/components/layouts/AdminLayout"; // ✅ default export
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import {
+  FileText,
+  TrendingUp,
+  BarChart,
+  Clock,
+  Users,
+  BookOpen,
+  Activity,
+  RefreshCw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+// import { supabase } from "@/integrations/supabase/client"; // ← 실제 연동 시 사용
+
+/** ---------- Types ---------- */
+type Stats = {
+  totalSurveys: number;
+  activeSurveys: number;
+  totalResponses: number;
+  recentResponsesCount: number;
+  totalInstructors: number;
+  totalCourses: number;
+  completedSurveys: number;
+};
+
+/** ---------- Inline Actions (의존성 없이 동작하도록 간단 정의) ---------- */
+const DesktopActions: React.FC<{ onRefresh?: () => void; loading?: boolean }> = ({
+  onRefresh,
+  loading,
+}) => (
+  <div className="flex items-center gap-2">
+    {onRefresh && (
+      <Button
+        variant="outline"
+        size="sm"
+        className="rounded-full px-3"
+        onClick={onRefresh}
+        disabled={!!loading}
+      >
+        <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+        새로고침
+      </Button>
+    )}
+  </div>
+);
+
+const MobileActions: React.FC<{ onRefresh?: () => void; loading?: boolean }> = ({
+  onRefresh,
+  loading,
+}) => (
+  <div className="flex items-center gap-2">
+    {onRefresh && (
+      <Button
+        variant="outline"
+        size="sm"
+        className="rounded-full"
+        onClick={onRefresh}
+        disabled={!!loading}
+      >
+        <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+      </Button>
+    )}
+  </div>
+);
+
+/** ---------- Page ---------- */
+const DashboardOverview: React.FC = () => {
+  const { userRoles, loading: authLoading } = useAuth();
+  const isAdmin = !!userRoles?.includes("admin");
+
+  const [stats, setStats] = useState<Stats>({
+    totalSurveys: 0,
+    activeSurveys: 0,
+    totalResponses: 0,
+    recentResponsesCount: 0,
+    totalInstructors: 0,
+    totalCourses: 0,
+    completedSurveys: 0,
+  });
+
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      // TODO: 실제 데이터 연동 (Supabase 예시)
+      // const { data: ... } = await supabase.rpc('get_dashboard_stats', { scope: isAdmin ? 'all' : 'mine' });
+      // setStats(mappedData);
+
+      // 데모용 지연 + 더미 데이터
+      await new Promise((r) => setTimeout(r, 300));
+      setStats({
+        totalSurveys: 42,
+        activeSurveys: 5,
+        totalResponses: 1280,
+        recentResponsesCount: 73,
+        totalInstructors: 18,
+        totalCourses: 27,
+        completedSurveys: 31,
+      });
+    } catch (e) {
+      console.error("Failed to load dashboard stats:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [/* isAdmin */]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const handleRefresh = () => fetchStats();
+  const busy = loading || authLoading;
 
   return (
     <AdminLayout
       title="관리자 대시보드"
-      description={isAdmin ? '시스템 관리자' : '강사'}
-      loading={loading}
-      desktopActions={<DesktopActions />}
-      mobileActions={<MobileActions />}
+      description={isAdmin ? "시스템 관리자" : "강사"}
+      loading={busy}
+      onRefresh={handleRefresh}
+      desktopActions={<DesktopActions onRefresh={handleRefresh} loading={busy} />}
+      mobileActions={<MobileActions onRefresh={handleRefresh} loading={busy} />}
     >
       <div className="space-y-6">
-        {/* 주요 통계 카드들 - 스타일 개선 */}
+        {/* 주요 통계 카드 */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
@@ -31,11 +143,11 @@ const DashboardOverview = () => {
                 <p className="text-sm font-medium text-gray-600">전체 설문조사</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">
-                    {loading ? "-" : stats.totalSurveys}
+                    {busy ? "-" : stats.totalSurveys}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500">
-                  {isAdmin ? '전체 시스템' : '담당 강의'}
+                  {isAdmin ? "전체 시스템" : "담당 강의"}
                 </p>
               </div>
             </CardContent>
@@ -55,7 +167,7 @@ const DashboardOverview = () => {
                 <p className="text-sm font-medium text-gray-600">진행중인 설문</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">
-                    {loading ? "-" : stats.activeSurveys}
+                    {busy ? "-" : stats.activeSurveys}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500">현재 응답 가능</p>
@@ -77,7 +189,7 @@ const DashboardOverview = () => {
                 <p className="text-sm font-medium text-gray-600">총 응답수</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">
-                    {loading ? "-" : stats.totalResponses}
+                    {busy ? "-" : stats.totalResponses}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500">누적 응답 수</p>
@@ -99,7 +211,7 @@ const DashboardOverview = () => {
                 <p className="text-sm font-medium text-gray-600">최근 7일 응답</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">
-                    {loading ? "-" : stats.recentResponsesCount}
+                    {busy ? "-" : stats.recentResponsesCount}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500">최근 활동</p>
@@ -125,7 +237,7 @@ const DashboardOverview = () => {
                   <p className="text-sm font-medium text-gray-600">전체 강사수</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-gray-900">
-                      {loading ? "-" : stats.totalInstructors}
+                      {busy ? "-" : stats.totalInstructors}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500">등록된 강사</p>
@@ -147,7 +259,7 @@ const DashboardOverview = () => {
                   <p className="text-sm font-medium text-gray-600">전체 강좌수</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-gray-900">
-                      {loading ? "-" : stats.totalCourses}
+                      {busy ? "-" : stats.totalCourses}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500">개설된 강좌</p>
@@ -169,7 +281,7 @@ const DashboardOverview = () => {
                   <p className="text-sm font-medium text-gray-600">완료된 설문</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-gray-900">
-                      {loading ? "-" : stats.completedSurveys}
+                      {busy ? "-" : stats.completedSurveys}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500">설문 완료</p>
@@ -179,8 +291,7 @@ const DashboardOverview = () => {
           </div>
         )}
 
-        {/* 차트 섹션은 기존 유지 */}
-        {/* ... */}
+        {/* 차트 섹션 등 추가 요소는 기존 유지 */}
       </div>
     </AdminLayout>
   );
