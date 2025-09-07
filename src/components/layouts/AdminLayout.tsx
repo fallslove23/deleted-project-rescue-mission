@@ -1,10 +1,11 @@
+// src/components/layouts/AdminLayout.tsx
 import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 
-interface AdminLayoutProps {
+export interface AdminLayoutProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
@@ -32,15 +33,14 @@ export default function AdminLayout(props: AdminLayoutProps) {
   } = props;
 
   const renderDesktopActions = () => {
-    const elements = [];
-    
+    const elements: React.ReactNode[] = [];
     if (onRefresh) {
       elements.push(
-        <Button 
+        <Button
           key="refresh"
-          variant="outline" 
-          size="sm" 
-          className="rounded-full px-3" 
+          variant="outline"
+          size="sm"
+          className="rounded-full px-3"
           onClick={onRefresh}
           disabled={loading}
         >
@@ -49,24 +49,21 @@ export default function AdminLayout(props: AdminLayoutProps) {
         </Button>
       );
     }
-    
     actions.forEach((action, index) => {
       elements.push(<div key={`action-${index}`}>{action}</div>);
     });
-    
     return elements;
   };
 
   const renderMobileActions = () => {
-    const elements = [];
-    
+    const elements: React.ReactNode[] = [];
     if (onRefresh) {
       elements.push(
-        <Button 
+        <Button
           key="refresh-mobile"
-          variant="outline" 
-          size="sm" 
-          className="rounded-full" 
+          variant="outline"
+          size="sm"
+          className="rounded-full"
           onClick={onRefresh}
           disabled={loading}
         >
@@ -74,11 +71,9 @@ export default function AdminLayout(props: AdminLayoutProps) {
         </Button>
       );
     }
-    
     mobileActions.forEach((action, index) => {
       elements.push(<div key={`mobile-${index}`}>{action}</div>);
     });
-    
     return elements;
   };
 
@@ -86,7 +81,7 @@ export default function AdminLayout(props: AdminLayoutProps) {
     <SidebarProvider>
       <div className="flex min-h-screen bg-background">
         <AdminSidebar />
-        
+
         <main className="flex-1 min-w-0">
           {topbar && (
             <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
@@ -110,7 +105,7 @@ export default function AdminLayout(props: AdminLayoutProps) {
                         {subtitle}
                       </p>
                     )}
-                    {totalCount !== undefined && (
+                    {typeof totalCount === "number" && (
                       <p className="text-xs text-muted-foreground md:hidden mt-0.5">
                         전체 {totalCount}개
                       </p>
@@ -129,13 +124,12 @@ export default function AdminLayout(props: AdminLayoutProps) {
             {!hideHeader && !topbar && title ? (
               <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
                 <div className="flex items-center justify-between mb-4 md:mb-6">
-                  {(subtitle || totalCount !== undefined) && (
+                  {(subtitle || typeof totalCount === "number") && (
                     <p className="hidden md:block text-sm text-muted-foreground">
                       {subtitle}
-                      {totalCount !== undefined && ` - 전체 ${totalCount}개`}
+                      {typeof totalCount === "number" && ` - 전체 ${totalCount}개`}
                     </p>
                   )}
-
                   {(mobileActions.length > 0 || onRefresh) && (
                     <div className="flex md:hidden items-center gap-2">
                       {renderMobileActions()}

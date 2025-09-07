@@ -1,5 +1,5 @@
 // src/pages/CourseReports.tsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import AdminLayout from "@/components/layouts/AdminLayout";
 
 import {
@@ -49,10 +49,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
+type YearlyStat = {
+  instructor_satisfaction: number | null;
+  course_satisfaction: number | null;
+  operation_satisfaction: number | null;
+};
+
 const CourseReports: React.FC = () => {
-  const [selectedYear, setSelectedYear] = useState<number>(
-    new Date().getFullYear()
-  );
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedCourse, setSelectedCourse] = useState<string>("");
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [selectedInstructor, setSelectedInstructor] = useState<string>("");
@@ -87,12 +91,7 @@ const CourseReports: React.FC = () => {
     fetchYearlyComparison,
     isInstructor: hookIsInstructor,
     instructorId,
-  } = useCourseReportsData(
-    selectedYear,
-    selectedCourse,
-    selectedRound,
-    selectedInstructor
-  );
+  } = useCourseReportsData(selectedYear, selectedCourse, selectedRound, selectedInstructor);
 
   useEffect(() => {
     fetchAvailableCourses();
@@ -106,17 +105,15 @@ const CourseReports: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCourse, selectedRound, selectedInstructor, instructorId]);
 
-  // 최초 진입 시 첫 번째 과정 자동 선택
+  // 첫 진입 시 첫 과정 자동 선택
   useEffect(() => {
     if (availableCourses.length > 0 && !selectedCourse) {
       setSelectedCourse(availableCourses[0].key);
     }
   }, [availableCourses, selectedCourse]);
 
-  const years = useMemo(
-    () => Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i),
-    []
-  );
+  // 최근 5년 배열
+  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
   const currentReport = reports[0];
   const previousReport = previousReports[0];
@@ -134,10 +131,7 @@ const CourseReports: React.FC = () => {
     : null;
 
   const responseChange = previousReport
-    ? calculateChange(
-        currentReport?.total_responses || 0,
-        previousReport.total_responses
-      )
+    ? calculateChange(currentReport?.total_responses || 0, previousReport.total_responses)
     : null;
 
   const instructorChange = previousReport
@@ -155,16 +149,17 @@ const CourseReports: React.FC = () => {
   }));
 
   // 이번 차수 막대그래프 데이터
-  const currentRoundData = currentReport
-    ? [
-        { name: "강사 만족도", value: currentReport.avg_instructor_satisfaction },
-        { name: "과정 만족도", value: currentReport.avg_course_satisfaction },
-        {
-          name: "운영 만족도",
-          value: currentReport.report_data?.operation_satisfaction || 0,
-        },
-      ]
-    : [];
+  const currentRoundData =
+    currentReport
+      ? [
+          { name: "강사 만족도", value: currentReport.avg_instructor_satisfaction },
+          { name: "과정 만족도", value: currentReport.avg_course_satisfaction },
+          {
+            name: "운영 만족도",
+            value: currentReport.report_data?.operation_satisfaction || 0,
+          },
+        ]
+      : [];
 
   // 종합 만족도
   const overallSatisfaction = currentReport
@@ -177,53 +172,53 @@ const CourseReports: React.FC = () => {
   // 응답률 (가정: 설문당 평균 20명)
   const responseRate =
     currentReport && currentReport.total_surveys > 0
-      ? (currentReport.total_responses / (currentReport.total_surveys * 20)) *
-        100
+      ? (currentReport.total_responses / (currentReport.total_surveys * 20)) * 100
       : 0;
 
-  // 전년도 대비 비교 데이터
-  const yearlyComparisonData = useMemo(() => {
-    if (!yearlyComparison.current.length || !yearlyComparison.previous.length) {
-      return [];
-    }
+  // 전년도 대비 비교 데이터 (명시적 타입 사용)
+  const avg = (arr: YearlyStat[], key: keyof YearlyStat) => {
+    const valid = arr.filter((s) => s[key] !== null);
+    if (valid.length === 0) return 0;
+    const sum = valid.reduce((acc, s) => acc + Number(s[key] || 0), 0);
+    return sum / valid.length;
+  };
 
-    const avg = (arr: { [k: string]: number | null }[], key: string) => {
-      const valid = arr.filter((s) => s[key] !== null);
-      if (valid.length === 0) return 0;
-      const sum = valid.reduce((acc, s) => acc + Number(s[key] || 0), 0);
-      return sum / valid.length;
-    };
+  const yc = {
+    current: (yearlyComparison.current ?? []) as YearlyStat[],
+    previous: (yearlyComparison.previous ?? []) as YearlyStat[],
+  };
 
-    const currentYearAvg = {
-      instructor: avg(yearlyComparison.current, "instructor_satisfaction"),
-      course: avg(yearlyComparison.current, "course_satisfaction"),
-      operation: avg(yearlyComparison.current, "operation_satisfaction"),
-    };
+  const currentYearAvg = {
+    instructor: avg(yc.current, "instructor_satisfaction"),
+    course: avg(yc.current, "course_satisfaction"),
+    operation: avg(yc.current, "operation_satisfaction"),
+  };
+  const previousYearAvg = {
+    instructor: avg(yc.previous, "instructor_satisfaction"),
+    course: avg(yc.previous, "course_satisfaction"),
+    operation: avg(yc.previous, "operation_satisfaction"),
+  };
 
-    const previousYearAvg = {
-      instructor: avg(yearlyComparison.previous, "instructor_satisfaction"),
-      course: avg(yearlyComparison.previous, "course_satisfaction"),
-      operation: avg(yearlyComparison.previous, "operation_satisfaction"),
-    };
-
-    return [
-      {
-        category: "강사 만족도",
-        [`${selectedYear}년`]: Number(currentYearAvg.instructor.toFixed(1)),
-        [`${selectedYear - 1}년`]: Number(previousYearAvg.instructor.toFixed(1)),
-      },
-      {
-        category: "과정 만족도",
-        [`${selectedYear}년`]: Number(currentYearAvg.course.toFixed(1)),
-        [`${selectedYear - 1}년`]: Number(previousYearAvg.course.toFixed(1)),
-      },
-      {
-        category: "운영 만족도",
-        [`${selectedYear}년`]: Number(currentYearAvg.operation.toFixed(1)),
-        [`${selectedYear - 1}년`]: Number(previousYearAvg.operation.toFixed(1)),
-      },
-    ];
-  }, [yearlyComparison, selectedYear]);
+  const yearlyComparisonData =
+    yc.current.length && yc.previous.length
+      ? [
+          {
+            category: "강사 만족도",
+            [`${selectedYear}년`]: Number(currentYearAvg.instructor.toFixed(1)),
+            [`${selectedYear - 1}년`]: Number(previousYearAvg.instructor.toFixed(1)),
+          },
+          {
+            category: "과정 만족도",
+            [`${selectedYear}년`]: Number(currentYearAvg.course.toFixed(1)),
+            [`${selectedYear - 1}년`]: Number(previousYearAvg.course.toFixed(1)),
+          },
+          {
+            category: "운영 만족도",
+            [`${selectedYear}년`]: Number(currentYearAvg.operation.toFixed(1)),
+            [`${selectedYear - 1}년`]: Number(previousYearAvg.operation.toFixed(1)),
+          },
+        ]
+      : [];
 
   // 드릴다운 모달
   const openDrillDown = (type: "instructor" | "course" | "operation") => {
@@ -231,7 +226,7 @@ const CourseReports: React.FC = () => {
       instructor: "강사 만족도",
       course: "과정 만족도",
       operation: "운영 만족도",
-    };
+    } as const;
     setDrillDownModal({ isOpen: true, type, title: titles[type] });
   };
 
@@ -255,18 +250,14 @@ const CourseReports: React.FC = () => {
       generateCourseReportPDF({
         reportTitle: isInstructor ? "개인 과정별 운영 결과 보고서" : "과정별 운영 결과 보고서",
         year: currentReport.education_year,
-        round:
-          currentReport.education_round > 0
-            ? currentReport.education_round
-            : undefined,
+        round: currentReport.education_round > 0 ? currentReport.education_round : undefined,
         courseName: currentReport.course_title,
         totalSurveys: currentReport.total_surveys,
         totalResponses: currentReport.total_responses,
         instructorCount: currentReport.report_data?.instructor_count || 0,
         avgInstructorSatisfaction: currentReport.avg_instructor_satisfaction,
         avgCourseSatisfaction: currentReport.avg_course_satisfaction,
-        avgOperationSatisfaction:
-          currentReport.report_data?.operation_satisfaction || 0,
+        avgOperationSatisfaction: currentReport.report_data?.operation_satisfaction || 0,
         instructorStats: instructorStats.map((stat) => ({
           name: stat.instructor_name,
           surveyCount: stat.survey_count,
@@ -275,10 +266,7 @@ const CourseReports: React.FC = () => {
         })),
       });
 
-      toast({
-        title: "성공",
-        description: "PDF 파일이 다운로드되었습니다.",
-      });
+      toast({ title: "성공", description: "PDF 파일이 다운로드되었습니다." });
     } catch (error) {
       console.error("PDF export error:", error);
       toast({
@@ -313,7 +301,7 @@ const CourseReports: React.FC = () => {
     fetchYearlyComparison();
   };
 
-  // 로딩 화면
+  // 로딩
   if (loading) {
     return (
       <AdminLayout
@@ -332,7 +320,7 @@ const CourseReports: React.FC = () => {
         </div>
       </AdminLayout>
     );
-  }
+    }
 
   return (
     <AdminLayout
@@ -350,9 +338,7 @@ const CourseReports: React.FC = () => {
               <User className="h-5 w-5 text-blue-600" />
               <div>
                 <h3 className="font-medium text-blue-900">개인 과정 분석</h3>
-                <p className="text-sm text-blue-700">
-                  회원님이 담당하신 과정들의 만족도 결과만 표시됩니다.
-                </p>
+                <p className="text-sm text-blue-700">회원님이 담당하신 과정들의 만족도 결과만 표시됩니다.</p>
               </div>
             </div>
           </CardContent>
@@ -366,9 +352,7 @@ const CourseReports: React.FC = () => {
               <Crown className="h-5 w-5 text-green-600" />
               <div>
                 <h3 className="font-medium text-green-900">전체 과정 분석</h3>
-                <p className="text-sm text-green-700">
-                  모든 강사의 과정 결과를 확인하고 비교 분석할 수 있습니다.
-                </p>
+                <p className="text-sm text-green-700">모든 강사의 과정 결과를 확인하고 비교 분석할 수 있습니다.</p>
               </div>
             </div>
           </CardContent>
@@ -441,9 +425,7 @@ const CourseReports: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   {isInstructor ? "내 설문 수" : "총 설문 수"}
                 </p>
-                <p className="text-3xl font-bold text-primary">
-                  {currentReport.total_surveys}
-                </p>
+                <p className="text-3xl font-bold text-primary">{currentReport.total_surveys}</p>
               </CardContent>
             </Card>
 
@@ -475,12 +457,8 @@ const CourseReports: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   {isInstructor ? "내 응답 수" : "총 응답 수"}
                 </p>
-                <p className="text-3xl font-bold text-green-600">
-                  {currentReport.total_responses}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  응답률 {responseRate.toFixed(1)}%
-                </p>
+                <p className="text-3xl font-bold text-green-600">{currentReport.total_responses}</p>
+                <p className="text-xs text-muted-foreground">응답률 {responseRate.toFixed(1)}%</p>
               </CardContent>
             </Card>
 
@@ -489,9 +467,7 @@ const CourseReports: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <Star className="h-8 w-8 text-purple-600" />
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {isInstructor ? "참여 강사" : "참여 강사 수"}
-                </p>
+                <p className="text-sm text-muted-foreground">{isInstructor ? "참여 강사" : "참여 강사 수"}</p>
                 <p className="text-3xl font-bold text-purple-600">
                   {isInstructor ? "본인" : currentReport.report_data?.instructor_count || 0}
                 </p>
@@ -527,9 +503,7 @@ const CourseReports: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   {isInstructor ? "내 평균 점수" : "전체 평균 점수"}
                 </p>
-                <p className="text-3xl font-bold text-orange-600">
-                  {overallSatisfaction.toFixed(1)}
-                </p>
+                <p className="text-3xl font-bold text-orange-600">{overallSatisfaction.toFixed(1)}</p>
                 <p className="text-xs text-muted-foreground">/ 10.0</p>
               </CardContent>
             </Card>
@@ -545,10 +519,7 @@ const CourseReports: React.FC = () => {
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={currentRoundData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--muted-foreground) / 0.3)"
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
                     <XAxis
                       dataKey="name"
                       tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
@@ -583,21 +554,9 @@ const CourseReports: React.FC = () => {
                   <AreaChart
                     data={trendData}
                     dataKeys={[
-                      {
-                        key: "강사만족도",
-                        label: "강사만족도",
-                        color: "hsl(var(--primary))",
-                      },
-                      {
-                        key: "과정만족도",
-                        label: "과정만족도",
-                        color: "hsl(var(--primary) / 0.8)",
-                      },
-                      {
-                        key: "운영만족도",
-                        label: "운영만족도",
-                        color: "hsl(var(--primary) / 0.6)",
-                      },
+                      { key: "강사만족도", label: "강사만족도", color: "hsl(var(--primary))" },
+                      { key: "과정만족도", label: "과정만족도", color: "hsl(var(--primary) / 0.8)" },
+                      { key: "운영만족도", label: "운영만족도", color: "hsl(var(--primary) / 0.6)" },
                     ]}
                   />
                 </CardContent>
@@ -607,10 +566,7 @@ const CourseReports: React.FC = () => {
 
           {/* Drill-down 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => openDrillDown("instructor")}
-            >
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown("instructor")}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">강사 만족도</CardTitle>
               </CardHeader>
@@ -619,9 +575,7 @@ const CourseReports: React.FC = () => {
                   <span className="text-3xl font-bold text-blue-600">
                     {currentReport.avg_instructor_satisfaction.toFixed(1)}
                   </span>
-                  <SatisfactionStatusBadge
-                    score={currentReport.avg_instructor_satisfaction}
-                  />
+                  <SatisfactionStatusBadge score={currentReport.avg_instructor_satisfaction} />
                 </div>
                 <Button variant="outline" size="sm" className="w-full">
                   세부 보기
@@ -629,10 +583,7 @@ const CourseReports: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => openDrillDown("course")}
-            >
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown("course")}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">과정 만족도</CardTitle>
               </CardHeader>
@@ -641,9 +592,7 @@ const CourseReports: React.FC = () => {
                   <span className="text-3xl font-bold text-green-600">
                     {currentReport.avg_course_satisfaction.toFixed(1)}
                   </span>
-                  <SatisfactionStatusBadge
-                    score={currentReport.avg_course_satisfaction}
-                  />
+                  <SatisfactionStatusBadge score={currentReport.avg_course_satisfaction} />
                 </div>
                 <Button variant="outline" size="sm" className="w-full">
                   세부 보기
@@ -651,10 +600,7 @@ const CourseReports: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => openDrillDown("operation")}
-            >
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown("operation")}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">운영 만족도</CardTitle>
               </CardHeader>
@@ -663,9 +609,7 @@ const CourseReports: React.FC = () => {
                   <span className="text-3xl font-bold text-amber-600">
                     {(currentReport.report_data?.operation_satisfaction || 0).toFixed(1)}
                   </span>
-                  <SatisfactionStatusBadge
-                    score={currentReport.report_data?.operation_satisfaction || 0}
-                  />
+                  <SatisfactionStatusBadge score={currentReport.report_data?.operation_satisfaction || 0} />
                 </div>
                 <Button variant="outline" size="sm" className="w-full">
                   세부 보기
@@ -678,23 +622,15 @@ const CourseReports: React.FC = () => {
           {instructorTrendData.length > 0 && (
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle>
-                  {isInstructor ? "내 과정별 만족도 트렌드" : "강사 만족도 트렌드"}
-                </CardTitle>
+                <CardTitle>{isInstructor ? "내 과정별 만족도 트렌드" : "강사 만족도 트렌드"}</CardTitle>
                 <CardDescription>
                   {isInstructor ? "내가 담당한 과정별 만족도 평가" : "강사별 만족도 평가 비교 현황"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={400}>
-                  <BarChart
-                    data={instructorTrendData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--muted-foreground) / 0.3)"
-                    />
+                  <BarChart data={instructorTrendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
                     <XAxis
                       dataKey="name"
                       tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
@@ -711,18 +647,13 @@ const CourseReports: React.FC = () => {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
+                        border: "1px solid " + "hsl(var(--border))",
                         borderRadius: "8px",
                         color: "hsl(var(--card-foreground))",
                       }}
                     />
                     <Legend />
-                    <Bar
-                      dataKey="만족도"
-                      fill="hsl(var(--primary))"
-                      name="평균 만족도"
-                      radius={[4, 4, 0, 0]}
-                    />
+                    <Bar dataKey="만족도" fill="hsl(var(--primary))" name="평균 만족도" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -740,45 +671,21 @@ const CourseReports: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={400}>
-                  <BarChart
-                    data={yearlyComparisonData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--muted-foreground) / 0.3)"
-                    />
-                    <XAxis
-                      dataKey="category"
-                      tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
-                      axisLine={{ stroke: "hsl(var(--muted-foreground))" }}
-                    />
-                    <YAxis
-                      domain={[0, 10]}
-                      tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
-                      axisLine={{ stroke: "hsl(var(--muted-foreground))" }}
-                    />
+                  <BarChart data={yearlyComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
+                    <XAxis dataKey="category" tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} axisLine={{ stroke: "hsl(var(--muted-foreground))" }} />
+                    <YAxis domain={[0, 10]} tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} axisLine={{ stroke: "hsl(var(--muted-foreground))" }} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
+                        border: "1px solid " + "hsl(var(--border))",
                         borderRadius: "8px",
                         color: "hsl(var(--card-foreground))",
                       }}
                     />
                     <Legend />
-                    <Bar
-                      dataKey={`${selectedYear}년`}
-                      fill="hsl(var(--primary))"
-                      name={`${selectedYear}년`}
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar
-                      dataKey={`${selectedYear - 1}년`}
-                      fill="hsl(var(--primary) / 0.7)"
-                      name={`${selectedYear - 1}년`}
-                      radius={[4, 4, 0, 0]}
-                    />
+                    <Bar dataKey={`${selectedYear}년`} fill="hsl(var(--primary))" name={`${selectedYear}년`} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey={`${selectedYear - 1}년`} fill="hsl(var(--primary) / 0.7)" name={`${selectedYear - 1}년`} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -795,21 +702,9 @@ const CourseReports: React.FC = () => {
               <CardContent>
                 <DonutChart
                   data={[
-                    {
-                      name: "교육생",
-                      value: currentReport.total_responses * 0.8,
-                      color: "hsl(var(--primary))",
-                    },
-                    {
-                      name: "강사",
-                      value: currentReport.total_responses * 0.15,
-                      color: "hsl(var(--primary) / 0.7)",
-                    },
-                    {
-                      name: "운영자",
-                      value: currentReport.total_responses * 0.05,
-                      color: "hsl(var(--primary) / 0.4)",
-                    },
+                    { name: "교육생", value: currentReport.total_responses * 0.8, color: "hsl(var(--primary))" },
+                    { name: "강사", value: currentReport.total_responses * 0.15, color: "hsl(var(--primary) / 0.7)" },
+                    { name: "운영자", value: currentReport.total_responses * 0.05, color: "hsl(var(--primary) / 0.4)" },
                   ]}
                 />
               </CardContent>
@@ -824,34 +719,18 @@ const CourseReports: React.FC = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart
                     data={[
-                      {
-                        name: "예상 응답",
-                        value: currentReport.total_surveys * 20,
-                        type: "예상",
-                      },
-                      {
-                        name: "실제 응답",
-                        value: currentReport.total_responses,
-                        type: "실제",
-                      },
+                      { name: "예상 응답", value: currentReport.total_surveys * 20, type: "예상" },
+                      { name: "실제 응답", value: currentReport.total_responses, type: "실제" },
                     ]}
                   >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--muted-foreground) / 0.3)"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} />
                     <YAxis tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} />
                     <Tooltip />
                     <Bar dataKey="value" fill="hsl(var(--primary))" />
                   </BarChart>
                 </ResponsiveContainer>
-                <p className="text-center text-sm text-muted-foreground mt-2">
-                  응답률: {responseRate.toFixed(1)}%
-                </p>
+                <p className="text-center text-sm text-muted-foreground mt-2">응답률: {responseRate.toFixed(1)}%</p>
               </CardContent>
             </Card>
           </div>
@@ -862,18 +741,12 @@ const CourseReports: React.FC = () => {
           {/* 종합 요약 */}
           <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20 my-6">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">
-                {isInstructor ? "개인 종합 만족도 평가" : "종합 만족도 평가"}
-              </CardTitle>
-              <CardDescription>
-                {isInstructor ? "내 담당 과정 종합 점수" : "전체 영역 종합 점수"}
-              </CardDescription>
+              <CardTitle className="text-2xl">{isInstructor ? "개인 종합 만족도 평가" : "종합 만족도 평가"}</CardTitle>
+              <CardDescription>{isInstructor ? "내 담당 과정 종합 점수" : "전체 영역 종합 점수"}</CardDescription>
             </CardHeader>
             <CardContent className="text-center space-y-6">
               <div className="flex items-center justify-center gap-4">
-                <span className="text-6xl font-bold text-primary">
-                  {overallSatisfaction.toFixed(1)}
-                </span>
+                <span className="text-6xl font-bold text-primary">{overallSatisfaction.toFixed(1)}</span>
                 <div className="text-left">
                   <p className="text-sm text-muted-foreground">/ 10.0</p>
                   <SatisfactionStatusBadge score={overallSatisfaction} />
@@ -889,9 +762,7 @@ const CourseReports: React.FC = () => {
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">과정</p>
-                  <p className="text-xl font-bold text-green-600">
-                    {currentReport.avg_course_satisfaction.toFixed(1)}
-                  </p>
+                  <p className="text-xl font-bold text-green-600">{currentReport.avg_course_satisfaction.toFixed(1)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">운영</p>
@@ -906,19 +777,14 @@ const CourseReports: React.FC = () => {
           {/* 강사별 통계 (관리자 전용) */}
           {!isInstructor && instructorStats.length > 0 && (
             <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 border rounded-lg">
-              <InstructorStatsSection
-                instructorStats={instructorStats}
-                onInstructorClick={handleInstructorClick}
-              />
+              <InstructorStatsSection instructorStats={instructorStats} onInstructorClick={handleInstructorClick} />
             </div>
           )}
 
           {/* 드릴다운 모달 */}
           <DrillDownModal
             isOpen={drillDownModal.isOpen}
-            onClose={() =>
-              setDrillDownModal((prev) => ({ ...prev, isOpen: false }))
-            }
+            onClose={() => setDrillDownModal((prev) => ({ ...prev, isOpen: false }))}
             title={drillDownModal.title}
             type={drillDownModal.type}
             instructorStats={instructorStats}

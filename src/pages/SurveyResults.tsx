@@ -1,5 +1,5 @@
 // src/pages/SurveyResults.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,9 +34,7 @@ import {
 } from '@/utils/csvExport';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
-// 변경 전: import { AdminLayout } from "@/components/layouts/AdminLayout";
 import AdminLayout from "@/components/layouts/AdminLayout";
-
 
 interface Survey {
   id: string;
@@ -155,13 +153,24 @@ const SurveyResults = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, searchParams]);
 
+  // 선택된 설문이 바뀌면 해당 설문 응답/질문/답변 로드
   useEffect(() => {
     if (selectedSurvey) {
-      fetchReports();
+      // 기존: fetchReports();  // ❌ 존재하지 않는 함수 호출 제거
       fetchQuestionsAndAnswers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSurvey]);
+
+  // allResponses 또는 selectedSurvey가 바뀌면 responses를 계산해서 세팅
+  useEffect(() => {
+    if (!selectedSurvey) {
+      setResponses([]);
+      return;
+    }
+    const filtered = allResponses.filter((r) => r.survey_id === selectedSurvey);
+    setResponses(filtered);
+  }, [selectedSurvey, allResponses]);
 
   // ======= Data fetchers =======
   const fetchAllResponses = async () => {
@@ -773,7 +782,7 @@ const SurveyResults = () => {
   return (
     <AdminLayout
       title="설문 결과 분석"
-      description={
+      subtitle={
         canViewAll
           ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다'
           : instructor
@@ -781,8 +790,8 @@ const SurveyResults = () => {
           : '담당 강의의 설문조사 결과를 확인할 수 있습니다'
       }
       loading={loading}
-      desktopActions={<DesktopActions />}
-      mobileActions={<MobileActions />}
+      actions={[<DesktopActions key="desktop-actions" />]}
+      mobileActions={[<MobileActions key="mobile-actions" />]}
     >
       <div className="space-y-6">
         {/* 강사 정보 */}
