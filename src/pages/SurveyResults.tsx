@@ -34,7 +34,7 @@ import {
 } from '@/utils/csvExport';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
-import { AdminLayout } from '@/components/AdminLayout';
+import { AdminLayout } from '@/components/layouts/AdminLayout';
 
 interface Survey {
   id: string;
@@ -272,21 +272,6 @@ const SurveyResults = () => {
       }
     } catch (e) {
       console.error('Error fetching questions/answers:', e);
-    }
-  };
-
-  const fetchResponses = async () => {
-    if (!selectedSurvey) return;
-    try {
-      const { data, error } = await supabase
-        .from('survey_responses')
-        .select('*')
-        .eq('survey_id', selectedSurvey)
-        .order('submitted_at', { ascending: false });
-      if (error) throw error;
-      setResponses((data ?? []) as SurveyResponse[]);
-    } catch (e) {
-      console.error('Error fetching responses:', e);
     }
   };
 
