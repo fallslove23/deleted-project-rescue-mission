@@ -9,7 +9,7 @@ import { Users, BookOpen, FileText, BarChart, TrendingUp, Clock, Activity } from
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/AdminSidebar';
-import SurveyManagement from './SurveyManagementV2';
+import SurveyManagementV2 from './SurveyManagementV2';
 import SurveyResults from './SurveyResults';
 import InstructorManagement from './InstructorManagement';
 import TemplateManagement from './TemplateManagement';
@@ -488,7 +488,7 @@ const Dashboard = () => {
 
               {/* 설문관리 탭 */}
               <TabsContent value="surveys">
-                <SurveyManagement />
+                <SurveyManagementV2 />
               </TabsContent>
 
               {/* 결과분석 탭 */}
