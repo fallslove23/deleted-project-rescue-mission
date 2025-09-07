@@ -24,6 +24,7 @@ import DashboardSystemLogs from "./pages/DashboardSystemLogs";
 import DashboardUserManagement from "./pages/DashboardUserManagement";
 import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
+import DashboardCumulativeData from "./pages/DashboardCumulativeData";
 import InstructorManagement from "./pages/InstructorManagement";
 // import SurveyManagement from "./pages/SurveyManagement"; // 제거됨 - 파일이 존재하지 않음
 import SurveyManagementV2 from "./pages/SurveyManagementV2";
@@ -127,6 +128,15 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={["admin", "operator"]}>
                     <DashboardCourseStatistics />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/dashboard/cumulative-data"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
+                    <DashboardCumulativeData />
                   </ProtectedRoute>
                 }
               />
