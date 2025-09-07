@@ -1,5 +1,5 @@
 // src/components/layouts/AdminLayout.tsx
-import { PropsWithChildren, ReactNode } from "react";
+import React, { PropsWithChildren, ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
@@ -30,18 +30,20 @@ interface AdminLayoutProps {
  * - Sticky 헤더 + 액션 버튼들
  * - 반응형 디자인
  */
-export default function AdminLayout({
-  children,
-  title,
-  subtitle,
-  totalCount,
-  actions = [],
-  mobileActions = [],
-  onRefresh,
-  loading = false,
-  topbar,
-  hideHeader = false,
-}: PropsWithChildren<AdminLayoutProps>) {
+export default function AdminLayout(props: PropsWithChildren<AdminLayoutProps>) {
+  const {
+    children,
+    title,
+    subtitle,
+    totalCount,
+    actions = [],
+    mobileActions = [],
+    onRefresh,
+    loading = false,
+    topbar,
+    hideHeader = false,
+  } = props;
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-background">
@@ -95,7 +97,9 @@ export default function AdminLayout({
                     </Button>
                   )}
                   {actions.map((action, index) => (
-                    <div key={index}>{action}</div>
+                    <React.Fragment key={`action-${index}`}>
+                      {action}
+                    </React.Fragment>
                   ))}
                 </div>
               </div>
@@ -130,7 +134,9 @@ export default function AdminLayout({
                         </Button>
                       )}
                       {mobileActions.map((action, index) => (
-                        <React.Fragment key={index}>{action}</React.Fragment>
+                        <React.Fragment key={`mobile-action-${index}`}>
+                          {action}
+                        </React.Fragment>
                       ))}
                     </div>
                   )}
