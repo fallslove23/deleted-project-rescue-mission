@@ -364,106 +364,137 @@ All colors MUST be HSL.
     letter-spacing: -0.025em;
   }
 }
-/* 기존 index.css에 추가할 보라색 사이드바 스타일 */
+/* 기존 index.css 맨 끝에 추가할 보라색 사이드바 스타일 */
 
-/* 사이드바 컬러 오버라이드 */
-.sidebar-purple {
-  --sidebar-background: 248 250 252; /* slate-50 배경 */
-  --sidebar-foreground: 99 102 241; /* 보라 텍스트 */
-  --sidebar-primary: 129 140 248; /* 보라 primary */
-  --sidebar-primary-foreground: 255 255 255; /* 흰색 텍스트 */
-  --sidebar-accent: 238 242 255; /* 연한 보라 accent */
-  --sidebar-accent-foreground: 67 56 202; /* 진한 보라 텍스트 */
-  --sidebar-border: 224 231 255; /* 보라 보더 */
-  --sidebar-ring: 129 140 248; /* 보라 링 */
+/* 사이드바 컬러 오버라이드 - 더 강력하게 적용 */
+.sidebar-purple,
+.sidebar-purple * {
+  --sidebar-background: 248 250 252 !important; /* slate-50 배경 */
+  --sidebar-foreground: 99 102 241 !important; /* 보라 텍스트 */
+  --sidebar-primary: 129 140 248 !important; /* 보라 primary */
+  --sidebar-primary-foreground: 255 255 255 !important; /* 흰색 텍스트 */
+  --sidebar-accent: 238 242 255 !important; /* 연한 보라 accent */
+  --sidebar-accent-foreground: 67 56 202 !important; /* 진한 보라 텍스트 */
+  --sidebar-border: 224 231 255 !important; /* 보라 보더 */
+  --sidebar-ring: 129 140 248 !important; /* 보라 링 */
 }
 
-/* 사이드바 전체 배경 */
+/* 사이드바 전체 배경 강제 적용 */
+.sidebar-purple [data-sidebar="sidebar"] {
+  background: linear-gradient(180deg, hsl(248 250 252) 0%, hsl(241 245 249) 100%) !important;
+  border-right: 1px solid hsl(224 231 255) !important;
+}
+
+/* 사이드바 컨테이너 배경 */
 .sidebar-purple .sidebar {
-  background: linear-gradient(180deg, hsl(248 250 252) 0%, hsl(241 245 249) 100%);
-  border-right: 1px solid hsl(var(--sidebar-border));
+  background: linear-gradient(180deg, hsl(248 250 252) 0%, hsl(241 245 249) 100%) !important;
+  border-right: 1px solid hsl(224 231 255) !important;
 }
 
 /* 사이드바 그룹 라벨 */
 .sidebar-purple [data-sidebar="group-label"] {
-  color: hsl(99 102 241);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: hsl(99 102 241) !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
 }
 
 /* 사이드바 메뉴 버튼 */
 .sidebar-purple [data-sidebar="menu-button"] {
-  color: hsl(100 116 139); /* slate-500 */
-  transition: all 0.2s ease;
+  color: hsl(100 116 139) !important; /* slate-500 */
+  transition: all 0.2s ease !important;
+  background: transparent !important;
 }
 
 .sidebar-purple [data-sidebar="menu-button"]:hover {
-  background: hsl(238 242 255);
-  color: hsl(67 56 202);
+  background: hsl(238 242 255) !important;
+  color: hsl(67 56 202) !important;
 }
 
 /* 활성 상태 */
-.sidebar-purple [data-sidebar="menu-button"][data-active="true"] {
-  background: linear-gradient(135deg, hsl(129 140 248) 0%, hsl(99 102 241) 100%);
-  color: white;
-  box-shadow: 0 4px 12px hsla(129 140 248 / 0.4);
+.sidebar-purple [data-sidebar="menu-button"][data-active="true"],
+.sidebar-purple [data-sidebar="menu-button"].active {
+  background: linear-gradient(135deg, hsl(129 140 248) 0%, hsl(99 102 241) 100%) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px hsla(129 140 248 / 0.4) !important;
+}
+
+/* NavLink 활성 상태 오버라이드 */
+.sidebar-purple .bg-accent {
+  background: linear-gradient(135deg, hsl(129 140 248) 0%, hsl(99 102 241) 100%) !important;
+  color: white !important;
 }
 
 /* DEV 태그 스타일 */
 .sidebar-purple .dev-tag {
-  background: hsl(251 146 60);
-  color: white;
-  font-size: 0.625rem;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  font-weight: 500;
+  background: hsl(251 146 60) !important;
+  color: white !important;
+  font-size: 0.625rem !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 0.25rem !important;
+  font-weight: 500 !important;
+}
+
+/* 모든 텍스트 색상 강제 적용 */
+.sidebar-purple a,
+.sidebar-purple span,
+.sidebar-purple div {
+  color: hsl(100 116 139) !important;
+}
+
+.sidebar-purple a:hover {
+  color: hsl(67 56 202) !important;
+}
+
+.sidebar-purple a.active,
+.sidebar-purple a[aria-current="page"] {
+  color: white !important;
 }
 
 /* 컨텐츠 크기 조정 - 더 작고 컴팩트하게 */
 .compact-content {
-  font-size: 0.875rem; /* 14px */
-  line-height: 1.4;
+  font-size: 0.875rem !important; /* 14px */
+  line-height: 1.4 !important;
 }
 
 .compact-content h1 {
-  font-size: 1.5rem; /* 24px */
-  margin-bottom: 0.5rem;
+  font-size: 1.5rem !important; /* 24px */
+  margin-bottom: 0.5rem !important;
 }
 
 .compact-content h2 {
-  font-size: 1.25rem; /* 20px */
-  margin-bottom: 0.5rem;
+  font-size: 1.25rem !important; /* 20px */
+  margin-bottom: 0.5rem !important;
 }
 
 .compact-content h3 {
-  font-size: 1.125rem; /* 18px */
-  margin-bottom: 0.375rem;
+  font-size: 1.125rem !important; /* 18px */
+  margin-bottom: 0.375rem !important;
 }
 
 .compact-content .card {
-  padding: 0.75rem; /* 12px */
+  padding: 0.75rem !important; /* 12px */
 }
 
 .compact-content .card-header {
-  padding: 0.75rem 0.75rem 0.5rem 0.75rem;
+  padding: 0.75rem 0.75rem 0.5rem 0.75rem !important;
 }
 
 .compact-content .card-content {
-  padding: 0.5rem 0.75rem 0.75rem 0.75rem;
+  padding: 0.5rem 0.75rem 0.75rem 0.75rem !important;
 }
 
 .compact-content .text-2xl {
-  font-size: 1.5rem;
+  font-size: 1.5rem !important;
 }
 
 .compact-content .text-3xl {
-  font-size: 1.875rem;
+  font-size: 1.875rem !important;
 }
 
 .compact-content .text-4xl {
-  font-size: 2rem;
+  font-size: 2rem !important;
 }
 
 /* 통계 카드 컴팩트 */
