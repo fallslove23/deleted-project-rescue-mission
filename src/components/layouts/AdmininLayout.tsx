@@ -130,7 +130,7 @@ export default function AdminLayout({
                         </Button>
                       )}
                       {mobileActions.map((action, index) => (
-                        <div key={index}>{action}</div>
+                        <React.Fragment key={index}>{action}</React.Fragment>
                       ))}
                     </div>
                   )}
