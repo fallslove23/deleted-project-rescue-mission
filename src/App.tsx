@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DefaultRedirect from "@/components/DefaultRedirect";
@@ -13,7 +13,6 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
 import DashboardOverview from "./pages/DashboardOverview";
-// import DashboardSurveyManagement from "./pages/DashboardSurveyManagement"; // 제거됨 - 직접 SurveyManagementV2 사용
 import DashboardSurveyResults from "./pages/DashboardSurveyResults";
 import DashboardCourseReports from "./pages/DashboardCourseReports";
 import DashboardInstructorManagement from "./pages/DashboardInstructorManagement";
@@ -26,7 +25,6 @@ import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
 import DashboardCumulativeData from "./pages/DashboardCumulativeData";
 import InstructorManagement from "./pages/InstructorManagement";
-// import SurveyManagement from "./pages/SurveyManagement"; // 제거됨 - 파일이 존재하지 않음
 import SurveyManagementV2 from "./pages/SurveyManagementV2";
 import SurveyBuilder from "./pages/SurveyBuilder";
 import SurveyParticipate from "./pages/SurveyParticipate";
@@ -39,288 +37,314 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// SidebarProvider가 필요하지 않은 경로들
+const NO_SIDEBAR_PATHS = [
+  '/auth',
+  '/change-password',
+  '/survey/',
+  '/404',
+  '*'
+];
+
+function AppContent() {
+  const location = useLocation();
+  
+  // 현재 경로가 사이드바가 필요하지 않은 경로인지 확인
+  const needsSidebar = !NO_SIDEBAR_PATHS.some(path => {
+    if (path === '*') return location.pathname === '/404' || !location.pathname.startsWith('/');
+    if (path.endsWith('/')) return location.pathname.startsWith(path);
+    return location.pathname === path;
+  });
+
+  const routes = (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <>
+            <Index />
+            <DefaultRedirect />
+          </>
+        }
+      />
+
+      <Route path="/auth" element={<Auth />} />
+
+      <Route
+        path="/default-redirect"
+        element={
+          <ProtectedRoute>
+            <DefaultRedirect />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePassword />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <DashboardOverview />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/surveys"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <SurveyManagementV2 />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/results"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
+            <DashboardSurveyResults />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/instructors"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <DashboardInstructorManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/courses"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <DashboardCourseManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/course-statistics"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <DashboardCourseStatistics />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/cumulative-data"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
+            <DashboardCumulativeData />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/templates"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <DashboardTemplateManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/instructors"
+        element={
+          <ProtectedRoute>
+            <InstructorManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/surveys"
+        element={
+          <ProtectedRoute>
+            <SurveyManagementV2 />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-management"
+        element={
+          <ProtectedRoute>
+            <SurveyManagementV2 />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/surveys-v2"
+        element={
+          <ProtectedRoute>
+            <SurveyManagementV2 />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="/survey/:surveyId" element={<SurveyParticipate />} />
+
+      <Route
+        path="/survey-preview/:surveyId"
+        element={
+          <ProtectedRoute>
+            <SurveyPreview />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-builder/:surveyId"
+        element={
+          <ProtectedRoute>
+            <SurveyBuilder />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/template-management"
+        element={
+          <ProtectedRoute>
+            <TemplateManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/template-builder/:templateId"
+        element={
+          <ProtectedRoute>
+            <TemplateBuilder />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/results"
+        element={
+          <ProtectedRoute>
+            <SurveyResults />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-results"
+        element={
+          <ProtectedRoute>
+            <SurveyResults />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/survey-detailed-analysis/:surveyId"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
+            <SurveyDetailedAnalysis />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/detailed-analysis/:surveyId"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
+            <SurveyDetailedAnalysis />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
+            <Index />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/my-stats"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
+            <DashboardMyStats />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/email-logs"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <DashboardEmailLogs />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/system-logs"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <DashboardSystemLogs />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/users"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <DashboardUserManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/course-reports"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
+            <DashboardCourseReports />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+
+  // 조건부로 SidebarProvider 적용
+  return needsSidebar ? (
+    <SidebarProvider>{routes}</SidebarProvider>
+  ) : (
+    routes
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
         <Toaster />
         <Sonner />
-        <SidebarProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <>
-                    <Index />
-                    <DefaultRedirect />
-                  </>
-                }
-              />
-
-              <Route path="/auth" element={<Auth />} />
-
-              <Route
-                path="/default-redirect"
-                element={
-                  <ProtectedRoute>
-                    <DefaultRedirect />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/change-password"
-                element={
-                  <ProtectedRoute>
-                    <ChangePassword />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <DashboardOverview />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/surveys"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <SurveyManagementV2 />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/results"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
-                    <DashboardSurveyResults />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/instructors"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <DashboardInstructorManagement />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/courses"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <DashboardCourseManagement />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/course-statistics"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <DashboardCourseStatistics />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/cumulative-data"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
-                    <DashboardCumulativeData />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/templates"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <DashboardTemplateManagement />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/instructors"
-                element={
-                  <ProtectedRoute>
-                    <InstructorManagement />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* 기존 SurveyManagement 경로들을 SurveyManagementV2로 변경 */}
-              <Route
-                path="/surveys"
-                element={
-                  <ProtectedRoute>
-                    <SurveyManagementV2 />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/survey-management"
-                element={
-                  <ProtectedRoute>
-                    <SurveyManagementV2 />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* V2 페이지 */}
-              <Route
-                path="/surveys-v2"
-                element={
-                  <ProtectedRoute>
-                    <SurveyManagementV2 />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route path="/survey/:surveyId" element={<SurveyParticipate />} />
-
-              <Route
-                path="/survey-preview/:surveyId"
-                element={
-                  <ProtectedRoute>
-                    <SurveyPreview />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/survey-builder/:surveyId"
-                element={
-                  <ProtectedRoute>
-                    <SurveyBuilder />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/template-management"
-                element={
-                  <ProtectedRoute>
-                    <TemplateManagement />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/template-builder/:templateId"
-                element={
-                  <ProtectedRoute>
-                    <TemplateBuilder />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/results"
-                element={
-                  <ProtectedRoute>
-                    <SurveyResults />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/survey-results"
-                element={
-                  <ProtectedRoute>
-                    <SurveyResults />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/survey-detailed-analysis/:surveyId"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
-                    <SurveyDetailedAnalysis />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/detailed-analysis/:surveyId"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
-                    <SurveyDetailedAnalysis />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/student"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/my-stats"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator", "instructor", "director"]}>
-                    <DashboardMyStats />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/email-logs"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <DashboardEmailLogs />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/system-logs"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <DashboardSystemLogs />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/users"
-                element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                    <DashboardUserManagement />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/dashboard/course-reports"
-                element={
-                  <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
-                    <DashboardCourseReports />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </SidebarProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
