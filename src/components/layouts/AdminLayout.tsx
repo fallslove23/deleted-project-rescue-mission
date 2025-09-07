@@ -1,4 +1,3 @@
-// src/components/layouts/AdminLayout.tsx
 import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -8,14 +7,29 @@ import { RefreshCw } from "lucide-react";
 export interface AdminLayoutProps {
   children: React.ReactNode;
   title?: string;
+  /** 페이지 부제목 */
   subtitle?: string;
+  /** 일부 페이지에서 description으로 넘기는 걸 지원 (subtitle과 동일 의미) */
+  description?: string;
   totalCount?: number;
-  actions?: React.ReactNode[];
-  mobileActions?: React.ReactNode[];
+
+  /** 데스크톱 액션(단일/배열 모두 허용) — 기존 actions와 병행 지원 */
+  actions?: React.ReactNode | React.ReactNode[];
+  desktopActions?: React.ReactNode | React.ReactNode[];
+
+  /** 모바일 액션(단일/배열 모두 허용) */
+  mobileActions?: React.ReactNode | React.ReactNode[];
+
   onRefresh?: () => void;
   loading?: boolean;
   topbar?: React.ReactNode;
   hideHeader?: boolean;
+}
+
+/** 단일/배열을 항상 배열로 정규화 */
+function toArray<T>(v: T | T[] | undefined | null): T[] {
+  if (v == null) return [];
+  return Array.isArray(v) ? v : [v];
 }
 
 export default function AdminLayout(props: AdminLayoutProps) {
@@ -23,17 +37,28 @@ export default function AdminLayout(props: AdminLayoutProps) {
     children,
     title,
     subtitle,
+    description,
     totalCount,
-    actions = [],
-    mobileActions = [],
+
+    actions,
+    desktopActions,
+    mobileActions,
+
     onRefresh,
     loading = false,
     topbar,
     hideHeader = false,
   } = props;
 
+  // actions 우선순위: desktopActions > actions (하위호환)
+  const desktopActionItems = toArray(desktopActions ?? actions);
+  const mobileActionItems = toArray(mobileActions);
+
+  const subline = description ?? subtitle;
+
   const renderDesktopActions = () => {
     const elements: React.ReactNode[] = [];
+
     if (onRefresh) {
       elements.push(
         <Button
@@ -49,14 +74,17 @@ export default function AdminLayout(props: AdminLayoutProps) {
         </Button>
       );
     }
-    actions.forEach((action, index) => {
+
+    desktopActionItems.forEach((action, index) => {
       elements.push(<div key={`action-${index}`}>{action}</div>);
     });
+
     return elements;
   };
 
   const renderMobileActions = () => {
     const elements: React.ReactNode[] = [];
+
     if (onRefresh) {
       elements.push(
         <Button
@@ -71,9 +99,11 @@ export default function AdminLayout(props: AdminLayoutProps) {
         </Button>
       );
     }
-    mobileActions.forEach((action, index) => {
+
+    mobileActionItems.forEach((action, index) => {
       elements.push(<div key={`mobile-${index}`}>{action}</div>);
     });
+
     return elements;
   };
 
@@ -100,11 +130,13 @@ export default function AdminLayout(props: AdminLayoutProps) {
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight whitespace-nowrap">
                       {title}
                     </h1>
-                    {subtitle && (
+
+                    {subline && (
                       <p className="text-xs text-muted-foreground md:hidden mt-0.5">
-                        {subtitle}
+                        {subline}
                       </p>
                     )}
+
                     {typeof totalCount === "number" && (
                       <p className="text-xs text-muted-foreground md:hidden mt-0.5">
                         전체 {totalCount}개
@@ -124,13 +156,14 @@ export default function AdminLayout(props: AdminLayoutProps) {
             {!hideHeader && !topbar && title ? (
               <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
                 <div className="flex items-center justify-between mb-4 md:mb-6">
-                  {(subtitle || typeof totalCount === "number") && (
+                  {(subline || typeof totalCount === "number") && (
                     <p className="hidden md:block text-sm text-muted-foreground">
-                      {subtitle}
+                      {subline}
                       {typeof totalCount === "number" && ` - 전체 ${totalCount}개`}
                     </p>
                   )}
-                  {(mobileActions.length > 0 || onRefresh) && (
+
+                  {(mobileActionItems.length > 0 || onRefresh) && (
                     <div className="flex md:hidden items-center gap-2">
                       {renderMobileActions()}
                     </div>
