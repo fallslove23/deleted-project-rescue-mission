@@ -1,8 +1,6 @@
-// 반드시 하나만 선택해서 사용하세요 (프로젝트 구조에 따라 둘 중 하나)
-import AdminLayout from '@/components/layouts/AdminLayout'; 
-// import { AdminLayout } from '@/components/layouts/AdminLayout';
 // src/pages/DashboardOverview.tsx
 // ... (기존 import 유지)
+import AdminLayout from "@/components/layouts/AdminLayout";
 
 const DashboardOverview = () => {
   // ... (기존 state와 useEffect 유지)
