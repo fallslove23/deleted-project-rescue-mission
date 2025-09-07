@@ -13,7 +13,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
 import DashboardOverview from "./pages/DashboardOverview";
-import DashboardSurveyManagement from "./pages/DashboardSurveyManagement";
+// import DashboardSurveyManagement from "./pages/DashboardSurveyManagement"; // 제거됨 - 직접 SurveyManagementV2 사용
 import DashboardSurveyResults from "./pages/DashboardSurveyResults";
 import DashboardCourseReports from "./pages/DashboardCourseReports";
 import DashboardInstructorManagement from "./pages/DashboardInstructorManagement";
