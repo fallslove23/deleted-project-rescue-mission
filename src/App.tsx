@@ -90,7 +90,7 @@ const App = () => (
                 path="/dashboard/surveys"
                 element={
                   <ProtectedRoute allowedRoles={["admin", "operator"]}>
-                    <DashboardSurveyManagement />
+                    <SurveyManagementV2 />
                   </ProtectedRoute>
                 }
               />
