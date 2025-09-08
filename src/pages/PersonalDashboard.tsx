@@ -396,16 +396,6 @@ const PersonalDashboard: FC = () => {
   /* ─────────────────────────────────── Header Actions ─────────────────────────────────── */
   const desktopActions = [
     <Button
-      key="back"
-      variant="outline"
-      size="sm"
-      className="rounded-full px-3"
-      onClick={() => navigate('/dashboard')}
-    >
-      <ArrowLeft className="h-4 w-4 mr-1.5" />
-      대시보드
-    </Button>,
-    <Button
       key="csv"
       variant="outline"
       size="sm"
@@ -437,15 +427,6 @@ const PersonalDashboard: FC = () => {
   ];
 
   const mobileActions = [
-    <Button
-      key="back-m"
-      variant="outline"
-      size="sm"
-      className="rounded-full"
-      onClick={() => navigate('/dashboard')}
-    >
-      <ArrowLeft className="h-4 w-4" />
-    </Button>,
     <Button
       key="csv-m"
       variant="outline"
