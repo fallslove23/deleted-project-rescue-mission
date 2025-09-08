@@ -105,9 +105,9 @@ const SurveyResults = () => {
   const [allAnswers, setAllAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedSurvey, setSelectedSurvey] = useState<string>('');
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
-  const [selectedYear, setSelectedYear] = useState<string>('');
-  const [selectedRound, setSelectedRound] = useState<string>('');
-  const [selectedCourse, setSelectedCourse] = useState<string>('');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedRound, setSelectedRound] = useState<string>('all');
+  const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [availableCourses, setAvailableCourses] = useState<
     { year: number; round: number; course_name: string; key: string }[]
   >([]);
@@ -434,17 +434,17 @@ const SurveyResults = () => {
   };
 
   const getUniqueRounds = () => {
-    const filtered = selectedYear ? surveys.filter((s) => String(s.education_year) === selectedYear) : surveys;
+    const filtered = selectedYear && selectedYear !== 'all' ? surveys.filter((s) => String(s.education_year) === selectedYear) : surveys;
     const rounds = [...new Set(filtered.map((s) => s.education_round))];
     return rounds.sort((a, b) => b - a);
   };
 
   const getFilteredSurveys = () => {
     let filtered = surveys;
-    if (selectedYear) filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
-    if (selectedRound) filtered = filtered.filter((s) => String(s.education_round) === selectedRound);
+    if (selectedYear && selectedYear !== 'all') filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
+    if (selectedRound && selectedRound !== 'all') filtered = filtered.filter((s) => String(s.education_round) === selectedRound);
 
-    if (selectedCourse) {
+    if (selectedCourse && selectedCourse !== 'all') {
       const [year, round, ...rest] = selectedCourse.split('-'); // 코스명에 '-' 포함 가능성
       const courseName = rest.join('-');
       filtered = filtered.filter(
@@ -735,7 +735,7 @@ const SurveyResults = () => {
                   <SelectValue placeholder="전체" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">전체</SelectItem>
+                  <SelectItem value="all">전체</SelectItem>
                   {getUniqueYears().map((year) => (
                     <SelectItem key={year} value={String(year)}>
                       {year}년
@@ -752,7 +752,7 @@ const SurveyResults = () => {
                   <SelectValue placeholder="전체" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">전체</SelectItem>
+                  <SelectItem value="all">전체</SelectItem>
                   {getUniqueRounds().map((round) => (
                     <SelectItem key={round} value={String(round)}>
                       {round}차
@@ -769,7 +769,7 @@ const SurveyResults = () => {
                   <SelectValue placeholder="전체" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">전체</SelectItem>
+                  <SelectItem value="all">전체</SelectItem>
                   {availableCourses.map((course) => (
                     <SelectItem key={course.key} value={course.key}>
                       {course.year}년 {course.round}차 {course.course_name}
