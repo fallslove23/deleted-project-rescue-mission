@@ -598,7 +598,7 @@ export default function SurveyManagementV2() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/survey-analysis/${survey.id}`)}
+                      onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
                     >
                       <BarChart className="h-4 w-4 mr-1" />
                       분석
@@ -654,14 +654,18 @@ export default function SurveyManagementV2() {
 
         {/* 설문 생성 시트 */}
         <Sheet open={createOpen} onOpenChange={setCreateOpen}>
-          <SheetContent side="right" className="w-full sm:max-w-2xl">
+          <SheetContent 
+            side="right" 
+            className="w-full sm:max-w-2xl overflow-y-auto"
+            style={{ maxHeight: '100vh' }}
+          >
             <SheetHeader>
               <SheetTitle>새 설문 생성</SheetTitle>
               <SheetDescription>
                 새로운 설문을 생성합니다.
               </SheetDescription>
             </SheetHeader>
-            <div className="mt-6">
+            <div className="mt-6 pb-6">
               <SurveyCreateForm
                 onSuccess={() => {
                   setCreateOpen(false);
