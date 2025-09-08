@@ -102,10 +102,34 @@ export function AdminSidebar() {
 
   return (
     <Sidebar className="border-r bg-sidebar">
+      <style>
+        {`
+          [data-sidebar="menu-button"] {
+            color: #7c3aed !important;
+          }
+          [data-sidebar="menu-button"]:hover {
+            color: #6d28d9 !important;
+            background-color: rgba(124, 58, 237, 0.1) !important;
+          }
+          [data-sidebar="menu-button"][data-active="true"] {
+            background-color: #7c3aed !important;
+            color: white !important;
+          }
+          .sidebar-menu-item {
+            color: #7c3aed !important;
+          }
+          .sidebar-menu-item:hover {
+            color: #6d28d9 !important;
+          }
+          .sidebar-menu-item svg {
+            color: inherit !important;
+          }
+        `}
+      </style>
       <SidebarContent className="bg-sidebar">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider px-3 py-2 text-purple-700">
+            <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider px-3 py-2" style={{ color: '#7c3aed' }}>
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -116,19 +140,11 @@ export function AdminSidebar() {
                       <NavLink
                         to={item.url}
                         end={item.exact}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-                            isActive 
-                              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm' 
-                              : 'text-purple-700 hover:bg-sidebar-accent hover:text-purple-800'
-                          }`
-                        }
-                        style={({ isActive }) => ({
-                          color: isActive ? undefined : '#7c3aed',
-                        })}
+                        className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200"
+                        style={{ color: '#7c3aed !important' }}
                       >
-                        <item.icon className="h-4 w-4 flex-shrink-0" style={{ color: 'inherit' }} />
-                        <span className="font-semibold" style={{ color: 'inherit' }}>{item.title}</span>
+                        <item.icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="font-semibold">{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
