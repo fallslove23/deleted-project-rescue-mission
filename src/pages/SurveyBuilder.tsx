@@ -81,9 +81,7 @@ export default function SurveyBuilder() {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   
   // 템플릿 선택 관련 상태
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [applyTarget, setApplyTarget] = useState(''); // 'common', 'all-sessions', 'specific-session'
-  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [templateSelections, setTemplateSelections] = useState<Record<string, string>>({});
 
   const [educationYear, setEducationYear] = useState<number>(new Date().getFullYear());
   const [educationRound, setEducationRound] = useState<number>(1);
@@ -311,25 +309,18 @@ export default function SurveyBuilder() {
   const handleQuestionSave = () => { setQuestionDialogOpen(false); loadQuestions(); };
 
   // 새로운 템플릿 적용 함수
-  const handleApplyTemplate = async () => {
-    if (!selectedTemplateId || !applyTarget) return;
-    
+  const handleApplySelectedTemplates = async () => {
     try {
       setLoadingTemplate(true);
-      console.log('Starting template application:', { selectedTemplateId, applyTarget, selectedSessionIds: Array.from(selectedSessionIds) });
+      console.log('Applying selected templates:', templateSelections);
       
-      if (applyTarget === 'common') {
-        console.log('Applying template as common questions');
-        await loadTemplateToSessions(selectedTemplateId);
-      } else if (applyTarget === 'all-sessions') {
-        console.log('Applying template to all sessions');
-        for (const session of sessions) {
-          await applyTemplateToSession(selectedTemplateId, session.id);
-        }
-      } else if (applyTarget === 'specific-session') {
-        console.log('Applying template to specific sessions');
-        for (const sessionId of selectedSessionIds) {
-          await applyTemplateToSession(selectedTemplateId, sessionId);
+      const appliedSessions: string[] = [];
+      
+      for (const [sessionId, templateId] of Object.entries(templateSelections)) {
+        if (templateId && templateId !== '') {
+          await applyTemplateToSession(templateId, sessionId);
+          const session = sessions.find(s => s.id === sessionId);
+          appliedSessions.push(session?.course?.title || session?.session_name || '세션');
         }
       }
       
@@ -339,13 +330,11 @@ export default function SurveyBuilder() {
       await loadSections();
       
       setTemplateSelectOpen(false);
-      setSelectedTemplateId('');
-      setApplyTarget('');
-      setSelectedSessionIds(new Set());
+      setTemplateSelections({});
       
       toast({
         title: "템플릿 적용 완료",
-        description: "선택한 템플릿이 성공적으로 적용되었습니다."
+        description: `${appliedSessions.length}개 과목에 템플릿이 적용되었습니다.`
       });
       
     } catch (error: any) {
@@ -1388,137 +1377,78 @@ export default function SurveyBuilder() {
 
           {/* 템플릿 선택 다이얼로그 */}
           <Dialog open={templateSelectOpen} onOpenChange={setTemplateSelectOpen}>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>템플릿 불러오기</DialogTitle>
+                <DialogTitle>템플릿 적용</DialogTitle>
                 <DialogDescription>
-                  템플릿을 선택하고 적용할 과목을 선택하세요. 기존 질문은 유지되고 새 질문이 추가됩니다.
+                  각 과목별로 적용할 템플릿을 선택하세요. 선택하지 않은 과목은 템플릿이 적용되지 않습니다.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {templates.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">사용 가능한 템플릿이 없습니다.</div>
+                  <div className="text-center py-8 text-muted-foreground">
+                    사용 가능한 템플릿이 없습니다.
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    과목/강사 정보가 없습니다. 먼저 과목과 강사를 추가해주세요.
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium mb-3">1. 템플릿 선택</h4>
-                      <div className="space-y-2">
-                        {templates.map((t) => (
-                          <div key={t.id} className="flex items-center space-x-2">
-                            <input
-                              type="radio"
-                              id={`template-${t.id}`}
-                              name="template"
-                              value={t.id}
-                              onChange={(e) => setSelectedTemplateId(e.target.value)}
-                              className="w-4 h-4"
-                            />
-                            <label htmlFor={`template-${t.id}`} className="flex-1 cursor-pointer">
-                              <div className="font-medium">{t.name}</div>
-                              <div className="text-xs text-muted-foreground">템플릿</div>
-                            </label>
+                    <div className="grid gap-3">
+                      {sessions.map((session) => (
+                        <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              {session.course?.title || session.session_name}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              강사: {session.instructor?.name || '강사명 없음'}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {selectedTemplateId && (
-                      <div>
-                        <h4 className="font-medium mb-3">2. 적용 대상 선택</h4>
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="radio"
-                              id="apply-common"
-                              name="applyTo"
-                              value="common"
-                              onChange={(e) => setApplyTarget(e.target.value)}
-                              className="w-4 h-4"
-                            />
-                            <label htmlFor="apply-common" className="cursor-pointer">
-                              <div className="font-medium">공통 질문으로 추가</div>
-                              <div className="text-xs text-muted-foreground">전체 설문에 1회만 표시되는 질문</div>
-                            </label>
+                          <div className="flex-shrink-0 w-48">
+                            <Select 
+                              value={templateSelections[session.id] || ''} 
+                              onValueChange={(value) => {
+                                setTemplateSelections(prev => ({
+                                  ...prev,
+                                  [session.id]: value
+                                }));
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="템플릿 선택" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-background border z-50">
+                                <SelectItem value="">선택 안함</SelectItem>
+                                {templates.map((template) => (
+                                  <SelectItem key={template.id} value={template.id}>
+                                    {template.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          
-                          {sessions.length > 0 && (
-                            <>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  id="apply-all-sessions"
-                                  name="applyTo"
-                                  value="all-sessions"
-                                  onChange={(e) => setApplyTarget(e.target.value)}
-                                  className="w-4 h-4"
-                                />
-                                <label htmlFor="apply-all-sessions" className="cursor-pointer">
-                                  <div className="font-medium">모든 과목에 적용</div>
-                                  <div className="text-xs text-muted-foreground">{sessions.length}개 모든 과목에 각각 적용</div>
-                                </label>
-                              </div>
-                              
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  id="apply-specific-session"
-                                  name="applyTo"
-                                  value="specific-session"
-                                  onChange={(e) => setApplyTarget(e.target.value)}
-                                  className="w-4 h-4"
-                                />
-                                <label htmlFor="apply-specific-session" className="cursor-pointer">
-                                  <div className="font-medium">특정 과목에만 적용</div>
-                                  <div className="text-xs text-muted-foreground">선택한 과목에만 적용</div>
-                                </label>
-                              </div>
-                              
-                              {applyTarget === 'specific-session' && (
-                                <div className="ml-6 mt-2 space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
-                                  {sessions.map((session) => (
-                                    <div key={session.id} className="flex items-center space-x-2">
-                                      <input
-                                        type="checkbox"
-                                        id={`session-${session.id}`}
-                                        checked={selectedSessionIds.has(session.id)}
-                                        onChange={(e) => {
-                                          const newSet = new Set(selectedSessionIds);
-                                          if (e.target.checked) {
-                                            newSet.add(session.id);
-                                          } else {
-                                            newSet.delete(session.id);
-                                          }
-                                          setSelectedSessionIds(newSet);
-                                        }}
-                                        className="w-4 h-4"
-                                      />
-                                      <label htmlFor={`session-${session.id}`} className="text-sm cursor-pointer">
-                                        {session.course?.title || session.session_name} - {session.instructor?.name || '강사명 없음'}
-                                      </label>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </>
-                          )}
                         </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                      💡 팁: 템플릿을 적용하면 해당 과목에 새로운 질문들이 추가됩니다. 기존 질문은 유지됩니다.
+                    </div>
                   </div>
                 )}
               </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => {
                   setTemplateSelectOpen(false);
-                  setSelectedTemplateId('');
-                  setApplyTarget('');
-                  setSelectedSessionIds(new Set());
+                  setTemplateSelections({});
                 }}>
                   취소
                 </Button>
                 <Button 
-                  onClick={handleApplyTemplate}
-                  disabled={!selectedTemplateId || !applyTarget || (applyTarget === 'specific-session' && selectedSessionIds.size === 0) || loadingTemplate}
+                  onClick={handleApplySelectedTemplates}
+                  disabled={Object.values(templateSelections).every(v => !v) || loadingTemplate}
                 >
                   {loadingTemplate ? '적용 중...' : '템플릿 적용'}
                 </Button>
