@@ -1181,7 +1181,6 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
           </DialogContent>
         </Dialog>
       </div>
-    </div>
   );
 };
 
