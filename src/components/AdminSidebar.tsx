@@ -85,8 +85,8 @@ export function AdminSidebar() {
   const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
 
   return (
-    <Sidebar className="sidebar-purple">
-      <SidebarContent>
+    <Sidebar className="border-r bg-white">
+      <SidebarContent className="bg-white">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
             <SidebarGroupLabel className="text-purple-700 font-semibold text-xs uppercase tracking-wider">

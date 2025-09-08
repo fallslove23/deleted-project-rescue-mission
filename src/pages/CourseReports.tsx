@@ -1,7 +1,7 @@
 // src/pages/CourseReports.tsx
 import React, { useState, useEffect } from 'react';
+import { AdminLayout } from '@/components/layouts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-// ✅ 커스텀 DonutChart/AreaChart 제거하고 Recharts 직접 사용
 import {
   ResponsiveContainer,
   XAxis,
@@ -29,8 +29,6 @@ import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AdminSidebar } from '@/components/AdminSidebar';
 
 const CourseReports = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -45,7 +43,7 @@ const CourseReports = () => {
   
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userRoles, user, signOut } = useAuth();
+  const { userRoles } = useAuth();
   
   const isInstructor = userRoles.includes('instructor');
   const isAdmin = userRoles.includes('admin');
@@ -173,60 +171,6 @@ const CourseReports = () => {
   const responseRate = currentReport && currentReport.total_surveys > 0 ? 
     (currentReport.total_responses / (currentReport.total_surveys * 20)) * 100 : 0;
 
-  const yearlyComparisonData = (() => {
-    if (!yearlyComparison.current.length || !yearlyComparison.previous.length) {
-      return [];
-    }
-
-    const currentYearAvg = {
-      instructor: yearlyComparison.current
-        .filter(s => s.instructor_satisfaction !== null)
-        .reduce((sum, s) => sum + (s.instructor_satisfaction || 0), 0) / 
-        yearlyComparison.current.filter(s => s.instructor_satisfaction !== null).length || 0,
-      course: yearlyComparison.current
-        .filter(s => s.course_satisfaction !== null)
-        .reduce((sum, s) => sum + (s.course_satisfaction || 0), 0) / 
-        yearlyComparison.current.filter(s => s.course_satisfaction !== null).length || 0,
-      operation: yearlyComparison.current
-        .filter(s => s.operation_satisfaction !== null)
-        .reduce((sum, s) => sum + (s.operation_satisfaction || 0), 0) / 
-        yearlyComparison.current.filter(s => s.operation_satisfaction !== null).length || 0
-    };
-
-    const previousYearAvg = {
-      instructor: yearlyComparison.previous
-        .filter(s => s.instructor_satisfaction !== null)
-        .reduce((sum, s) => sum + (s.instructor_satisfaction || 0), 0) / 
-        yearlyComparison.previous.filter(s => s.instructor_satisfaction !== null).length || 0,
-      course: yearlyComparison.previous
-        .filter(s => s.course_satisfaction !== null)
-        .reduce((sum, s) => sum + (s.course_satisfaction || 0), 0) / 
-        yearlyComparison.previous.filter(s => s.course_satisfaction !== null).length || 0,
-      operation: yearlyComparison.previous
-        .filter(s => s.operation_satisfaction !== null)
-        .reduce((sum, s) => sum + (s.operation_satisfaction || 0), 0) / 
-        yearlyComparison.previous.filter(s => s.operation_satisfaction !== null).length || 0
-    };
-
-    return [
-      {
-        category: '강사 만족도',
-        [`${selectedYear}년`]: Number(currentYearAvg.instructor.toFixed(1)),
-        [`${selectedYear - 1}년`]: Number(previousYearAvg.instructor.toFixed(1))
-      },
-      {
-        category: '과정 만족도',
-        [`${selectedYear}년`]: Number(currentYearAvg.course.toFixed(1)),
-        [`${selectedYear - 1}년`]: Number(previousYearAvg.course.toFixed(1))
-      },
-      {
-        category: '운영 만족도',
-        [`${selectedYear}년`]: Number(currentYearAvg.operation.toFixed(1)),
-        [`${selectedYear - 1}년`]: Number(previousYearAvg.operation.toFixed(1))
-      }
-    ];
-  })();
-
   const openDrillDown = (type: 'instructor' | 'course' | 'operation') => {
     const titles = {
       instructor: '강사 만족도',
@@ -236,594 +180,184 @@ const CourseReports = () => {
     setDrillDownModal({ isOpen: true, type, title: titles[type] });
   };
 
-  if (loading) {
-    return (
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AdminSidebar />
-          <main className="flex-1 flex flex-col">
-            <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-              <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger />
-                  <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                    <BarChart3 className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">과정별 분석</h1>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                      {isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                  <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
-                </div>
-              </div>
-            </header>
-            <div className="flex-1 flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">데이터를 불러오는 중...</p>
-              </div>
-            </div>
-          </main>
-        </div>
-      </SidebarProvider>
-    );
-  }
-
-  // ✅ AreaChart X축 키를 데이터에서 자동 추출(시리즈 키 제외)
-  const areaXKey =
-    trendData.length > 0
-      ? Object.keys(trendData[0]).find(k => !['강사만족도', '과정만족도', '운영만족도', 'value'].includes(k)) || 'name'
-      : 'name';
+  const actions = currentReport ? (
+    <Button onClick={handlePDFExport} variant="outline" size="sm">
+      <Download className="h-4 w-4 mr-2" />
+      PDF 내보내기
+    </Button>
+  ) : null;
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AdminSidebar />
-        
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-            <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+    <AdminLayout
+      title="과정별 분석"
+      subtitle={isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
+      icon={<BarChart3 className="h-5 w-5 text-white" />}
+      actions={actions}
+      loading={loading}
+    >
+      <div className="space-y-6">
+        {/* 권한별 알림 섹션 */}
+        {isInstructor && (
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <SidebarTrigger />
-                <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                  <BarChart3 className="h-5 w-5 text-primary-foreground" />
-                </div>
+                <User className="h-5 w-5 text-blue-600" />
                 <div>
-                  <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">과정별 분석</h1>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    {isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
+                  <h3 className="font-medium text-blue-900">개인 과정 분석</h3>
+                  <p className="text-sm text-blue-700">
+                    회원님이 담당하신 과정들의 만족도 결과만 표시됩니다.
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {currentReport && (
-                  <Button onClick={handlePDFExport} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    PDF 내보내기
-                  </Button>
-                )}
-                <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
-              </div>
-            </div>
-          </header>
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Content */}
-          <div className="flex-1 container mx-auto px-4 py-6 space-y-6">
-            {/* 권한별 알림 섹션 */}
-            {isInstructor && (
-              <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <User className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <h3 className="font-medium text-blue-900">개인 과정 분석</h3>
-                      <p className="text-sm text-blue-700">
-                        회원님이 담당하신 과정들의 만족도 결과만 표시됩니다.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {isAdmin && (
-              <Card className="border-green-200 bg-green-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Crown className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h3 className="font-medium text-green-900">전체 과정 분석</h3>
-                      <p className="text-sm text-green-700">
-                        모든 강사의 과정 결과를 확인하고 비교 분석할 수 있습니다.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 강사가 데이터가 없을 때 */}
-            {isInstructor && instructorId && reports.length === 0 && !loading && (
-              <Card className="border-orange-200 bg-orange-50">
-                <CardContent className="p-6 text-center">
-                  <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-                  <h3 className="font-medium text-orange-900 mb-2">설문 데이터가 없습니다</h3>
-                  <p className="text-sm text-orange-700 mb-4">
-                    아직 담당하신 과정의 설문 결과가 없습니다.
+        {isAdmin && (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Crown className="h-5 w-5 text-green-600" />
+                <div>
+                  <h3 className="font-medium text-green-900">전체 과정 분석</h3>
+                  <p className="text-sm text-green-700">
+                    모든 강사의 과정 결과를 확인하고 비교 분석할 수 있습니다.
                   </p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/dashboard/templates')}
-                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
-                  >
-                    설문 템플릿 관리로 이동
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-xl p-6 border border-primary/20">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-                    <TrendingUp className="h-4 w-4 text-white" />
-                  </div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                    {isInstructor ? '개인 과정별 운영 결과' : '과정별 운영 결과 보고'}
-                  </h1>
                 </div>
               </div>
-              <p className="text-muted-foreground">
-                {isInstructor 
-                  ? '내가 담당한 과정별 종합적인 만족도 조사 결과를 확인할 수 있습니다.'
-                  : '과정별 종합적인 만족도 조사 결과와 강사별 통계를 확인할 수 있습니다.'
-                }
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 강사가 데이터가 없을 때 */}
+        {isInstructor && instructorId && reports.length === 0 && !loading && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="p-6 text-center">
+              <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+              <h3 className="font-medium text-orange-900 mb-2">설문 데이터가 없습니다</h3>
+              <p className="text-sm text-orange-700 mb-4">
+                아직 담당하신 과정의 설문 결과가 없습니다.
               </p>
-            </div>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/dashboard/templates')}
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+              >
+                설문 템플릿 관리로 이동
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-            {/* 필터 */}
-            <CourseSelector
-              selectedYear={selectedYear}
-              selectedCourse={selectedCourse}
-              selectedRound={selectedRound}
-              selectedInstructor={selectedInstructor}
-              availableCourses={availableCourses}
-              availableRounds={availableRounds}
-              availableInstructors={isInstructor ? [] : availableInstructors}
-              years={years}
-              onYearChange={(value) => setSelectedYear(Number(value))}
-              onCourseChange={setSelectedCourse}
-              onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
-              onInstructorChange={setSelectedInstructor}
-            />
+        {/* 필터 */}
+        <CourseSelector
+          selectedYear={selectedYear}
+          selectedCourse={selectedCourse}
+          selectedRound={selectedRound}
+          selectedInstructor={selectedInstructor}
+          availableCourses={availableCourses}
+          availableRounds={availableRounds}
+          availableInstructors={isInstructor ? [] : availableInstructors}
+          years={years}
+          onYearChange={(value) => setSelectedYear(Number(value))}
+          onCourseChange={setSelectedCourse}
+          onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
+          onInstructorChange={setSelectedInstructor}
+        />
 
-            {currentReport ? (
-              <>
-                {/* 1. 상단 KPI 카드 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <Card className="relative overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <BookOpen className="h-8 w-8 text-primary" />
-                        {surveyChange && (
-                          <div className={`flex items-center gap-1 text-sm ${surveyChange.change > 0 ? 'text-green-600' : surveyChange.change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                            {surveyChange.change > 0 ? <TrendingUp className="h-4 w-4" /> : 
-                             surveyChange.change < 0 ? <TrendingDown className="h-4 w-4" /> : 
-                             <Minus className="h-4 w-4" />}
-                            {surveyChange.percentage.toFixed(1)}%
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{isInstructor ? '내 설문 수' : '총 설문 수'}</p>
-                      <p className="text-3xl font-bold text-primary">{currentReport.total_surveys}</p>
-                    </CardContent>
-                  </Card>
+        {/* 메인 통계 카드들 */}
+        {currentReport && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">총 설문</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currentReport.total_surveys}</div>
+                <p className="text-xs text-muted-foreground">
+                  진행된 설문 수
+                </p>
+              </CardContent>
+            </Card>
 
-                  <Card className="relative overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <Target className="h-8 w-8 text-green-600" />
-                        {responseChange && (
-                          <div className={`flex items-center gap-1 text-sm ${responseChange.change > 0 ? 'text-green-600' : responseChange.change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                            {responseChange.change > 0 ? <TrendingUp className="h-4 w-4" /> : 
-                             responseChange.change < 0 ? <TrendingDown className="h-4 w-4" /> : 
-                             <Minus className="h-4 w-4" />}
-                            {responseChange.percentage.toFixed(1)}%
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{isInstructor ? '내 응답 수' : '총 응답 수'}</p>
-                      <p className="text-3xl font-bold text-green-600">{currentReport.total_responses}</p>
-                      <p className="text-xs text-muted-foreground">응답률 {responseRate.toFixed(1)}%</p>
-                    </CardContent>
-                  </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">총 응답</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currentReport.total_responses}</div>
+                <p className="text-xs text-muted-foreground">
+                  수집된 응답 수
+                </p>
+              </CardContent>
+            </Card>
 
-                  <Card className="relative overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <Star className="h-8 w-8 text-purple-600" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">{isInstructor ? '참여 강사' : '참여 강사 수'}</p>
-                      <p className="text-3xl font-bold text-purple-600">{isInstructor ? '본인' : (currentReport.report_data?.instructor_count || 0)}</p>
-                    </CardContent>
-                  </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">강사 만족도</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currentReport.avg_instructor_satisfaction.toFixed(1)}</div>
+                <p className="text-xs text-muted-foreground">평균 만족도</p>
+              </CardContent>
+            </Card>
 
-                  <Card className="relative overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <TrendingUp className="h-8 w-8 text-orange-600" />
-                        {instructorChange && (
-                          <div className={`flex items-center gap-1 text-sm ${instructorChange.change > 0 ? 'text-green-600' : instructorChange.change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                            {instructorChange.change > 0 ? <TrendingUp className="h-4 w-4" /> : 
-                             instructorChange.change < 0 ? <TrendingDown className="h-4 w-4" /> : 
-                             <Minus className="h-4 w-4" />}
-                            {instructorChange.change > 0 ? '+' : ''}{instructorChange.change.toFixed(1)}
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{isInstructor ? '내 평균 점수' : '전체 평균 점수'}</p>
-                      <p className="text-3xl font-bold text-orange-600">{overallSatisfaction.toFixed(1)}</p>
-                      <p className="text-xs text-muted-foreground">/ 10.0</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* 2. 이번 차수 결과 요약 - 막대/에리어 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>이번 차수 영역별 만족도</CardTitle>
-                      <CardDescription>강사, 과정, 운영 만족도 현황</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <ReBarChart data={currentRoundData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
-                          <XAxis 
-                            dataKey="name" 
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                            axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                          />
-                          <YAxis 
-                            domain={[0, 10]}
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                            axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                          />
-                          <Tooltip 
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                              color: 'hsl(var(--card-foreground))'
-                            }}
-                          />
-                          <Bar dataKey="value" name="만족도" radius={[4, 4, 0, 0]} />
-                        </ReBarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-
-                  {trendData.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>최근 5개 차수 만족도 추이</CardTitle>
-                        <CardDescription>차수별 만족도 변화 트렌드</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <ReAreaChart data={trendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
-                            <XAxis 
-                              dataKey={areaXKey}
-                              tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                              axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                            />
-                            <YAxis 
-                              domain={[0, 10]}
-                              tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                              axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                            />
-                            <Tooltip 
-                              contentStyle={{
-                                backgroundColor: 'hsl(var(--card))',
-                                border: '1px solid hsl(var(--border))',
-                                borderRadius: '8px',
-                                color: 'hsl(var(--card-foreground))'
-                              }}
-                            />
-                            <Legend />
-                            <Area type="monotone" dataKey="강사만족도" name="강사만족도" fill="hsl(var(--primary))" stroke="hsl(var(--primary))" />
-                            <Area type="monotone" dataKey="과정만족도" name="과정만족도" fill="hsl(var(--primary) / 0.8)" stroke="hsl(var(--primary) / 0.8)" />
-                            <Area type="monotone" dataKey="운영만족도" name="운영만족도" fill="hsl(var(--primary) / 0.6)" stroke="hsl(var(--primary) / 0.6)" />
-                          </ReAreaChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-
-                {/* 3. 영역별 Drill-down 카드 */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown('instructor')}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">강사 만족도</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-3xl font-bold text-blue-600">{currentReport.avg_instructor_satisfaction.toFixed(1)}</span>
-                        <SatisfactionStatusBadge score={currentReport.avg_instructor_satisfaction} />
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full">
-                        세부 보기
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown('course')}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">과정 만족도</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-3xl font-bold text-green-600">{currentReport.avg_course_satisfaction.toFixed(1)}</span>
-                        <SatisfactionStatusBadge score={currentReport.avg_course_satisfaction} />
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full">
-                        세부 보기
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => openDrillDown('operation')}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">운영 만족도</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-3xl font-bold text-amber-600">{(currentReport.report_data?.operation_satisfaction || 0).toFixed(1)}</span>
-                        <SatisfactionStatusBadge score={currentReport.report_data?.operation_satisfaction || 0} />
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full">
-                        세부 보기
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* 4. 강사 만족도 트렌드 (막대) */}
-                {instructorTrendData.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{isInstructor ? '내 과정별 만족도 트렌드' : '강사 만족도 트렌드'}</CardTitle>
-                      <CardDescription>{isInstructor ? '내가 담당한 과정별 만족도 평가' : '강사별 만족도 평가 비교 현황'}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={400}>
-                        <ReBarChart data={instructorTrendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
-                          <XAxis 
-                            dataKey="name" 
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                            axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                          />
-                          <YAxis 
-                            domain={[0, 10]}
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                            axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                          />
-                          <Tooltip 
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                              color: 'hsl(var(--card-foreground))'
-                            }}
-                          />
-                          <Legend />
-                          <Bar 
-                            dataKey="만족도" 
-                            name="평균 만족도"
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </ReBarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 전년도 대비 분석 */}
-                {yearlyComparisonData.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>전년도 대비 만족도 비교</CardTitle>
-                      <CardDescription>{selectedYear}년 vs {selectedYear - 1}년 만족도 변화 추이</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={400}>
-                        <ReBarChart data={yearlyComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
-                          <XAxis 
-                            dataKey="category" 
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                            axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                          />
-                          <YAxis 
-                            domain={[0, 10]}
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                            axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
-                          />
-                          <Tooltip 
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                              color: 'hsl(var(--card-foreground))'
-                            }}
-                          />
-                          <Legend />
-                          <Bar 
-                            dataKey={`${selectedYear}년`} 
-                            name={`${selectedYear}년`}
-                            radius={[4, 4, 0, 0]}
-                          />
-                          <Bar 
-                            dataKey={`${selectedYear - 1}년`} 
-                            name={`${selectedYear - 1}년`}
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </ReBarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 5. 응답자 분석 영역 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>응답자 분포</CardTitle>
-                      <CardDescription>설문 응답자 구성</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {currentReport ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                          <RePieChart>
-                            <Pie
-                              data={[
-                                { name: '교육생', value: Math.round(currentReport.total_responses * 0.8) },
-                                { name: '강사', value: Math.round(currentReport.total_responses * 0.15) },
-                                { name: '운영자', value: Math.round(currentReport.total_responses * 0.05) }
-                              ]}
-                              dataKey="value"
-                              nameKey="name"
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={100}
-                              label={({ name, value }) => `${name}: ${value}`}
-                            >
-                              {['hsl(var(--primary))', 'hsl(var(--primary) / 0.7)', 'hsl(var(--primary) / 0.4)'].map((fill, i) => (
-                                <Cell key={i} fill={fill} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                          </RePieChart>
-                        </ResponsiveContainer>
-                      ) : null}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>응답률 분석</CardTitle>
-                      <CardDescription>예상 인원 대비 실제 응답률</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <ReBarChart data={[
-                          { name: '예상 응답', value: currentReport ? currentReport.total_surveys * 20 : 0, type: '예상' },
-                          { name: '실제 응답', value: currentReport ? currentReport.total_responses : 0, type: '실제' }
-                        ]}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground) / 0.3)" />
-                          <XAxis 
-                            dataKey="name" 
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                          />
-                          <YAxis 
-                            tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                          />
-                          <Tooltip />
-                          <Bar dataKey="value" radius={[4, 4, 0, 0]} />
-                        </ReBarChart>
-                      </ResponsiveContainer>
-                      <p className="text-center text-sm text-muted-foreground mt-2">
-                        응답률: {responseRate.toFixed(1)}%
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* 6. 서술형 응답 요약 */}
-                <KeywordCloud textualResponses={textualResponses} />
-
-                {/* 7. 종합 요약 */}
-                <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
-                  <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">{isInstructor ? '개인 종합 만족도 평가' : '종합 만족도 평가'}</CardTitle>
-                    <CardDescription>{isInstructor ? '내 담당 과정 종합 점수' : '전체 영역 종합 점수'}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-center space-y-6">
-                    <div className="flex items-center justify-center gap-4">
-                      <span className="text-6xl font-bold text-primary">{overallSatisfaction.toFixed(1)}</span>
-                      <div className="text-left">
-                        <p className="text-sm text-muted-foreground">/ 10.0</p>
-                        <SatisfactionStatusBadge score={overallSatisfaction} />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground">강사</p>
-                        <p className="text-xl font-bold text-blue-600">{currentReport.avg_instructor_satisfaction.toFixed(1)}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground">과정</p>
-                        <p className="text-xl font-bold text-green-600">{currentReport.avg_course_satisfaction.toFixed(1)}</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground">운영</p>
-                        <p className="text-xl font-bold text-amber-600">{(currentReport.report_data?.operation_satisfaction || 0).toFixed(1)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* 강사별 통계 (관리자만 표시) */}
-                {!isInstructor && instructorStats.length > 0 && (
-                  <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 border rounded-lg">
-                    <InstructorStatsSection
-                      instructorStats={instructorStats}
-                      onInstructorClick={handleInstructorClick}
-                    />
-                  </div>
-                )}
-              </>
-            ) : (
-              <Card className="text-center py-12">
-                <CardContent>
-                  <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">데이터 없음</h3>
-                  <p className="text-muted-foreground">
-                    {availableCourses.length === 0 
-                      ? (isInstructor ? "담당하신 과정의 완료된 설문이 없습니다." : "선택한 연도에 완료된 설문이 없습니다.") 
-                      : "과정을 선택하여 결과를 확인하세요."}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 드릴다운 모달 */}
-            <DrillDownModal
-              isOpen={drillDownModal.isOpen}
-              onClose={() => setDrillDownModal({ ...drillDownModal, isOpen: false })}
-              title={drillDownModal.title}
-              type={drillDownModal.type}
-              instructorStats={instructorStats}
-              textualResponses={textualResponses}
-            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">과정 만족도</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currentReport.avg_course_satisfaction.toFixed(1)}</div>
+                <p className="text-xs text-muted-foreground">평균 만족도</p>
+              </CardContent>
+            </Card>
           </div>
-        </main>
+        )}
+
+        {/* 만족도 차트 */}
+        {satisfactionChartData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>만족도 분석</CardTitle>
+              <CardDescription>영역별 만족도 비교</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <ReBarChart data={satisfactionChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis domain={[0, 5]} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" />
+                </ReBarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 강사 통계 섹션 */}
+        {!isInstructor && instructorStats.length > 0 && (
+          <InstructorStatsSection
+            instructorStats={instructorStats}
+            onInstructorClick={handleInstructorClick}
+          />
+        )}
+
+        {/* 드릴다운 모달 */}
+        <DrillDownModal
+          isOpen={drillDownModal.isOpen}
+          onClose={() => setDrillDownModal({ ...drillDownModal, isOpen: false })}
+          title={drillDownModal.title}
+          type={drillDownModal.type}
+          instructorStats={instructorStats}
+          textualResponses={textualResponses}
+        />
       </div>
-    </SidebarProvider>
+    </AdminLayout>
   );
 };
 

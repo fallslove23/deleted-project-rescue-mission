@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DefaultRedirect from "@/components/DefaultRedirect";
-import { SidebarProvider } from "@/components/ui/sidebar";
+
 
 // pages
 import Index from "./pages/Index";
@@ -37,24 +37,8 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// SidebarProvider가 필요하지 않은 경로들
-const NO_SIDEBAR_PATHS = [
-  '/auth',
-  '/change-password',
-  '/survey/',
-  '/404',
-  '*'
-];
-
 function AppContent() {
   const location = useLocation();
-  
-  // 현재 경로가 사이드바가 필요하지 않은 경로인지 확인
-  const needsSidebar = !NO_SIDEBAR_PATHS.some(path => {
-    if (path === '*') return location.pathname === '/404' || !location.pathname.startsWith('/');
-    if (path.endsWith('/')) return location.pathname.startsWith(path);
-    return location.pathname === path;
-  });
 
   const routes = (
     <Routes>
@@ -328,12 +312,7 @@ function AppContent() {
     </Routes>
   );
 
-  // 조건부로 SidebarProvider 적용
-  return needsSidebar ? (
-    <SidebarProvider>{routes}</SidebarProvider>
-  ) : (
-    routes
-  );
+  return routes;
 }
 
 const App = () => (

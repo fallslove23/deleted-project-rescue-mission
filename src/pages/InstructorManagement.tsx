@@ -601,7 +601,7 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
 
   if (loading) {
     return (
-      <AdminLayout>
+      <AdminLayout title="강사 관리" subtitle="강사 정보 등록 및 관리">
         <div className="flex items-center justify-center py-8">
           <div>로딩중...</div>
         </div>
