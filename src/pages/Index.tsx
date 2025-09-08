@@ -82,21 +82,10 @@ const Index = () => {
         setAllSurveys([]);
         setSurveys([]);
       } else {
-        // 현재 시간 기준으로 유효한 설문만 필터링
-        const now = new Date();
-        const activeSurveys = (surveyData || []).filter(survey => {
-          const startDate = survey.start_date ? new Date(survey.start_date) : null;
-          const endDate = survey.end_date ? new Date(survey.end_date) : null;
-          
-          // 시작일이 없거나 이미 시작되었고, 종료일이 없거나 아직 종료되지 않은 설문
-          const isStarted = !startDate || now >= startDate;
-          const isNotEnded = !endDate || now <= endDate;
-          
-          return isStarted && isNotEnded;
-        });
-        
-        setAllSurveys(activeSurveys);
-        setSurveys(activeSurveys);
+        // 설문 데이터를 바로 표시 (시간 필터링 제거)
+        const surveysWithRelations = surveyData || [];
+        setAllSurveys(surveysWithRelations);
+        setSurveys(surveysWithRelations);
       }
 
       // 과정 데이터 조회 (선택사항)
@@ -288,12 +277,14 @@ const Index = () => {
           {surveys.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-lg font-sans">
-                {selectedCourse === 'all' 
-                  ? '현재 진행중인 설문조사가 없습니다.' 
-                  : '선택한 과정에 진행중인 설문조사가 없습니다.'
+                {loading 
+                  ? '설문을 불러오는 중입니다...'
+                  : selectedCourse === 'all' 
+                    ? '현재 진행중인 설문조사가 없습니다.' 
+                    : '선택한 과정에 진행중인 설문조사가 없습니다.'
                 }
               </p>
-              {selectedCourse !== 'all' && (
+              {!loading && selectedCourse !== 'all' && (
                 <Button 
                   variant="outline" 
                   onClick={() => setSelectedCourse('all')}
@@ -301,6 +292,18 @@ const Index = () => {
                 >
                   전체 설문 보기
                 </Button>
+              )}
+              {!loading && surveys.length === 0 && allSurveys.length === 0 && (
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <p>설문 데이터를 불러올 수 없습니다.</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.location.reload()}
+                    className="mt-2"
+                  >
+                    페이지 새로고침
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
