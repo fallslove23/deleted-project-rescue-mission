@@ -66,20 +66,6 @@ export function AdminSidebar() {
         { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false },
         { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false }
       ]
-    },
-    {
-      title: "설문",
-      items: [
-        { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false }
-      ]
-    },
-    {
-      title: "관리",
-      items: [
-        { title: "설문관리", url: "/surveys-v2", icon: FileText, exact: false },
-        { title: "템플릿관리", url: "/dashboard/templates", icon: FileText, exact: false },
-        { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck, exact: false }
-      ]
     }
   ];
 
