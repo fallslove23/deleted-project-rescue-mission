@@ -598,6 +598,14 @@ export default function SurveyManagementV2() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => navigate(`/survey-preview/${survey.id}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      미리보기
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
                     >
                       <BarChart className="h-4 w-4 mr-1" />
