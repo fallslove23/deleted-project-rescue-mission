@@ -362,7 +362,6 @@ export default function SurveyBuilder() {
       loading={loading}
       actions={desktopActions}
       mobileActions={mobileActions}
-      onRefresh={reloadAll}
     >
       {/* ✅ AdminLayout이 padding/컨테이너를 제공하므로 내부는 바로 내용 */}
       {!survey && !loading ? (

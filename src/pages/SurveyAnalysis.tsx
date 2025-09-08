@@ -459,7 +459,6 @@ const SurveyAnalysis = () => {
       totalCount={filteredSurveys.length}
       actions={desktopActions}
       mobileActions={mobileActions}
-      onRefresh={reloadAll}
       loading={loading}
     >
       <div className="space-y-6">

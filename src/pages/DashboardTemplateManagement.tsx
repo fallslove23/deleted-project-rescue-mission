@@ -130,7 +130,6 @@ const DashboardTemplateManagement = () => {
       icon={<FileText className="h-5 w-5 text-white" />}
       actions={actions}
       loading={loading}
-      onRefresh={fetchTemplates}
       totalCount={templates.length}
     >
       <div className="space-y-6">

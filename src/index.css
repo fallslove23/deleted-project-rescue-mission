@@ -78,11 +78,11 @@ All colors MUST be HSL.
 
     /* 사이드바 색상 변수 - HSL 형식으로 올바르게 정의 */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 260 65% 25%;
+    --sidebar-foreground: 215 25% 27%;
     --sidebar-primary: 263 70% 50.4%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 260 40% 96%;
-    --sidebar-accent-foreground: 260 75% 20%;
+    --sidebar-accent-foreground: 215 30% 20%;
     --sidebar-border: 260 15% 90%;
     --sidebar-ring: 263 70% 50.4%;
   }

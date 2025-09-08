@@ -615,7 +615,6 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
       subtitle="강사 정보 및 계정 관리"
       totalCount={filteredInstructors.length}
       loading={loading}
-      onRefresh={fetchData}
       actions={[
         <Button
           key="add"

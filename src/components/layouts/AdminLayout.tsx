@@ -14,7 +14,6 @@ export interface AdminLayoutProps {
   actions?: React.ReactNode | React.ReactNode[];
   desktopActions?: React.ReactNode | React.ReactNode[];
   mobileActions?: React.ReactNode | React.ReactNode[];
-  onRefresh?: () => void;
   loading?: boolean;
   icon?: React.ReactNode;
   hideGlobalNav?: boolean;
@@ -35,7 +34,6 @@ export default function AdminLayout(props: AdminLayoutProps) {
     actions,
     desktopActions,
     mobileActions,
-    onRefresh,
     loading = false,
     icon,
     hideGlobalNav = false,
@@ -48,24 +46,7 @@ export default function AdminLayout(props: AdminLayoutProps) {
   const renderActions = () => {
     const elements: React.ReactNode[] = [];
 
-    if (onRefresh) {
-      elements.push(
-        <Button
-          key="refresh"
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onRefresh();
-          }}
-          disabled={loading}
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          새로고침
-        </Button>
-      );
-    }
+    // 새로고침 버튼 제거 - 글로벌 네비게이션에서 표시하지 않음
 
     desktopActionItems.forEach((action, index) => {
       elements.push(<div key={`action-${index}`}>{action}</div>);

@@ -475,7 +475,6 @@ const PersonalDashboard: FC = () => {
       totalCount={surveys.length}
       actions={desktopActions}
       mobileActions={mobileActions}
-      onRefresh={refreshAll}
       loading={loading}
     >
       <div className="space-y-6">

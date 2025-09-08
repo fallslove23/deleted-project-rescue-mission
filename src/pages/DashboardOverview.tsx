@@ -79,8 +79,6 @@ const DashboardOverview: React.FC = () => {
       title="관리자 대시보드"
       description={isAdmin ? "시스템 관리자" : "강사"}
       loading={busy}
-      onRefresh={fetchStats} // ✅ 이 버튼만 노출되도록
-      // desktopActions / mobileActions 넘기지 않음 → 중복 제거
     >
       <div className="space-y-6">
         {/* 주요 통계 카드 */}

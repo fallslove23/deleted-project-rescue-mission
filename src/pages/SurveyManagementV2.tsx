@@ -474,7 +474,6 @@ export default function SurveyManagementV2() {
       subtitle="전체 설문 결과 관리 및 통계 확인할 수 있습니다"
       totalCount={totalCount}
       loading={loading}
-      onRefresh={loadData}
       actions={[
         <Button
           key="csv"
