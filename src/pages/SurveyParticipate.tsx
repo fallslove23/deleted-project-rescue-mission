@@ -56,6 +56,7 @@ interface Question {
   order_index: number;
   section_id?: string | null;
   session_id?: string | null;
+  satisfaction_type?: string | null;
   scope: 'session' | 'operation';
 }
 
@@ -103,6 +104,7 @@ const SurveyParticipate = () => {
   const [sessionAnswers, setSessionAnswers] = useState<SessionAnswer[]>([]);
   const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
+  const [currentQuestionInstructor, setCurrentQuestionInstructor] = useState<Instructor | null>(null);
   const [tokenCode, setTokenCode] = useState('');
   const [needsToken, setNeedsToken] = useState(false);
   const [tokenValidated, setTokenValidated] = useState(false);
@@ -154,6 +156,57 @@ const SurveyParticipate = () => {
     checkAccess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId, session, sessionLoading, searchParams]);
+
+  // 현재 질문의 강사 정보 업데이트
+  useEffect(() => {
+    const updateCurrentQuestionInstructor = async () => {
+      const currentQuestion = questions[currentStep];
+      if (!currentQuestion) {
+        setCurrentQuestionInstructor(null);
+        return;
+      }
+
+      // 강사 만족도 질문이고 session_id가 있는 경우
+      if (currentQuestion.satisfaction_type === 'instructor' && currentQuestion.session_id) {
+        // 세션의 강사 정보 가져오기
+        try {
+          const { data: sessionData } = await supabase
+            .from('survey_sessions')
+            .select(`
+              instructor_id,
+              instructors (
+                id,
+                name,
+                email,
+                photo_url,
+                bio
+              )
+            `)
+            .eq('id', currentQuestion.session_id)
+            .maybeSingle();
+
+          if (sessionData?.instructors) {
+            setCurrentQuestionInstructor(sessionData.instructors as Instructor);
+          } else {
+            setCurrentQuestionInstructor(null);
+          }
+        } catch (error) {
+          console.error('Error fetching session instructor:', error);
+          setCurrentQuestionInstructor(null);
+        }
+      } 
+      // 강사 만족도 질문이지만 세션별 강사가 없는 경우 기본 강사 사용
+      else if (currentQuestion.satisfaction_type === 'instructor' && instructor) {
+        setCurrentQuestionInstructor(instructor);
+      } 
+      // 강사 만족도 질문이 아니면 null
+      else {
+        setCurrentQuestionInstructor(null);
+      }
+    };
+
+    updateCurrentQuestionInstructor();
+  }, [currentStep, questions, instructor]);
 
   const handleTokenSubmit = async () => {
     if (!tokenCode.trim() || !surveyId) return;
@@ -219,7 +272,20 @@ const SurveyParticipate = () => {
 
       const { data: questionsData } = await supabase
         .from('survey_questions')
-        .select('*')
+        .select(`
+          *,
+          survey_sessions (
+            id,
+            instructor_id,
+            instructors (
+              id,
+              name,
+              email,
+              photo_url,
+              bio
+            )
+          )
+        `)
         .eq('survey_id', surveyId)
         .order('order_index');
       
@@ -558,10 +624,10 @@ const SurveyParticipate = () => {
           <Progress value={progress} className="h-2" />
         </div>
 
-        {/* 강사 정보 섹션 - 강의 평가 설문일 때 상단에 표시 */}
-        {isCourseEvaluation && instructor && (
+        {/* 강사 정보 섹션 - 강사 만족도 질문일 때만 동적으로 표시 */}
+        {currentQuestionInstructor && (
           <div className="mb-6">
-            <InstructorInfoSection instructor={instructor} />
+            <InstructorInfoSection instructor={currentQuestionInstructor} />
           </div>
         )}
 
