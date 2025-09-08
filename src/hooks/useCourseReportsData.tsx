@@ -168,7 +168,7 @@ export const useCourseReportsData = (
   };
 
   const fetchReports = async () => {
-    if (!selectedCourse && !selectedRound && !selectedInstructor) return;
+    // 초기 로딩 시에도 모든 데이터를 가져오도록 수정
     
     setLoading(true);
     try {

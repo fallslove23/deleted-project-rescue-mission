@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts';
-import { TrendingUp, Download, Star, Target, Minus, BookOpen, User, Crown, AlertCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, Download, Star, Target, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, Area, AreaChart, PieChart, Pie, Cell,
+  LineChart, Line
 } from 'recharts';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useState } from 'react';
@@ -48,6 +47,18 @@ const DashboardCourseReports = () => {
     fetchAvailableCourses,
     fetchReports,
   } = useCourseReportsData(selectedYear, selectedCourse, selectedRound, selectedInstructor);
+
+  // 초기 데이터 로딩
+  useEffect(() => {
+    console.log('DashboardCourseReports: Initial data loading');
+    fetchAvailableCourses();
+  }, [selectedYear, fetchAvailableCourses]);
+
+  // 필터 변경 시 리포트 다시 가져오기
+  useEffect(() => {
+    console.log('DashboardCourseReports: Filters changed, fetching reports');
+    fetchReports();
+  }, [selectedYear, selectedCourse, selectedRound, selectedInstructor, fetchReports]);
 
   const handleInstructorClick = (instructorId: string) => {
     setSelectedInstructor(instructorId);
@@ -158,24 +169,43 @@ const DashboardCourseReports = () => {
       loading={loading}
     >
       <div className="space-y-6">
+        {/* 로딩 상태 표시 */}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="text-lg">데이터를 불러오는 중...</div>
+          </div>
+        )}
+
         {/* 필터 */}
-        <CourseSelector
-          selectedYear={selectedYear}
-          selectedCourse={selectedCourse}
-          selectedRound={selectedRound}
-          selectedInstructor={selectedInstructor}
-          availableCourses={availableCourses}
-          availableRounds={availableRounds}
-          availableInstructors={isInstructor ? [] : availableInstructors}
-          years={years}
-          onYearChange={(value) => setSelectedYear(Number(value))}
-          onCourseChange={setSelectedCourse}
-          onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
-          onInstructorChange={setSelectedInstructor}
-        />
+        {!loading && (
+          <CourseSelector
+            selectedYear={selectedYear}
+            selectedCourse={selectedCourse}
+            selectedRound={selectedRound}
+            selectedInstructor={selectedInstructor}
+            availableCourses={availableCourses}
+            availableRounds={availableRounds}
+            availableInstructors={isInstructor ? [] : availableInstructors}
+            years={years}
+            onYearChange={(value) => setSelectedYear(Number(value))}
+            onCourseChange={setSelectedCourse}
+            onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
+            onInstructorChange={setSelectedInstructor}
+          />
+        )}
+
+        {/* 데이터가 없을 때 안내 메시지 */}
+        {!loading && availableCourses.length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-lg text-muted-foreground">설문 데이터가 없습니다.</div>
+            <div className="text-sm text-muted-foreground mt-2">
+              {selectedYear}년도에 완료된 설문이 없습니다. 다른 연도를 선택해보세요.
+            </div>
+          </div>
+        )}
 
         {/* 기본 통계 카드 */}
-        {currentReport && (
+        {!loading && currentReport && (
           <CourseStatsCards
             totalSurveys={currentReport.total_surveys}
             totalResponses={currentReport.total_responses}
@@ -185,7 +215,7 @@ const DashboardCourseReports = () => {
         )}
 
         {/* 만족도 점수 카드 */}
-        {currentReport && (
+        {!loading && currentReport && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -247,7 +277,7 @@ const DashboardCourseReports = () => {
         )}
 
         {/* 차트 섹션 */}
-        {currentReport && (
+        {!loading && currentReport && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 만족도 비교 차트 */}
             <Card>
@@ -294,7 +324,7 @@ const DashboardCourseReports = () => {
         )}
 
         {/* 강사 통계 섹션 */}
-        {!isInstructor && instructorStats.length > 0 && (
+        {!loading && !isInstructor && instructorStats.length > 0 && (
           <InstructorStatsSection
             instructorStats={instructorStats}
             onInstructorClick={handleInstructorClick}
@@ -302,7 +332,7 @@ const DashboardCourseReports = () => {
         )}
 
         {/* 키워드 클라우드 */}
-        {textualResponses.length > 0 && (
+        {!loading && textualResponses.length > 0 && (
           <KeywordCloud textualResponses={textualResponses} />
         )}
 
