@@ -1,6 +1,6 @@
 // src/pages/CourseReports.tsx
 import React, { useState, useEffect } from 'react';
-import { AdminLayout } from '@/components/layouts';
+import { DashboardLayout } from '@/components/layouts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ResponsiveContainer,
@@ -188,7 +188,7 @@ const CourseReports = () => {
   ) : null;
 
   return (
-    <AdminLayout
+    <DashboardLayout
       title="과정별 분석"
       subtitle={isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
       icon={<BarChart3 className="h-5 w-5 text-white" />}
@@ -363,7 +363,7 @@ const CourseReports = () => {
           textualResponses={textualResponses}
         />
       </div>
-    </AdminLayout>
+    </DashboardLayout>
   );
 };
 

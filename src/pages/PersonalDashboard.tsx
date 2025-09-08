@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { FC } from 'react';
-import AdminLayout from '@/components/layouts/AdminLayout';
+
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -469,14 +469,19 @@ const PersonalDashboard: FC = () => {
 
   /* ─────────────────────────────────── Render ─────────────────────────────────── */
   return (
-    <AdminLayout
-      title="나의 만족도 통계"
-      subtitle="개인 강의 만족도 및 피드백 분석"
-      totalCount={surveys.length}
-      actions={desktopActions}
-      mobileActions={mobileActions}
-      loading={loading}
-    >
+    <div className="space-y-6">
+      {/* 액션 버튼들 */}
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">나의 만족도 통계</h1>
+          <p className="text-muted-foreground">개인 강의 만족도 및 피드백 분석 - 전체 {surveys.length}개</p>
+        </div>
+        <div className="flex gap-2">
+          {desktopActions.map((action, index) => (
+            <div key={index}>{action}</div>
+          ))}
+        </div>
+      </div>
       <div className="space-y-6">
         {!canViewPersonalStats ? (
           <div className="flex items-center justify-center py-20">
@@ -769,7 +774,7 @@ const PersonalDashboard: FC = () => {
           </>
         )}
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 

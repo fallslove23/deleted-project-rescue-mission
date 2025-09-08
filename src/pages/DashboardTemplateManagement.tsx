@@ -1,5 +1,5 @@
 import React from 'react';
-import { AdminLayout } from '@/components/layouts';
+import { DashboardLayout } from '@/components/layouts';
 import { FileText, Plus, Edit, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -124,7 +124,7 @@ const DashboardTemplateManagement = () => {
   );
 
   return (
-    <AdminLayout
+    <DashboardLayout
       title="템플릿 관리"
       subtitle="설문 템플릿 생성 및 관리"
       icon={<FileText className="h-5 w-5 text-white" />}
@@ -193,7 +193,7 @@ const DashboardTemplateManagement = () => {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </DashboardLayout>
   );
 };
 

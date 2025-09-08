@@ -24,7 +24,7 @@ import {
   Wand2,
 } from "lucide-react";
 
-import AdminLayout from "@/components/layouts/AdminLayout";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -442,34 +442,35 @@ export default function SurveyManagementV2() {
   // 로딩 UI
   if (loading) {
     return (
-      <AdminLayout title="설문 관리" subtitle="설문 생성 및 관리">
-        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-24" />
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">설문 관리</h1>
+            <p className="text-muted-foreground">설문 생성 및 관리</p>
           </div>
-          <div className="grid gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <Skeleton className="h-6 w-3/4 mb-4" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Skeleton className="h-10 w-24" />
         </div>
-      </AdminLayout>
+        <div className="grid gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-6 w-3/4 mb-4" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
     );
   }
 
   const q = filters.q ?? "";
 
   return (
-    <AdminLayout
+    <div className="space-y-6">
       title="설문 관리"
       subtitle="전체 설문 결과 관리 및 통계 확인할 수 있습니다"
       totalCount={totalCount}
@@ -481,7 +482,7 @@ export default function SurveyManagementV2() {
           size="sm"
           className="rounded-full px-3"
           onClick={exportCsvAll}
-        >
+      {/* 헤더와 액션 버튼들 */}
           <Download className="w-4 h-4 mr-1.5" />
           CSV
         </Button>,
@@ -950,6 +951,6 @@ export default function SurveyManagementV2() {
           />
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit, RefreshCcw } from "lucide-react";
 
-import AdminLayout from "@/components/layouts/AdminLayout"; // ✅ 기본 내보내기 사용
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import QuestionEditForm from "@/components/QuestionEditForm";
 import { SessionManager, SurveySession } from "@/components/SessionManager";
@@ -357,12 +357,15 @@ export default function SurveyBuilder() {
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + 1 - i);
 
   return (
-    <AdminLayout
-      title="설문 편집"
-      loading={loading}
-      actions={desktopActions}
-      mobileActions={mobileActions}
-    >
+    <div className="space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">설문 편집</h1>
+        <div className="flex gap-2">
+          {desktopActions.map((action, index) => (
+            <div key={index}>{action}</div>
+          ))}
+        </div>
+      </div>
       {/* ✅ AdminLayout이 padding/컨테이너를 제공하므로 내부는 바로 내용 */}
       {!survey && !loading ? (
         <div className="py-10 text-sm text-muted-foreground">해당 설문을 찾을 수 없습니다.</div>
@@ -703,6 +706,6 @@ export default function SurveyBuilder() {
           </Dialog>
         </div>
       )}
-    </AdminLayout>
+    </div>
   );
 }

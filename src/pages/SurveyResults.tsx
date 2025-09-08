@@ -34,7 +34,7 @@ import {
 } from '@/utils/csvExport';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
-import AdminLayout from "@/components/layouts/AdminLayout";
+
 
 interface Survey {
   id: string;
@@ -780,19 +780,24 @@ const SurveyResults = () => {
   );
 
   return (
-    <AdminLayout
-      title="설문 결과 분석"
-      subtitle={
-        canViewAll
-          ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다'
-          : instructor
-          ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다`
-          : '담당 강의의 설문조사 결과를 확인할 수 있습니다'
-      }
-      loading={loading}
-      actions={[<DesktopActions key="desktop-actions" />]}
-      mobileActions={[<MobileActions key="mobile-actions" />]}
-    >
+    <div className="space-y-6">
+      {/* 헤더 및 액션 */}
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">설문 결과 분석</h1>
+          <p className="text-muted-foreground">
+            {canViewAll
+              ? '전체 설문조사 결과 및 통계를 확인할 수 있습니다'
+              : instructor
+              ? `${instructor.name} 강사의 설문조사 결과를 확인할 수 있습니다`
+              : '담당 강의의 설문조사 결과를 확인할 수 있습니다'
+            }
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <DesktopActions />
+        </div>
+      </div>
       <div className="space-y-6">
         {/* 강사 정보 */}
         {isInstructor && instructor && (
@@ -1349,7 +1354,7 @@ const SurveyResults = () => {
           </Card>
         )}
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 
