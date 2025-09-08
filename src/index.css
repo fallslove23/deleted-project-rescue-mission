@@ -77,13 +77,13 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     /* 사이드바 색상 변수 - 가시성 확보를 위한 명확한 대비 */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 13% 18%;
+    --sidebar-background: 248 250 252;
+    --sidebar-foreground: 15 23 42;
     --sidebar-primary: 263 70% 50.4%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 260 15% 96%;
-    --sidebar-accent-foreground: 220 13% 18%;
-    --sidebar-border: 260 15% 92%;
+    --sidebar-accent: 241 245 249;
+    --sidebar-accent-foreground: 15 23 42;
+    --sidebar-border: 226 232 240;
     --sidebar-ring: 263 70% 50.4%;
   }
 
@@ -115,13 +115,13 @@ All colors MUST be HSL.
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 217.2 91.2% 59.8%;
-    --sidebar-background: 240 10% 12%;
-    --sidebar-foreground: 240 5% 92%;
+    --sidebar-background: 30 41 59;
+    --sidebar-foreground: 226 232 240;
     --sidebar-primary: 263 70% 50.4%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 10% 18%;
-    --sidebar-accent-foreground: 240 5% 96%;
-    --sidebar-border: 240 10% 20%;
+    --sidebar-accent: 51 65 85;
+    --sidebar-accent-foreground: 226 232 240;
+    --sidebar-border: 71 85 105;
     --sidebar-ring: 263 70% 50.4%;
   }
 }

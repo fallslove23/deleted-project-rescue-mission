@@ -85,11 +85,11 @@ export function AdminSidebar() {
   const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
 
   return (
-    <Sidebar className="bg-sidebar border-sidebar-border">
-      <SidebarContent className="bg-sidebar text-sidebar-foreground">
+    <Sidebar className="bg-sidebar border-sidebar-border shadow-sm">
+      <SidebarContent className="bg-sidebar">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="text-sidebar-foreground font-semibold text-xs uppercase tracking-wider">
+            <SidebarGroupLabel className="text-sidebar-foreground/80 font-semibold text-xs uppercase tracking-wider px-3 py-2">
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -101,15 +101,15 @@ export function AdminSidebar() {
                         to={item.url}
                         end={item.exact}
                         className={({ isActive }) =>
-                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                             isActive 
-                              ? 'bg-primary text-primary-foreground shadow-md' 
+                              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm' 
                               : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                           }`
                         }
                       >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <item.icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="font-medium">{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -122,7 +122,7 @@ export function AdminSidebar() {
         {/* 관리자 전용 - 뷰 테스트 섹션 */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-foreground font-semibold text-xs uppercase tracking-wider">
+            <SidebarGroupLabel className="text-sidebar-foreground/80 font-semibold text-xs uppercase tracking-wider px-3 py-2">
               뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-sidebar-primary text-sidebar-primary-foreground rounded">DEV</span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -130,18 +130,18 @@ export function AdminSidebar() {
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton className="w-full justify-between text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                      <SidebarMenuButton className="w-full justify-between text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200">
                         <div className="flex items-center gap-3">
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-4 w-4 flex-shrink-0" />
                           <span className="font-medium">뷰 선택</span>
                         </div>
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 bg-white border-sidebar-border">
+                    <DropdownMenuContent align="end" className="w-48 bg-popover border shadow-lg">
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/admin" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent text-sidebar-foreground"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-foreground px-2 py-1.5 rounded-sm transition-colors"
                         >
                           <LayoutDashboard className="h-4 w-4" />
                           관리자 뷰
@@ -150,7 +150,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/instructor" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent text-sidebar-foreground"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-foreground px-2 py-1.5 rounded-sm transition-colors"
                         >
                           <UserCheck className="h-4 w-4" />
                           강사 뷰
@@ -159,7 +159,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent text-sidebar-foreground"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-foreground px-2 py-1.5 rounded-sm transition-colors"
                         >
                           <Users className="h-4 w-4" />
                           교육생 뷰
