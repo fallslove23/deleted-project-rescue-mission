@@ -452,20 +452,25 @@ export default function SurveyManagementV2() {
     if (!deletingSurveyId) return;
     
     try {
+      // 단일 설문 삭제 또는 다중 설문 삭제 처리
+      const isMultiple = deletingSurveyId.includes(',');
+      const surveyIds = isMultiple ? deletingSurveyId.split(',') : [deletingSurveyId];
+      
       const { error } = await supabase
         .from('surveys')
         .delete()
-        .eq('id', deletingSurveyId);
+        .in('id', surveyIds);
       
       if (error) throw error;
       
       toast({
         title: "삭제 완료",
-        description: "설문이 성공적으로 삭제되었습니다."
+        description: `${surveyIds.length}개 설문이 성공적으로 삭제되었습니다.`
       });
       
       setDeleteOpen(false);
       setDeletingSurveyId(null);
+      setSelected(new Set()); // 선택 해제
       loadData();
     } catch (error) {
       console.error('Error deleting survey:', error);
@@ -511,6 +516,32 @@ export default function SurveyManagementV2() {
       title: "링크 복사됨",
       description: "설문 링크가 클립보드에 복사되었습니다."
     });
+  };
+
+  const handleBulkStatusChange = async (surveyIds: string[], newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({ status: newStatus })
+        .in('id', surveyIds);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "일괄 상태 변경 완료",
+        description: `${surveyIds.length}개 설문이 ${newStatus === 'active' ? '활성화' : '비활성화'}되었습니다.`
+      });
+      
+      setSelected(new Set());
+      loadData();
+    } catch (error) {
+      console.error('Error bulk updating survey status:', error);
+      toast({
+        title: "상태 변경 실패",
+        description: "설문 상태 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDuplicateSurvey = async (surveyId: string) => {
@@ -704,12 +735,113 @@ export default function SurveyManagementV2() {
           </Alert>
         )}
 
+        {/* 멀티 선택 플로팅 액션바 */}
+        {selected.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+            <Card className="shadow-lg border-2 border-primary/20 bg-background/95 backdrop-blur-sm">
+              <CardContent className="px-4 py-3">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">{selected.size}개 선택됨</span>
+                  </div>
+                  <div className="h-4 w-px bg-border" />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportCsvSelected}
+                      disabled={selected.size === 0}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      내보내기
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const selectedSurveys = surveys.filter(s => selected.has(s.id));
+                        const activeCount = selectedSurveys.filter(s => s.status === 'active').length;
+                        const inactiveCount = selectedSurveys.length - activeCount;
+                        
+                        // 대부분이 활성화된 경우 비활성화, 그렇지 않으면 활성화
+                        const newStatus = activeCount > inactiveCount ? 'draft' : 'active';
+                        handleBulkStatusChange(Array.from(selected), newStatus);
+                      }}
+                    >
+                      {surveys.filter(s => selected.has(s.id) && s.status === 'active').length > 
+                       surveys.filter(s => selected.has(s.id) && s.status !== 'active').length ? (
+                        <>
+                          <Pause className="h-4 w-4 mr-1" />
+                          일괄 비활성화
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-1" />
+                          일괄 활성화
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setDeletingSurveyId(Array.from(selected).join(','));
+                        setDeleteOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      삭제
+                    </Button>
+                  </div>
+                  <div className="h-4 w-px bg-border" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelected(new Set())}
+                  >
+                    선택 해제
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* 설문 목록 */}
         <Card>
           <CardContent className="p-6">
+            {/* 전체 선택 헤더 */}
+            <div className="flex items-center justify-between mb-4 pb-3 border-b">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleAll}
+                  className="h-8 w-8 p-0"
+                >
+                  <CheckSquare className={`h-4 w-4 ${allChecked ? 'text-primary' : 'text-muted-foreground'}`} />
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {selected.size > 0 ? `${selected.size}개 선택됨` : '전체 선택'}
+                </span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                총 {surveys.length}개 설문
+              </div>
+            </div>
+
             <div className="space-y-4">
               {surveys.map((survey) => (
-                <div key={survey.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={survey.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleOne(survey.id)}
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                  >
+                    <CheckSquare className={`h-4 w-4 ${selected.has(survey.id) ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </Button>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-medium">{survey.title}</h3>
@@ -861,7 +993,10 @@ export default function SurveyManagementV2() {
             <DialogHeader>
               <DialogTitle>설문 삭제</DialogTitle>
               <DialogDescription>
-                정말로 이 설문을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                {deletingSurveyId?.includes(',') 
+                  ? `선택한 ${deletingSurveyId.split(',').length}개 설문을 삭제하시겠습니까?`
+                  : '정말로 이 설문을 삭제하시겠습니까?'
+                } 이 작업은 되돌릴 수 없습니다.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
