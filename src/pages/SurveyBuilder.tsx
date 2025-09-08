@@ -90,7 +90,7 @@ export default function SurveyBuilder() {
   const [newCourseName, setNewCourseName] = useState("");
   const [editRow, setEditRow] = useState<{ id: string; name: string } | null>(null);
 
-  const [templates, setTemplates] = useState<{id: string; name: string}[]>([]);
+  const [templates, setTemplates] = useState<{id: string; name: string; is_course_evaluation?: boolean}[]>([]);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
 
@@ -184,7 +184,7 @@ export default function SurveyBuilder() {
   }, []);
 
   const loadTemplates = useCallback(async () => {
-    const { data, error } = await supabase.from('survey_templates').select('id,name').order('name');
+    const { data, error } = await supabase.from('survey_templates').select('id,name,is_course_evaluation').order('name');
     if (error) { toast({ title: "템플릿 로드 실패", description: error.message, variant: "destructive" }); return; }
     setTemplates((data || []) as any[]);
   }, [toast]);
@@ -284,13 +284,56 @@ export default function SurveyBuilder() {
   };
 
   /* ───────────────────────────── templates CRUD ──────────────────────────── */
+  
+  // 템플릿 타입 분석 함수
+  const analyzeTemplateType = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return { type: 'unknown', template: null };
+
+    const name = template.name.toLowerCase();
+    
+    // 강사 평가가 아닌 템플릿
+    if (!template.is_course_evaluation) {
+      return { type: 'non-instructor', template };
+    }
+    
+    // 강사 평가 템플릿
+    if (name.includes('이론') && name.includes('실습')) {
+      return { type: 'theory-practice', template }; // 이론+실습 과정
+    } else if (name.includes('이론')) {
+      return { type: 'theory', template }; // 이론 과정
+    } else if (name.includes('실습')) {
+      return { type: 'practice', template }; // 실습 과정
+    }
+    
+    return { type: 'instructor', template }; // 기본 강사 평가 템플릿
+  };
+
+  // 세션 분석 함수 - 강사가 같은지 다른지 판단
+  const analyzeSessionInstructors = () => {
+    if (sessions.length <= 1) return { hasSameInstructor: true, instructorCount: sessions.length };
+    
+    const instructorIds = sessions.map(s => s.instructor_id).filter(Boolean);
+    const uniqueInstructorIds = [...new Set(instructorIds)];
+    
+    return {
+      hasSameInstructor: uniqueInstructorIds.length <= 1,
+      instructorCount: uniqueInstructorIds.length,
+      instructors: uniqueInstructorIds
+    };
+  };
+
   const loadTemplateToSessions = async (templateId: string) => {
     if (!surveyId || sessions.length === 0) {
       toast({ title: "세션 정보 없음", description: "먼저 과목 세션을 추가해주세요.", variant: "destructive" });
       return;
     }
+    
     setLoadingTemplate(true);
     try {
+      const { type: templateType, template } = analyzeTemplateType(templateId);
+      const sessionAnalysis = analyzeSessionInstructors();
+      
       // 템플릿 질문과 섹션 가져오기
       const { data: tq } = await supabase
         .from('template_questions').select('*').eq('template_id', templateId).order('order_index');
@@ -301,55 +344,271 @@ export default function SurveyBuilder() {
       await supabase.from('survey_questions').delete().eq('survey_id', surveyId);
       await supabase.from('survey_sections').delete().eq('survey_id', surveyId);
 
-      // 각 세션별로 섹션과 질문 복제
-      for (const session of sessions) {
-        const sectionMapping: Record<string, string> = {};
-        
-        // 세션별 섹션 생성 (강사명 + 과목명 포함)
-        if (ts?.length) {
-          for (const templateSection of ts) {
-            const sectionName = `${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
-            const { data: newSection } = await supabase
-              .from('survey_sections')
-              .insert({
-                survey_id: surveyId,
-                name: sectionName,
-                description: templateSection.description,
-                order_index: templateSection.order_index + (session.session_order * 100)
-              })
-              .select('*').single();
-            if (newSection) {
-              sectionMapping[templateSection.id] = newSection.id;
-            }
-          }
-        }
+      let appliedLogic = '';
 
-        // 세션별 질문 생성
-        if (tq?.length) {
-          const sessionQuestions = tq.map((q: any) => ({
-            survey_id: surveyId,
-            session_id: session.id,
-            question_text: q.question_text,
-            question_type: q.question_type,
-            options: q.options,
-            is_required: q.is_required,
-            order_index: q.order_index + (session.session_order * 100),
-            section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
-            satisfaction_type: q.satisfaction_type ?? null,
-            scope: 'session', // 세션별 질문으로 설정
-          }));
-          
-          await supabase.from('survey_questions').insert(sessionQuestions);
-        }
+      // 4가지 로직에 따른 처리
+      if (templateType === 'non-instructor') {
+        // 4. 강사 평가가 아닌 템플릿 - 전체 설문에 한 번만 적용
+        appliedLogic = '강사 평가가 아닌 템플릿';
+        await applyNonInstructorTemplate(tq, ts);
+        
+      } else if (templateType === 'theory') {
+        // 1. 이론 과정 템플릿
+        appliedLogic = '이론 과정 템플릿';
+        await applyTheoryTemplate(tq, ts);
+        
+      } else if (templateType === 'practice') {
+        // 2. 실습과정 템플릿 (이론과 실습 강사가 다른 경우)
+        appliedLogic = '실습 과정 템플릿';
+        await applyPracticeTemplate(tq, ts, sessionAnalysis);
+        
+      } else if (templateType === 'theory-practice') {
+        // 3. 이론+실습 과정 템플릿 (강사가 같은 경우)
+        appliedLogic = '이론+실습 과정 템플릿';
+        await applyTheoryPracticeTemplate(tq, ts, sessionAnalysis);
+        
+      } else {
+        // 기본 강사 평가 템플릿 - 세션별 적용
+        appliedLogic = '기본 강사 평가 템플릿 (세션별)';
+        await applyDefaultInstructorTemplate(tq, ts);
       }
 
-      toast({ title: "성공", description: `템플릿이 ${sessions.length}개 세션에 적용되었습니다.` });
+      toast({ 
+        title: "템플릿 적용 완료", 
+        description: `${appliedLogic}이 적용되었습니다. (세션 ${sessions.length}개)` 
+      });
+      
       loadQuestions(); 
       loadSections();
     } catch (e: any) {
+      console.error('Template application error:', e);
       toast({ title: "템플릿 적용 실패", description: e.message, variant: "destructive" });
     } finally {
       setLoadingTemplate(false);
+    }
+  };
+
+  // 1. 이론 과정 템플릿 적용
+  const applyTheoryTemplate = async (tq: any[], ts: any[]) => {
+    for (const session of sessions) {
+      const sectionMapping: Record<string, string> = {};
+      
+      // 이론 과정용 섹션 생성
+      if (ts?.length) {
+        for (const templateSection of ts) {
+          const sectionName = `이론 - ${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
+          const { data: newSection } = await supabase
+            .from('survey_sections')
+            .insert({
+              survey_id: surveyId,
+              name: sectionName,
+              description: templateSection.description,
+              order_index: templateSection.order_index + (session.session_order * 100)
+            })
+            .select('*').single();
+          if (newSection) {
+            sectionMapping[templateSection.id] = newSection.id;
+          }
+        }
+      }
+
+      // 이론 과정용 질문 생성
+      if (tq?.length) {
+        const sessionQuestions = tq.map((q: any) => ({
+          survey_id: surveyId,
+          session_id: session.id,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          is_required: q.is_required,
+          order_index: q.order_index + (session.session_order * 100),
+          section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
+          satisfaction_type: q.satisfaction_type ?? null,
+          scope: 'session',
+        }));
+        
+        await supabase.from('survey_questions').insert(sessionQuestions);
+      }
+    }
+  };
+
+  // 2. 실습과정 템플릿 적용 (이론과 실습 강사가 다른 경우)
+  const applyPracticeTemplate = async (tq: any[], ts: any[], sessionAnalysis: any) => {
+    // 실습 세션만 필터링 (세션명에 '실습'이 포함되거나 실습 관련 과목)
+    const practiceSessions = sessions.filter(session => 
+      session.session_name?.toLowerCase().includes('실습') || 
+      session.course?.title?.toLowerCase().includes('실습')
+    );
+
+    const targetSessions = practiceSessions.length > 0 ? practiceSessions : sessions;
+
+    for (const session of targetSessions) {
+      const sectionMapping: Record<string, string> = {};
+      
+      if (ts?.length) {
+        for (const templateSection of ts) {
+          const sectionName = `실습 - ${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
+          const { data: newSection } = await supabase
+            .from('survey_sections')
+            .insert({
+              survey_id: surveyId,
+              name: sectionName,
+              description: templateSection.description,
+              order_index: templateSection.order_index + (session.session_order * 100)
+            })
+            .select('*').single();
+          if (newSection) {
+            sectionMapping[templateSection.id] = newSection.id;
+          }
+        }
+      }
+
+      if (tq?.length) {
+        const sessionQuestions = tq.map((q: any) => ({
+          survey_id: surveyId,
+          session_id: session.id,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          is_required: q.is_required,
+          order_index: q.order_index + (session.session_order * 100),
+          section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
+          satisfaction_type: q.satisfaction_type ?? null,
+          scope: 'session',
+        }));
+        
+        await supabase.from('survey_questions').insert(sessionQuestions);
+      }
+    }
+  };
+
+  // 3. 이론+실습 과정 템플릿 적용 (강사가 같은 경우)
+  const applyTheoryPracticeTemplate = async (tq: any[], ts: any[], sessionAnalysis: any) => {
+    if (sessionAnalysis.hasSameInstructor) {
+      // 강사가 같은 경우 - 통합 평가
+      const firstSession = sessions[0];
+      const sectionMapping: Record<string, string> = {};
+      
+      if (ts?.length) {
+        for (const templateSection of ts) {
+          const sectionName = `이론+실습 - ${firstSession.instructor?.name || '강사'} - ${templateSection.name}`;
+          const { data: newSection } = await supabase
+            .from('survey_sections')
+            .insert({
+              survey_id: surveyId,
+              name: sectionName,
+              description: templateSection.description,
+              order_index: templateSection.order_index
+            })
+            .select('*').single();
+          if (newSection) {
+            sectionMapping[templateSection.id] = newSection.id;
+          }
+        }
+      }
+
+      if (tq?.length) {
+        const questions = tq.map((q: any) => ({
+          survey_id: surveyId,
+          session_id: null, // 전체 설문 질문
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          is_required: q.is_required,
+          order_index: q.order_index,
+          section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
+          satisfaction_type: q.satisfaction_type ?? null,
+          scope: 'operation', // 전체 설문
+        }));
+        
+        await supabase.from('survey_questions').insert(questions);
+      }
+    } else {
+      // 강사가 다른 경우 - 세션별 적용
+      await applyDefaultInstructorTemplate(tq, ts);
+    }
+  };
+
+  // 4. 강사 평가가 아닌 템플릿 적용
+  const applyNonInstructorTemplate = async (tq: any[], ts: any[]) => {
+    const sectionMapping: Record<string, string> = {};
+    
+    // 전체 설문용 섹션 생성
+    if (ts?.length) {
+      for (const templateSection of ts) {
+        const { data: newSection } = await supabase
+          .from('survey_sections')
+          .insert({
+            survey_id: surveyId,
+            name: templateSection.name,
+            description: templateSection.description,
+            order_index: templateSection.order_index
+          })
+          .select('*').single();
+        if (newSection) {
+          sectionMapping[templateSection.id] = newSection.id;
+        }
+      }
+    }
+
+    // 전체 설문용 질문 생성
+    if (tq?.length) {
+      const questions = tq.map((q: any) => ({
+        survey_id: surveyId,
+        session_id: null, // 전체 설문 질문
+        question_text: q.question_text,
+        question_type: q.question_type,
+        options: q.options,
+        is_required: q.is_required,
+        order_index: q.order_index,
+        section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
+        satisfaction_type: q.satisfaction_type ?? null,
+        scope: 'operation', // 전체 설문
+      }));
+      
+      await supabase.from('survey_questions').insert(questions);
+    }
+  };
+
+  // 기본 강사 평가 템플릿 적용 (세션별)
+  const applyDefaultInstructorTemplate = async (tq: any[], ts: any[]) => {
+    for (const session of sessions) {
+      const sectionMapping: Record<string, string> = {};
+      
+      if (ts?.length) {
+        for (const templateSection of ts) {
+          const sectionName = `${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
+          const { data: newSection } = await supabase
+            .from('survey_sections')
+            .insert({
+              survey_id: surveyId,
+              name: sectionName,
+              description: templateSection.description,
+              order_index: templateSection.order_index + (session.session_order * 100)
+            })
+            .select('*').single();
+          if (newSection) {
+            sectionMapping[templateSection.id] = newSection.id;
+          }
+        }
+      }
+
+      if (tq?.length) {
+        const sessionQuestions = tq.map((q: any) => ({
+          survey_id: surveyId,
+          session_id: session.id,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          is_required: q.is_required,
+          order_index: q.order_index + (session.session_order * 100),
+          section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
+          satisfaction_type: q.satisfaction_type ?? null,
+          scope: 'session',
+        }));
+        
+        await supabase.from('survey_questions').insert(sessionQuestions);
+      }
     }
   };
 

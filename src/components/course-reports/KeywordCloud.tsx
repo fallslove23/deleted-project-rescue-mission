@@ -16,7 +16,7 @@ export const KeywordCloud = ({ textualResponses }: KeywordCloudProps) => {
     const stopWords = ['있는', '같은', '대한', '하는', '되는', '이런', '저런', '그런', '많은', '좋은', '나쁜'];
     
     words.forEach(word => {
-      if (!stopWords.includes(word) && word.length >= 2) {
+      if (!stopWords.includes(word) && word && word.length >= 2) {
         wordCount.set(word, (wordCount.get(word) || 0) + 1);
       }
     });
