@@ -283,6 +283,76 @@ export default function SurveyBuilder() {
     loadSections(); loadQuestions();
   };
 
+  /* ───────────────────────────── templates CRUD ──────────────────────────── */
+  const loadTemplateToSessions = async (templateId: string) => {
+    if (!surveyId || sessions.length === 0) {
+      toast({ title: "세션 정보 없음", description: "먼저 과목 세션을 추가해주세요.", variant: "destructive" });
+      return;
+    }
+    setLoadingTemplate(true);
+    try {
+      // 템플릿 질문과 섹션 가져오기
+      const { data: tq } = await supabase
+        .from('template_questions').select('*').eq('template_id', templateId).order('order_index');
+      const { data: ts } = await supabase
+        .from('template_sections').select('*').eq('template_id', templateId).order('order_index');
+
+      // 기존 질문/섹션 삭제
+      await supabase.from('survey_questions').delete().eq('survey_id', surveyId);
+      await supabase.from('survey_sections').delete().eq('survey_id', surveyId);
+
+      // 각 세션별로 섹션과 질문 복제
+      for (const session of sessions) {
+        const sectionMapping: Record<string, string> = {};
+        
+        // 세션별 섹션 생성 (강사명 + 과목명 포함)
+        if (ts?.length) {
+          for (const templateSection of ts) {
+            const sectionName = `${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
+            const { data: newSection } = await supabase
+              .from('survey_sections')
+              .insert({
+                survey_id: surveyId,
+                name: sectionName,
+                description: templateSection.description,
+                order_index: templateSection.order_index + (session.session_order * 100)
+              })
+              .select('*').single();
+            if (newSection) {
+              sectionMapping[templateSection.id] = newSection.id;
+            }
+          }
+        }
+
+        // 세션별 질문 생성
+        if (tq?.length) {
+          const sessionQuestions = tq.map((q: any) => ({
+            survey_id: surveyId,
+            session_id: session.id,
+            question_text: q.question_text,
+            question_type: q.question_type,
+            options: q.options,
+            is_required: q.is_required,
+            order_index: q.order_index + (session.session_order * 100),
+            section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
+            satisfaction_type: q.satisfaction_type ?? null,
+            scope: 'session', // 세션별 질문으로 설정
+          }));
+          
+          await supabase.from('survey_questions').insert(sessionQuestions);
+        }
+      }
+
+      toast({ title: "성공", description: `템플릿이 ${sessions.length}개 세션에 적용되었습니다.` });
+      loadQuestions(); 
+      loadSections();
+    } catch (e: any) {
+      toast({ title: "템플릿 적용 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
   /* ───────────────────────────── course names CRUD ───────────────────────── */
   const handleCreateCourseName = async () => {
     const name = newCourseName.trim(); if (!name) return;
@@ -516,34 +586,139 @@ export default function SurveyBuilder() {
                 <div className="text-center py-8 text-muted-foreground">
                   <div className="text-4xl mb-2">📝</div>
                   <p>아직 질문이 없습니다</p>
-                  <p className="text-sm mt-1">첫 번째 질문을 추가해보세요</p>
+                  <p className="text-sm mt-1">과목 세션을 추가한 후 템플릿을 불러와 주세요</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {questions.map((q, idx) => (
-                    <div key={q.id} className="border rounded-lg p-4 relative">
-                      <div className="absolute left-4 top-4 flex items-center justify-center w-6 h-6 bg-primary text-white text-sm font-bold rounded-full">
-                        {idx + 1}
-                      </div>
-                      <div className="absolute top-4 right-4 flex gap-2">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleEditQuestion(q)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="ml-8 mr-16">
-                        <h3 className="font-medium mb-1">
-                          {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
-                        </h3>
-                        <div className="text-xs text-muted-foreground">
-                          유형: {q.question_type} • 적용: {q.scope === "session" ? "세션별" : "하루공통"}
-                          {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
+                <div className="space-y-6">
+                  {/* 세션별로 그룹화하여 표시 */}
+                  {sessions.map((session) => {
+                    const sessionQuestions = questions.filter(q => 
+                      q.scope === 'session' && 
+                      (q as any).session_id === session.id
+                    );
+                    const sessionSections = sections.filter(s => 
+                      sessionQuestions.some(q => q.section_id === s.id)
+                    );
+                    
+                    if (sessionQuestions.length === 0) return null;
+                    
+                    return (
+                      <div key={session.id} className="border-2 border-dashed border-muted rounded-lg p-4">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm font-bold">
+                            {session.session_order + 1}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-lg">
+                              {session.instructor?.name} - {session.course?.title || session.session_name}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {sessionQuestions.length}개 질문
+                            </p>
+                          </div>
                         </div>
+                        
+                        {/* 섹션별 질문들 */}
+                        {sessionSections.map((section) => {
+                          const sectionQuestions = sessionQuestions.filter(q => q.section_id === section.id);
+                          return (
+                            <div key={section.id} className="mb-4">
+                              <h5 className="font-medium text-muted-foreground mb-2 text-sm">
+                                📁 {section.name}
+                              </h5>
+                              <div className="space-y-2 ml-4">
+                                {sectionQuestions.map((q, idx) => (
+                                  <div key={q.id} className="border rounded-lg p-3 relative bg-background">
+                                    <div className="absolute left-3 top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full">
+                                      {idx + 1}
+                                    </div>
+                                    <div className="absolute top-3 right-3 flex gap-1">
+                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                    <div className="ml-6 mr-12">
+                                      <p className="text-sm font-medium">
+                                        {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
+                                      </p>
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        유형: {q.question_type}
+                                        {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        {/* 섹션 없는 질문들 */}
+                        {sessionQuestions.filter(q => !q.section_id).map((q, idx) => (
+                          <div key={q.id} className="border rounded-lg p-3 relative bg-background">
+                            <div className="absolute left-3 top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full">
+                              {idx + 1}
+                            </div>
+                            <div className="absolute top-3 right-3 flex gap-1">
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="ml-6 mr-12">
+                              <p className="text-sm font-medium">
+                                {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
+                              </p>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                유형: {q.question_type}
+                                {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* 공통 질문들 (scope: operation) */}
+                  {questions.filter(q => q.scope === 'operation').length > 0 && (
+                    <div className="border-2 border-dashed border-orange-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-lg mb-4 text-orange-700">
+                        🔄 공통 질문 (전체 설문에 1회만 표시)
+                      </h4>
+                      <div className="space-y-2">
+                        {questions.filter(q => q.scope === 'operation').map((q, idx) => (
+                          <div key={q.id} className="border rounded-lg p-3 relative bg-orange-50">
+                            <div className="absolute left-3 top-3 flex items-center justify-center w-5 h-5 bg-orange-500 text-white text-xs font-bold rounded-full">
+                              {idx + 1}
+                            </div>
+                            <div className="absolute top-3 right-3 flex gap-1">
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="ml-6 mr-12">
+                              <p className="text-sm font-medium">
+                                {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
+                              </p>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                유형: {q.question_type}
+                                {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </CardContent>
@@ -579,56 +754,17 @@ export default function SurveyBuilder() {
                     {templates.map((t) => (
                       <Button key={t.id} variant="outline" className="w-full justify-start"
                               onClick={async () => {
-                                setLoading(true);
-                                setLoadingTemplate(true);
-                                try {
-                                  // 섹션/질문 초기화 후 템플릿 반영 (scope 유지)
-                                  const { data: tq } = await supabase
-                                    .from('template_questions').select('*').eq('template_id', t.id).order('order_index');
-                                  const { data: ts } = await supabase
-                                    .from('template_sections').select('*').eq('template_id', t.id).order('order_index');
-
-                                  await supabase.from('survey_questions').delete().eq('survey_id', surveyId);
-                                  await supabase.from('survey_sections').delete().eq('survey_id', surveyId);
-
-                                  const mapping: Record<string,string> = {};
-                                  if (ts?.length) {
-                                    for (const s of ts) {
-                                      const { data: created } = await supabase
-                                        .from('survey_sections')
-                                        .insert({ survey_id: surveyId, name: s.name, description: s.description, order_index: s.order_index })
-                                        .select('*').single();
-                                      mapping[s.id] = (created as any).id;
-                                    }
-                                  }
-                                  if (tq?.length) {
-                                    await supabase.from('survey_questions').insert(
-                                      tq.map((q: any) => ({
-                                        survey_id: surveyId,
-                                        question_text: q.question_text,
-                                        question_type: q.question_type,
-                                        options: q.options,
-                                        is_required: q.is_required,
-                                        order_index: q.order_index,
-                                        section_id: q.section_id ? mapping[q.section_id] ?? null : null,
-                                        satisfaction_type: q.satisfaction_type ?? null,
-                                        scope: (q.scope as 'session'|'operation') ?? 'session',
-                                      }))
-                                    );
-                                  }
-                                  toast({ title: "성공", description: "템플릿이 적용되었습니다." });
-                                  setTemplateSelectOpen(false);
-                                  loadQuestions(); loadSections();
-                                } catch (e: any) {
-                                  toast({ title: "템플릿 적용 실패", description: e.message, variant: "destructive" });
-                                } finally {
-                                  setLoadingTemplate(false);
-                                  setLoading(false);
-                                }
+                                setTemplateSelectOpen(false);
+                                await loadTemplateToSessions(t.id);
                               }}
                               disabled={loadingTemplate}
                     >
-                      {t.name}
+                      <div className="text-left">
+                        <div className="font-medium">{t.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {sessions.length}개 세션에 각각 적용됩니다
+                        </div>
+                      </div>
                     </Button>))}
                   </div>
                 )}
