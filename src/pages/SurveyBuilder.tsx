@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit, RefreshCcw, CheckSquare, Square } from "lucide-react";
 
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +75,10 @@ export default function SurveyBuilder() {
 
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<SurveyQuestion | null>(null);
+  
+  // 멀티 셀렉션 상태
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
   const [educationYear, setEducationYear] = useState<number>(new Date().getFullYear());
   const [educationRound, setEducationRound] = useState<number>(1);
@@ -252,6 +256,53 @@ export default function SurveyBuilder() {
     toast({ title: "성공", description: "질문이 삭제되었습니다." });
     loadQuestions();
   };
+  
+  // 멀티 셀렉션 핸들러들
+  const handleToggleMultiSelect = () => {
+    setIsMultiSelectMode(!isMultiSelectMode);
+    setSelectedQuestions(new Set());
+  };
+  
+  const handleSelectQuestion = (questionId: string) => {
+    const newSelected = new Set(selectedQuestions);
+    if (newSelected.has(questionId)) {
+      newSelected.delete(questionId);
+    } else {
+      newSelected.add(questionId);
+    }
+    setSelectedQuestions(newSelected);
+  };
+  
+  const handleSelectAllQuestions = () => {
+    if (selectedQuestions.size === questions.length) {
+      setSelectedQuestions(new Set());
+    } else {
+      setSelectedQuestions(new Set(questions.map(q => q.id)));
+    }
+  };
+  
+  const handleDeleteSelectedQuestions = async () => {
+    if (selectedQuestions.size === 0) return;
+    
+    if (!confirm(`선택한 ${selectedQuestions.size}개의 질문을 삭제하시겠습니까?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('survey_questions')
+        .delete()
+        .in('id', Array.from(selectedQuestions));
+        
+      if (error) throw error;
+      
+      toast({ title: "성공", description: `${selectedQuestions.size}개의 질문이 삭제되었습니다.` });
+      setSelectedQuestions(new Set());
+      setIsMultiSelectMode(false);
+      loadQuestions();
+    } catch (e: any) {
+      toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
+    }
+  };
+  
   const handleQuestionSave = () => { setQuestionDialogOpen(false); loadQuestions(); };
 
   /* ───────────────────────────── sections CRUD ───────────────────────────── */
@@ -895,8 +946,11 @@ export default function SurveyBuilder() {
           {/* 질문 관리 */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">질문 관리</CardTitle>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">질문 관리</h2>
+                  <p className="text-muted-foreground">설문 질문을 추가하고 관리하세요</p>
+                </div>
                 <div className="hidden md:flex gap-2">
                   <Button variant="outline" onClick={() => {
                     setSelectedSessionId(null);
@@ -910,6 +964,22 @@ export default function SurveyBuilder() {
                   <Button onClick={handleAddQuestion}>
                     <Plus className="w-4 h-4 mr-2" />질문 추가
                   </Button>
+                  {questions.length > 0 && (
+                    <Button 
+                      variant={isMultiSelectMode ? "default" : "outline"} 
+                      onClick={handleToggleMultiSelect}
+                    >
+                      {isMultiSelectMode ? (
+                        <>
+                          <CheckSquare className="w-4 h-4 mr-2" />선택 완료
+                        </>
+                      ) : (
+                        <>
+                          <Square className="w-4 h-4 mr-2" />다중 선택
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
                 <div className="md:hidden">
                   <Button variant="outline" size="icon" onClick={() => {
@@ -928,6 +998,35 @@ export default function SurveyBuilder() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* 다중 선택 모드일 때 컨트롤 바 */}
+              {isMultiSelectMode && questions.length > 0 && (
+                <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSelectAllQuestions}
+                      >
+                        {selectedQuestions.size === questions.length ? "전체 해제" : "전체 선택"}
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedQuestions.size}개 선택됨
+                      </span>
+                    </div>
+                    {selectedQuestions.size > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteSelectedQuestions}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        선택 항목 삭제
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
               {sections.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-3">질문 섹션</h3>
@@ -1009,60 +1108,96 @@ export default function SurveyBuilder() {
                                 📁 {section.name}
                               </h5>
                               <div className="space-y-2 ml-4">
-                                {sectionQuestions.map((q, idx) => (
-                                  <div key={q.id} className="border rounded-lg p-3 relative bg-background">
-                                    <div className="absolute left-3 top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full">
-                                      {idx + 1}
-                                    </div>
-                                    <div className="absolute top-3 right-3 flex gap-1">
-                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
-                                        <Edit className="h-3 w-3" />
-                                      </Button>
-                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    <div className="ml-6 mr-12">
-                                      <p className="text-sm font-medium">
-                                        {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
-                                      </p>
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        유형: {q.question_type}
-                                        {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
+                                 {sectionQuestions.map((q, idx) => (
+                                   <div key={q.id} className={`border rounded-lg p-3 relative bg-background ${selectedQuestions.has(q.id) ? 'ring-2 ring-primary' : ''}`}>
+                                     {isMultiSelectMode && (
+                                       <div className="absolute left-2 top-2 z-10">
+                                         <Button
+                                           variant="ghost"
+                                           size="sm"
+                                           className="h-6 w-6 p-0"
+                                           onClick={() => handleSelectQuestion(q.id)}
+                                         >
+                                           {selectedQuestions.has(q.id) ? (
+                                             <CheckSquare className="h-4 w-4 text-primary" />
+                                           ) : (
+                                             <Square className="h-4 w-4" />
+                                           )}
+                                         </Button>
+                                       </div>
+                                     )}
+                                     <div className={`absolute ${isMultiSelectMode ? 'left-8' : 'left-3'} top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full`}>
+                                       {idx + 1}
+                                     </div>
+                                     <div className="absolute top-3 right-3 flex gap-1">
+                                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
+                                         <Edit className="h-3 w-3" />
+                                       </Button>
+                                       {!isMultiSelectMode && (
+                                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
+                                           <Trash2 className="h-3 w-3" />
+                                         </Button>
+                                       )}
+                                     </div>
+                                     <div className={`${isMultiSelectMode ? 'ml-11' : 'ml-6'} mr-12`}>
+                                       <p className="text-sm font-medium">
+                                         {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
+                                       </p>
+                                       <div className="text-xs text-muted-foreground mt-1">
+                                         유형: {q.question_type}
+                                         {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
+                                       </div>
+                                     </div>
+                                   </div>
+                                 ))}
                               </div>
                             </div>
                           );
                         })}
                         
-                        {/* 섹션 없는 질문들 */}
-                        {sessionQuestions.filter(q => !q.section_id).map((q, idx) => (
-                          <div key={q.id} className="border rounded-lg p-3 relative bg-background">
-                            <div className="absolute left-3 top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full">
-                              {idx + 1}
-                            </div>
-                            <div className="absolute top-3 right-3 flex gap-1">
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            <div className="ml-6 mr-12">
-                              <p className="text-sm font-medium">
-                                {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
-                              </p>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                유형: {q.question_type}
-                                {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                         {/* 섹션 없는 질문들 */}
+                         {sessionQuestions.filter(q => !q.section_id).map((q, idx) => (
+                           <div key={q.id} className={`border rounded-lg p-3 relative bg-background ${selectedQuestions.has(q.id) ? 'ring-2 ring-primary' : ''}`}>
+                             {isMultiSelectMode && (
+                               <div className="absolute left-2 top-2 z-10">
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   className="h-6 w-6 p-0"
+                                   onClick={() => handleSelectQuestion(q.id)}
+                                 >
+                                   {selectedQuestions.has(q.id) ? (
+                                     <CheckSquare className="h-4 w-4 text-primary" />
+                                   ) : (
+                                     <Square className="h-4 w-4" />
+                                   )}
+                                 </Button>
+                               </div>
+                             )}
+                             <div className={`absolute ${isMultiSelectMode ? 'left-8' : 'left-3'} top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full`}>
+                               {idx + 1}
+                             </div>
+                             <div className="absolute top-3 right-3 flex gap-1">
+                               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
+                                 <Edit className="h-3 w-3" />
+                               </Button>
+                               {!isMultiSelectMode && (
+                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
+                                   <Trash2 className="h-3 w-3" />
+                                 </Button>
+                               )}
+                             </div>
+                             <div className={`${isMultiSelectMode ? 'ml-11' : 'ml-6'} mr-12`}>
+                               <p className="text-sm font-medium">
+                                 {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
+                               </p>
+                               <div className="text-xs text-muted-foreground mt-1">
+                                 유형: {q.question_type}
+                                 {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
+                               </div>
+                             </div>
+                           </div>
+                         ))}
                       </div>
                     );
                   })}
@@ -1073,32 +1208,50 @@ export default function SurveyBuilder() {
                       <h4 className="font-semibold text-lg mb-4 text-orange-700">
                         🔄 공통 질문 (전체 설문에 1회만 표시)
                       </h4>
-                      <div className="space-y-2">
-                        {questions.filter(q => q.scope === 'operation').map((q, idx) => (
-                          <div key={q.id} className="border rounded-lg p-3 relative bg-orange-50">
-                            <div className="absolute left-3 top-3 flex items-center justify-center w-5 h-5 bg-orange-500 text-white text-xs font-bold rounded-full">
-                              {idx + 1}
-                            </div>
-                            <div className="absolute top-3 right-3 flex gap-1">
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            <div className="ml-6 mr-12">
-                              <p className="text-sm font-medium">
-                                {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
-                              </p>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                유형: {q.question_type}
-                                {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                       <div className="space-y-2">
+                         {questions.filter(q => q.scope === 'operation').map((q, idx) => (
+                           <div key={q.id} className={`border rounded-lg p-3 relative bg-orange-50 ${selectedQuestions.has(q.id) ? 'ring-2 ring-primary' : ''}`}>
+                             {isMultiSelectMode && (
+                               <div className="absolute left-2 top-2 z-10">
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   className="h-6 w-6 p-0"
+                                   onClick={() => handleSelectQuestion(q.id)}
+                                 >
+                                   {selectedQuestions.has(q.id) ? (
+                                     <CheckSquare className="h-4 w-4 text-primary" />
+                                   ) : (
+                                     <Square className="h-4 w-4" />
+                                   )}
+                                 </Button>
+                               </div>
+                             )}
+                             <div className={`absolute ${isMultiSelectMode ? 'left-8' : 'left-3'} top-3 flex items-center justify-center w-5 h-5 bg-orange-500 text-white text-xs font-bold rounded-full`}>
+                               {idx + 1}
+                             </div>
+                             <div className="absolute top-3 right-3 flex gap-1">
+                               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
+                                 <Edit className="h-3 w-3" />
+                               </Button>
+                               {!isMultiSelectMode && (
+                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
+                                   <Trash2 className="h-3 w-3" />
+                                 </Button>
+                               )}
+                             </div>
+                             <div className={`${isMultiSelectMode ? 'ml-11' : 'ml-6'} mr-12`}>
+                               <p className="text-sm font-medium">
+                                 {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
+                               </p>
+                               <div className="text-xs text-muted-foreground mt-1">
+                                 유형: {q.question_type}
+                                 {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
+                               </div>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
                     </div>
                   )}
                 </div>
