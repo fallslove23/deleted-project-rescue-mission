@@ -117,7 +117,7 @@ export default function QuestionEditForm({
         <Textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>질문 유형</Label>
           <Select value={type} onValueChange={(v) => setType(v)}>
@@ -126,17 +126,6 @@ export default function QuestionEditForm({
               {TYPES.map((t) => (
                 <SelectItem key={t.v} value={t.v}>{t.label}</SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>적용 대상</Label>
-          <Select value={scope} onValueChange={(v: "session" | "operation") => setScope(v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="session">세션별(각 과목에 반복)</SelectItem>
-              <SelectItem value="operation">하루 공통(1회)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -155,33 +144,18 @@ export default function QuestionEditForm({
         </div>
       </div>
 
-      {type !== "text" && (
-        <div className="space-y-2">
-          <Label>옵션(선택)</Label>
-          <Input
-            placeholder='JSON 예: ["매우 나쁨","...","매우 좋음"]  / scale은 생략 가능'
-            value={options ? JSON.stringify(options) : ""}
-            onChange={(e) => {
-              const v = e.target.value.trim();
-              if (!v) return setOptions(null);
-              try {
-                setOptions(JSON.parse(v));
-              } catch {
-                // ignore; 입력 편의용
-              }
-            }}
-          />
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>만족도 분류(선택)</Label>
-          <Input
-            placeholder='예: "instructor" | "course"'
-            value={satisfactionType ?? ""}
-            onChange={(e) => setSatisfactionType(e.target.value || null)}
-          />
+          <Select value={satisfactionType ?? "none"} onValueChange={(v) => setSatisfactionType(v === "none" ? null : v)}>
+            <SelectTrigger><SelectValue placeholder="선택 안 함" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">선택 안 함</SelectItem>
+              <SelectItem value="course">과목 만족도</SelectItem>
+              <SelectItem value="instructor">강사 만족도</SelectItem>
+              <SelectItem value="operation">운영 만족도</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
