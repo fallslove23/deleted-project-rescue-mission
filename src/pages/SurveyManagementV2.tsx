@@ -22,6 +22,12 @@ import {
   CheckSquare,
   Download,
   Wand2,
+  QrCode,
+  Copy,
+  Link,
+  Play,
+  Pause,
+  MoreHorizontal,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +61,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Sheet,
@@ -63,6 +70,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import SurveyCreateForm from "@/components/SurveyCreateForm";
 
 const TIMEZONE = "Asia/Seoul";
@@ -241,6 +256,12 @@ export default function SurveyManagementV2() {
   // 다이얼로그들
   const [quickOpen, setQuickOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingSurveyId, setDeletingSurveyId] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrSurveyId, setQrSurveyId] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareSurveyId, setShareSurveyId] = useState<string | null>(null);
 
   // URL 동기화
   useEffect(() => {
@@ -425,6 +446,114 @@ export default function SurveyManagementV2() {
     });
     toast({ title: "설문 생성 완료", description: created.title ?? "" });
     navigate(`/survey-builder/${created.id}`);
+  };
+
+  const handleDeleteSurvey = async () => {
+    if (!deletingSurveyId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .delete()
+        .eq('id', deletingSurveyId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "삭제 완료",
+        description: "설문이 성공적으로 삭제되었습니다."
+      });
+      
+      setDeleteOpen(false);
+      setDeletingSurveyId(null);
+      loadData();
+    } catch (error) {
+      console.error('Error deleting survey:', error);
+      toast({
+        title: "삭제 실패",
+        description: "설문 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleStatusToggle = async (surveyId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'draft' : 'active';
+    
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update({ status: newStatus })
+        .eq('id', surveyId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "상태 변경 완료",
+        description: `설문이 ${newStatus === 'active' ? '활성화' : '비활성화'}되었습니다.`
+      });
+      
+      loadData();
+    } catch (error) {
+      console.error('Error updating survey status:', error);
+      toast({
+        title: "상태 변경 실패",
+        description: "설문 상태 변경 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCopyLink = (surveyId: string) => {
+    const link = `${window.location.origin}/survey/${surveyId}`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "링크 복사됨",
+      description: "설문 링크가 클립보드에 복사되었습니다."
+    });
+  };
+
+  const handleDuplicateSurvey = async (surveyId: string) => {
+    try {
+      // 원본 설문 정보 가져오기
+      const { data: originalSurvey, error: surveyError } = await supabase
+        .from('surveys')
+        .select('*')
+        .eq('id', surveyId)
+        .single();
+      
+      if (surveyError) throw surveyError;
+      
+      // 새 설문 생성
+      const { data: newSurvey, error: createError } = await supabase
+        .from('surveys')
+        .insert({
+          ...originalSurvey,
+          id: undefined, // 새 ID 생성
+          title: `${originalSurvey.title} (복사본)`,
+          status: 'draft',
+          created_at: undefined,
+          updated_at: undefined
+        })
+        .select()
+        .single();
+      
+      if (createError) throw createError;
+      
+      toast({
+        title: "복제 완료",
+        description: "설문이 성공적으로 복제되었습니다."
+      });
+      
+      navigate(`/survey-builder/${newSurvey.id}`);
+    } catch (error) {
+      console.error('Error duplicating survey:', error);
+      toast({
+        title: "복제 실패",
+        description: "설문 복제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -614,11 +743,52 @@ export default function SurveyManagementV2() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/survey-builder/${survey.id}`)}
+                      onClick={() => handleCopyLink(survey.id)}
                     >
-                      <Settings className="h-4 w-4 mr-1" />
-                      편집
+                      <Link className="h-4 w-4 mr-1" />
+                      링크
                     </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>작업</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => navigate(`/survey-builder/${survey.id}`)}>
+                          <Settings className="h-4 w-4 mr-2" />
+                          편집
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setQrSurveyId(survey.id);
+                          setQrOpen(true);
+                        }}>
+                          <QrCode className="h-4 w-4 mr-2" />
+                          QR 코드
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicateSurvey(survey.id)}>
+                          <Copy className="h-4 w-4 mr-2" />
+                          복제
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusToggle(survey.id, survey.status)}>
+                          {survey.status === 'active' ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                          {survey.status === 'active' ? '비활성화' : '활성화'}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setDeletingSurveyId(survey.id);
+                            setDeleteOpen(true);
+                          }}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          삭제
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -684,6 +854,62 @@ export default function SurveyManagementV2() {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* 삭제 확인 다이얼로그 */}
+        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>설문 삭제</DialogTitle>
+              <DialogDescription>
+                정말로 이 설문을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                취소
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteSurvey}>
+                삭제
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* QR 코드 다이얼로그 */}
+        <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>QR 코드</DialogTitle>
+              <DialogDescription>
+                설문 참여용 QR 코드입니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center space-y-4">
+              {qrSurveyId && (
+                <div className="p-4 bg-white rounded-lg border">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/survey/${qrSurveyId}`)}`}
+                    alt="QR Code"
+                    className="w-48 h-48"
+                  />
+                </div>
+              )}
+              <div className="text-sm text-center space-y-2">
+                <p>참여자가 이 QR 코드를 스캔하여 설문에 참여할 수 있습니다.</p>
+                <p className="text-muted-foreground break-all">
+                  {window.location.origin}/survey/{qrSurveyId}
+                </p>
+              </div>
+              <Button 
+                onClick={() => handleCopyLink(qrSurveyId!)}
+                className="w-full"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                링크 복사
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
