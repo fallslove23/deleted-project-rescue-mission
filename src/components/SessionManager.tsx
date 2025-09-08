@@ -40,6 +40,7 @@ export const SessionManager = ({
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SurveySession | null>(null);
+  const [instructorCourses, setInstructorCourses] = useState<Array<{instructor_id: string, course_id: string}>>([]);
 
   // ▽ 사용자가 이름 입력을 직접 수정했는지 추적 (코스 선택 시 자동 채우기 제어)
   const [userEditedName, setUserEditedName] = useState(false);
@@ -49,6 +50,24 @@ export const SessionManager = ({
     course_id: "none" as string,
     instructor_id: "none" as string,
   });
+
+  // instructor_courses 데이터 가져오기
+  useEffect(() => {
+    const fetchInstructorCourses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('instructor_courses')
+          .select('instructor_id, course_id');
+        
+        if (error) throw error;
+        setInstructorCourses(data || []);
+      } catch (error) {
+        console.error('Error fetching instructor courses:', error);
+      }
+    };
+
+    fetchInstructorCourses();
+  }, []);
 
   useEffect(() => {
     if (!dialogOpen) {
@@ -80,7 +99,7 @@ export const SessionManager = ({
   // ▽ 코스 변경 시: 사용자가 이름을 아직 직접 손대지 않았다면 자동으로 코스명 입력
   const handleCourseChange = (value: string) => {
     setForm(prev => {
-      const next = { ...prev, course_id: value };
+      const next = { ...prev, course_id: value, instructor_id: "none" }; // 과목 변경 시 강사 초기화
       if (!userEditedName) {
         if (value === "none") {
           // 과목 관련 평가가 아닐 때: 이름은 비워 둔 상태 유지(사용자가 직접 입력)
@@ -92,6 +111,21 @@ export const SessionManager = ({
       }
       return next;
     });
+  };
+
+  // 선택된 과목에 연결된 강사들만 필터링
+  const getFilteredInstructors = () => {
+    if (form.course_id === "none") {
+      return instructors; // 과목 미선택시 모든 강사 표시
+    }
+    
+    // instructor_courses 테이블에서 선택된 과목과 연결된 강사 ID들 가져오기
+    const connectedInstructorIds = instructorCourses
+      .filter(ic => ic.course_id === form.course_id)
+      .map(ic => ic.instructor_id);
+    
+    // 연결된 강사 ID들에 해당하는 강사 정보만 반환
+    return instructors.filter(instructor => connectedInstructorIds.includes(instructor.id));
   };
 
   const handleNameChange = (v: string) => {
@@ -242,13 +276,19 @@ export const SessionManager = ({
                 <Select
                   value={form.instructor_id}
                   onValueChange={(v) => setForm(p => ({ ...p, instructor_id: v }))}
+                  disabled={form.course_id !== "none" && getFilteredInstructors().length === 0}
                 >
-                  <SelectTrigger><SelectValue placeholder="선택(옵션)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={form.course_id === "none" ? "선택(옵션)" : "과목 연결 강사 선택"} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">선택 안함</SelectItem>
-                    {instructors.map(i => (<SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>))}
+                    {getFilteredInstructors().map(i => (<SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
+                {form.course_id !== "none" && getFilteredInstructors().length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    선택한 과목에 연결된 강사가 없습니다.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
