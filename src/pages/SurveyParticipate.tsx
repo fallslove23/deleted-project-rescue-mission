@@ -558,22 +558,11 @@ const SurveyParticipate = () => {
           <Progress value={progress} className="h-2" />
         </div>
 
+        {/* 강사 정보 섹션 - 강의 평가 설문일 때 상단에 표시 */}
         {isCourseEvaluation && instructor && (
-          <Card className="mb-4">
-            <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full flex items-center gap-2 touch-friendly">
-                    <User className="h-4 w-4" />
-                    강사 정보 확인하기
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-[90vw] sm:max-w-md mx-4">
-                  <InstructorInfoSection instructor={instructor} title="강사 정보" />
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
+          <div className="mb-6">
+            <InstructorInfoSection instructor={instructor} />
+          </div>
         )}
 
         {/* overflow-hidden 제거 */}
