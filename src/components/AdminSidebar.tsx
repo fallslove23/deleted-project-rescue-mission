@@ -101,17 +101,11 @@ export function AdminSidebar() {
   }
 
   return (
-    <Sidebar 
-      className="border-r"
-      style={{ backgroundColor: 'rgba(243, 232, 255, 0.5)' }}
-    >
-      <SidebarContent style={{ backgroundColor: 'rgba(243, 232, 255, 0.5)' }}>
+    <Sidebar className="border-r bg-sidebar">
+      <SidebarContent className="bg-sidebar">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel 
-              className="font-semibold text-xs uppercase tracking-wider px-3 py-2"
-              style={{ color: '#581c87' }}
-            >
+            <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider px-3 py-2 text-sidebar-foreground/70">
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -125,13 +119,10 @@ export function AdminSidebar() {
                         className={({ isActive }) =>
                           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                             isActive 
-                              ? 'bg-primary text-primary-foreground shadow-sm' 
-                              : 'hover:bg-purple-100'
+                              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm' 
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                           }`
                         }
-                        style={({ isActive }) => ({
-                          color: isActive ? undefined : '#374151',
-                        })}
                       >
                         <item.icon className="h-4 w-4 flex-shrink-0" />
                         <span className="font-semibold">{item.title}</span>
