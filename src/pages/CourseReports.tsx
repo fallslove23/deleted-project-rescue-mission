@@ -154,9 +154,9 @@ const CourseReports = () => {
   }));
 
   const satisfactionChartData = currentReport ? [
-    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, color: 'hsl(var(--primary))' },
-    { name: '과정 만족도', value: currentReport.avg_course_satisfaction, color: 'hsl(var(--primary) / 0.8)' },
-    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, color: 'hsl(var(--primary) / 0.6)' }
+    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, fill: 'hsl(var(--chart-1))' },
+    { name: '과정 만족도', value: currentReport.avg_course_satisfaction, fill: 'hsl(var(--chart-2))' },
+    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, fill: 'hsl(var(--chart-3))' }
   ] : [];
 
   const currentRoundData = currentReport ? [
@@ -328,11 +328,17 @@ const CourseReports = () => {
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <ReBarChart data={satisfactionChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 5]} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" className="text-muted-foreground" />
+                  <YAxis domain={[0, 5]} className="text-muted-foreground" />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} />
                 </ReBarChart>
               </ResponsiveContainer>
             </CardContent>

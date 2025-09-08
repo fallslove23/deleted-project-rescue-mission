@@ -58,9 +58,11 @@ All colors MUST be HSL.
     --glass-border: 240 5% 64.9% / 0.2;
 
     /* Chart colors - trendy and modern */
-    --chart-primary: 263 70% 50.4%;
-    --chart-secondary: 270 91% 65%;
-    --chart-accent: 285 85% 50%;
+    --chart-1: 263 70% 50.4%;
+    --chart-2: 270 91% 65%;
+    --chart-3: 285 85% 50%;
+    --chart-4: 142 76% 36%;
+    --chart-5: 38 92% 50%;
     --chart-success: 142 76% 36%;
     --chart-warning: 38 92% 50%;
     --chart-danger: 0 84% 60%;
@@ -75,13 +77,13 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     /* 사이드바 색상 변수 - HSL 형식으로 올바르게 정의 */
-    --sidebar-background: 252 95% 98%;
-    --sidebar-foreground: 260 65% 45%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 260 65% 25%;
     --sidebar-primary: 263 70% 50.4%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 252 95% 96%;
-    --sidebar-accent-foreground: 260 75% 35%;
-    --sidebar-border: 260 40% 85%;
+    --sidebar-accent: 260 40% 96%;
+    --sidebar-accent-foreground: 260 75% 20%;
+    --sidebar-border: 260 15% 90%;
     --sidebar-ring: 263 70% 50.4%;
   }
 

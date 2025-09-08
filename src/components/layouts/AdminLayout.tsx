@@ -54,7 +54,11 @@ export default function AdminLayout(props: AdminLayoutProps) {
           key="refresh"
           variant="outline"
           size="sm"
-          onClick={onRefresh}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRefresh();
+          }}
           disabled={loading}
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
