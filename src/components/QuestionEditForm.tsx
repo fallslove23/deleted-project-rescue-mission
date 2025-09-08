@@ -35,6 +35,7 @@ export default function QuestionEditForm({
   onSave,
   onCancel,
   sections,
+  sessions,
 }: Props) {
   const { toast } = useToast();
   const [text, setText] = useState("");
@@ -166,6 +167,36 @@ export default function QuestionEditForm({
           </div>
         </div>
       </div>
+
+      {/* 강사 만족도일 때 강사 정보 표시 */}
+      {satisfactionType === 'instructor' && sessions.length > 0 && (
+        <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2 text-blue-700">
+            <span className="text-lg">👨‍🏫</span>
+            <h4 className="font-medium">강사 정보</h4>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sessions.map((session) => (
+              <div key={session.id} className="bg-white p-3 rounded border">
+                <div className="font-medium text-sm">
+                  {session.course?.title || session.session_name}
+                </div>
+                <div className="text-lg font-semibold text-blue-700">
+                  {session.instructor?.name || '강사명 없음'}
+                </div>
+                {session.instructor?.bio && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {session.instructor.bio}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="text-xs text-blue-600">
+            💡 이 질문은 각 강사별로 개별적으로 표시됩니다.
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onCancel}>취소</Button>
