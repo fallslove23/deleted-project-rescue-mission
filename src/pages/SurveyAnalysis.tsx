@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import AdminLayout from "@/components/layouts/AdminLayout";
+import { DashboardLayout } from "@/components/layouts";
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -453,12 +453,11 @@ const SurveyAnalysis = () => {
 
   /* ========================= Render ========================= */
   return (
-    <AdminLayout
+    <DashboardLayout
       title="설문 결과 분석"
       subtitle="설문과 응답을 분석합니다."
       totalCount={filteredSurveys.length}
       actions={desktopActions}
-      mobileActions={mobileActions}
       loading={loading}
     >
       <div className="space-y-6">
@@ -811,7 +810,7 @@ const SurveyAnalysis = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminLayout>
+    </DashboardLayout>
   );
 };
 

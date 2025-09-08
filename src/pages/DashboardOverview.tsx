@@ -1,7 +1,7 @@
 // src/pages/DashboardOverview.tsx
 
 import React, { useEffect, useState, useCallback } from "react";
-import AdminLayout from "@/components/layouts/AdminLayout"; // ✅ default export
+import { DashboardLayout } from "@/components/layouts";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import {
@@ -75,7 +75,7 @@ const DashboardOverview: React.FC = () => {
   const busy = loading || authLoading;
 
   return (
-    <AdminLayout
+    <DashboardLayout
       title="관리자 대시보드"
       description={isAdmin ? "시스템 관리자" : "강사"}
       loading={busy}
@@ -247,7 +247,7 @@ const DashboardOverview: React.FC = () => {
 
         {/* 차트 섹션 등 추가 요소는 기존 유지 */}
       </div>
-    </AdminLayout>
+    </DashboardLayout>
   );
 };
 

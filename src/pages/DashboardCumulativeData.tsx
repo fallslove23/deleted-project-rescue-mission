@@ -1,5 +1,5 @@
 import React from 'react';
-import { AdminLayout } from '@/components/layouts';
+import { DashboardLayout } from '@/components/layouts';
 import { Database, Download, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,7 @@ const DashboardCumulativeData = () => {
   );
 
   return (
-    <AdminLayout
+    <DashboardLayout
       title="누적 데이터"
       subtitle="전체 설문 응답 데이터 조회 및 분석"
       icon={<Database className="h-5 w-5 text-white" />}
@@ -171,7 +171,7 @@ const DashboardCumulativeData = () => {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </DashboardLayout>
   );
 };
 
