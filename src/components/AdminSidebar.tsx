@@ -1,5 +1,5 @@
 // src/components/AdminSidebar.tsx
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, 
@@ -16,7 +16,9 @@ import {
 export function AdminSidebar() {
   const { userRoles } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   
+  const viewMode = searchParams.get('view'); // URL에서 view 파라미터 읽기
   const isAdmin = userRoles.includes('admin');
   const isInstructor = userRoles.includes('instructor');
 
@@ -81,8 +83,39 @@ export function AdminSidebar() {
     }
   ];
 
-  // 현재 사용자에 맞는 메뉴 선택
-  const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
+  // 교육생 뷰 메뉴 (오늘의 설문만)
+  const studentMenuItems = [
+    {
+      title: "설문",
+      items: [
+        { title: "오늘의 설문", url: "/", icon: FileText, exact: true }
+      ]
+    }
+  ];
+
+  // 강사 뷰 메뉴 (결과 분석 및 과정 통계)
+  const instructorViewMenuItems = [
+    {
+      title: "설문 분석",
+      items: [
+        { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
+        { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
+      ]
+    }
+  ];
+
+  // view 모드에 따른 메뉴 선택
+  let menuItems;
+  if (viewMode === 'student') {
+    menuItems = studentMenuItems;
+  } else if (viewMode === 'instructor') {
+    menuItems = instructorViewMenuItems;
+  } else if (viewMode === 'admin') {
+    menuItems = adminMenuItems;
+  } else {
+    // 기본: 사용자 역할에 따른 메뉴
+    menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
+  }
 
   return (
     <Sidebar 
