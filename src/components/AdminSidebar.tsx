@@ -85,11 +85,11 @@ export function AdminSidebar() {
   const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
 
   return (
-    <Sidebar className="border-r bg-white">
-      <SidebarContent className="bg-white">
+    <Sidebar className="bg-sidebar border-sidebar-border">
+      <SidebarContent className="bg-sidebar">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="text-purple-700 font-semibold text-xs uppercase tracking-wider">
+            <SidebarGroupLabel className="text-sidebar-foreground font-semibold text-xs uppercase tracking-wider">
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -101,15 +101,15 @@ export function AdminSidebar() {
                         to={item.url}
                         end={item.exact}
                         className={({ isActive }) =>
-                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                             isActive 
-                              ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md' 
-                              : 'text-gray-600 hover:bg-purple-50 hover:text-purple-600'
+                              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' 
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                           }`
                         }
                       >
                         <item.icon className="h-4 w-4" />
-                        <span className="font-medium">{item.title}</span>
+                        <span>{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -122,26 +122,26 @@ export function AdminSidebar() {
         {/* 관리자 전용 - 뷰 테스트 섹션 */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-purple-700 font-semibold text-xs uppercase tracking-wider">
-              뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-purple-500 text-white rounded">DEV</span>
+            <SidebarGroupLabel className="text-sidebar-foreground font-semibold text-xs uppercase tracking-wider">
+              뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-sidebar-primary text-sidebar-primary-foreground rounded">DEV</span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton className="w-full justify-between text-gray-600 hover:bg-purple-50 hover:text-purple-600">
+                      <SidebarMenuButton className="w-full justify-between text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
                         <div className="flex items-center gap-3">
                           <Eye className="h-4 w-4" />
                           <span className="font-medium">뷰 선택</span>
                         </div>
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 bg-white border-purple-200">
+                    <DropdownMenuContent align="end" className="w-48 bg-white border-sidebar-border">
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/admin" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-purple-50"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent text-sidebar-foreground"
                         >
                           <LayoutDashboard className="h-4 w-4" />
                           관리자 뷰
@@ -150,7 +150,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/instructor" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-purple-50"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent text-sidebar-foreground"
                         >
                           <UserCheck className="h-4 w-4" />
                           강사 뷰
@@ -159,7 +159,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-purple-50"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent text-sidebar-foreground"
                         >
                           <Users className="h-4 w-4" />
                           교육생 뷰
