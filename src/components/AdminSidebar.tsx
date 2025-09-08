@@ -86,7 +86,7 @@ export function AdminSidebar() {
 
   return (
     <Sidebar className="bg-sidebar border-sidebar-border">
-      <SidebarContent className="bg-sidebar">
+      <SidebarContent className="bg-sidebar text-sidebar-foreground">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
             <SidebarGroupLabel className="text-sidebar-foreground font-semibold text-xs uppercase tracking-wider">
