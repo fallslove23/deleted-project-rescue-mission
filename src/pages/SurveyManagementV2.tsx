@@ -977,9 +977,9 @@ export default function SurveyManagementV2() {
             </SheetHeader>
             <div className="mt-6 pb-6">
               <SurveyCreateForm
-                onSuccess={() => {
+                onSuccess={(surveyId) => {
                   setCreateOpen(false);
-                  loadData();
+                  navigate(`/survey-builder/${surveyId}`);
                 }}
                 templates={templates}
               />
