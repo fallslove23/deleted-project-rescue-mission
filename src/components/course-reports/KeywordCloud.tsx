@@ -6,6 +6,24 @@ interface KeywordCloudProps {
 }
 
 export const KeywordCloud = ({ textualResponses }: KeywordCloudProps) => {
+  if (!textualResponses || !Array.isArray(textualResponses) || textualResponses.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            키워드 분석
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-muted-foreground py-8">
+            분석할 텍스트 응답이 없습니다.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // 간단한 키워드 추출 로직 (실제로는 더 정교한 NLP 처리 필요)
   const extractKeywords = (responses: string[]) => {
     const allText = responses.join(' ').toLowerCase();

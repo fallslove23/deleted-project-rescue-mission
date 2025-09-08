@@ -39,6 +39,7 @@ const DashboardCourseReports = () => {
   const {
     reports,
     instructorStats,
+    previousInstructorStats,
     availableCourses,
     availableRounds,
     availableInstructors,
@@ -327,6 +328,8 @@ const DashboardCourseReports = () => {
         {!loading && !isInstructor && instructorStats.length > 0 && (
           <InstructorStatsSection
             instructorStats={instructorStats}
+            previousStats={previousInstructorStats}
+            comparisonLabel={selectedRound ? `${selectedRound - 1}차` : '이전 연도'}
             onInstructorClick={handleInstructorClick}
           />
         )}

@@ -62,6 +62,7 @@ export const useCourseReportsData = (
   
   const [reports, setReports] = useState<CourseReport[]>([]);
   const [previousReports, setPreviousReports] = useState<CourseReport[]>([]);
+  const [previousInstructorStats, setPreviousInstructorStats] = useState<InstructorStats[]>([]);
   const [trendData, setTrendData] = useState<any[]>([]);
   const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
@@ -359,6 +360,11 @@ export const useCourseReportsData = (
           education_year,
           education_round,
           course_name,
+          instructor_id,
+          instructors (
+            id,
+            name
+          ),
           survey_responses (
             id,
             question_answers (
@@ -433,6 +439,54 @@ export const useCourseReportsData = (
         };
 
         setPreviousReports([prevReport]);
+        
+        // 이전 차수 강사별 통계도 계산
+        const prevInstructorStatsMap = new Map<string, {
+          survey_count: number;
+          response_count: number;
+          instructor_satisfactions: number[];
+          instructor_name: string;
+        }>();
+
+        prevSurveys.forEach(survey => {
+          if (survey.instructor_id) {
+            const existingStat = prevInstructorStatsMap.get(survey.instructor_id) || {
+              survey_count: 0,
+              response_count: 0,
+              instructor_satisfactions: [],
+              instructor_name: (survey as any).instructors?.name || 'Unknown'
+            };
+
+            existingStat.survey_count += 1;
+            existingStat.response_count += survey.survey_responses?.length || 0;
+
+            survey.survey_responses?.forEach(response => {
+              response.question_answers?.forEach(answer => {
+                if (answer.survey_questions?.satisfaction_type === 'instructor' && 
+                    answer.survey_questions?.question_type === 'scale' && 
+                    answer.answer_value) {
+                  let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
+                  if (score <= 5 && score > 0) score = score * 2;
+                  existingStat.instructor_satisfactions.push(score);
+                }
+              });
+            });
+
+            prevInstructorStatsMap.set(survey.instructor_id, existingStat);
+          }
+        });
+
+        const prevInstructorStats: InstructorStats[] = Array.from(prevInstructorStatsMap.entries()).map(([id, stat]) => ({
+          instructor_id: id,
+          instructor_name: stat.instructor_name,
+          survey_count: stat.survey_count,
+          response_count: stat.response_count,
+          avg_satisfaction: stat.instructor_satisfactions.length > 0 
+            ? stat.instructor_satisfactions.reduce((a, b) => a + b, 0) / stat.instructor_satisfactions.length 
+            : 0
+        }));
+
+        setPreviousInstructorStats(prevInstructorStats);
       }
     } catch (error) {
       console.error('Error fetching previous reports:', error);
@@ -589,6 +643,7 @@ export const useCourseReportsData = (
     previousReports,
     trendData,
     instructorStats,
+    previousInstructorStats,
     availableCourses,
     availableRounds,
     availableInstructors,
