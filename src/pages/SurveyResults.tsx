@@ -719,8 +719,7 @@ const SurveyResults = () => {
             </div>
             <div className="flex items-center gap-2">
               <TestDataToggle 
-                includeTestData={testDataOptions.includeTestData}
-                setIncludeTestData={testDataOptions.setIncludeTestData}
+                testDataOptions={testDataOptions}
               />
             </div>
           </div>

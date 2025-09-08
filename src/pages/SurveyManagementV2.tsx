@@ -818,7 +818,13 @@ export default function SurveyManagementV2() {
           <DialogHeader>
             <DialogTitle>새 설문 생성</DialogTitle>
           </DialogHeader>
-          <SurveyCreateForm />
+          <SurveyCreateForm 
+            onSuccess={(surveyId) => {
+              setCreateOpen(false);
+              navigate(`/survey-builder/${surveyId}`);
+            }}
+            templates={templates}
+          />
         </DialogContent>
       </Dialog>
 
