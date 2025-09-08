@@ -442,26 +442,28 @@ export default function SurveyManagementV2() {
   // 로딩 UI
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">설문 관리</h1>
-            <p className="text-muted-foreground">설문 생성 및 관리</p>
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold">설문 관리</h1>
+              <p className="text-muted-foreground">설문 생성 및 관리</p>
+            </div>
+            <Skeleton className="h-10 w-24" />
           </div>
-          <Skeleton className="h-10 w-24" />
-        </div>
-        <div className="grid gap-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-6 w-3/4 mb-4" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <div className="grid gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <Skeleton className="h-6 w-3/4 mb-4" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -470,147 +472,154 @@ export default function SurveyManagementV2() {
   const q = filters.q ?? "";
 
   return (
-    <div className="space-y-6">
-      {/* 헤더와 액션 버튼들 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">설문 관리</h1>
-          <p className="text-muted-foreground">전체 설문 결과 관리 및 통계 확인할 수 있습니다</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full px-3"
-            onClick={exportCsvAll}
-          >
-            <Download className="w-4 h-4 mr-1.5" />
-            CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full px-3"
-            onClick={runAutoStatus}
-          >
-            <Wand2 className="w-4 h-4 mr-1.5" />
-            상태 동기화
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="rounded-full px-3"
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            설문 추가
-          </Button>
-          <Button
-            size="sm"
-            className="rounded-full px-3"
-            onClick={() => setQuickOpen(true)}
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            빠른 생성
-          </Button>
-        </div>
-      </div>
-
-      {/* 검색/필터 카드 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">검색 / 필터</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">검색</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                placeholder="제목 / 과정 / 강사 검색"
-                className="pl-9"
-              />
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Plus className="h-6 w-6" />
+                설문 관리
+              </h1>
+              <p className="text-gray-600 mt-1">
+                전체 설문 결과 관리 및 통계 확인할 수 있습니다
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full px-3"
+                onClick={exportCsvAll}
+              >
+                <Download className="w-4 h-4 mr-1.5" />
+                CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full px-3"
+                onClick={runAutoStatus}
+              >
+                <Wand2 className="w-4 h-4 mr-1.5" />
+                상태 동기화
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="rounded-full px-3"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                설문 추가
+              </Button>
+              <Button
+                size="sm"
+                className="rounded-full px-3"
+                onClick={() => setQuickOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                빠른 생성
+              </Button>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* 검색/필터 카드 */}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4">검색 / 필터</h3>
+          <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">교육 연도</label>
-              <Select value={filters.year?.toString() || "all"} onValueChange={(v) => handleFilterChange("year", v)}>
-                <SelectTrigger><SelectValue placeholder="모든 연도" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">모든 연도</SelectItem>
-                  {availableYears.map((y) => <SelectItem key={y} value={String(y)}>{y}년</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">검색</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  ref={searchRef}
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="제목 / 과정 / 강사 검색"
+                  className="pl-9"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">과정명</label>
-              <Select value={filters.courseName || "all"} onValueChange={(v) => handleFilterChange("courseName", v)}>
-                <SelectTrigger><SelectValue placeholder="모든 과정" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">모든 과정</SelectItem>
-                  {availableCourseNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">상태</label>
-              <Select value={filters.status || "all"} onValueChange={(v) => handleFilterChange("status", v)}>
-                <SelectTrigger><SelectValue placeholder="모든 상태" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">모든 상태</SelectItem>
-                  <SelectItem value="draft">초안</SelectItem>
-                  <SelectItem value="active">진행중</SelectItem>
-                  <SelectItem value="completed">완료</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">정렬</label>
-              <div className="flex gap-2">
-                <Select value={sortBy} onValueChange={(v: SortBy) => setSortBy(v)}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">교육 연도</label>
+                <Select value={filters.year?.toString() || "all"} onValueChange={(v) => handleFilterChange("year", v)}>
+                  <SelectTrigger><SelectValue placeholder="모든 연도" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="created_at">생성일</SelectItem>
-                    <SelectItem value="title">제목</SelectItem>
-                    <SelectItem value="education_year">연도</SelectItem>
-                    <SelectItem value="status">상태</SelectItem>
+                    <SelectItem value="all">모든 연도</SelectItem>
+                    {availableYears.map((y) => <SelectItem key={y} value={String(y)}>{y}년</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
-                  className="px-3"
-                >
-                  {sortDir === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
-                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">과정명</label>
+                <Select value={filters.courseName || "all"} onValueChange={(v) => handleFilterChange("courseName", v)}>
+                  <SelectTrigger><SelectValue placeholder="모든 과정" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">모든 과정</SelectItem>
+                    {availableCourseNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">상태</label>
+                <Select value={filters.status || "all"} onValueChange={(v) => handleFilterChange("status", v)}>
+                  <SelectTrigger><SelectValue placeholder="모든 상태" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">모든 상태</SelectItem>
+                    <SelectItem value="draft">초안</SelectItem>
+                    <SelectItem value="active">진행중</SelectItem>
+                    <SelectItem value="completed">완료</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">정렬</label>
+                <div className="flex gap-2">
+                  <Select value={sortBy} onValueChange={(v: SortBy) => setSortBy(v)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created_at">생성일</SelectItem>
+                      <SelectItem value="title">제목</SelectItem>
+                      <SelectItem value="education_year">연도</SelectItem>
+                      <SelectItem value="status">상태</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+                    className="px-3"
+                  >
+                    {sortDir === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {error && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
 
-      {/* 선택된 항목들 액션 */}
-      {selected.size > 0 && (
-        <Card>
-          <CardContent className="p-4">
+        {/* 선택된 항목들 액션 */}
+        {selected.size > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">{selected.size}개 선택됨</span>
               <div className="flex gap-2">
@@ -623,13 +632,11 @@ export default function SurveyManagementV2() {
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {/* 설문 목록 */}
-      <Card>
-        <CardContent className="p-0">
+        {/* 설문 목록 */}
+        <div className="bg-white rounded-lg shadow-sm border">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b bg-muted/30">
@@ -755,152 +762,152 @@ export default function SurveyManagementV2() {
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            총 {totalCount}개 항목 중 {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)}번째
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                return (
-                  <Button
-                    key={page}
-                    variant={page === currentPage ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentPage(page)}
-                    className="w-10"
-                  >
-                    {page}
-                  </Button>
-                );
-              })}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
-      )}
 
-      {/* 다이얼로그들 */}
-      <QuickCreateDialog
-        open={quickOpen}
-        onOpenChange={setQuickOpen}
-        years={availableYears}
-        courseNames={availableCourseNames}
-        templates={templates}
-        defaultYear={new Date().getFullYear()}
-        onCreate={handleQuickCreate}
-      />
-
-      {/* 설문 생성 다이얼로그 */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>새 설문 생성</DialogTitle>
-          </DialogHeader>
-          <SurveyCreateForm 
-            onSuccess={(surveyId) => {
-              setCreateOpen(false);
-              navigate(`/survey-builder/${surveyId}`);
-            }}
-            templates={templates}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* 상세 정보 시트 */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-[600px] sm:max-w-[600px]">
-          <SheetHeader>
-            <SheetTitle>{sheetSurvey?.title}</SheetTitle>
-            <SheetDescription>설문 상세 정보</SheetDescription>
-          </SheetHeader>
-          {sheetSurvey && (
-            <div className="mt-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">상태</label>
-                  <div className="mt-1">
-                    <Badge variant={getStatusInfo(sheetSurvey).variant}>
-                      {getStatusInfo(sheetSurvey).label}
-                    </Badge>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">교육 정보</label>
-                  <div className="mt-1 text-sm">
-                    {sheetSurvey.education_year}년 {sheetSurvey.education_round}차 {sheetSurvey.education_day}일차
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">과정명</label>
-                <div className="mt-1 text-sm">{sheetSurvey.course_name}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">과정 제목</label>
-                <div className="mt-1 text-sm">{sheetSurvey.course_title}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">강사</label>
-                <div className="mt-1 text-sm">{sheetSurvey.instructor_name}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">설문 기간</label>
-                <div className="mt-1 text-sm">
-                  <div>{formatSafeDate(sheetSurvey.start_date)}</div>
-                  <div>~ {formatSafeDate(sheetSurvey.end_date)}</div>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">생성자</label>
-                <div className="mt-1 text-sm">{sheetSurvey.creator_email}</div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">생성일</label>
-                <div className="mt-1 text-sm">{formatSafeDate(sheetSurvey.created_at)}</div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={() => navigate(`/survey-builder/${sheetSurvey.id}`)}
-                  className="flex-1"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  편집
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate(`/survey/${sheetSurvey.id}`)}
-                  className="flex-1"
-                >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  미리보기
-                </Button>
-              </div>
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6">
+            <div className="text-sm text-muted-foreground">
+              총 {totalCount}개 항목 중 {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)}번째
             </div>
-          )}
-        </SheetContent>
-      </Sheet>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                  return (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className="w-10"
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* 다이얼로그들 */}
+        <QuickCreateDialog
+          open={quickOpen}
+          onOpenChange={setQuickOpen}
+          years={availableYears}
+          courseNames={availableCourseNames}
+          templates={templates}
+          defaultYear={new Date().getFullYear()}
+          onCreate={handleQuickCreate}
+        />
+
+        {/* 설문 생성 다이얼로그 */}
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>새 설문 생성</DialogTitle>
+            </DialogHeader>
+            <SurveyCreateForm 
+              onSuccess={(surveyId) => {
+                setCreateOpen(false);
+                navigate(`/survey-builder/${surveyId}`);
+              }}
+              templates={templates}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* 상세 정보 시트 */}
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent side="right" className="w-[600px] sm:max-w-[600px]">
+            <SheetHeader>
+              <SheetTitle>{sheetSurvey?.title}</SheetTitle>
+              <SheetDescription>설문 상세 정보</SheetDescription>
+            </SheetHeader>
+            {sheetSurvey && (
+              <div className="mt-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">상태</label>
+                    <div className="mt-1">
+                      <Badge variant={getStatusInfo(sheetSurvey).variant}>
+                        {getStatusInfo(sheetSurvey).label}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">교육 정보</label>
+                    <div className="mt-1 text-sm">
+                      {sheetSurvey.education_year}년 {sheetSurvey.education_round}차 {sheetSurvey.education_day}일차
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">과정명</label>
+                  <div className="mt-1 text-sm">{sheetSurvey.course_name}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">과정 제목</label>
+                  <div className="mt-1 text-sm">{sheetSurvey.course_title}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">강사</label>
+                  <div className="mt-1 text-sm">{sheetSurvey.instructor_name}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">설문 기간</label>
+                  <div className="mt-1 text-sm">
+                    <div>{formatSafeDate(sheetSurvey.start_date)}</div>
+                    <div>~ {formatSafeDate(sheetSurvey.end_date)}</div>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">생성자</label>
+                  <div className="mt-1 text-sm">{sheetSurvey.creator_email}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">생성일</label>
+                  <div className="mt-1 text-sm">{formatSafeDate(sheetSurvey.created_at)}</div>
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    onClick={() => navigate(`/survey-builder/${sheetSurvey.id}`)}
+                    className="flex-1"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    편집
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/survey/${sheetSurvey.id}`)}
+                    className="flex-1"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    미리보기
+                  </Button>
+                </div>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
     </div>
   );
 }
