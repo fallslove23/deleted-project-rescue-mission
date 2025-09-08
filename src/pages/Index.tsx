@@ -18,8 +18,11 @@ interface Survey {
   description?: string;
   status: string;
   created_at: string;
+  start_date?: string;
+  end_date?: string;
   instructor_id?: string;
   course_id?: string;
+  course_name?: string;
   instructors?: {
     name: string;
   };
@@ -55,7 +58,7 @@ const Index = () => {
     try {
       setLoading(true);
       
-      // 설문조사 데이터 조회
+      // 활성 설문조사 데이터 조회 (public 설문만)
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
         .select(`
@@ -64,36 +67,57 @@ const Index = () => {
           description,
           status,
           created_at,
+          start_date,
+          end_date,
           instructor_id,
           course_id,
-          instructors(name),
-          courses(title)
+          course_name
         `)
-        .eq('status', 'active')
+        .in('status', ['active', 'public'])
         .order('created_at', { ascending: false });
 
-      if (surveyError) throw surveyError;
-      
-      const surveysWithRelations = surveyData || [];
-      setAllSurveys(surveysWithRelations);
-      setSurveys(surveysWithRelations);
+      if (surveyError) {
+        console.warn('Error fetching surveys:', surveyError);
+        // RLS 오류가 발생해도 빈 배열로 처리
+        setAllSurveys([]);
+        setSurveys([]);
+      } else {
+        // 현재 시간 기준으로 유효한 설문만 필터링
+        const now = new Date();
+        const activeSurveys = (surveyData || []).filter(survey => {
+          const startDate = survey.start_date ? new Date(survey.start_date) : null;
+          const endDate = survey.end_date ? new Date(survey.end_date) : null;
+          
+          // 시작일이 없거나 이미 시작되었고, 종료일이 없거나 아직 종료되지 않은 설문
+          const isStarted = !startDate || now >= startDate;
+          const isNotEnded = !endDate || now <= endDate;
+          
+          return isStarted && isNotEnded;
+        });
+        
+        setAllSurveys(activeSurveys);
+        setSurveys(activeSurveys);
+      }
 
-      // 과정 데이터 조회
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('id, title')
-        .order('title');
-
-      if (courseError) throw courseError;
-      setCourses(courseData || []);
+      // 과정 데이터 조회 (선택사항)
+      try {
+        const { data: courseData } = await supabase
+          .from('courses')
+          .select('id, title')
+          .order('title');
+        
+        setCourses(courseData || []);
+      } catch (courseError) {
+        console.warn('Error fetching courses:', courseError);
+        setCourses([]);
+      }
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast({
-        title: "오류",
-        description: "데이터를 불러오는데 실패했습니다.",
-        variant: "destructive",
-      });
+      // 전체적인 오류가 발생해도 빈 상태로 설정
+      setAllSurveys([]);
+      setSurveys([]);
+      setCourses([]);
     } finally {
       setLoading(false);
     }
@@ -198,7 +222,7 @@ const Index = () => {
                             </Button>
                           </div>
                         </div>
-                        <Button onClick={() => window.location.reload()} variant="ghost" className="w-full text-muted-foreground">
+                        <Button onClick={() => window.location.href = '/auth'} variant="ghost" className="w-full text-muted-foreground">
                           로그아웃
                         </Button>
                       </>
@@ -294,22 +318,26 @@ const Index = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-sm font-sans">
-                      {survey.courses?.title && (
+                      {survey.course_name && (
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span>과정: {survey.courses.title}</span>
-                        </div>
-                      )}
-                      {survey.instructors?.name && (
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>강사: {survey.instructors.name}</span>
+                          <span>과정: {survey.course_name}</span>
                         </div>
                       )}
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span>생성일: {formatDate(survey.created_at)}</span>
                       </div>
+                      {(survey.start_date || survey.end_date) && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span>
+                            {survey.start_date && `시작: ${formatDate(survey.start_date)}`}
+                            {survey.start_date && survey.end_date && ' | '}
+                            {survey.end_date && `종료: ${formatDate(survey.end_date)}`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="mt-4">
                       <Button 
