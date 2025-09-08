@@ -723,6 +723,7 @@ export default function SurveyBuilder() {
   const applyTemplateToSession = async (templateId: string, sessionId: string) => {
     try {
       setLoadingTemplate(true);
+      console.log('Applying template to session:', { templateId, sessionId });
       
       // 선택된 세션 찾기
       const targetSession = sessions.find(s => s.id === sessionId);
@@ -731,22 +732,17 @@ export default function SurveyBuilder() {
         return;
       }
 
-      // 해당 세션의 기존 질문과 섹션 삭제
-      await supabase.from('survey_questions').delete().eq('survey_id', surveyId!).eq('session_id', sessionId);
+      // 기존 전체 질문의 최대 order_index 구하기 (겹치지 않도록)
+      const { data: allQuestions } = await supabase
+        .from('survey_questions')
+        .select('order_index')
+        .eq('survey_id', surveyId!);
       
-      // 해당 세션의 섹션도 삭제 (섹션 내 질문들이 해당 세션에만 속한 경우)
-      const sessionSections = sections.filter(s => 
-        questions.some(q => q.section_id === s.id && (q as any).session_id === sessionId)
-      );
-      for (const section of sessionSections) {
-        // 다른 세션에서도 사용하는지 확인
-        const otherSessionQuestions = questions.filter(q => 
-          q.section_id === section.id && (q as any).session_id !== sessionId
-        );
-        if (otherSessionQuestions.length === 0) {
-          await supabase.from('survey_sections').delete().eq('id', section.id);
-        }
-      }
+      const maxOrderIndex = allQuestions?.length 
+        ? Math.max(...allQuestions.map(q => q.order_index || 0))
+        : 0;
+
+      console.log('Max existing order_index:', maxOrderIndex);
 
       // 템플릿 질문과 섹션 가져오기
       const { data: tq } = await supabase
@@ -761,9 +757,11 @@ export default function SurveyBuilder() {
         .eq('survey_id', templateId)
         .order('order_index');
 
+      console.log('Template questions:', tq?.length, 'Template sections:', ts?.length);
+
       const sectionMapping: Record<string, string> = {};
       
-      // 섹션 생성
+      // 섹션 생성 (기존 순서 뒤에 추가)
       if (ts?.length) {
         for (const templateSection of ts) {
           const sectionName = `${targetSession.instructor?.name || '강사'} - ${targetSession.course?.title || targetSession.session_name} - ${templateSection.name}`;
@@ -773,16 +771,17 @@ export default function SurveyBuilder() {
               survey_id: surveyId,
               name: sectionName,
               description: templateSection.description,
-              order_index: templateSection.order_index + (targetSession.session_order * 100)
+              order_index: maxOrderIndex + templateSection.order_index + 1
             })
             .select('*').single();
           if (newSection) {
             sectionMapping[templateSection.id] = newSection.id;
+            console.log('Created section:', newSection.name, 'with order_index:', newSection.order_index);
           }
         }
       }
 
-      // 질문 생성
+      // 질문 생성 (기존 순서 뒤에 추가)
       if (tq?.length) {
         const sessionQuestions = tq.map((q: any) => ({
           survey_id: surveyId,
@@ -791,21 +790,30 @@ export default function SurveyBuilder() {
           question_type: q.question_type,
           options: q.options,
           is_required: q.is_required,
-          order_index: q.order_index + (targetSession.session_order * 100),
+          order_index: maxOrderIndex + q.order_index + 1,
           section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
           satisfaction_type: q.satisfaction_type ?? null,
           scope: 'session',
         }));
         
-        await supabase.from('survey_questions').insert(sessionQuestions);
+        console.log('Inserting questions with order_index range:', 
+          Math.min(...sessionQuestions.map(q => q.order_index)), 
+          'to', 
+          Math.max(...sessionQuestions.map(q => q.order_index))
+        );
+        
+        const { error } = await supabase.from('survey_questions').insert(sessionQuestions);
+        if (error) {
+          console.error('Question insert error:', error);
+          throw error;
+        }
+        
+        console.log('Successfully inserted', sessionQuestions.length, 'questions');
       }
 
-      await loadQuestions();
-      await loadSections();
-      
       toast({ 
         title: "템플릿 적용 완료", 
-        description: `${targetSession.instructor?.name || '강사'} 세션에 템플릿이 적용되었습니다.` 
+        description: `${targetSession.instructor?.name || '강사'} - ${targetSession.course?.title || targetSession.session_name}에 템플릿이 적용되었습니다.` 
       });
     } catch (e: any) {
       console.error('Session template application error:', e);
