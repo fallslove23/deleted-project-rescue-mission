@@ -108,7 +108,10 @@ export default function SurveyBuilder() {
     if (!surveyId) return;
     try {
       setLoading(true);
+      console.log('Loading survey with ID:', surveyId);
       const { data, error } = await supabase.from("surveys").select("*").eq("id", surveyId).single();
+      console.log('Survey data loaded:', data);
+      console.log('Survey error:', error);
       if (error) throw error;
       const s = data as Survey;
       setSurvey(s);
@@ -123,7 +126,16 @@ export default function SurveyBuilder() {
         s.description ??
           "본 설문은 과목과 강사 만족도를 평가하기 위한 것입니다. 교육 품질 향상을 위해 모든 교육생께서 반드시 참여해 주시길 부탁드립니다."
       );
+      console.log('Survey state updated with:', {
+        educationYear: s.education_year,
+        educationRound: s.education_round,
+        educationDay: s.education_day,
+        courseName: s.course_name,
+        title: s.title,
+        description: s.description
+      });
     } catch (e: any) {
+      console.error('Survey load error:', e);
       toast({ title: "설문 로드 실패", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
