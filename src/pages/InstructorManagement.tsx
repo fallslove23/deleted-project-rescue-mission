@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import AdminLayout from '@/components/layouts/AdminLayout';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -601,66 +601,52 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
 
   if (loading) {
     return (
-      <AdminLayout title="강사 관리" subtitle="강사 정보 등록 및 관리">
-        <div className="flex items-center justify-center py-8">
-          <div>로딩중...</div>
-        </div>
-      </AdminLayout>
+      <div className="flex items-center justify-center py-8">
+        <div>로딩중...</div>
+      </div>
     );
   }
 
   return (
-    <AdminLayout
-      title="강사 관리"
-      subtitle="강사 정보 및 계정 관리"
-      totalCount={filteredInstructors.length}
-      loading={loading}
-      actions={[
-        <Button
-          key="add"
-          onClick={openAddDialog}
-          className="flex items-center gap-2 rounded-full px-3"
-          size="sm"
-        >
-          <Plus className="h-4 w-4" />
-          새 강사 추가
-        </Button>,
-        <Button 
-          key="sync"
-          onClick={handleSyncAllInstructors} 
-          variant="outline"
-          disabled={creatingUsers}
-          className="flex items-center gap-2 rounded-full px-3"
-          size="sm"
-        >
-          <RefreshCcw className={`h-4 w-4 ${creatingUsers ? 'animate-spin' : ''}`} />
-          계정 동기화
-        </Button>,
-      ]}
-      mobileActions={[
-        <Button
-          key="add-mobile"
-          onClick={openAddDialog}
-          className="rounded-full"
-          size="sm"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>,
-        <Button 
-          key="sync-mobile"
-          onClick={handleSyncAllInstructors} 
-          variant="outline"
-          disabled={creatingUsers}
-          className="rounded-full"
-          size="sm"
-        >
-          <RefreshCcw className={`h-4 w-4 ${creatingUsers ? 'animate-spin' : ''}`} />
-        </Button>,
-      ]}
-    >
+    <div className="space-y-6">
+      {/* 액션 버튼들 */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={openAddDialog}
+            className="flex items-center gap-2 rounded-full px-3"
+            size="sm"
+          >
+            <Plus className="h-4 w-4" />
+            새 강사 추가
+          </Button>
+          <Button 
+            onClick={handleSyncAllInstructors} 
+            variant="outline"
+            disabled={creatingUsers}
+            className="flex items-center gap-2 rounded-full px-3"
+            size="sm"
+          >
+            <RefreshCcw className={`h-4 w-4 ${creatingUsers ? 'animate-spin' : ''}`} />
+            계정 동기화
+          </Button>
+          <Button
+            onClick={fetchData}
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            disabled={loading}
+          >
+            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          강사 정보 및 계정 관리 - 전체 {filteredInstructors.length}개
+        </div>
+      </div>
+
       <div className="space-y-6">
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center">
           <div className="flex gap-1 border rounded-md p-1">
             <Button
               variant={viewType === 'card' ? 'default' : 'ghost'}
@@ -1195,7 +1181,7 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
           </DialogContent>
         </Dialog>
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 
