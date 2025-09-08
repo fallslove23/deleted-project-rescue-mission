@@ -89,7 +89,7 @@ export function AdminSidebar() {
       <SidebarContent className="bg-white dark:bg-gray-900">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="text-gray-600 dark:text-gray-400 font-semibold text-xs uppercase tracking-wider px-3 py-2">
+            <SidebarGroupLabel className="text-purple-600 font-semibold text-xs uppercase tracking-wider px-3 py-2">
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -104,12 +104,12 @@ export function AdminSidebar() {
                           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                             isActive 
                               ? 'bg-primary text-primary-foreground shadow-sm' 
-                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                              : 'text-purple-600 hover:bg-purple-50 hover:text-purple-700'
                           }`
                         }
                       >
                         <item.icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="font-medium">{item.title}</span>
+                        <span className="font-semibold">{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -122,7 +122,7 @@ export function AdminSidebar() {
         {/* 관리자 전용 - 뷰 테스트 섹션 */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-gray-600 dark:text-gray-400 font-semibold text-xs uppercase tracking-wider px-3 py-2">
+            <SidebarGroupLabel className="text-purple-600 font-semibold text-xs uppercase tracking-wider px-3 py-2">
               뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-primary text-primary-foreground rounded">DEV</span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -130,10 +130,10 @@ export function AdminSidebar() {
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton className="w-full justify-between text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200">
+                      <SidebarMenuButton className="w-full justify-between text-purple-600 hover:bg-purple-50 hover:text-purple-700 transition-colors duration-200">
                         <div className="flex items-center gap-3">
                           <Eye className="h-4 w-4 flex-shrink-0" />
-                          <span className="font-medium">뷰 선택</span>
+                          <span className="font-semibold">뷰 선택</span>
                         </div>
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
@@ -141,7 +141,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/admin" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-foreground px-2 py-1.5 rounded-sm transition-colors"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-purple-600 hover:text-purple-700 px-2 py-1.5 rounded-sm transition-colors"
                         >
                           <LayoutDashboard className="h-4 w-4" />
                           관리자 뷰
@@ -150,7 +150,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/instructor" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-foreground px-2 py-1.5 rounded-sm transition-colors"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-purple-600 hover:text-purple-700 px-2 py-1.5 rounded-sm transition-colors"
                         >
                           <UserCheck className="h-4 w-4" />
                           강사 뷰
@@ -159,7 +159,7 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-foreground px-2 py-1.5 rounded-sm transition-colors"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-purple-600 hover:text-purple-700 px-2 py-1.5 rounded-sm transition-colors"
                         >
                           <Users className="h-4 w-4" />
                           교육생 뷰
