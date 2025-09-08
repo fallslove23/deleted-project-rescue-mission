@@ -85,11 +85,11 @@ export function AdminSidebar() {
   const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
 
   return (
-    <Sidebar className="bg-sidebar border-sidebar-border shadow-sm">
-      <SidebarContent className="bg-sidebar">
+    <Sidebar className="border-r bg-white dark:bg-gray-900">
+      <SidebarContent className="bg-white dark:bg-gray-900">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="text-sidebar-foreground/80 font-semibold text-xs uppercase tracking-wider px-3 py-2">
+            <SidebarGroupLabel className="text-gray-600 dark:text-gray-400 font-semibold text-xs uppercase tracking-wider px-3 py-2">
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -103,8 +103,8 @@ export function AdminSidebar() {
                         className={({ isActive }) =>
                           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                             isActive 
-                              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm' 
-                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                              ? 'bg-primary text-primary-foreground shadow-sm' 
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                           }`
                         }
                       >
@@ -122,15 +122,15 @@ export function AdminSidebar() {
         {/* 관리자 전용 - 뷰 테스트 섹션 */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-foreground/80 font-semibold text-xs uppercase tracking-wider px-3 py-2">
-              뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-sidebar-primary text-sidebar-primary-foreground rounded">DEV</span>
+            <SidebarGroupLabel className="text-gray-600 dark:text-gray-400 font-semibold text-xs uppercase tracking-wider px-3 py-2">
+              뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-primary text-primary-foreground rounded">DEV</span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton className="w-full justify-between text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-200">
+                      <SidebarMenuButton className="w-full justify-between text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200">
                         <div className="flex items-center gap-3">
                           <Eye className="h-4 w-4 flex-shrink-0" />
                           <span className="font-medium">뷰 선택</span>
