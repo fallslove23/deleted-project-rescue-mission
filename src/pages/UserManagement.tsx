@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Users, Edit, Search, UserX, Shield, Key, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import AdminLayout from '@/components/layouts/AdminLayout';
+
 
 interface UserProfile {
   id: string;
@@ -216,13 +216,11 @@ const UserManagement = () => {
   );
 
   return (
-    <AdminLayout
-      title="사용자 관리"
-      subtitle="시스템 사용자 및 권한 관리"
-      loading={loading}
-      actions={[<DesktopActions />]}
-      mobileActions={[<MobileActions />]}
-    >
+    <div className="space-y-6">
+      {/* 액션 버튼들 */}
+      <div className="flex justify-end gap-2 mb-4">
+        <DesktopActions />
+      </div>
       <div className="space-y-6">
         {/* 검색 */}
         <div className="flex items-center gap-4">
@@ -405,7 +403,7 @@ const UserManagement = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 

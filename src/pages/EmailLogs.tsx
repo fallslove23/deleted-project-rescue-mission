@@ -16,7 +16,7 @@ import { Mail, CheckCircle, XCircle, Clock, Calendar as CalendarIcon, Filter, Tr
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import AdminLayout from "@/components/layouts/AdminLayout";
+
 
 interface EmailLog {
   id: string;
@@ -254,32 +254,24 @@ const EmailLogs = () => {
 
   if (!canViewLogs) {
     return (
-      <AdminLayout
-        title="이메일 발송 로그"
-        description="설문 결과 이메일 발송 기록 및 통계"
-        loading={false}
-      >
-        <div className="flex items-center justify-center py-8">
-          <Card className="w-full max-w-md">
-            <CardContent className="pt-6 text-center">
-              <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">접근 권한 없음</h3>
-              <p className="text-muted-foreground">이메일 로그를 조회할 권한이 없습니다.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </AdminLayout>
+      <div className="flex items-center justify-center py-8">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center">
+            <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">접근 권한 없음</h3>
+            <p className="text-muted-foreground">이메일 로그를 조회할 권한이 없습니다.</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <AdminLayout
-      title="이메일 발송 로그"
-      description="설문 결과 이메일 발송 기록 및 통계"
-      loading={loading}
-      desktopActions={<DesktopActions />}
-      mobileActions={<MobileActions />}
-    >
+    <div className="space-y-6">
+      {/* 액션 버튼들 */}
+      <div className="flex justify-end gap-2 mb-4">
+        <DesktopActions />
+      </div>
       <div className="space-y-6">
         {/* 통계 카드 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -611,7 +603,7 @@ const EmailLogs = () => {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </div>
   );
 };
 

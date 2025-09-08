@@ -103,7 +103,7 @@ export function AdminSidebar() {
                         className={({ isActive }) =>
                           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                             isActive 
-                              ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' 
+                              ? 'bg-primary text-primary-foreground shadow-md' 
                               : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                           }`
                         }
