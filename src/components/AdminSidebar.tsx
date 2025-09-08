@@ -155,7 +155,7 @@ export function AdminSidebar() {
                     <DropdownMenuContent align="end" className="w-48 bg-popover border shadow-lg">
                       <DropdownMenuItem asChild>
                         <NavLink 
-                          to="/404" 
+                          to="/dashboard?view=admin" 
                           className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
                           style={{ color: '#374151' }}
                         >
@@ -165,7 +165,7 @@ export function AdminSidebar() {
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <NavLink 
-                          to="/404" 
+                          to="/dashboard/results?view=instructor" 
                           className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
                           style={{ color: '#374151' }}
                         >
@@ -175,7 +175,7 @@ export function AdminSidebar() {
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <NavLink 
-                          to="/404" 
+                          to="/?view=student" 
                           className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
                           style={{ color: '#374151' }}
                         >
