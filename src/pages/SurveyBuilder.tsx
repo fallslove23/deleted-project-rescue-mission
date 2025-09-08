@@ -259,6 +259,8 @@ export default function SurveyBuilder() {
   
   // 멀티 셀렉션 핸들러들
   const handleToggleMultiSelect = () => {
+    console.log('Toggling multi-select mode. Current state:', isMultiSelectMode);
+    console.log('Questions length:', questions.length);
     setIsMultiSelectMode(!isMultiSelectMode);
     setSelectedQuestions(new Set());
   };
@@ -964,22 +966,20 @@ export default function SurveyBuilder() {
                   <Button onClick={handleAddQuestion}>
                     <Plus className="w-4 h-4 mr-2" />질문 추가
                   </Button>
-                  {questions.length > 0 && (
-                    <Button 
-                      variant={isMultiSelectMode ? "default" : "outline"} 
-                      onClick={handleToggleMultiSelect}
-                    >
-                      {isMultiSelectMode ? (
-                        <>
-                          <CheckSquare className="w-4 h-4 mr-2" />선택 완료
-                        </>
-                      ) : (
-                        <>
-                          <Square className="w-4 h-4 mr-2" />다중 선택
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <Button 
+                    variant={isMultiSelectMode ? "default" : "outline"} 
+                    onClick={handleToggleMultiSelect}
+                  >
+                    {isMultiSelectMode ? (
+                      <>
+                        <CheckSquare className="w-4 h-4 mr-2" />선택 완료
+                      </>
+                    ) : (
+                      <>
+                        <Square className="w-4 h-4 mr-2" />다중 선택
+                      </>
+                    )}
+                  </Button>
                 </div>
                 <div className="md:hidden">
                   <Button variant="outline" size="icon" onClick={() => {
