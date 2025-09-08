@@ -302,7 +302,7 @@ function AppContent() {
       <Route
         path="/dashboard/course-reports"
         element={
-          <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
+          <ProtectedRoute allowedRoles={["admin", "operator", "director", "instructor"]}>
             <DashboardCourseReports />
           </ProtectedRoute>
         }
