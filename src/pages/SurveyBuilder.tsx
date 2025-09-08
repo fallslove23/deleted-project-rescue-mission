@@ -152,10 +152,17 @@ export default function SurveyBuilder() {
 
   const loadQuestions = useCallback(async () => {
     if (!surveyId) return;
+    console.log('Loading questions for survey:', surveyId);
     const { data, error } = await supabase
       .from('survey_questions').select('*').eq('survey_id', surveyId).order('order_index');
-    if (error) { toast({ title: "질문 로드 실패", description: error.message, variant: "destructive" }); return; }
+    console.log('Questions query result:', { data, error, count: data?.length });
+    if (error) { 
+      console.error('Questions load error:', error);
+      toast({ title: "질문 로드 실패", description: error.message, variant: "destructive" }); 
+      return; 
+    }
     setQuestions((data || []) as any[]);
+    console.log('Questions state updated, count:', (data || []).length);
   }, [surveyId, toast]);
 
   const loadSections = useCallback(async () => {
@@ -326,8 +333,8 @@ export default function SurveyBuilder() {
       
       // 템플릿 적용 후 질문과 섹션 다시 로드
       console.log('Reloading questions and sections after template application');
-      await loadQuestions();
-      await loadSections();
+      await Promise.all([loadQuestions(), loadSections()]);
+      console.log('Reload completed');
       
       setTemplateSelectOpen(false);
       setTemplateSelections({});
