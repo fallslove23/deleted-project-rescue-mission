@@ -105,7 +105,7 @@ export function AdminSidebar() {
       <SidebarContent className="bg-sidebar">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider px-3 py-2 text-sidebar-foreground/70">
+            <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider px-3 py-2 text-purple-700">
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -120,7 +120,7 @@ export function AdminSidebar() {
                           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                             isActive 
                               ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm' 
-                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                              : 'text-purple-700 hover:bg-sidebar-accent hover:text-purple-800'
                           }`
                         }
                       >
