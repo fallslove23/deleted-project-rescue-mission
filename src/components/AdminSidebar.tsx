@@ -7,11 +7,8 @@ import {
 } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, BarChart3, Users, UserCheck, BookOpen, FileText, 
-  Mail, Settings, Eye, TrendingUp, Award, PieChart, Database
+  Mail, Settings, TrendingUp, Award, PieChart, Database
 } from "lucide-react";
-import { 
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 
 export function AdminSidebar() {
   const { userRoles } = useAuth();
@@ -146,69 +143,6 @@ export function AdminSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
-
-        {/* 관리자 전용 - 뷰 테스트 섹션 */}
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel 
-              className="font-semibold text-xs uppercase tracking-wider px-3 py-2"
-              style={{ color: '#581c87' }}
-            >
-              뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-primary text-primary-foreground rounded">DEV</span>
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton 
-                        className="w-full justify-between hover:bg-purple-100 transition-colors duration-200"
-                        style={{ color: '#374151' }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Eye className="h-4 w-4 flex-shrink-0" />
-                          <span className="font-semibold">뷰 선택</span>
-                        </div>
-                      </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 bg-popover border shadow-lg">
-                      <DropdownMenuItem asChild>
-                        <NavLink 
-                          to="/dashboard?view=admin" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
-                          style={{ color: '#374151' }}
-                        >
-                          <LayoutDashboard className="h-4 w-4" />
-                          관리자 뷰
-                        </NavLink>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <NavLink 
-                          to="/dashboard/results?view=instructor" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
-                          style={{ color: '#374151' }}
-                        >
-                          <UserCheck className="h-4 w-4" />
-                          강사 뷰
-                        </NavLink>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <NavLink 
-                          to="/?view=student" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
-                          style={{ color: '#374151' }}
-                        >
-                          <Users className="h-4 w-4" />
-                          교육생 뷰
-                        </NavLink>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
     </Sidebar>
   );

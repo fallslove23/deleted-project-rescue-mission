@@ -998,6 +998,37 @@ export default function SurveyBuilder() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* 플로팅 액션 바 */}
+              {isMultiSelectMode && selectedQuestions.size > 0 && (
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+                  <div className="bg-primary text-primary-foreground px-6 py-3 rounded-full shadow-lg border flex items-center gap-4">
+                    <span className="font-medium">{selectedQuestions.size}개 선택됨</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedQuestions(new Set());
+                          setIsMultiSelectMode(false);
+                        }}
+                        className="rounded-full"
+                      >
+                        취소
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteSelectedQuestions}
+                        className="rounded-full"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        삭제
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 다중 선택 모드일 때 컨트롤 바 */}
               {isMultiSelectMode && questions.length > 0 && (
                 <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
@@ -1014,16 +1045,6 @@ export default function SurveyBuilder() {
                         {selectedQuestions.size}개 선택됨
                       </span>
                     </div>
-                    {selectedQuestions.size > 0 && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteSelectedQuestions}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        선택 항목 삭제
-                      </Button>
-                    )}
                   </div>
                 </div>
               )}
