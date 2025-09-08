@@ -8,10 +8,9 @@ interface GlobalNavBarProps {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
-  actions?: React.ReactNode;
 }
 
-export function GlobalNavBar({ title, subtitle, icon, actions }: GlobalNavBarProps) {
+export function GlobalNavBar({ title, subtitle, icon }: GlobalNavBarProps) {
   const { user, signOut } = useAuth();
 
   return (
@@ -35,7 +34,6 @@ export function GlobalNavBar({ title, subtitle, icon, actions }: GlobalNavBarPro
         </div>
         
         <div className="flex items-center gap-2">
-          {actions}
           <span className="text-xs md:text-sm text-muted-foreground hidden sm:block">
             환영합니다, {user?.email}
           </span>

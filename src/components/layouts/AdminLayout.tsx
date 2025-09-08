@@ -43,16 +43,20 @@ export default function AdminLayout(props: AdminLayoutProps) {
   const mobileActionItems = toArray(mobileActions);
   const subline = description ?? subtitle;
 
-  const renderActions = () => {
-    const elements: React.ReactNode[] = [];
-
-    // 새로고침 버튼 제거 - 글로벌 네비게이션에서 표시하지 않음
-
-    desktopActionItems.forEach((action, index) => {
-      elements.push(<div key={`action-${index}`}>{action}</div>);
-    });
-
-    return elements;
+  const renderSubNavigation = () => {
+    if (!desktopActionItems.length) return null;
+    
+    return (
+      <div className="border-b bg-white/95 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            {desktopActionItems.map((action, index) => (
+              <div key={`action-${index}`}>{action}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
 
@@ -67,9 +71,10 @@ export default function AdminLayout(props: AdminLayoutProps) {
               title={title}
               subtitle={subtitle || description}
               icon={icon}
-              actions={renderActions()}
             />
           )}
+          
+          {renderSubNavigation()}
           
           <div className="flex-1 overflow-auto">
             <div className="container mx-auto px-4 py-6 max-w-none">
