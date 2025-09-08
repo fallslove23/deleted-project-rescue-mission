@@ -123,9 +123,12 @@ export function AdminSidebar() {
                               : 'text-purple-700 hover:bg-sidebar-accent hover:text-purple-800'
                           }`
                         }
+                        style={({ isActive }) => ({
+                          color: isActive ? undefined : '#7c3aed',
+                        })}
                       >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="font-semibold">{item.title}</span>
+                        <item.icon className="h-4 w-4 flex-shrink-0" style={{ color: 'inherit' }} />
+                        <span className="font-semibold" style={{ color: 'inherit' }}>{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
