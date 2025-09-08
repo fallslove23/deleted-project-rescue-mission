@@ -34,7 +34,7 @@ export function AdminSidebar() {
       title: "설문",
       items: [
         { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-        { title: "과정 리포트", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
+        { title: "과정 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
         { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
       ]
     },

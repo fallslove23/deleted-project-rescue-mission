@@ -189,7 +189,7 @@ const CourseReports = () => {
 
   return (
     <DashboardLayout
-      title="과정별 분석"
+      title="과정 결과 보고"
       subtitle={isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
       icon={<BarChart3 className="h-5 w-5 text-white" />}
       actions={actions}
