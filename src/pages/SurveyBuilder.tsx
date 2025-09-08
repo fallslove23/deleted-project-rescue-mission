@@ -93,6 +93,7 @@ export default function SurveyBuilder() {
   const [templates, setTemplates] = useState<{id: string; name: string; is_course_evaluation?: boolean}[]>([]);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
@@ -612,6 +613,102 @@ export default function SurveyBuilder() {
     }
   };
 
+  // 특정 세션에만 템플릿 적용
+  const applyTemplateToSession = async (templateId: string, sessionId: string) => {
+    try {
+      setLoadingTemplate(true);
+      
+      // 선택된 세션 찾기
+      const targetSession = sessions.find(s => s.id === sessionId);
+      if (!targetSession) {
+        toast({ title: "오류", description: "세션을 찾을 수 없습니다.", variant: "destructive" });
+        return;
+      }
+
+      // 해당 세션의 기존 질문과 섹션 삭제
+      await supabase.from('survey_questions').delete().eq('survey_id', surveyId!).eq('session_id', sessionId);
+      
+      // 해당 세션의 섹션도 삭제 (섹션 내 질문들이 해당 세션에만 속한 경우)
+      const sessionSections = sections.filter(s => 
+        questions.some(q => q.section_id === s.id && (q as any).session_id === sessionId)
+      );
+      for (const section of sessionSections) {
+        // 다른 세션에서도 사용하는지 확인
+        const otherSessionQuestions = questions.filter(q => 
+          q.section_id === section.id && (q as any).session_id !== sessionId
+        );
+        if (otherSessionQuestions.length === 0) {
+          await supabase.from('survey_sections').delete().eq('id', section.id);
+        }
+      }
+
+      // 템플릿 질문과 섹션 가져오기
+      const { data: tq } = await supabase
+        .from('survey_questions')
+        .select('*')
+        .eq('survey_id', templateId)
+        .order('order_index');
+
+      const { data: ts } = await supabase
+        .from('survey_sections')
+        .select('*')
+        .eq('survey_id', templateId)
+        .order('order_index');
+
+      const sectionMapping: Record<string, string> = {};
+      
+      // 섹션 생성
+      if (ts?.length) {
+        for (const templateSection of ts) {
+          const sectionName = `${targetSession.instructor?.name || '강사'} - ${targetSession.course?.title || targetSession.session_name} - ${templateSection.name}`;
+          const { data: newSection } = await supabase
+            .from('survey_sections')
+            .insert({
+              survey_id: surveyId,
+              name: sectionName,
+              description: templateSection.description,
+              order_index: templateSection.order_index + (targetSession.session_order * 100)
+            })
+            .select('*').single();
+          if (newSection) {
+            sectionMapping[templateSection.id] = newSection.id;
+          }
+        }
+      }
+
+      // 질문 생성
+      if (tq?.length) {
+        const sessionQuestions = tq.map((q: any) => ({
+          survey_id: surveyId,
+          session_id: sessionId,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          options: q.options,
+          is_required: q.is_required,
+          order_index: q.order_index + (targetSession.session_order * 100),
+          section_id: q.section_id ? sectionMapping[q.section_id] ?? null : null,
+          satisfaction_type: q.satisfaction_type ?? null,
+          scope: 'session',
+        }));
+        
+        await supabase.from('survey_questions').insert(sessionQuestions);
+      }
+
+      await loadQuestions();
+      await loadSections();
+      
+      toast({ 
+        title: "템플릿 적용 완료", 
+        description: `${targetSession.instructor?.name || '강사'} 세션에 템플릿이 적용되었습니다.` 
+      });
+    } catch (e: any) {
+      console.error('Session template application error:', e);
+      toast({ title: "템플릿 적용 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
   /* ───────────────────────────── course names CRUD ───────────────────────── */
   const handleCreateCourseName = async () => {
     const name = newCourseName.trim(); if (!name) return;
@@ -650,7 +747,10 @@ export default function SurveyBuilder() {
       variant="outline"
       size="sm"
       className="rounded-full px-3"
-      onClick={() => setTemplateSelectOpen(true)}
+      onClick={() => {
+        setSelectedSessionId(null);
+        setTemplateSelectOpen(true);
+      }}
       disabled={loading || !survey}
     >
       <Plus className="w-4 h-4 mr-1.5" /> 템플릿 불러오기
@@ -683,7 +783,10 @@ export default function SurveyBuilder() {
     <Button key="save-m" size="sm" className="rounded-full" onClick={saveBasic} disabled={saving || loading || !survey}>
       <Save className="w-4 h-4" />
     </Button>,
-    <Button key="tpl-m" variant="outline" size="sm" className="rounded-full" onClick={() => setTemplateSelectOpen(true)} disabled={loading || !survey}>
+    <Button key="tpl-m" variant="outline" size="sm" className="rounded-full" onClick={() => {
+      setSelectedSessionId(null);
+      setTemplateSelectOpen(true);
+    }} disabled={loading || !survey}>
       <Plus className="w-4 h-4" />
     </Button>,
     <Button key="sec-m" variant="outline" size="sm" className="rounded-full" onClick={handleAddSection} disabled={loading || !survey}>
@@ -795,7 +898,10 @@ export default function SurveyBuilder() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-2xl">질문 관리</CardTitle>
                 <div className="hidden md:flex gap-2">
-                  <Button variant="outline" onClick={() => setTemplateSelectOpen(true)}>
+                  <Button variant="outline" onClick={() => {
+                    setSelectedSessionId(null);
+                    setTemplateSelectOpen(true);
+                  }}>
                     <Plus className="w-4 h-4 mr-2" />템플릿 불러오기
                   </Button>
                   <Button variant="outline" onClick={handleAddSection}>
@@ -806,7 +912,10 @@ export default function SurveyBuilder() {
                   </Button>
                 </div>
                 <div className="md:hidden">
-                  <Button variant="outline" size="icon" onClick={() => setTemplateSelectOpen(true)} className="mr-2">
+                  <Button variant="outline" size="icon" onClick={() => {
+                    setSelectedSessionId(null);
+                    setTemplateSelectOpen(true);
+                  }} className="mr-2">
                     <Plus className="w-4 h-4" />
                   </Button>
                   <Button variant="outline" size="icon" onClick={handleAddSection} className="mr-2">
@@ -863,7 +972,8 @@ export default function SurveyBuilder() {
                     
                     return (
                       <div key={session.id} className="border-2 border-dashed border-muted rounded-lg p-4">
-                        <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm font-bold">
                             {session.session_order + 1}
                           </div>
@@ -876,6 +986,19 @@ export default function SurveyBuilder() {
                             </p>
                           </div>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full px-3"
+                          onClick={() => {
+                            setSelectedSessionId(session.id);
+                            setTemplateSelectOpen(true);
+                          }}
+                          disabled={loading}
+                        >
+                          <Plus className="w-4 h-4 mr-1.5" /> 템플릿 추가
+                        </Button>
+                      </div>
                         
                         {/* 섹션별 질문들 */}
                         {sessionSections.map((section) => {
@@ -1003,7 +1126,12 @@ export default function SurveyBuilder() {
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>템플릿 선택</DialogTitle>
-                <DialogDescription>기존 템플릿을 불러와서 질문을 자동으로 추가합니다. 기존 질문과 섹션은 모두 삭제됩니다.</DialogDescription>
+                <DialogDescription>
+                  {selectedSessionId 
+                    ? `선택한 세션에 템플릿을 적용합니다. 해당 세션의 기존 질문과 섹션은 삭제됩니다.`
+                    : `전체 설문에 템플릿을 적용합니다. 모든 기존 질문과 섹션은 삭제됩니다.`
+                  }
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 {templates.length === 0 ? (
@@ -1011,24 +1139,35 @@ export default function SurveyBuilder() {
                 ) : (
                   <div className="space-y-2">
                     {templates.map((t) => (
-                      <Button key={t.id} variant="outline" className="w-full justify-start"
-                              onClick={async () => {
-                                setTemplateSelectOpen(false);
-                                await loadTemplateToSessions(t.id);
-                              }}
-                              disabled={loadingTemplate}
-                    >
-                      <div className="text-left">
-                        <div className="font-medium">{t.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {sessions.length}개 세션에 각각 적용됩니다
-                        </div>
-                      </div>
-                    </Button>))}
-                  </div>
-                )}
-              </div>
-              <DialogFooter><Button variant="outline" onClick={() => setTemplateSelectOpen(false)}>취소</Button></DialogFooter>
+                       <Button key={t.id} variant="outline" className="w-full justify-start"
+                               onClick={async () => {
+                                 setTemplateSelectOpen(false);
+                                 if (selectedSessionId) {
+                                   await applyTemplateToSession(t.id, selectedSessionId);
+                                 } else {
+                                   await loadTemplateToSessions(t.id);
+                                 }
+                                 setSelectedSessionId(null);
+                               }}
+                               disabled={loadingTemplate}
+                     >
+                       <div className="text-left">
+                         <div className="font-medium">{t.name}</div>
+                         <div className="text-xs text-muted-foreground">
+                           {selectedSessionId 
+                             ? "선택한 세션에 적용됩니다"
+                             : `${sessions.length}개 세션에 각각 적용됩니다`
+                           }
+                         </div>
+                       </div>
+                     </Button>))}
+                   </div>
+                 )}
+               </div>
+               <DialogFooter><Button variant="outline" onClick={() => {
+                 setTemplateSelectOpen(false);
+                 setSelectedSessionId(null);
+               }}>취소</Button></DialogFooter>
             </DialogContent>
           </Dialog>
 
