@@ -471,89 +471,51 @@ export default function SurveyManagementV2() {
 
   return (
     <div className="space-y-6">
-      title="설문 관리"
-      subtitle="전체 설문 결과 관리 및 통계 확인할 수 있습니다"
-      totalCount={totalCount}
-      loading={loading}
-      actions={[
-        <Button
-          key="csv"
-          variant="outline"
-          size="sm"
-          className="rounded-full px-3"
-          onClick={exportCsvAll}
       {/* 헤더와 액션 버튼들 */}
-          <Download className="w-4 h-4 mr-1.5" />
-          CSV
-        </Button>,
-        <Button
-          key="sync"
-          variant="outline"
-          size="sm"
-          className="rounded-full px-3"
-          onClick={runAutoStatus}
-        >
-          <Wand2 className="w-4 h-4 mr-1.5" />
-          상태 동기화
-        </Button>,
-        <Button
-          key="add"
-          variant="secondary"
-          size="sm"
-          className="rounded-full px-3"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          설문 추가
-        </Button>,
-        <Button
-          key="quick"
-          size="sm"
-          className="rounded-full px-3"
-          onClick={() => setQuickOpen(true)}
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          빠른 생성
-        </Button>,
-      ]}
-      mobileActions={[
-        <Button
-          key="csv-mobile"
-          variant="outline"
-          size="sm"
-          className="rounded-full"
-          onClick={exportCsvAll}
-        >
-          <Download className="w-4 h-4" />
-        </Button>,
-        <Button
-          key="sync-mobile"
-          variant="outline"
-          size="sm"
-          className="rounded-full"
-          onClick={runAutoStatus}
-        >
-          <Wand2 className="w-4 h-4" />
-        </Button>,
-        <Button
-          key="add-mobile"
-          variant="outline"
-          size="sm"
-          className="rounded-full"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus className="w-4 h-4" />
-        </Button>,
-        <Button
-          key="quick-mobile"
-          size="sm"
-          className="rounded-full"
-          onClick={() => setQuickOpen(true)}
-        >
-          <Plus className="w-4 h-4" />
-        </Button>,
-      ]}
-    >
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">설문 관리</h1>
+          <p className="text-muted-foreground">전체 설문 결과 관리 및 통계 확인할 수 있습니다</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full px-3"
+            onClick={exportCsvAll}
+          >
+            <Download className="w-4 h-4 mr-1.5" />
+            CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full px-3"
+            onClick={runAutoStatus}
+          >
+            <Wand2 className="w-4 h-4 mr-1.5" />
+            상태 동기화
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="rounded-full px-3"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            설문 추가
+          </Button>
+          <Button
+            size="sm"
+            className="rounded-full px-3"
+            onClick={() => setQuickOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            빠른 생성
+          </Button>
+        </div>
+      </div>
+
       {/* 검색/필터 카드 */}
       <Card>
         <CardHeader>
@@ -605,7 +567,6 @@ export default function SurveyManagementV2() {
                   <SelectItem value="all">모든 상태</SelectItem>
                   <SelectItem value="draft">초안</SelectItem>
                   <SelectItem value="active">진행중</SelectItem>
-                  <SelectItem value="public">공개</SelectItem>
                   <SelectItem value="completed">완료</SelectItem>
                 </SelectContent>
               </Select>
@@ -615,15 +576,23 @@ export default function SurveyManagementV2() {
               <label className="text-sm font-medium">정렬</label>
               <div className="flex gap-2">
                 <Select value={sortBy} onValueChange={(v: SortBy) => setSortBy(v)}>
-                  <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="created_at">생성일</SelectItem>
-                    <SelectItem value="start_date">시작일</SelectItem>
-                    <SelectItem value="end_date">종료일</SelectItem>
+                    <SelectItem value="title">제목</SelectItem>
+                    <SelectItem value="education_year">연도</SelectItem>
+                    <SelectItem value="status">상태</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}>
-                  {sortDir === "asc" ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+                  className="px-3"
+                >
+                  {sortDir === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -631,326 +600,301 @@ export default function SurveyManagementV2() {
         </CardContent>
       </Card>
 
-      {/* 에러 */}
       {error && (
-        <Alert variant="destructive" className="mt-6">
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* 상단 sticky 액션바 */}
-      <div className="sticky top-[72px] z-30 mt-6">
-        <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border rounded-md px-3 py-2 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-full px-3" onClick={toggleAll}>
-              <CheckSquare className="w-4 h-4 mr-1" />
-              {allChecked ? "전체 해제" : "현재 페이지 전체선택"}
-            </Button>
-            <span className="text-sm text-muted-foreground">선택: {selected.size}개</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Select
-              onValueChange={async (v) => {
-                if (selected.size === 0) return;
-                await SurveysRepository.updateStatusMany(Array.from(selected), v as any);
-                setSelected(new Set());
-                loadData();
-                toast({ title: "상태 변경 완료" });
-              }}
-            >
-              <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-full">
-                <SelectValue placeholder="상태 변경" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">초안</SelectItem>
-                <SelectItem value="active">진행중</SelectItem>
-                <SelectItem value="public">공개</SelectItem>
-                <SelectItem value="completed">완료</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button variant="outline" size="sm" className="rounded-full px-3" onClick={exportCsvSelected} disabled={selected.size === 0}>
-              <Download className="w-4 h-4 mr-1" />
-              CSV(선택)
-            </Button>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              className="rounded-full px-3"
-              onClick={async () => {
-                if (selected.size === 0) return;
-                if (!confirm(`${selected.size}개 설문을 삭제할까요?`)) return;
-                await SurveysRepository.deleteMany(Array.from(selected));
-                setSelected(new Set());
-                loadData();
-                toast({ title: "삭제 완료" });
-              }}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              삭제
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* 목록 */}
-      {surveys.length === 0 ? (
-        <Card className="mt-4">
-          <CardContent className="py-12 text-center">
-            <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground mb-4">조건에 맞는 설문이 없습니다.</p>
-            <Button onClick={() => setQuickOpen(true)} size="sm" className="rounded-full px-3">
-              <Plus className="w-4 h-4 mr-2" />
-              첫 설문 만들기
-            </Button>
+      {/* 선택된 항목들 액션 */}
+      {selected.size > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">{selected.size}개 선택됨</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
+                  선택 해제
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportCsvSelected}>
+                  <Download className="w-4 h-4 mr-1.5" />
+                  선택 항목 CSV
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid gap-4 mt-4">
-          {surveys.map((s) => {
-            const statusInfo = getStatusInfo(s);
-            const checked = selected.has(s.id);
-
-            const openSheet = () => {
-              setSheetSurvey(s);
-              setSheetOpen(true);
-            };
-
-            return (
-              <Card
-                key={s.id}
-                className={`transition-shadow hover:shadow-md ${checked ? "ring-2 ring-primary/40" : ""} cursor-pointer`}
-                onClick={openSheet}
-              >
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start mb-4 gap-3">
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1"
-                        checked={checked}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={() => toggleOne(s.id)}
-                      />
-                      <div className="min-w-0">
-                        <h3 className="text-xl font-semibold mb-2 break-words">
-                          <Highlight text={s.title ?? "제목 없음"} query={q} />
-                        </h3>
-                        {s.description && (
-                          <p className="text-muted-foreground mb-3 line-clamp-2 break-words">
-                            {s.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="text-muted-foreground shrink-0">작성자:</span>
-                      <span className="truncate"><Highlight text={s.creator_email ?? "unknown"} query={q} /></span>
-                    </div>
-
-                    <div className="flex items-center gap-2 min-w-0">
-                      <BookOpen className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="text-muted-foreground shrink-0">강사:</span>
-                      <span className="truncate"><Highlight text={s.instructor_name ?? "Unknown"} query={q} /></span>
-                    </div>
-
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="text-muted-foreground shrink-0">과목:</span>
-                      <span className="truncate"><Highlight text={s.course_title ?? s.course_name ?? "Unknown"} query={q} /></span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">예상 참가자:</span>
-                      <span>{s.expected_participants ?? "미설정"}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">교육기간:</span>
-                      <div className="font-medium">
-                        {s.education_year && s.education_round ? `${s.education_year}년 ${s.education_round}기` : "미설정"}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">시작일:</span>
-                      <div className="font-medium">{formatSafeDate(s.start_date)}</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">종료일:</span>
-                      <div className="font-medium">{formatSafeDate(s.end_date)}</div>
-                    </div>
-                  </div>
-
-                  {s.is_test && (
-                    <div className="mt-2">
-                      <Badge variant="outline" className="text-xs">테스트 설문</Badge>
-                    </div>
-                  )}
-
-                  {/* 카드 내부 버튼들: 클릭 버블링 막기 + 둥근 버튼 */}
-                  <div className="mt-4 flex flex-wrap gap-2 border-t pt-4" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-builder/${s.id}`)}>
-                      <Settings className="w-4 h-4 mr-1" /> 질문수정
-                    </Button>
-                    <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-preview/${s.id}`)}>
-                      <Eye className="w-4 h-4 mr-1" /> 미리보기
-                    </Button>
-                    <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-results/${s.id}`)}>
-                      <BarChart className="w-4 h-4 mr-1" /> 결과
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full px-3"
-                      onClick={() => {
-                        const link = `${window.location.origin}/survey/${s.id}`;
-                        navigator.clipboard.writeText(link);
-                        toast({ title: "링크 복사", description: link });
-                      }}
-                    >
-                      <Share2 className="w-4 h-4 mr-1" /> 공유
-                    </Button>
-
-                    <Select
-                      value={s.status ?? "draft"}
-                      onValueChange={async (v) => {
-                        await SurveysRepository.updateStatus(s.id, v as "draft" | "active" | "public" | "completed");
-                        toast({ title: "상태 변경", description: `상태가 ${v}로 변경되었습니다.` });
-                        loadData();
-                      }}
-                    >
-                      <SelectTrigger className="h-9 px-3 w-auto min-w-[96px] text-sm rounded-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">초안</SelectItem>
-                        <SelectItem value="active">진행중</SelectItem>
-                        <SelectItem value="public">공개</SelectItem>
-                        <SelectItem value="completed">완료</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
       )}
+
+      {/* 설문 목록 */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b bg-muted/30">
+                <tr>
+                  <th className="p-4 text-left">
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      onChange={toggleAll}
+                      className="rounded"
+                    />
+                  </th>
+                  <th className="p-4 text-left font-medium">제목</th>
+                  <th className="p-4 text-left font-medium">상태</th>
+                  <th className="p-4 text-left font-medium">연도/차수</th>
+                  <th className="p-4 text-left font-medium">과정</th>
+                  <th className="p-4 text-left font-medium">강사</th>
+                  <th className="p-4 text-left font-medium">기간</th>
+                  <th className="p-4 text-left font-medium">작업</th>
+                </tr>
+              </thead>
+              <tbody>
+                {surveys.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <AlertCircle className="h-8 w-8 opacity-50" />
+                        <p>조건에 맞는 설문이 없습니다.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  surveys.map((survey) => {
+                    const statusInfo = getStatusInfo(survey);
+                    return (
+                      <tr key={survey.id} className="border-b hover:bg-muted/30 transition-colors">
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(survey.id)}
+                            onChange={() => toggleOne(survey.id)}
+                            className="rounded"
+                          />
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium">
+                            <Highlight text={survey.title} query={q} />
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <Highlight text={survey.course_title} query={q} />
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm">
+                            {survey.education_year}년 {survey.education_round}차
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {survey.education_day}일차
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm">
+                            <Highlight text={survey.course_name} query={q} />
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm">
+                            <Highlight text={survey.instructor_name} query={q} />
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-xs text-muted-foreground">
+                            <div>{formatSafeDate(survey.start_date)}</div>
+                            <div>~ {formatSafeDate(survey.end_date)}</div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSheetSurvey(survey);
+                                setSheetOpen(true);
+                              }}
+                              title="상세 보기"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/survey-builder/${survey.id}`)}
+                              title="편집"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/survey/${survey.id}`)}
+                              title="미리보기"
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/dashboard/detailed-analysis/${survey.id}`)}
+                              title="분석"
+                            >
+                              <BarChart className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 페이지네이션 */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-6">
-          <Button variant="outline" size="sm" className="rounded-full px-3" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
-            <ChevronLeft className="w-4 h-4 mr-1" /> 이전
-          </Button>
-          <span className="text-sm text-muted-foreground px-4">{currentPage} / {totalPages}</span>
-          <Button variant="outline" size="sm" className="rounded-full px-3" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
-            다음 <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            총 {totalCount}개 항목 중 {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)}번째
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                return (
+                  <Button
+                    key={page}
+                    variant={page === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className="w-10"
+                  >
+                    {page}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* 상세 시트 */}
+      {/* 다이얼로그들 */}
+      <QuickCreateDialog
+        open={quickOpen}
+        onOpenChange={setQuickOpen}
+        years={availableYears}
+        courseNames={availableCourseNames}
+        templates={templates}
+        defaultYear={new Date().getFullYear()}
+        onCreate={handleQuickCreate}
+      />
+
+      {/* 설문 생성 다이얼로그 */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>새 설문 생성</DialogTitle>
+          </DialogHeader>
+          <SurveyCreateForm />
+        </DialogContent>
+      </Dialog>
+
+      {/* 상세 정보 시트 */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-xl">
+        <SheetContent side="right" className="w-[600px] sm:max-w-[600px]">
           <SheetHeader>
-            <SheetTitle className="break-words">{sheetSurvey?.title || "제목 없음"}</SheetTitle>
-            <SheetDescription className="break-words">
-              {sheetSurvey?.description || "설명 없음"}
-            </SheetDescription>
+            <SheetTitle>{sheetSurvey?.title}</SheetTitle>
+            <SheetDescription>설문 상세 정보</SheetDescription>
           </SheetHeader>
-
           {sheetSurvey && (
-            <div className="mt-6 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-muted-foreground">상태</div>
-                <div>{sheetSurvey.status}</div>
-                <div className="text-muted-foreground">교육기간</div>
+            <div className="mt-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  {sheetSurvey.education_year && sheetSurvey.education_round
-                    ? `${sheetSurvey.education_year}년 ${sheetSurvey.education_round}기`
-                    : "미설정"}
+                  <label className="text-sm font-medium">상태</label>
+                  <div className="mt-1">
+                    <Badge variant={getStatusInfo(sheetSurvey).variant}>
+                      {getStatusInfo(sheetSurvey).label}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="text-muted-foreground">시작일</div>
-                <div>{formatSafeDate(sheetSurvey.start_date)}</div>
-                <div className="text-muted-foreground">종료일</div>
-                <div>{formatSafeDate(sheetSurvey.end_date)}</div>
-                <div className="text-muted-foreground">작성자</div>
-                <div>{sheetSurvey.creator_email || "unknown"}</div>
-                <div className="text-muted-foreground">강사</div>
-                <div>{sheetSurvey.instructor_name || "Unknown"}</div>
-                <div className="text-muted-foreground">과목</div>
-                <div>{sheetSurvey.course_title || sheetSurvey.course_name || "Unknown"}</div>
-                <div className="text-muted-foreground">예상 참가자</div>
-                <div>{sheetSurvey.expected_participants ?? "미설정"}</div>
+                <div>
+                  <label className="text-sm font-medium">교육 정보</label>
+                  <div className="mt-1 text-sm">
+                    {sheetSurvey.education_year}년 {sheetSurvey.education_round}차 {sheetSurvey.education_day}일차
+                  </div>
+                </div>
               </div>
-
-              <div className="pt-4 border-t flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-builder/${sheetSurvey.id}`)}>
-                  <Settings className="w-4 h-4 mr-1" /> 질문수정
-                </Button>
-                <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-preview/${sheetSurvey.id}`)}>
-                  <Eye className="w-4 h-4 mr-1" /> 미리보기
-                </Button>
-                <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(`/survey-results/${sheetSurvey.id}`)}>
-                  <BarChart className="w-4 h-4 mr-1" /> 결과
+              <div>
+                <label className="text-sm font-medium">과정명</label>
+                <div className="mt-1 text-sm">{sheetSurvey.course_name}</div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">과정 제목</label>
+                <div className="mt-1 text-sm">{sheetSurvey.course_title}</div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">강사</label>
+                <div className="mt-1 text-sm">{sheetSurvey.instructor_name}</div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">설문 기간</label>
+                <div className="mt-1 text-sm">
+                  <div>{formatSafeDate(sheetSurvey.start_date)}</div>
+                  <div>~ {formatSafeDate(sheetSurvey.end_date)}</div>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">생성자</label>
+                <div className="mt-1 text-sm">{sheetSurvey.creator_email}</div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">생성일</label>
+                <div className="mt-1 text-sm">{formatSafeDate(sheetSurvey.created_at)}</div>
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={() => navigate(`/survey-builder/${sheetSurvey.id}`)}
+                  className="flex-1"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  편집
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="rounded-full px-3"
-                  onClick={() => {
-                    const link = `${window.location.origin}/survey/${sheetSurvey.id}`;
-                    navigator.clipboard.writeText(link);
-                    toast({ title: "링크 복사", description: link });
-                  }}
+                  onClick={() => navigate(`/survey/${sheetSurvey.id}`)}
+                  className="flex-1"
                 >
-                  <Share2 className="w-4 h-4 mr-1" /> 공유
+                  <Share2 className="h-4 w-4 mr-2" />
+                  미리보기
                 </Button>
               </div>
             </div>
           )}
         </SheetContent>
       </Sheet>
-
-      {/* 빠른 생성 모달 */}
-      <QuickCreateDialog
-        open={quickOpen}
-        onOpenChange={setQuickOpen}
-        years={availableYears.length ? availableYears : [new Date().getFullYear()]}
-        courseNames={availableCourseNames.length ? availableCourseNames : ["BS Basic"]}
-        templates={templates}
-        defaultYear={filters.year ?? new Date().getFullYear()}
-        onCreate={handleQuickCreate}
-      />
-
-      {/* 설문 추가(정식) 모달: 기존 SurveyCreateForm 사용 */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>새 설문 추가</DialogTitle>
-          </DialogHeader>
-          <SurveyCreateForm
-            templates={templates.map((t) => ({ id: t.id, name: t.name }))}
-            onSuccess={(surveyId: string) => {
-              setCreateOpen(false);
-              toast({ title: "성공", description: "설문이 생성되었습니다." });
-              navigate(`/survey-builder/${surveyId}`);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
