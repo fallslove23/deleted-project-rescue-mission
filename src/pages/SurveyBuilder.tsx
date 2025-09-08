@@ -317,7 +317,7 @@ export default function SurveyBuilder() {
       const appliedSessions: string[] = [];
       
       for (const [sessionId, templateId] of Object.entries(templateSelections)) {
-        if (templateId && templateId !== '') {
+        if (templateId && templateId !== '' && templateId !== 'none') {
           await applyTemplateToSession(templateId, sessionId);
           const session = sessions.find(s => s.id === sessionId);
           appliedSessions.push(session?.course?.title || session?.session_name || '세션');
@@ -1420,7 +1420,7 @@ export default function SurveyBuilder() {
                                 <SelectValue placeholder="템플릿 선택" />
                               </SelectTrigger>
                               <SelectContent className="bg-background border z-50">
-                                <SelectItem value="">선택 안함</SelectItem>
+                                <SelectItem value="none">선택 안함</SelectItem>
                                 {templates.map((template) => (
                                   <SelectItem key={template.id} value={template.id}>
                                     {template.name}
@@ -1448,7 +1448,7 @@ export default function SurveyBuilder() {
                 </Button>
                 <Button 
                   onClick={handleApplySelectedTemplates}
-                  disabled={Object.values(templateSelections).every(v => !v) || loadingTemplate}
+                  disabled={Object.values(templateSelections).every(v => !v || v === 'none') || loadingTemplate}
                 >
                   {loadingTemplate ? '적용 중...' : '템플릿 적용'}
                 </Button>
