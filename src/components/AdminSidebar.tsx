@@ -85,11 +85,17 @@ export function AdminSidebar() {
   const menuItems = isAdmin ? adminMenuItems : instructorMenuItems;
 
   return (
-    <Sidebar className="border-r bg-purple-50/50">
-      <SidebarContent className="bg-purple-50/50">
+    <Sidebar 
+      className="border-r"
+      style={{ backgroundColor: 'rgba(243, 232, 255, 0.5)' }}
+    >
+      <SidebarContent style={{ backgroundColor: 'rgba(243, 232, 255, 0.5)' }}>
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="text-purple-900 font-semibold text-xs uppercase tracking-wider px-3 py-2">
+            <SidebarGroupLabel 
+              className="font-semibold text-xs uppercase tracking-wider px-3 py-2"
+              style={{ color: '#581c87' }}
+            >
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -104,9 +110,12 @@ export function AdminSidebar() {
                           `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                             isActive 
                               ? 'bg-primary text-primary-foreground shadow-sm' 
-                              : 'text-gray-700 hover:bg-purple-100 hover:text-purple-900'
+                              : 'hover:bg-purple-100'
                           }`
                         }
+                        style={({ isActive }) => ({
+                          color: isActive ? undefined : '#374151',
+                        })}
                       >
                         <item.icon className="h-4 w-4 flex-shrink-0" />
                         <span className="font-semibold">{item.title}</span>
@@ -122,7 +131,10 @@ export function AdminSidebar() {
         {/* 관리자 전용 - 뷰 테스트 섹션 */}
         {isAdmin && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-purple-900 font-semibold text-xs uppercase tracking-wider px-3 py-2">
+            <SidebarGroupLabel 
+              className="font-semibold text-xs uppercase tracking-wider px-3 py-2"
+              style={{ color: '#581c87' }}
+            >
               뷰 테스트 <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-primary text-primary-foreground rounded">DEV</span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -130,7 +142,10 @@ export function AdminSidebar() {
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton className="w-full justify-between text-gray-700 hover:bg-purple-100 hover:text-purple-900 transition-colors duration-200">
+                      <SidebarMenuButton 
+                        className="w-full justify-between hover:bg-purple-100 transition-colors duration-200"
+                        style={{ color: '#374151' }}
+                      >
                         <div className="flex items-center gap-3">
                           <Eye className="h-4 w-4 flex-shrink-0" />
                           <span className="font-semibold">뷰 선택</span>
@@ -141,7 +156,8 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/admin" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-gray-700 hover:text-purple-900 px-2 py-1.5 rounded-sm transition-colors"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
+                          style={{ color: '#374151' }}
                         >
                           <LayoutDashboard className="h-4 w-4" />
                           관리자 뷰
@@ -150,7 +166,8 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/role-view/instructor" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-gray-700 hover:text-purple-900 px-2 py-1.5 rounded-sm transition-colors"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
+                          style={{ color: '#374151' }}
                         >
                           <UserCheck className="h-4 w-4" />
                           강사 뷰
@@ -159,7 +176,8 @@ export function AdminSidebar() {
                       <DropdownMenuItem asChild>
                         <NavLink 
                           to="/" 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-accent text-gray-700 hover:text-purple-900 px-2 py-1.5 rounded-sm transition-colors"
+                          className="flex items-center gap-2 cursor-pointer hover:bg-accent px-2 py-1.5 rounded-sm transition-colors"
+                          style={{ color: '#374151' }}
                         >
                           <Users className="h-4 w-4" />
                           교육생 뷰
