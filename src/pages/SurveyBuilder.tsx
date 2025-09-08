@@ -481,8 +481,8 @@ export default function SurveyBuilder() {
         description: `${appliedLogic}이 적용되었습니다. (세션 ${sessions.length}개)` 
       });
       
-      loadQuestions(); 
-      loadSections();
+      await loadQuestions(); 
+      await loadSections();
     } catch (e: any) {
       console.error('Template application error:', e);
       toast({ title: "템플릿 적용 실패", description: e.message, variant: "destructive" });
@@ -740,17 +740,17 @@ export default function SurveyBuilder() {
 
       console.log('Max existing order_index:', maxOrderIndex);
 
-      // 템플릿 질문과 섹션 가져오기
+      // 템플릿 질문과 섹션 가져오기 (template_questions, template_sections 테이블에서)
       const { data: tq } = await supabase
-        .from('survey_questions')
+        .from('template_questions')
         .select('*')
-        .eq('survey_id', templateId)
+        .eq('template_id', templateId)
         .order('order_index');
 
       const { data: ts } = await supabase
-        .from('survey_sections')
+        .from('template_sections')
         .select('*')
-        .eq('survey_id', templateId)
+        .eq('template_id', templateId)
         .order('order_index');
 
       console.log('Template questions:', tq?.length, 'Template sections:', ts?.length);
