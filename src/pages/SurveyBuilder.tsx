@@ -316,18 +316,27 @@ export default function SurveyBuilder() {
     
     try {
       setLoadingTemplate(true);
+      console.log('Starting template application:', { selectedTemplateId, applyTarget, selectedSessionIds: Array.from(selectedSessionIds) });
       
       if (applyTarget === 'common') {
+        console.log('Applying template as common questions');
         await loadTemplateToSessions(selectedTemplateId);
       } else if (applyTarget === 'all-sessions') {
+        console.log('Applying template to all sessions');
         for (const session of sessions) {
           await applyTemplateToSession(selectedTemplateId, session.id);
         }
       } else if (applyTarget === 'specific-session') {
+        console.log('Applying template to specific sessions');
         for (const sessionId of selectedSessionIds) {
           await applyTemplateToSession(selectedTemplateId, sessionId);
         }
       }
+      
+      // 템플릿 적용 후 질문과 섹션 다시 로드
+      console.log('Reloading questions and sections after template application');
+      await loadQuestions();
+      await loadSections();
       
       setTemplateSelectOpen(false);
       setSelectedTemplateId('');
@@ -340,6 +349,7 @@ export default function SurveyBuilder() {
       });
       
     } catch (error: any) {
+      console.error('Template application error:', error);
       toast({
         title: "템플릿 적용 실패",
         description: error.message,
