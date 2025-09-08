@@ -100,7 +100,6 @@ export const useCourseReportsData = (
   }, [isInstructor, user?.email]);
 
   const fetchAvailableCourses = async () => {
-    setLoading(true);
     try {
       console.log('Fetching courses for year:', selectedYear);
       
@@ -162,14 +161,10 @@ export const useCourseReportsData = (
         description: "과정 목록을 불러오는 중 오류가 발생했습니다.",
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchReports = async () => {
-    // 초기 로딩 시에도 모든 데이터를 가져오도록 수정
-    
     setLoading(true);
     try {
       console.log('Fetching reports for filters:', selectedYear, selectedCourse, selectedRound, selectedInstructor);

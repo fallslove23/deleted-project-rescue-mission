@@ -52,13 +52,13 @@ const DashboardCourseReports = () => {
   useEffect(() => {
     console.log('DashboardCourseReports: Initial data loading');
     fetchAvailableCourses();
-  }, [selectedYear, fetchAvailableCourses]);
+  }, [selectedYear]);
 
   // 필터 변경 시 리포트 다시 가져오기
   useEffect(() => {
     console.log('DashboardCourseReports: Filters changed, fetching reports');
     fetchReports();
-  }, [selectedYear, selectedCourse, selectedRound, selectedInstructor, fetchReports]);
+  }, [selectedYear, selectedCourse, selectedRound, selectedInstructor]);
 
   const handleInstructorClick = (instructorId: string) => {
     setSelectedInstructor(instructorId);
