@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts';
-import { Mail, CheckCircle, XCircle, Clock, RefreshCw, Eye, Filter } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, Clock, RefreshCw, Clipboard, Download, ListChecks } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EmailLog {
   id: string;
@@ -25,6 +27,9 @@ const DashboardEmailLogs = () => {
   const { toast } = useToast();
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allowlistOpen, setAllowlistOpen] = useState(false);
+  const [allowlistLoading, setAllowlistLoading] = useState(false);
+  const [allowlistEmails, setAllowlistEmails] = useState<string[]>([]);
 
   const canViewLogs = userRoles.includes('admin') || userRoles.includes('operator');
 
@@ -58,6 +63,62 @@ const DashboardEmailLogs = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAllowlistEmails = async () => {
+    try {
+      setAllowlistLoading(true);
+      // 병렬로 수집: 강사 이메일 + 역할 기반 프로필 이메일 + 최근 로그 수신자
+      const [instructorsRes, rolesRes] = await Promise.all([
+        supabase.from('instructors').select('email').not('email', 'is', null),
+        supabase.from('user_roles').select('user_id, role').in('role', ['admin','operator','director','instructor'] as any)
+      ]);
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const set = new Set<string>();
+
+      instructorsRes.data?.forEach((i: any) => {
+        if (i?.email && emailRegex.test(i.email)) set.add(i.email.toLowerCase());
+      });
+
+      const ids = Array.from(new Set((rolesRes.data || []).map((r: any) => r.user_id)));
+      if (ids.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('id,email').in('id', ids);
+        profiles?.forEach((p: any) => {
+          if (p?.email && emailRegex.test(p.email)) set.add(p.email.toLowerCase());
+        });
+      }
+
+      // 최근 이메일 로그에 있는 수신자까지 포함
+      emailLogs.forEach((log) => (log.recipients || []).forEach((e) => {
+        if (e && emailRegex.test(e)) set.add(String(e).toLowerCase());
+      }));
+
+      const list = Array.from(set).sort();
+      setAllowlistEmails(list);
+      setAllowlistOpen(true);
+      toast({ title: '허용 목록 추출 완료', description: `${list.length}개의 이메일이 수집되었습니다.` });
+    } catch (err) {
+      console.error('allowlist build error', err);
+      toast({ title: '오류', description: '허용 목록용 이메일을 수집하지 못했습니다.', variant: 'destructive' });
+    } finally {
+      setAllowlistLoading(false);
+    }
+  };
+
+  const copyAllowlist = async () => {
+    await navigator.clipboard.writeText(allowlistEmails.join(', '));
+    toast({ title: '복사 완료', description: '이메일이 클립보드에 복사되었습니다.' });
+  };
+
+  const downloadAllowlistCsv = () => {
+    const blob = new Blob([allowlistEmails.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'resend-allowlist-emails.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -116,6 +177,10 @@ const DashboardEmailLogs = () => {
         <Button key="refresh" onClick={fetchEmailLogs} variant="outline" size="sm" disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           새로고침
+        </Button>,
+        <Button key="allowlist" onClick={fetchAllowlistEmails} variant="default" size="sm" disabled={allowlistLoading}>
+          <ListChecks className="h-4 w-4 mr-2" />
+          허용목록용 이메일 추출
         </Button>
       ]}
     >
@@ -225,6 +290,37 @@ const DashboardEmailLogs = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={allowlistOpen} onOpenChange={setAllowlistOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Resend 허용 목록용 이메일</DialogTitle>
+            <DialogDescription>
+              onboarding@resend.dev 사용 시, 아래 이메일을 Resend &gt; Settings &gt; Test Emails에 추가해야 발송됩니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center justify-between py-2">
+            <div className="text-sm text-muted-foreground">총 {allowlistEmails.length}개</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={copyAllowlist} disabled={allowlistEmails.length === 0}>
+                <Clipboard className="h-4 w-4 mr-1" /> 복사
+              </Button>
+              <Button size="sm" variant="secondary" onClick={downloadAllowlistCsv} disabled={allowlistEmails.length === 0}>
+                <Download className="h-4 w-4 mr-1" /> CSV
+              </Button>
+            </div>
+          </div>
+
+          <ScrollArea className="h-72 rounded-md border p-3">
+            <pre className="whitespace-pre-wrap text-sm leading-6">{allowlistEmails.join('\n')}</pre>
+          </ScrollArea>
+
+          <div className="text-xs text-muted-foreground pt-2">
+            참고: Resend Test Emails는 도메인 검증 없이 허용 목록에 추가된 주소만 수신 가능합니다.
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
