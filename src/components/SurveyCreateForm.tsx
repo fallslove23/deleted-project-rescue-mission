@@ -243,7 +243,8 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         education_day: 1,
         status: 'active',
         course_name: 'Test Course',
-        expected_participants: 30
+        expected_participants: 30,
+        is_test: true,
       };
 
       const { data: survey, error: surveyError } = await supabase
@@ -259,7 +260,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         {
           survey_id: survey.id,
           question_text: '과정 내용에 대한 전반적인 만족도는?',
-          question_type: 'rating',
+          question_type: 'scale',
           satisfaction_type: 'course',
           is_required: true,
           order_index: 1,
@@ -268,7 +269,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         {
           survey_id: survey.id,
           question_text: '강사에 대한 전반적인 만족도는?',
-          question_type: 'rating',
+          question_type: 'scale',
           satisfaction_type: 'instructor',
           is_required: true,
           order_index: 2,
@@ -277,7 +278,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         {
           survey_id: survey.id,
           question_text: '운영 관리에 대한 만족도는?',
-          question_type: 'rating',
+          question_type: 'scale',
           satisfaction_type: 'operation',
           is_required: true,
           order_index: 3,
