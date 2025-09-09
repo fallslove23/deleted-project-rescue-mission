@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   ResponsiveContainer,
   XAxis,
@@ -11,13 +12,11 @@ import {
   Bar,
   Legend,
   BarChart as ReBarChart,
-  AreaChart as ReAreaChart,
-  Area,
-  PieChart as RePieChart,
-  Pie,
-  Cell,
+  LineChart as ReLineChart,
+  Line,
+  ComposedChart,
 } from 'recharts';
-import { TrendingUp, BookOpen, Star, Target, TrendingDown, Minus, Download, User, Crown, AlertCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, BookOpen, Star, Target, Download, User, Crown, AlertCircle, BarChart3, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import CourseSelector from '@/components/course-reports/CourseSelector';
@@ -85,6 +84,27 @@ const CourseReports = () => {
 
   const handleInstructorClick = (instructorId: string) => {
     navigate(`/dashboard/instructor-details/${instructorId}?year=${selectedYear}`);
+  };
+
+  const handleShareReport = () => {
+    if (!currentReport) return;
+    
+    const shareData = {
+      title: `${currentReport.course_title} 과정별 결과 보고서`,
+      text: `${selectedYear}년 ${selectedCourse} 과정의 운영 결과를 확인해보세요.`,
+      url: window.location.href,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      navigator.share(shareData).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        toast({
+          title: "링크 복사됨",
+          description: "보고서 링크가 클립보드에 복사되었습니다.",
+        });
+      });
+    }
   };
 
   const handlePDFExport = () => {
@@ -181,10 +201,16 @@ const CourseReports = () => {
   };
 
   const actions = currentReport ? (
-    <Button onClick={handlePDFExport} variant="outline" size="sm">
-      <Download className="h-4 w-4 mr-2" />
-      PDF 내보내기
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button onClick={handleShareReport} variant="outline" size="sm" className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
+        <Share2 className="h-4 w-4 mr-2" />
+        공유하기
+      </Button>
+      <Button onClick={handlePDFExport} size="sm" className="bg-primary text-white hover:bg-primary/90 shadow-md">
+        <Download className="h-4 w-4 mr-2" />
+        PDF 다운로드
+      </Button>
+    </div>
   ) : null;
 
   return (
@@ -318,31 +344,53 @@ const CourseReports = () => {
           </div>
         )}
 
-        {/* 만족도 차트 */}
+        {/* 만족도 차트 - Grouped Bar Chart로 개선 */}
         {satisfactionChartData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>만족도 분석</CardTitle>
-              <CardDescription>영역별 만족도 비교</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <ReBarChart data={satisfactionChartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="name" className="text-muted-foreground" />
-                  <YAxis domain={[0, 5]} className="text-muted-foreground" />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]} />
-                </ReBarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            {/* 섹션 헤더 강화 */}
+            <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-6 border-l-4 border-blue-500">
+              <h2 className="text-xl font-bold text-blue-700 mb-2 flex items-center gap-2">
+                <BarChart3 className="h-6 w-6" />
+                영역별 만족도 비교
+              </h2>
+              <p className="text-muted-foreground">
+                강사, 과정, 운영 영역별 만족도를 그룹화하여 비교 분석합니다
+              </p>
+            </div>
+
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle>영역별 만족도 분석</CardTitle>
+                <CardDescription>각 영역별 현재 만족도와 목표 수준 비교</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={350}>
+                  <ComposedChart data={satisfactionChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" className="text-muted-foreground" />
+                    <YAxis domain={[0, 5]} className="text-muted-foreground" />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--background))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="value" name="현재 만족도" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="target" 
+                      stroke="hsl(var(--destructive))" 
+                      strokeWidth={2}
+                      name="목표 수준 (4.0)"
+                      dot={{ fill: 'hsl(var(--destructive))' }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* 강사 통계 섹션 */}
@@ -351,6 +399,11 @@ const CourseReports = () => {
             instructorStats={instructorStats}
             onInstructorClick={handleInstructorClick}
           />
+        )}
+
+        {/* 키워드 및 의견 분석 섹션 */}
+        {textualResponses && textualResponses.length > 0 && (
+          <KeywordCloud textualResponses={textualResponses} />
         )}
 
         {/* 드릴다운 모달 */}
