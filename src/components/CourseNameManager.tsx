@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Search } from "lucide-react";
 
 interface CourseItem {
   id: string;
@@ -27,6 +27,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<CourseItem | null>(null);
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
   
   const [form, setForm] = useState({
     title: "",
@@ -142,26 +143,49 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
     setIsDialogOpen(true);
   };
 
+  // Filter courses based on search query
+  const filteredCourses = courses.filter(course => {
+    const searchLower = courseSearchQuery.toLowerCase();
+    return course.title.toLowerCase().includes(searchLower) ||
+           (course.description && course.description.toLowerCase().includes(searchLower));
+  });
+
   return (
     <div className="space-y-4">
       <div>
         <Label>과정 (프로그램)</Label>
         <div className="flex gap-2">
-          <Select
-            value={selectedCourse || undefined as unknown as string}
-            onValueChange={onCourseSelect}
-          >
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="과정을 선택하세요" />
-            </SelectTrigger>
-            <SelectContent>
-              {courses.map((course) => (
-                <SelectItem key={course.id} value={course.title}>
-                  {course.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex-1 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="과정명으로 검색..."
+                value={courseSearchQuery}
+                onChange={(e) => setCourseSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={selectedCourse || undefined as unknown as string}
+              onValueChange={onCourseSelect}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="과정을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredCourses.map((course) => (
+                  <SelectItem key={course.id} value={course.title}>
+                    {course.title}
+                  </SelectItem>
+                ))}
+                {filteredCourses.length === 0 && courseSearchQuery && (
+                  <div className="px-2 py-1 text-sm text-muted-foreground">
+                    검색 결과가 없습니다.
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>

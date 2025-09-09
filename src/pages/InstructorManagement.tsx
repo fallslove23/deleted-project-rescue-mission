@@ -77,6 +77,7 @@ const InstructorManagement = React.forwardRef<{
   const [isCreateUsersDialogOpen, setIsCreateUsersDialogOpen] = useState(false);
   const [selectedInstructorsForUsers, setSelectedInstructorsForUsers] = useState<string[]>([]);
   const [creatingUsers, setCreatingUsers] = useState(false);
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -499,6 +500,13 @@ const InstructorManagement = React.forwardRef<{
     return instructor.name.toLowerCase().includes(searchLower) ||
            (instructor.email && instructor.email.toLowerCase().includes(searchLower)) ||
            courseTitles.includes(searchLower);
+  });
+
+  // Filter courses based on search query in dialog
+  const filteredCourses = courses.filter(course => {
+    const searchLower = courseSearchQuery.toLowerCase();
+    return course.title.toLowerCase().includes(searchLower) ||
+           (course.description && course.description.toLowerCase().includes(searchLower));
   });
 
   const handleAddNewCourse = async () => {
@@ -1136,26 +1144,39 @@ const InstructorManagement = React.forwardRef<{
               {/* Course Selection */}
               <div className="space-y-2">
                 <Label>담당 과목</Label>
-                <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                  {courses.length > 0 ? (
-                    courses.map((course) => (
-                      <div key={course.id} className="flex items-center space-x-2 py-1">
-                        <Checkbox
-                          id={`course-${course.id}`}
-                          checked={selectedCourses.includes(course.id)}
-                          onCheckedChange={() => toggleCourseSelection(course.id)}
-                        />
-                        <Label htmlFor={`course-${course.id}`} className="flex-1 text-sm">
-                          {course.title}
-                          {course.description && (
-                            <span className="text-muted-foreground"> - {course.description}</span>
-                          )}
-                        </Label>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">등록된 과목이 없습니다.</p>
-                  )}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="과목명으로 검색..."
+                      value={courseSearchQuery}
+                      onChange={(e) => setCourseSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+                    {filteredCourses.length > 0 ? (
+                      filteredCourses.map((course) => (
+                        <div key={course.id} className="flex items-center space-x-2 py-1">
+                          <Checkbox
+                            id={`course-${course.id}`}
+                            checked={selectedCourses.includes(course.id)}
+                            onCheckedChange={() => toggleCourseSelection(course.id)}
+                          />
+                          <Label htmlFor={`course-${course.id}`} className="flex-1 text-sm">
+                            {course.title}
+                            {course.description && (
+                              <span className="text-muted-foreground"> - {course.description}</span>
+                            )}
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {courseSearchQuery ? '검색 결과가 없습니다.' : '등록된 과목이 없습니다.'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               
