@@ -71,18 +71,65 @@ const CumulativeDataTable = () => {
 
       if (surveyError) throw surveyError;
 
-      const enrichedData: CumulativeDataRow[] = (surveys || []).map(survey => ({
-        id: survey.id,
-        survey_title: survey.title,
-        education_year: survey.education_year,
-        education_round: survey.education_round,
-        course_name: survey.course_name,
-        instructor_name: (survey.instructor as any)?.name || '미지정',
-        response_count: 0, // 임시값
-        avg_satisfaction: 0, // 임시값
-        submitted_at: survey.created_at,
-        status: survey.status,
-      }));
+      // 실제 응답 수와 만족도 계산
+      const enrichedData: CumulativeDataRow[] = await Promise.all(
+        (surveys || []).map(async (survey) => {
+          // 응답 수 계산
+          const { count: responseCount } = await supabase
+            .from('survey_responses')
+            .select('*', { count: 'exact', head: true })
+            .eq('survey_id', survey.id);
+
+          // 만족도 계산
+          let avgSatisfaction = 0;
+          if (responseCount && responseCount > 0) {
+            const { data: satisfactionData } = await supabase
+              .from('question_answers')
+              .select(`
+                answer_value,
+                survey_questions!inner(question_type, satisfaction_type)
+              `)
+              .eq('survey_questions.survey_id', survey.id)
+              .in('survey_questions.question_type', ['rating', 'scale'])
+              .not('answer_value', 'is', null);
+
+            if (satisfactionData && satisfactionData.length > 0) {
+              const validScores = satisfactionData
+                .map(item => {
+                  let score = 0;
+                  if (item.answer_value) {
+                    if (typeof item.answer_value === 'number') {
+                      score = item.answer_value;
+                    } else if (typeof item.answer_value === 'string') {
+                      const parsed = parseFloat(item.answer_value.replace(/"/g, ''));
+                      if (!isNaN(parsed)) score = parsed;
+                    }
+                  }
+                  // 5점 척도면 10점으로 변환
+                  return score <= 5 ? score * 2 : score;
+                })
+                .filter(score => score > 0);
+
+              if (validScores.length > 0) {
+                avgSatisfaction = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
+              }
+            }
+          }
+
+          return {
+            id: survey.id,
+            survey_title: survey.title,
+            education_year: survey.education_year,
+            education_round: survey.education_round,
+            course_name: survey.course_name,
+            instructor_name: (survey.instructor as any)?.name || '미지정',
+            response_count: responseCount || 0,
+            avg_satisfaction: Math.round(avgSatisfaction * 10) / 10, // 소수점 1자리
+            submitted_at: survey.created_at,
+            status: survey.status,
+          };
+        })
+      );
 
       setData(enrichedData);
     } catch (error) {
@@ -132,8 +179,25 @@ const CumulativeDataTable = () => {
 
   const getStatistics = () => {
     const totalResponses = filteredData.reduce((sum, item) => sum + item.response_count, 0);
-    const avgSatisfaction = filteredData.length > 0 
-      ? filteredData.reduce((sum, item) => sum + (item.avg_satisfaction * item.response_count), 0) / totalResponses
+    const validItems = filteredData.filter(item => item.avg_satisfaction > 0);
+    const avgSatisfaction = totalResponses > 0 && validItems.length > 0
+      ? validItems.reduce((sum, item) => sum + (item.avg_satisfaction * item.response_count), 0) / totalResponses
+      : 0;
+    const participatingInstructors = new Set(filteredData.map(item => item.instructor_name)).size;
+    const coursesInProgress = new Set(filteredData.map(item => item.course_name)).size;
+
+    return {
+      totalResponses,
+      avgSatisfaction: totalResponses > 0 ? Math.round(avgSatisfaction * 10) / 10 : 0,
+      participatingInstructors,
+      coursesInProgress
+    };
+  };
+    const totalResponses = filteredData.reduce((sum, item) => sum + item.response_count, 0);
+    const avgSatisfaction = totalResponses > 0 && filteredData.length > 0
+      ? filteredData
+          .filter(item => item.avg_satisfaction > 0)
+          .reduce((sum, item) => sum + (item.avg_satisfaction * item.response_count), 0) / totalResponses
       : 0;
     const participatingInstructors = new Set(filteredData.map(item => item.instructor_name)).size;
     const coursesInProgress = new Set(filteredData.map(item => item.course_name)).size;

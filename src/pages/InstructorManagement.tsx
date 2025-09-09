@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,19 +40,23 @@ interface InstructorCourse {
   created_at: string;
 }
 
-const InstructorManagement = ({ 
-  showPageHeader = true, 
-  showActions = true,
-  onAddInstructor,
-  onSyncUsers,
-  onRefresh 
-}: { 
+const InstructorManagement = React.forwardRef<{
+  openAddDialog: () => void;
+  handleSyncAllInstructors: () => void;
+  fetchData: () => void;
+}, { 
   showPageHeader?: boolean; 
   showActions?: boolean;
   onAddInstructor?: () => void;
   onSyncUsers?: () => void;
   onRefresh?: () => void;
-}) => {
+}>(({ 
+  showPageHeader = true, 
+  showActions = true,
+  onAddInstructor,
+  onSyncUsers,
+  onRefresh 
+}, ref) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -574,6 +579,36 @@ const InstructorManagement = ({
   const handleSyncAllInstructors = async () => {
     setCreatingUsers(true);
     try {
+      // test@osstem.com 강사 계정 특별 처리
+      const testInstructor = instructors.find(i => i.email === 'test@osstem.com');
+      if (testInstructor) {
+        // test@osstem.com 계정이 이미 존재하는지 확인
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id, instructor_id')
+          .eq('email', 'test@osstem.com')
+          .maybeSingle();
+
+        if (existingProfile && !existingProfile.instructor_id) {
+          // 프로필은 있지만 instructor_id가 연결되지 않은 경우 연결
+          await supabase.rpc('admin_link_profile_to_instructor', {
+            target_profile_id: existingProfile.id,
+            instructor_id_param: testInstructor.id
+          });
+          
+          // 강사 역할 추가
+          await supabase.rpc('admin_set_user_roles_safe', {
+            target_user_id: existingProfile.id,
+            roles: ['instructor'] as unknown as ('operator' | 'instructor' | 'admin' | 'director')[]
+          });
+          
+          toast({
+            title: "성공",
+            description: "test@osstem.com 계정이 강사와 연결되었습니다."
+          });
+        }
+      }
+      
       const instructorsWithEmail = instructors.filter(instructor => instructor.email);
       
       if (instructorsWithEmail.length === 0) {
@@ -610,6 +645,13 @@ const InstructorManagement = ({
       setCreatingUsers(false);
     }
   };
+
+  // ref를 통해 외부에서 호출할 수 있는 함수들 노출
+  React.useImperativeHandle(ref, () => ({
+    openAddDialog,
+    handleSyncAllInstructors,
+    fetchData
+  }));
 
   if (loading) {
     return (
@@ -1194,8 +1236,10 @@ const InstructorManagement = ({
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+    </div>
   );
-};
+});
+
+InstructorManagement.displayName = 'InstructorManagement';
 
 export default InstructorManagement;

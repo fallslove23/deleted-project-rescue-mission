@@ -1,20 +1,26 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { DashboardLayout } from '@/components/layouts';
 import { UserCheck, Plus, RefreshCw, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import InstructorManagement from './InstructorManagement';
 
 const DashboardInstructorManagement = () => {
+  const instructorManagementRef = useRef<{
+    openAddDialog: () => void;
+    handleSyncAllInstructors: () => void;
+    fetchData: () => void;
+  }>(null);
+
   const handleAddInstructor = () => {
-    console.log('Add instructor clicked - 기능 연결 필요');
+    instructorManagementRef.current?.openAddDialog();
   };
 
   const handleSyncUsers = () => {
-    console.log('Sync users clicked - 기능 연결 필요');
+    instructorManagementRef.current?.handleSyncAllInstructors();
   };
 
   const handleRefresh = () => {
-    console.log('Refresh clicked - 기능 연결 필요');
+    instructorManagementRef.current?.fetchData();
   };
 
   const actions = [
@@ -40,6 +46,7 @@ const DashboardInstructorManagement = () => {
       actions={actions}
     >
       <InstructorManagement 
+        ref={instructorManagementRef}
         showActions={false} 
         onAddInstructor={handleAddInstructor}
         onSyncUsers={handleSyncUsers}
