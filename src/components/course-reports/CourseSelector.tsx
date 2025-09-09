@@ -65,7 +65,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
 
         {/* 과정명 */}
         <div>
-          <label className="text-sm font-medium">과정명</label>
+          <label className="text-sm font-medium">과정</label>
           <Select value={selectedCourse} onValueChange={onCourseChange}>
             <SelectTrigger>
               <SelectValue placeholder="과정 선택" />
@@ -104,7 +104,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
 
         {/* 담당 강사 */}
         <div>
-          <label className="text-sm font-medium">담당 강사</label>
+          <label className="text-sm font-medium">강사</label>
           <Select
             value={instructorValue}
             onValueChange={(v) => onInstructorChange(v === 'all' ? '' : v)} // 'all' 선택 시 ''로 역변환

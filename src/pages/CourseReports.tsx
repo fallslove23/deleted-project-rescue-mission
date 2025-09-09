@@ -451,6 +451,151 @@ const CourseReports = () => {
           </div>
         )}
 
+        {/* 월별 트렌드 차트 */}
+        {trendData && trendData.length > 0 && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border-l-4 border-green-500">
+              <h2 className="text-lg font-semibold text-green-700 mb-1 flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                월별 트렌드
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                차수별 만족도 변화 추이를 확인합니다
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">차수별 만족도 추이</CardTitle>
+                <CardDescription>교육 차수별 만족도 변화 분석</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ReLineChart data={trendData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis 
+                      dataKey="round" 
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis 
+                      domain={[0, 10]} 
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                      formatter={(value: any) => [`${value}점`, '만족도']}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="강사만족도" 
+                      stroke="hsl(var(--chart-1))" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="과정만족도" 
+                      stroke="hsl(var(--chart-2))" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="운영만족도" 
+                      stroke="hsl(var(--chart-3))" 
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                  </ReLineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* 과정별 통계 차트 */}
+        {courseStatistics && courseStatistics.length > 0 && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border-l-4 border-orange-500">
+              <h2 className="text-lg font-semibold text-orange-700 mb-1 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                과정별 통계
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                과정별 수강 및 만족도 통계를 비교합니다
+              </p>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">과정별 수강생 및 만족도</CardTitle>
+                <CardDescription>과정별 운영 현황 및 성과 분석</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={350}>
+                  <ComposedChart data={courseStatistics} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis 
+                      dataKey="course_name" 
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                    />
+                    <YAxis 
+                      yAxisId="left"
+                      orientation="left"
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis 
+                      yAxisId="right"
+                      orientation="right"
+                      domain={[0, 10]}
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      yAxisId="left"
+                      dataKey="enrolled_count" 
+                      fill="hsl(var(--chart-1))" 
+                      name="수강생수"
+                      radius={[2, 2, 0, 0]}
+                    />
+                    <Line 
+                      yAxisId="right"
+                      type="monotone" 
+                      dataKey="total_satisfaction" 
+                      stroke="hsl(var(--chart-2))" 
+                      strokeWidth={3}
+                      name="총 만족도"
+                      dot={{ r: 4 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* 강사 통계 섹션 */}
         {!isInstructor && instructorStats.length > 0 && (
           <InstructorStatsSection
