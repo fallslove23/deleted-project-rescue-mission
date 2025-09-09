@@ -314,9 +314,34 @@ const CourseReports = () => {
           onInstructorChange={setSelectedInstructor}
         />
 
-        {/* 메인 통계 카드들 */}
+        {/* 과정 만족도 메인 카드 */}
         {currentReport && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-purple-100 rounded-full">
+                    <Star className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-purple-900">과정 만족도</h3>
+                    <p className="text-sm text-purple-700">강사, 과목, 운영 종합 평가</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-4xl font-bold text-purple-900">
+                    {overallSatisfaction ? overallSatisfaction.toFixed(1) : '0.0'}
+                  </div>
+                  <p className="text-sm text-purple-700">점 / 10점 만점</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 상세 통계 카드들 */}
+        {currentReport && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">총 설문</CardTitle>
@@ -346,7 +371,7 @@ const CourseReports = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">강사 만족도</CardTitle>
-                <Star className="h-4 w-4 text-muted-foreground" />
+                <User className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -366,19 +391,6 @@ const CourseReports = () => {
                   {!isNaN(currentReport.avg_course_satisfaction) ? currentReport.avg_course_satisfaction.toFixed(1) : '0.0'}
                 </div>
                 <p className="text-xs text-muted-foreground">평균 만족도</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">과정 만족도 (종합)</CardTitle>
-                <Star className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {overallSatisfaction ? overallSatisfaction.toFixed(1) : '0.0'}
-                </div>
-                <p className="text-xs text-muted-foreground">강사+과목+운영 평균</p>
               </CardContent>
             </Card>
           </div>
