@@ -7,17 +7,18 @@ import {
 } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, BarChart3, Users, UserCheck, BookOpen, FileText, 
-  Mail, Settings, TrendingUp, Award, PieChart, Database
+  Mail, Settings, TrendingUp, Award, PieChart, Database, Code
 } from "lucide-react";
 
 export function AdminSidebar() {
-  const { userRoles } = useAuth();
+  const { userRoles, user } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
   const viewMode = searchParams.get('view'); // URL에서 view 파라미터 읽기
   const isAdmin = userRoles.includes('admin');
   const isInstructor = userRoles.includes('instructor');
+  const isDeveloper = user?.email === 'sethetrend87@osstem.com';
 
   // 관리자 전용 메뉴
   const adminMenuItems = [
@@ -124,6 +125,18 @@ export function AdminSidebar() {
           .sidebar-menu-item svg {
             color: inherit !important;
           }
+          /* 개발자 도구 스타일 */
+          .sidebar-menu-item[style*="ef4444"] {
+            color: #ef4444 !important;
+          }
+          .sidebar-menu-item[style*="ef4444"]:hover {
+            color: #dc2626 !important;
+            background-color: rgba(239, 68, 68, 0.1) !important;
+          }
+          .sidebar-menu-item[style*="ef4444"].active {
+            background-color: #ef4444 !important;
+            color: white !important;
+          }
         `}
       </style>
       <SidebarContent className="bg-sidebar">
@@ -153,6 +166,31 @@ export function AdminSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+        
+        {/* 개발자 전용 섹션 */}
+        {isDeveloper && (
+          <SidebarGroup className="mt-auto border-t pt-4">
+            <SidebarGroupLabel className="font-light text-xs uppercase tracking-wider px-3 py-2" style={{ color: '#ef4444' }}>
+              개발자 도구
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/developer-test"
+                      className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
+                      style={{ color: '#ef4444 !important' }}
+                    >
+                      <Code className="h-4 w-4 flex-shrink-0" />
+                      <span className="font-light">테스트 화면</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
