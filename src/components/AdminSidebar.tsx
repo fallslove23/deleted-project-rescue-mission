@@ -59,8 +59,9 @@ export function AdminSidebar() {
   // 강사 전용 메뉴
   const instructorMenuItems = [
     {
-      title: "개인 성과",
+      title: "분석",
       items: [
+        { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
         { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false },
         { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false }
       ]

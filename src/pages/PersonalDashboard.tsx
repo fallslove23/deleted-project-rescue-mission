@@ -97,21 +97,40 @@ const PersonalDashboard: FC = () => {
 
     setLoading(true);
     try {
-      // 강사가 아닌 관리자의 경우 전체 데이터 조회
       let surveyQuery = supabase.from('surveys').select('*');
+      let instructorId = profile?.instructor_id;
 
-      // 강사인 경우 본인 설문만, 관리자인 경우 전체 설문
-      if (profile?.instructor_id && isInstructor) {
-        surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
-      } else if (isInstructor && !profile?.instructor_id && user?.email) {
-        // instructor_id가 없는 강사의 경우 이메일로 매칭 시도
-        const { data: instructorData } = await supabase
-          .from('instructors')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (instructorData) {
-          surveyQuery = surveyQuery.eq('instructor_id', instructorData.id);
+      // 강사인 경우 본인의 instructor_id 확인 및 설정
+      if (isInstructor) {
+        if (!instructorId && user?.email) {
+          // instructor_id가 없는 경우 이메일로 매칭 시도
+          const { data: instructorData } = await supabase
+            .from('instructors')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (instructorData) {
+            instructorId = instructorData.id;
+            // 프로필에 instructor_id 업데이트
+            await supabase
+              .from('profiles')
+              .update({ instructor_id: instructorData.id })
+              .eq('id', user.id);
+            setProfile(prev => prev ? { ...prev, instructor_id: instructorData.id } : null);
+          }
+        }
+        
+        // 강사는 본인 설문만 조회
+        if (instructorId) {
+          surveyQuery = surveyQuery.eq('instructor_id', instructorId);
+        } else {
+          // instructor_id가 없는 강사는 빈 결과 반환
+          setSurveys([]);
+          setResponses([]);
+          setQuestions([]);
+          setAnswers([]);
+          setLoading(false);
+          return;
         }
       }
 

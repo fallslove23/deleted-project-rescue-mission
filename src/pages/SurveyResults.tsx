@@ -191,22 +191,46 @@ const SurveyResults = () => {
         }
       }
 
-      if (isInstructor && profile?.instructor_id && !canViewAll) {
-        let surveyQuery = supabase
-          .from('surveys')
-          .select('id')
-          .eq('instructor_id', profile.instructor_id);
+      if (isInstructor && !canViewAll) {
+        let instructorId = profile?.instructor_id;
         
-        // 테스트 데이터 필터링
-        if (!testDataOptions.includeTestData) {
-          surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
+        // instructor_id가 없는 경우 이메일로 매칭 시도
+        if (!instructorId && user?.email) {
+          const { data: instructorData } = await supabase
+            .from('instructors')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (instructorData) {
+            instructorId = instructorData.id;
+          }
         }
         
-        const { data: instructorSurveys } = await surveyQuery;
+        if (instructorId) {
+          let surveyQuery = supabase
+            .from('surveys')
+            .select('id')
+            .eq('instructor_id', instructorId);
+          
+          // 테스트 데이터 필터링
+          if (!testDataOptions.includeTestData) {
+            surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
+          }
+          
+          const { data: instructorSurveys } = await surveyQuery;
 
-        if (instructorSurveys && instructorSurveys.length > 0) {
-          const ids = instructorSurveys.map((s: any) => s.id);
-          query = query.in('survey_id', ids);
+          if (instructorSurveys && instructorSurveys.length > 0) {
+            const ids = instructorSurveys.map((s: any) => s.id);
+            query = query.in('survey_id', ids);
+          } else {
+            // 강사에게 설문이 없는 경우 빈 결과 반환
+            setAllResponses([]);
+            return;
+          }
+        } else {
+          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
+          setAllResponses([]);
+          return;
         }
       }
 
@@ -227,8 +251,29 @@ const SurveyResults = () => {
         surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
       }
 
-      if (isInstructor && profile?.instructor_id && !canViewAll) {
-        surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
+      if (isInstructor && !canViewAll) {
+        let instructorId = profile?.instructor_id;
+        
+        // instructor_id가 없는 경우 이메일로 매칭 시도
+        if (!instructorId && user?.email) {
+          const { data: instructorData } = await supabase
+            .from('instructors')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (instructorData) {
+            instructorId = instructorData.id;
+          }
+        }
+        
+        if (instructorId) {
+          surveyQuery = surveyQuery.eq('instructor_id', instructorId);
+        } else {
+          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
+          setAllQuestions([]);
+          setAllAnswers([]);
+          return;
+        }
       }
 
       const { data: surveyData, error: surveyError } = await surveyQuery;
@@ -406,8 +451,28 @@ const SurveyResults = () => {
         query = query.or('is_test.is.null,is_test.eq.false');
       }
       
-      if (isInstructor && profile?.instructor_id && !canViewAll) {
-        query = query.eq('instructor_id', profile.instructor_id);
+      if (isInstructor && !canViewAll) {
+        let instructorId = profile?.instructor_id;
+        
+        // instructor_id가 없는 경우 이메일로 매칭 시도
+        if (!instructorId && user?.email) {
+          const { data: instructorData } = await supabase
+            .from('instructors')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (instructorData) {
+            instructorId = instructorData.id;
+          }
+        }
+        
+        if (instructorId) {
+          query = query.eq('instructor_id', instructorId);
+        } else {
+          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
+          setSurveys([]);
+          return;
+        }
       }
       const { data, error } = await query
         .order('education_year', { ascending: false })
@@ -441,8 +506,28 @@ const SurveyResults = () => {
         query = query.or('is_test.is.null,is_test.eq.false');
       }
 
-      if (isInstructor && profile?.instructor_id && !canViewAll) {
-        query = query.eq('instructor_id', profile.instructor_id);
+      if (isInstructor && !canViewAll) {
+        let instructorId = profile?.instructor_id;
+        
+        // instructor_id가 없는 경우 이메일로 매칭 시도
+        if (!instructorId && user?.email) {
+          const { data: instructorData } = await supabase
+            .from('instructors')
+            .select('id')
+            .eq('email', user.email)
+            .maybeSingle();
+          if (instructorData) {
+            instructorId = instructorData.id;
+          }
+        }
+        
+        if (instructorId) {
+          query = query.eq('instructor_id', instructorId);
+        } else {
+          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
+          setAvailableCourses([]);
+          return;
+        }
       }
 
       const { data, error } = await query;
