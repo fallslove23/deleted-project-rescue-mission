@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -133,15 +134,17 @@ export default function QuestionEditForm({
 
         <div className="space-y-2">
           <Label>섹션</Label>
-          <Select value={sectionId ?? "none"} onValueChange={(v) => setSectionId(v === "none" ? null : v)}>
-            <SelectTrigger><SelectValue placeholder="선택 안 함" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">선택 안 함</SelectItem>
-              {sections.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            options={[
+              { value: 'none', label: '선택 안 함' },
+              ...sections.map((s) => ({ value: s.id, label: s.name }))
+            ]}
+            value={sectionId ?? "none"}
+            onValueChange={(v) => setSectionId(v === "none" ? null : v)}
+            placeholder="선택 안 함"
+            searchPlaceholder="섹션명 검색..."
+            emptyText="검색 결과가 없습니다."
+          />
         </div>
       </div>
 

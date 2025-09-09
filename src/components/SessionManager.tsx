@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -262,28 +263,33 @@ export const SessionManager = ({
 
               <div className="space-y-2">
                 <Label>과목</Label>
-                <Select value={form.course_id} onValueChange={handleCourseChange}>
-                  <SelectTrigger><SelectValue placeholder="선택(옵션)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">선택 안함</SelectItem>
-                    {courses.map(c => (<SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={[
+                    { value: 'none', label: '선택 안함' },
+                    ...courses.map(c => ({ value: c.id, label: c.title }))
+                  ]}
+                  value={form.course_id}
+                  onValueChange={handleCourseChange}
+                  placeholder="선택(옵션)"
+                  searchPlaceholder="과목명 검색..."
+                  emptyText="검색 결과가 없습니다."
+                />
               </div>
 
               <div className="space-y-2">
                 <Label>강사</Label>
-                <Select
+                <SearchableSelect
+                  options={[
+                    { value: 'none', label: '선택 안함' },
+                    ...getFilteredInstructors().map(i => ({ value: i.id, label: i.name }))
+                  ]}
                   value={form.instructor_id}
                   onValueChange={(v) => setForm(p => ({ ...p, instructor_id: v }))}
+                  placeholder={form.course_id === "none" ? "선택(옵션)" : "과목 연결 강사 선택"}
+                  searchPlaceholder="강사명 검색..."
+                  emptyText="검색 결과가 없습니다."
                   disabled={form.course_id !== "none" && getFilteredInstructors().length === 0}
-                >
-                  <SelectTrigger><SelectValue placeholder={form.course_id === "none" ? "선택(옵션)" : "과목 연결 강사 선택"} /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">선택 안함</SelectItem>
-                    {getFilteredInstructors().map(i => (<SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
+                />
                 {form.course_id !== "none" && getFilteredInstructors().length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     선택한 과목에 연결된 강사가 없습니다.

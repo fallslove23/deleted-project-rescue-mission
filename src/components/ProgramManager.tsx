@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2 } from "lucide-react";
 
@@ -147,21 +148,15 @@ export default function ProgramManager({ selectedProgram, onProgramSelect }: Pro
       <div>
         <Label>과정 (프로그램)</Label>
         <div className="flex gap-2">
-          <Select
-            value={selectedProgram || undefined as unknown as string}
+          <SearchableSelect
+            options={programs.map((program) => ({ value: program.name, label: program.name }))}
+            value={selectedProgram || ""}
             onValueChange={onProgramSelect}
-          >
-            <SelectTrigger className="flex-1 bg-background z-50">
-              <SelectValue placeholder="과정을 선택하세요" />
-            </SelectTrigger>
-            <SelectContent className="bg-background border z-50">
-              {programs.map((program) => (
-                <SelectItem key={program.id} value={program.name}>
-                  {program.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="과정을 선택하세요"
+            searchPlaceholder="과정명 검색..."
+            emptyText="검색 결과가 없습니다."
+            className="flex-1"
+          />
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>

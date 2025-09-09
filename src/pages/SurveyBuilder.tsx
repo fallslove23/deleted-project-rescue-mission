@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -933,12 +934,15 @@ export default function SurveyBuilder() {
                 <div className="space-y-2">
                   <Label>과정명</Label>
                   <div className="flex gap-2">
-                    <Select value={courseName || ""} onValueChange={setCourseName}>
-                      <SelectTrigger><SelectValue placeholder="과정명을 선택하세요" /></SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {courseNames.map((c) => (<SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={courseNames.map((c) => ({ value: c.name, label: c.name }))}
+                      value={courseName || ""}
+                      onValueChange={setCourseName}
+                      placeholder="과정명을 선택하세요"
+                      searchPlaceholder="과정명 검색..."
+                      emptyText="검색 결과가 없습니다."
+                      className="flex-1"
+                    />
                     <Button variant="outline" onClick={() => setCourseMgrOpen(true)}>
                       <Settings className="w-4 h-4 mr-1" />관리
                     </Button>
@@ -1414,27 +1418,22 @@ export default function SurveyBuilder() {
                             </div>
                           </div>
                           <div className="flex-shrink-0 w-48">
-                            <Select 
-                              value={templateSelections[session.id] || ''} 
+                            <SearchableSelect
+                              options={[
+                                { value: 'none', label: '선택 안함' },
+                                ...templates.map((template) => ({ value: template.id, label: template.name }))
+                              ]}
+                              value={templateSelections[session.id] || ''}
                               onValueChange={(value) => {
                                 setTemplateSelections(prev => ({
                                   ...prev,
                                   [session.id]: value
                                 }));
                               }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="템플릿 선택" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-background border z-50">
-                                <SelectItem value="none">선택 안함</SelectItem>
-                                {templates.map((template) => (
-                                  <SelectItem key={template.id} value={template.id}>
-                                    {template.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              placeholder="템플릿 선택"
+                              searchPlaceholder="템플릿 검색..."
+                              emptyText="검색 결과가 없습니다."
+                            />
                           </div>
                         </div>
                       ))}
