@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bs-edu-feedback-v3';
+const CACHE_NAME = 'bs-edu-feedback-v4';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
@@ -16,6 +16,7 @@ self.addEventListener('install', (event) => {
       })
       .then(() => {
         // 즉시 활성화하여 기존 서비스 워커를 대체
+        self.postMessage({ type: 'SKIP_WAITING' });
         return self.skipWaiting();
       })
   );

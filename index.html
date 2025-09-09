@@ -5,6 +5,11 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
+    <!-- Force cache busting for latest version -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#2563eb" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -39,16 +44,39 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Service Worker registration
+      // Service Worker registration with aggressive update checking
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
             .then((registration) => {
               console.log('SW registered: ', registration);
+              
+              // Check for updates every time the page loads
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      console.log('New version available, reloading...');
+                      window.location.reload();
+                    }
+                  });
+                }
+              });
+
+              // Force check for updates
+              registration.update();
             })
             .catch((registrationError) => {
               console.log('SW registration failed: ', registrationError);
             });
+        });
+
+        // Listen for messages from service worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'SKIP_WAITING') {
+            window.location.reload();
+          }
         });
       }
 
