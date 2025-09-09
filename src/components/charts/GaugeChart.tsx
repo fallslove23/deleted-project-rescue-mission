@@ -22,8 +22,8 @@ export const GaugeChart = ({
   size = 200,
   thickness = 20,
   colors = {
-    background: 'hsl(var(--muted))',
-    fill: 'hsl(var(--primary))',
+    background: 'hsl(var(--muted) / 0.3)',
+    fill: 'hsl(var(--chart-1))',
     text: 'hsl(var(--foreground))'
   }
 }: GaugeChartProps) => {
@@ -35,6 +35,8 @@ export const GaugeChart = ({
     { name: 'filled', value: percentage, color: colors.fill },
     { name: 'empty', value: 100 - percentage, color: colors.background }
   ];
+
+  const gradientId = `gauge-gradient-${Math.random().toString(36).substr(2, 9)}`;
 
   const renderLabel = () => null; // 라벨 숨김
 
@@ -49,6 +51,12 @@ export const GaugeChart = ({
       <div className="relative" style={{ width: size, height: size / 2 + 20 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="hsl(var(--chart-1))" />
+                <stop offset="100%" stopColor="hsl(var(--chart-2))" />
+              </linearGradient>
+            </defs>
             <Pie
               data={data}
               cx="50%"
@@ -62,7 +70,12 @@ export const GaugeChart = ({
               label={renderLabel}
             >
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={index === 0 ? `url(#${gradientId})` : entry.color}
+                  stroke="white"
+                  strokeWidth={index === 0 ? 2 : 0}
+                />
               ))}
             </Pie>
           </PieChart>

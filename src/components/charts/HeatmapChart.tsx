@@ -20,7 +20,7 @@ export const HeatmapChart = ({
   title, 
   xAxisLabel, 
   yAxisLabel,
-  colorScale = ['hsl(var(--muted))', 'hsl(var(--primary))']
+  colorScale = ['hsl(var(--muted) / 0.3)', 'hsl(var(--chart-1))']
 }: HeatmapChartProps) => {
   // 데이터에서 고유한 x, y 값들 추출
   const xValues = [...new Set(data.map(d => d.x))];
@@ -112,7 +112,9 @@ export const HeatmapChart = ({
                         fill={getColor(item.value)}
                         stroke="white"
                         strokeWidth="0.5"
-                        className="hover:opacity-80 transition-opacity cursor-pointer"
+                        rx="1"
+                        ry="1"
+                        className="hover:opacity-80 transition-all duration-200 cursor-pointer hover:stroke-2"
                       />
                       {/* 값 표시 */}
                       <text

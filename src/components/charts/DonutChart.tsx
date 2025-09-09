@@ -7,7 +7,15 @@ interface DonutChartProps {
   outerRadius?: number;
 }
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
+const COLORS = [
+  'hsl(var(--chart-1))', 
+  'hsl(var(--chart-2))', 
+  'hsl(var(--chart-3))', 
+  'hsl(var(--chart-4))', 
+  'hsl(var(--chart-5))', 
+  'hsl(var(--chart-purple-light))',
+  'hsl(var(--chart-purple-dark))'
+];
 
 export const DonutChart = ({ 
   data, 
@@ -61,6 +69,9 @@ export const DonutChart = ({
             innerRadius={innerRadius}
             fill="#8884d8"
             dataKey="value"
+            stroke="white"
+            strokeWidth={2}
+            cornerRadius={3}
           >
             {dataWithColors.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />

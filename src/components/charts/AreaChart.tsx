@@ -17,12 +17,12 @@ interface AreaChartProps {
 }
 
 const DEFAULT_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--secondary))', 
-  'hsl(var(--accent))',
-  '#82ca9d',
-  '#ffc658',
-  '#ff7300'
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))', 
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-purple-light))'
 ];
 
 export const AreaChart = ({ 
@@ -48,9 +48,18 @@ export const AreaChart = ({
             bottom: 5,
           }}
         >
+          <defs>
+            {dataKeys.map((item, index) => (
+              <linearGradient key={`gradient${index}`} id={`gradient${index}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]} stopOpacity={0.8}/>
+                <stop offset="100%" stopColor={item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]} stopOpacity={0.1}/>
+              </linearGradient>
+            ))}
+          </defs>
           <CartesianGrid 
             strokeDasharray="3 3" 
-            stroke="hsl(var(--muted-foreground) / 0.3)"
+            stroke="hsl(var(--chart-1) / 0.2)"
+            strokeWidth={1}
           />
           <XAxis 
             dataKey="name"
@@ -94,9 +103,11 @@ export const AreaChart = ({
               dataKey={item.key}
               stackId={stacked ? "1" : undefined}
               stroke={item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
-              fill={item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
-              fillOpacity={0.6}
+              fill={`url(#gradient${index})`}
+              fillOpacity={0.8}
+              strokeWidth={3}
               name={item.label}
+              dot={{ r: 4, strokeWidth: 2, stroke: 'white' }}
             />
           ))}
         </RechartsAreaChart>

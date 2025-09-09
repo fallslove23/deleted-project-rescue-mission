@@ -57,22 +57,22 @@ All colors MUST be HSL.
     --glass-bg: 240 10% 3.9% / 0.8;
     --glass-border: 240 5% 64.9% / 0.2;
 
-    /* Chart colors - trendy and modern */
-    --chart-1: 263 70% 50.4%;
-    --chart-2: 270 91% 65%;
-    --chart-3: 285 85% 50%;
-    --chart-4: 142 76% 36%;
-    --chart-5: 38 92% 50%;
+    /* Chart colors - Premium Purple Palette */
+    --chart-1: 263 85% 65%;         /* Main purple */
+    --chart-2: 270 91% 70%;         /* Light purple */
+    --chart-3: 285 85% 58%;         /* Violet */
+    --chart-4: 252 83% 57%;         /* Blue purple */
+    --chart-5: 295 73% 65%;         /* Pink purple */
     --chart-success: 142 76% 36%;
     --chart-warning: 38 92% 50%;
     --chart-danger: 0 84% 60%;
     --chart-info: 201 96% 32%;
-    --chart-purple: 263 70% 50.4%;
-    --chart-blue: 221 83% 53%;
-    --chart-teal: 173 58% 39%;
-    --chart-orange: 25 95% 53%;
-    --chart-pink: 330 81% 60%;
-    --chart-indigo: 263 70% 50.4%;
+    --chart-purple: 263 85% 65%;
+    --chart-purple-light: 270 91% 75%;
+    --chart-purple-dark: 255 70% 55%;
+    --chart-gradient-1: linear-gradient(135deg, hsl(263 85% 65%) 0%, hsl(270 91% 75%) 100%);
+    --chart-gradient-2: linear-gradient(135deg, hsl(285 85% 58%) 0%, hsl(295 73% 65%) 100%);
+    --chart-gradient-3: linear-gradient(135deg, hsl(252 83% 57%) 0%, hsl(263 85% 65%) 100%);
 
     --radius: 0.5rem;
 
