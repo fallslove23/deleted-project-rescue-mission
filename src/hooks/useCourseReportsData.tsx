@@ -297,7 +297,7 @@ export const useCourseReportsData = (
       const finalInstructorStats = Array.from(instructorStatsMap.values()).map(stat => ({
         ...stat,
         avg_satisfaction: stat.satisfactions.length > 0
-          ? stat.satisfactions.reduce((a: number, b: number) => a + b, 0) / stat.satisfactions.length
+          ? Number((stat.satisfactions.reduce((a: number, b: number) => a + b, 0) / stat.satisfactions.length).toFixed(1)) || 0
           : 0
       })).filter(stat => stat.survey_count > 0); // 실제 데이터가 있는 강사만 포함
 
@@ -310,14 +310,14 @@ export const useCourseReportsData = (
         total_surveys: totalSurveys,
         total_responses: totalResponses,
         avg_instructor_satisfaction: allInstructorSatisfactions.length > 0 
-          ? allInstructorSatisfactions.reduce((a, b) => a + b, 0) / allInstructorSatisfactions.length 
+          ? Number((allInstructorSatisfactions.reduce((a, b) => a + b, 0) / allInstructorSatisfactions.length).toFixed(1)) || 0
           : 0,
         avg_course_satisfaction: allCourseSatisfactions.length > 0
-          ? allCourseSatisfactions.reduce((a, b) => a + b, 0) / allCourseSatisfactions.length
+          ? Number((allCourseSatisfactions.reduce((a, b) => a + b, 0) / allCourseSatisfactions.length).toFixed(1)) || 0
           : 0,
         report_data: {
           operation_satisfaction: allOperationSatisfactions.length > 0
-            ? allOperationSatisfactions.reduce((a, b) => a + b, 0) / allOperationSatisfactions.length
+            ? Number((allOperationSatisfactions.reduce((a, b) => a + b, 0) / allOperationSatisfactions.length).toFixed(1)) || 0
             : 0,
           instructor_count: finalInstructorStats.length,
           satisfaction_distribution: {
@@ -574,11 +574,11 @@ export const useCourseReportsData = (
         const trendArray = Array.from(trendMap.values()).map(data => ({
           round: `${data.round}차`,
           강사만족도: data.instructor.length > 0 ? 
-            Number((data.instructor.reduce((a, b) => a + b, 0) / data.instructor.length).toFixed(1)) : 0,
+            Number((data.instructor.reduce((a, b) => a + b, 0) / data.instructor.length).toFixed(1)) || 0 : 0,
           과정만족도: data.course.length > 0 ? 
-            Number((data.course.reduce((a, b) => a + b, 0) / data.course.length).toFixed(1)) : 0,
+            Number((data.course.reduce((a, b) => a + b, 0) / data.course.length).toFixed(1)) || 0 : 0,
           운영만족도: data.operation.length > 0 ? 
-            Number((data.operation.reduce((a, b) => a + b, 0) / data.operation.length).toFixed(1)) : 0
+            Number((data.operation.reduce((a, b) => a + b, 0) / data.operation.length).toFixed(1)) || 0 : 0
         })).slice(-5); // 최근 5개만
 
         setTrendData(trendArray);

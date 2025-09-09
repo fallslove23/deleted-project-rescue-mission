@@ -167,26 +167,49 @@ const CourseReports = () => {
   const responseChange = previousReport ? calculateChange(currentReport?.total_responses || 0, previousReport.total_responses) : null;
   const instructorChange = previousReport ? calculateChange(currentReport?.avg_instructor_satisfaction || 0, previousReport.avg_instructor_satisfaction) : null;
 
-  const instructorTrendData = instructorStats.map(instructor => ({
-    name: instructor.instructor_name,
-    만족도: Number(instructor.avg_satisfaction.toFixed(1)),
-    응답수: instructor.response_count
-  }));
+  const instructorTrendData = instructorStats
+    .filter(instructor => !isNaN(instructor.avg_satisfaction) && instructor.avg_satisfaction > 0)
+    .map(instructor => ({
+      name: instructor.instructor_name,
+      만족도: Number(instructor.avg_satisfaction.toFixed(1)) || 0,
+      응답수: instructor.response_count
+    }));
 
   const satisfactionChartData = currentReport ? [
-    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction, fill: 'hsl(var(--chart-1))' },
-    { name: '과정 만족도', value: currentReport.avg_course_satisfaction, fill: 'hsl(var(--chart-2))' },
-    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0, fill: 'hsl(var(--chart-3))' }
-  ] : [];
+    { 
+      name: '강사 만족도', 
+      value: !isNaN(currentReport.avg_instructor_satisfaction) ? Number(currentReport.avg_instructor_satisfaction.toFixed(1)) : 0, 
+      fill: 'hsl(var(--chart-1))' 
+    },
+    { 
+      name: '과정 만족도', 
+      value: !isNaN(currentReport.avg_course_satisfaction) ? Number(currentReport.avg_course_satisfaction.toFixed(1)) : 0, 
+      fill: 'hsl(var(--chart-2))' 
+    },
+    { 
+      name: '운영 만족도', 
+      value: !isNaN(currentReport.report_data?.operation_satisfaction || 0) ? Number((currentReport.report_data?.operation_satisfaction || 0).toFixed(1)) : 0, 
+      fill: 'hsl(var(--chart-3))' 
+    }
+  ].filter(item => !isNaN(item.value) && item.value >= 0) : [];
 
   const currentRoundData = currentReport ? [
-    { name: '강사 만족도', value: currentReport.avg_instructor_satisfaction },
-    { name: '과정 만족도', value: currentReport.avg_course_satisfaction },
-    { name: '운영 만족도', value: currentReport.report_data?.operation_satisfaction || 0 }
-  ] : [];
+    { 
+      name: '강사 만족도', 
+      value: !isNaN(currentReport.avg_instructor_satisfaction) ? Number(currentReport.avg_instructor_satisfaction.toFixed(1)) : 0 
+    },
+    { 
+      name: '과정 만족도', 
+      value: !isNaN(currentReport.avg_course_satisfaction) ? Number(currentReport.avg_course_satisfaction.toFixed(1)) : 0 
+    },
+    { 
+      name: '운영 만족도', 
+      value: !isNaN(currentReport.report_data?.operation_satisfaction || 0) ? Number((currentReport.report_data?.operation_satisfaction || 0).toFixed(1)) : 0 
+    }
+  ].filter(item => !isNaN(item.value) && item.value >= 0) : [];
 
-  const overallSatisfaction = currentReport ? 
-    (currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3 : 0;
+  const overallSatisfaction = currentReport && !isNaN(currentReport.avg_instructor_satisfaction) && !isNaN(currentReport.avg_course_satisfaction) ? 
+    Number(((currentReport.avg_instructor_satisfaction + currentReport.avg_course_satisfaction + (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)) || 0 : 0;
 
   const responseRate = currentReport && currentReport.total_surveys > 0 ? 
     (currentReport.total_responses / (currentReport.total_surveys * 20)) * 100 : 0;
@@ -326,7 +349,9 @@ const CourseReports = () => {
                 <Star className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currentReport.avg_instructor_satisfaction.toFixed(1)}</div>
+                <div className="text-2xl font-bold">
+                  {!isNaN(currentReport.avg_instructor_satisfaction) ? currentReport.avg_instructor_satisfaction.toFixed(1) : '0.0'}
+                </div>
                 <p className="text-xs text-muted-foreground">평균 만족도</p>
               </CardContent>
             </Card>
@@ -337,7 +362,9 @@ const CourseReports = () => {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currentReport.avg_course_satisfaction.toFixed(1)}</div>
+                <div className="text-2xl font-bold">
+                  {!isNaN(currentReport.avg_course_satisfaction) ? currentReport.avg_course_satisfaction.toFixed(1) : '0.0'}
+                </div>
                 <p className="text-xs text-muted-foreground">평균 만족도</p>
               </CardContent>
             </Card>

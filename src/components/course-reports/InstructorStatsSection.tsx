@@ -26,6 +26,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
 }) => {
   // Horizontal Bar Chart용 데이터 준비
   const horizontalChartData = instructorStats
+    .filter((stat) => !isNaN(stat.avg_satisfaction) && stat.avg_satisfaction > 0) // NaN과 0 값 필터링
     .sort((a, b) => b.avg_satisfaction - a.avg_satisfaction)
     .map((stat) => ({
       name: stat.instructor_name.length > 8 ? stat.instructor_name.substring(0, 7) + '...' : stat.instructor_name,
@@ -146,7 +147,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                       <span className="text-sm text-muted-foreground">평균 만족도</span>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-primary">
-                          {stat.avg_satisfaction.toFixed(1)}점
+                          {!isNaN(stat.avg_satisfaction) ? stat.avg_satisfaction.toFixed(1) : '0.0'}점
                         </span>
                         {hasChange && (
                           <span className={`text-xs font-medium ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -169,7 +170,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                     {previousStat && (
                       <div className="pt-2 border-t border-border">
                         <div className="text-xs text-muted-foreground">
-                          이전 기간: {previousStat.avg_satisfaction.toFixed(1)}점
+                          이전 기간: {!isNaN(previousStat.avg_satisfaction) ? previousStat.avg_satisfaction.toFixed(1) : '0.0'}점
                         </div>
                       </div>
                     )}
