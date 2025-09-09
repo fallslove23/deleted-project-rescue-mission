@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bs-edu-feedback-v1';
+const CACHE_NAME = 'bs-edu-feedback-v2';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
