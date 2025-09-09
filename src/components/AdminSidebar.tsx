@@ -129,7 +129,7 @@ export function AdminSidebar() {
       <SidebarContent className="bg-sidebar">
         {menuItems.map((section) => (
           <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider px-3 py-2" style={{ color: '#7c3aed' }}>
+            <SidebarGroupLabel className="font-light text-xs uppercase tracking-wider px-3 py-2" style={{ color: '#7c3aed' }}>
               {section.title}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -140,11 +140,11 @@ export function AdminSidebar() {
                       <NavLink
                         to={item.url}
                         end={item.exact}
-                        className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200"
+                        className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
                         style={{ color: '#7c3aed !important' }}
                       >
                         <item.icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="font-semibold">{item.title}</span>
+                        <span className="font-light">{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

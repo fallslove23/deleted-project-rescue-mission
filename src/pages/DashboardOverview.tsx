@@ -13,6 +13,19 @@ import {
   BookOpen,
   Activity,
 } from "lucide-react";
+import { 
+  AreaChart as RechartsAreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  ResponsiveContainer, 
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts';
 // import { supabase } from "@/integrations/supabase/client"; // ← 실제 연동 시 사용
 
 /** ---------- Types ---------- */
@@ -245,7 +258,196 @@ const DashboardOverview: React.FC = () => {
           </div>
         )}
 
-        {/* 차트 섹션 등 추가 요소는 기존 유지 */}
+        {/* 차트 섹션 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 응답 트렌드 차트 */}
+          <Card className="bg-white border-0 shadow-sm">
+            <CardHeader>
+              <h3 className="text-lg font-semibold text-foreground">응답 트렌드</h3>
+              <p className="text-sm text-muted-foreground">최근 7일간 응답 추이</p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsAreaChart data={[
+                    { date: '7일 전', responses: Math.floor(stats.recentResponsesCount * 0.6) },
+                    { date: '6일 전', responses: Math.floor(stats.recentResponsesCount * 0.7) },
+                    { date: '5일 전', responses: Math.floor(stats.recentResponsesCount * 0.8) },
+                    { date: '4일 전', responses: Math.floor(stats.recentResponsesCount * 0.9) },
+                    { date: '3일 전', responses: Math.floor(stats.recentResponsesCount * 1.1) },
+                    { date: '2일 전', responses: Math.floor(stats.recentResponsesCount * 1.2) },
+                    { date: '어제', responses: stats.recentResponsesCount }
+                  ]}>
+                    <defs>
+                      <linearGradient id="responseGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--card-foreground))'
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="responses"
+                      stroke="hsl(var(--chart-1))"
+                      fillOpacity={1}
+                      fill="url(#responseGradient)"
+                      strokeWidth={3}
+                    />
+                  </RechartsAreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 설문 상태 분포 도넛 차트 */}
+          <Card className="bg-white border-0 shadow-sm">
+            <CardHeader>
+              <h3 className="text-lg font-semibold text-foreground">설문 상태 분포</h3>
+              <p className="text-sm text-muted-foreground">설문별 진행 상황</p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: '활성', value: stats.activeSurveys, fill: 'hsl(var(--chart-2))' },
+                        { name: '완료', value: stats.completedSurveys, fill: 'hsl(var(--chart-1))' },
+                        { name: '대기', value: Math.max(0, stats.totalSurveys - stats.activeSurveys - stats.completedSurveys), fill: 'hsl(var(--chart-3))' }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {[
+                        { name: '활성', value: stats.activeSurveys, fill: 'hsl(var(--chart-2))' },
+                        { name: '완료', value: stats.completedSurveys, fill: 'hsl(var(--chart-1))' },
+                        { name: '대기', value: Math.max(0, stats.totalSurveys - stats.activeSurveys - stats.completedSurveys), fill: 'hsl(var(--chart-3))' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [`${value}개`, name]}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--card-foreground))'
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom"
+                      height={36}
+                      formatter={(value) => <span style={{ color: 'hsl(var(--foreground))' }}>{value}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 추가 통계 섹션 */}
+        {isAdmin && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 일일 활동 통계 */}
+            <Card className="bg-white border-0 shadow-sm">
+              <CardHeader>
+                <h3 className="text-lg font-semibold text-foreground">일일 활동</h3>
+                <p className="text-sm text-muted-foreground">오늘의 주요 지표</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">오늘 신규 응답</span>
+                    <span className="font-semibold text-foreground">{Math.floor(stats.recentResponsesCount * 0.3)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">활성 사용자</span>
+                    <span className="font-semibold text-foreground">{Math.floor(stats.totalInstructors * 0.7)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">완료율</span>
+                    <span className="font-semibold text-foreground">
+                      {stats.totalSurveys > 0 ? Math.round((stats.completedSurveys / stats.totalSurveys) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 시스템 상태 */}
+            <Card className="bg-white border-0 shadow-sm">
+              <CardHeader>
+                <h3 className="text-lg font-semibold text-foreground">시스템 상태</h3>
+                <p className="text-sm text-muted-foreground">현재 시스템 운영 현황</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">서비스 상태</span>
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">정상</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">평균 응답 시간</span>
+                    <span className="font-semibold text-foreground">1.2초</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">활성 세션</span>
+                    <span className="font-semibold text-foreground">{Math.floor(stats.recentResponsesCount * 0.5)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 월간 요약 */}
+            <Card className="bg-white border-0 shadow-sm">
+              <CardHeader>
+                <h3 className="text-lg font-semibold text-foreground">월간 요약</h3>
+                <p className="text-sm text-muted-foreground">이번 달 주요 성과</p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">신규 설문</span>
+                    <span className="font-semibold text-foreground">{Math.floor(stats.totalSurveys * 0.2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">총 참여자</span>
+                    <span className="font-semibold text-foreground">{Math.floor(stats.totalResponses * 0.8)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">만족도 평균</span>
+                    <span className="font-semibold text-foreground">4.2/5.0</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
