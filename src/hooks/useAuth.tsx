@@ -18,12 +18,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
 
+  // 역할 우선순위 정의 (instructor가 최하위)
+  const getRolePriority = (role: string): number => {
+    const priorities: Record<string, number> = {
+      admin: 1,
+      operator: 2,
+      director: 3,
+      instructor: 4, // 가장 낮은 우선순위
+    };
+    return priorities[role] || 99;
+  };
+
   // 사용자 역할 가져오기 함수
   const fetchUserRoles = async (userId: string) => {
     try {
       const { data, error } = await supabase.rpc('get_user_roles', { target_user_id: userId });
       if (!error && data) {
-        setUserRoles(data.map((item: any) => item.role));
+        const roles = data.map((item: any) => item.role);
+        // 역할 우선순위로 정렬 (instructor를 맨 뒤로)
+        const sortedRoles = roles.sort((a: string, b: string) => getRolePriority(a) - getRolePriority(b));
+        setUserRoles(sortedRoles);
       }
     } catch (error) {
       console.error('Error fetching user roles:', error);

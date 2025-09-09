@@ -1,34 +1,39 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { DataTable } from '@/components/data-table/DataTable';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Database, BarChart } from 'lucide-react';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AdminSidebar } from '@/components/AdminSidebar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Download, Filter, Calendar, User, BookOpen } from 'lucide-react';
+import { DataTable } from '@/components/data-table/DataTable';
+import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import { TestDataToggle } from '@/components/TestDataToggle';
 
-interface CumulativeData {
-  survey_id: string;
+interface CumulativeDataRow {
+  id: string;
   survey_title: string;
   education_year: number;
   education_round: number;
   course_name: string;
   instructor_name: string;
-  total_responses: number;
+  response_count: number;
   avg_satisfaction: number;
-  completion_rate: number;
-  created_at: string;
+  submitted_at: string;
   status: string;
 }
 
 const CumulativeDataTable = () => {
-  const { userRoles, user, signOut } = useAuth();
-  const { toast } = useToast();
-  const [data, setData] = useState<CumulativeData[]>([]);
+  const { userRoles } = useAuth();
+  const testDataOptions = useTestDataToggle();
+  const [data, setData] = useState<CumulativeDataRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterYear, setFilterYear] = useState('all');
+  const [filterCourse, setFilterCourse] = useState('all');
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [availableCourses, setAvailableCourses] = useState<string[]>([]);
 
   const isAdmin = userRoles.includes('admin');
   const isOperator = userRoles.includes('operator');
@@ -36,17 +41,15 @@ const CumulativeDataTable = () => {
   const canViewAll = isAdmin || isOperator || isDirector;
 
   useEffect(() => {
-    if (canViewAll) {
-      fetchCumulativeData();
-    }
-  }, [canViewAll]);
+    fetchData();
+    fetchFilterOptions();
+  }, [testDataOptions.includeTestData]);
 
-  const fetchCumulativeData = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       
-      // 설문 기본 정보와 통계를 한 번에 조회 (성능 최적화)
-      const { data: surveysData, error: surveysError } = await supabase
+      const { data: surveys, error: surveyError } = await supabase
         .from('surveys')
         .select(`
           id,
@@ -56,337 +59,312 @@ const CumulativeDataTable = () => {
           course_name,
           status,
           created_at,
-          instructors (name),
-          survey_responses (
-            id,
-            survey_id
-          )
+          instructor:instructors(name)
         `)
-        .order('education_year', { ascending: false })
-        .order('education_round', { ascending: false })
-        .limit(500); // 확장성을 위한 제한
+        .not('course_name', 'is', null);
 
-      if (surveysError) throw surveysError;
+      if (surveyError) throw surveyError;
 
-      // 각 설문의 만족도 점수 계산
-      const cumulativeData: CumulativeData[] = [];
-      
-      for (const survey of surveysData || []) {
-        const responseCount = survey.survey_responses?.length || 0;
-        
-        // 만족도 점수 계산 (rating/scale 질문만)
-        let avgSatisfaction = 0;
-        if (responseCount > 0) {
-          const { data: satisfactionData } = await supabase
-            .from('question_answers')
-            .select(`
-              answer_value,
-              survey_questions!inner (
-                question_type,
-                satisfaction_type
-              )
-            `)
-            .in('response_id', survey.survey_responses.map(r => r.id))
-            .in('survey_questions.question_type', ['rating', 'scale']);
+      const enrichedData: CumulativeDataRow[] = (surveys || []).map(survey => ({
+        id: survey.id,
+        survey_title: survey.title,
+        education_year: survey.education_year,
+        education_round: survey.education_round,
+        course_name: survey.course_name,
+        instructor_name: (survey.instructor as any)?.name || '미지정',
+        response_count: 0, // 임시값
+        avg_satisfaction: 0, // 임시값
+        submitted_at: survey.created_at,
+        status: survey.status,
+      }));
 
-          if (satisfactionData && satisfactionData.length > 0) {
-            const scores = satisfactionData
-              .map(a => {
-                const value = typeof a.answer_value === 'number' ? a.answer_value : 
-                             typeof a.answer_value === 'string' ? Number(a.answer_value) : 0;
-                return value <= 5 ? value * 2 : value; // 5점 척도를 10점으로 변환
-              })
-              .filter(score => score > 0);
-            
-            avgSatisfaction = scores.length > 0 
-              ? scores.reduce((sum, score) => sum + score, 0) / scores.length 
-              : 0;
-          }
-        }
-
-        cumulativeData.push({
-          survey_id: survey.id,
-          survey_title: survey.title,
-          education_year: survey.education_year,
-          education_round: survey.education_round,
-          course_name: survey.course_name || '미지정',
-          instructor_name: survey.instructors?.name || '미지정',
-          total_responses: responseCount,
-          avg_satisfaction: Math.round(avgSatisfaction * 10) / 10,
-          completion_rate: 0, // 완료율은 별도 계산 필요
-          created_at: survey.created_at,
-          status: survey.status
-        });
-      }
-
-      setData(cumulativeData);
+      setData(enrichedData);
     } catch (error) {
       console.error('Error fetching cumulative data:', error);
-      toast({
-        title: "오류",
-        description: "누적 데이터를 불러오는 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
     } finally {
       setLoading(false);
     }
   };
 
-  const exportData = () => {
+  const fetchFilterOptions = async () => {
     try {
-      const csvContent = generateCSV();
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `누적_설문데이터_${new Date().toISOString().slice(0, 10)}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast({
-        title: "성공",
-        description: "누적 데이터가 CSV 파일로 다운로드되었습니다."
-      });
+      const { data: surveys } = await supabase
+        .from('surveys')
+        .select('education_year, course_name')
+        .not('course_name', 'is', null);
+
+      if (surveys) {
+        const years = [...new Set(surveys.map(s => s.education_year))].sort((a, b) => b - a);
+        const courses = [...new Set(surveys.map(s => s.course_name))].sort();
+        
+        setAvailableYears(years);
+        setAvailableCourses(courses);
+      }
     } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: "오류",
-        description: "내보내기 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
+      console.error('Error fetching filter options:', error);
     }
   };
 
-  const generateCSV = () => {
-    let csvContent = '\uFEFF'; // BOM for Excel
+  const filteredData = data.filter(item => {
+    const matchesSearch = !searchTerm || 
+      item.survey_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.course_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.instructor_name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // 헤더
-    csvContent += '설문ID,설문제목,교육연도,교육차수,과정명,강사명,총응답수,평균만족도,상태,생성일\n';
+    const matchesYear = filterYear === 'all' || String(item.education_year) === filterYear;
+    const matchesCourse = filterCourse === 'all' || item.course_name === filterCourse;
     
-    // 데이터
-    data.forEach(row => {
-      csvContent += `"${row.survey_id}","${row.survey_title}",${row.education_year},${row.education_round},"${row.course_name}","${row.instructor_name}",${row.total_responses},${row.avg_satisfaction},"${row.status}","${new Date(row.created_at).toLocaleDateString()}"\n`;
-    });
-    
-    return csvContent;
+    return matchesSearch && matchesYear && matchesCourse;
+  });
+
+  const getStatistics = () => {
+    const totalResponses = filteredData.reduce((sum, item) => sum + item.response_count, 0);
+    const avgSatisfaction = filteredData.length > 0 
+      ? filteredData.reduce((sum, item) => sum + (item.avg_satisfaction * item.response_count), 0) / totalResponses
+      : 0;
+    const participatingInstructors = new Set(filteredData.map(item => item.instructor_name)).size;
+    const coursesInProgress = new Set(filteredData.map(item => item.course_name)).size;
+
+    return {
+      totalResponses,
+      avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
+      participatingInstructors,
+      coursesInProgress,
+    };
   };
 
-  const columns = [
-    {
-      key: 'survey_title',
-      label: '설문명',
-      sortable: true,
-      filterable: false,
-      render: (value: string, row: CumulativeData) => (
-        <div className="max-w-xs">
-          <div className="font-medium truncate">{value}</div>
-          <div className="text-xs text-muted-foreground">
-            {row.education_year}년 {row.education_round}차
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'course_name',
-      label: '과정명',
-      sortable: true,
-      filterable: true,
-      render: (value: string) => (
-        <div className="max-w-32 truncate" title={value}>
-          {value}
-        </div>
-      )
-    },
-    {
-      key: 'instructor_name',
-      label: '강사명',
-      sortable: true,
-      filterable: true
-    },
-    {
-      key: 'total_responses',
-      label: '응답수',
-      sortable: true,
-      render: (value: number) => (
-        <div className="text-center font-mono">
-          {value.toLocaleString()}
-        </div>
-      )
-    },
-    {
-      key: 'avg_satisfaction',
-      label: '평균만족도',
-      sortable: true,
-      render: (value: number) => (
-        <div className="text-center">
-          <div className="font-mono">{value.toFixed(1)}점</div>
-          <div className="text-xs text-muted-foreground">
-            {Math.round(value * 10)}%
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'status',
-      label: '상태',
-      sortable: true,
-      filterable: true,
-      render: (value: string) => (
-        <Badge variant={
-          value === 'completed' ? 'default' : 
-          value === 'active' ? 'secondary' : 
-          'outline'
-        }>
-          {value === 'completed' ? '완료' : 
-           value === 'active' ? '진행중' : 
-           value === 'draft' ? '초안' : value}
-        </Badge>
-      )
-    },
-    {
-      key: 'created_at',
-      label: '생성일',
-      sortable: true,
-      render: (value: string) => (
-        <div className="text-sm">
-          {new Date(value).toLocaleDateString()}
-        </div>
-      )
-    }
-  ];
+  const handleExport = () => {
+    // CSV 내보내기 로직
+    const headers = ['설문명', '연도', '회차', '과정명', '강사명', '응답수', '평균만족도', '상태'];
+    const csvData = filteredData.map(item => [
+      item.survey_title,
+      item.education_year,
+      item.education_round,
+      item.course_name,
+      item.instructor_name,
+      item.response_count,
+      item.avg_satisfaction,
+      item.status,
+    ]);
 
-  if (!canViewAll) {
-    return (
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AdminSidebar />
-          <main className="flex-1 flex flex-col">
-            <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-              <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger />
-                  <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                    <Database className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">누적 데이터</h1>
-                    <p className="text-xs md:text-sm text-muted-foreground">전체 설문 데이터 조회</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                  <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
-                </div>
-              </div>
-            </header>
-            <div className="flex-1 container mx-auto px-4 py-6">
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <div className="text-muted-foreground">
-                    이 기능을 사용하려면 관리자 권한이 필요합니다.
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </main>
-        </div>
-      </SidebarProvider>
-    );
-  }
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `cumulative_data_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
+  const stats = getStatistics();
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AdminSidebar />
-        
-        <main className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
-            <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <SidebarTrigger />
-                <div className="h-10 w-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-neon">
-                  <Database className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div>
-                  <h1 className="text-base md:text-2xl font-bold bg-gradient-accent bg-clip-text text-transparent">누적 데이터</h1>
-                  <p className="text-xs md:text-sm text-muted-foreground">전체 설문 데이터 조회 및 분석</p>
-                </div>
+    <div className="space-y-6">
+      {/* Test Data Toggle */}
+      {canViewAll && (
+        <div className="flex justify-end">
+          <TestDataToggle testDataOptions={testDataOptions} />
+        </div>
+      )}
+
+      {/* 필터 섹션 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            데이터 필터
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">검색어</label>
+              <Input
+                placeholder="설문명, 과정명, 강사명 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">연도</label>
+              <Select value={filterYear} onValueChange={setFilterYear}>
+                <SelectTrigger>
+                  <SelectValue placeholder="연도 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={String(year)}>{year}년</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">과정</label>
+              <Select value={filterCourse} onValueChange={setFilterCourse}>
+                <SelectTrigger>
+                  <SelectValue placeholder="과정 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {availableCourses.map(course => (
+                    <SelectItem key={course} value={course}>{course}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={handleExport} className="w-full">
+                <Download className="h-4 w-4 mr-2" />
+                CSV 내보내기
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 통계 요약 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">총 응답 수</p>
+                <p className="text-2xl font-bold">{stats.totalResponses.toLocaleString()}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs md:text-sm hidden sm:block">환영합니다, {user?.email}</span>
-                <Button onClick={signOut} variant="outline" size="sm">로그아웃</Button>
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-blue-600" />
               </div>
             </div>
-          </header>
+          </CardContent>
+        </Card>
 
-          {/* Content */}
-          <div className="flex-1 container mx-auto px-4 py-6">
-            {loading ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <div className="text-muted-foreground">
-                    데이터를 불러오는 중...
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {/* 요약 통계 */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold">{data.length}</div>
-                      <div className="text-sm text-muted-foreground">총 설문수</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold">
-                        {data.reduce((sum, d) => sum + d.total_responses, 0).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-muted-foreground">총 응답수</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold">
-                        {data.length > 0 
-                          ? (data.reduce((sum, d) => sum + d.avg_satisfaction, 0) / data.length).toFixed(1)
-                          : '0.0'
-                        }
-                      </div>
-                      <div className="text-sm text-muted-foreground">전체 평균만족도</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold">
-                        {[...new Set(data.map(d => d.course_name))].length}
-                      </div>
-                      <div className="text-sm text-muted-foreground">총 과정수</div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* 데이터 테이블 */}
-                <DataTable
-                  title="전체 누적 설문 데이터"
-                  data={data}
-                  columns={columns}
-                  searchable={true}
-                  exportable={true}
-                  pageSize={25}
-                  onExport={exportData}
-                />
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">평균 만족도</p>
+                <p className="text-2xl font-bold">{stats.avgSatisfaction}</p>
               </div>
-            )}
-          </div>
-        </main>
+              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <span className="text-green-600 font-bold text-xl">★</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">참여 강사</p>
+                <p className="text-2xl font-bold">{stats.participatingInstructors}</p>
+              </div>
+              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <User className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">진행 과정</p>
+                <p className="text-2xl font-bold">{stats.coursesInProgress}</p>
+              </div>
+              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <BookOpen className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </SidebarProvider>
+
+      {/* 데이터 테이블 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>누적 데이터 목록</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b">
+                  <tr>
+                    <th className="p-4 text-left font-medium">설문명</th>
+                    <th className="p-4 text-left font-medium">연도</th>
+                    <th className="p-4 text-left font-medium">회차</th>
+                    <th className="p-4 text-left font-medium">과정명</th>
+                    <th className="p-4 text-left font-medium">강사명</th>
+                    <th className="p-4 text-left font-medium">응답수</th>
+                    <th className="p-4 text-left font-medium">평균만족도</th>
+                    <th className="p-4 text-left font-medium">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                        데이터를 불러오는 중...
+                      </td>
+                    </tr>
+                  ) : filteredData.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                        데이터가 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredData.map((item) => (
+                      <tr key={item.id} className="border-b hover:bg-muted/50">
+                        <td className="p-4 font-medium">{item.survey_title}</td>
+                        <td className="p-4">{item.education_year}</td>
+                        <td className="p-4">{item.education_round}</td>
+                        <td className="p-4">{item.course_name}</td>
+                        <td className="p-4">{item.instructor_name}</td>
+                        <td className="p-4">
+                          <Badge variant="outline">{item.response_count}</Badge>
+                        </td>
+                        <td className="p-4">
+                          <Badge 
+                            variant={
+                              item.avg_satisfaction >= 8 
+                                ? 'default' 
+                                : item.avg_satisfaction >= 6 
+                                  ? 'secondary' 
+                                  : 'destructive'
+                            }
+                          >
+                            {item.avg_satisfaction.toFixed(1)}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <Badge 
+                            variant={
+                              item.status === 'completed' 
+                                ? 'default' 
+                                : item.status === 'active' 
+                                  ? 'secondary' 
+                                  : 'outline'
+                            }
+                          >
+                            {item.status === 'completed' ? '완료' : item.status === 'active' ? '진행중' : '초안'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

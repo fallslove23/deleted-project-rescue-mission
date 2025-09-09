@@ -33,6 +33,7 @@ import TemplateManagement from "./pages/TemplateManagement";
 import TemplateBuilder from "./pages/TemplateBuilder";
 import SurveyResults from "./pages/SurveyResults";
 import SurveyDetailedAnalysis from "./pages/SurveyDetailedAnalysis";
+import DeveloperTestScreen from "./pages/DeveloperTestScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -304,6 +305,15 @@ function AppContent() {
         element={
           <ProtectedRoute allowedRoles={["admin", "operator", "director", "instructor"]}>
             <DashboardCourseReports />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/developer-test"
+        element={
+          <ProtectedRoute>
+            <DeveloperTestScreen />
           </ProtectedRoute>
         }
       />

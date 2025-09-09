@@ -45,7 +45,20 @@ const DefaultRedirect = () => {
     }
   }, [loading, user, userRoles, extraRoles]);
 
-  const finalRoles = userRoles.length ? userRoles : (extraRoles ?? []);
+  // 역할 우선순위 함수
+  const getRolePriority = (role: string): number => {
+    const priorities: Record<string, number> = {
+      admin: 1,
+      operator: 2,
+      director: 3,
+      instructor: 4, // 가장 낮은 우선순위
+    };
+    return priorities[role] || 99;
+  };
+
+  const rawRoles = userRoles.length ? userRoles : (extraRoles ?? []);
+  // 역할 우선순위로 정렬 (instructor를 맨 뒤로)
+  const finalRoles = rawRoles.sort((a: string, b: string) => getRolePriority(a) - getRolePriority(b));
 
   useEffect(() => {
     if (loading || didRedirect.current || isPreview) return;
@@ -67,11 +80,12 @@ const DefaultRedirect = () => {
       return;
     }
 
-    // 역할별 기본 랜딩
+    // 역할별 기본 랜딩 (첫 번째 우선순위 역할 기준)
     didRedirect.current = true;
-    if (finalRoles.includes('admin') || finalRoles.includes('operator') || finalRoles.includes('director')) {
+    const primaryRole = finalRoles[0];
+    if (primaryRole === 'admin' || primaryRole === 'operator' || primaryRole === 'director') {
       navigate('/dashboard', { replace: true });
-    } else if (finalRoles.includes('instructor')) {
+    } else if (primaryRole === 'instructor') {
       navigate('/dashboard/results', { replace: true });
     } else {
       navigate('/results', { replace: true });
