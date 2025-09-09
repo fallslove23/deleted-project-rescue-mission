@@ -2085,6 +2085,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      update_course_statistics: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       update_survey_statuses: {
         Args: Record<PropertyKey, never>
         Returns: undefined
