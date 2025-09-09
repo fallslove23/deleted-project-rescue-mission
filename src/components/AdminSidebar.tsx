@@ -29,11 +29,11 @@ export function AdminSidebar() {
       ]
     },
     {
-      title: "설문",
+      title: "조직 분석 / Organization Analytics",
       items: [
-        { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-        { title: "과정 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
-        { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
+        { title: "결과분석 / Results Analysis", url: "/dashboard/results", icon: BarChart3, exact: false },
+        { title: "과정별 결과 보고 / Course Reports", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
+        { title: "과정 통계 / Course Statistics", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
       ]
     },
     {
@@ -59,10 +59,10 @@ export function AdminSidebar() {
   // 강사 전용 메뉴
   const instructorMenuItems = [
     {
-      title: "내 피드백",
+      title: "개인 성과 / Personal Performance",
       items: [
-        { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false },
-        { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false }
+        { title: "나의 만족도 통계 / My Satisfaction Stats", url: "/dashboard/my-stats", icon: Award, exact: false },
+        { title: "과정별 결과 보고 / Course Reports", url: "/dashboard/course-reports", icon: TrendingUp, exact: false }
       ]
     }
   ];

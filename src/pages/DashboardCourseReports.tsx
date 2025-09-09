@@ -19,6 +19,7 @@ import { KeywordCloud } from '@/components/course-reports/KeywordCloud';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { ManagerInsightCards } from '@/components/dashboard/ManagerInsightCards';
 
 const DashboardCourseReports = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -163,8 +164,8 @@ const DashboardCourseReports = () => {
 
   return (
     <DashboardLayout
-      title="과정 결과 보고"
-      subtitle={isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
+      title={isInstructor ? "과정별 결과 보고 / My Course Reports" : "과정별 결과 보고 / Course Reports"}
+      subtitle={isInstructor ? '개인 성과 및 과목별 피드백 분석 / Personal Performance & Course Feedback' : '조직 전체 과정 운영 결과 및 인사이트 / Organization-wide Course Performance & Insights'}
       icon={<TrendingUp className="h-5 w-5 text-white" />}
       actions={actions}
       loading={loading}
