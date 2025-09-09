@@ -120,7 +120,7 @@ export const useCourseReportsData = (
 
       if (error) throw error;
 
-      console.log('Fetched surveys:', surveys);
+      console.log('Fetched surveys for course selection:', surveys);
 
       // 중복 제거 및 과정별 그룹화
       const uniqueCourses = Array.from(
@@ -140,6 +140,7 @@ export const useCourseReportsData = (
 
       setAvailableCourses(uniqueCourses);
       console.log('Available courses:', uniqueCourses);
+      console.log('Available rounds:', rounds);
 
       // 강사 정보 - 관리자만 가져오기
       if (!isInstructor) {
@@ -207,7 +208,7 @@ export const useCourseReportsData = (
       if (selectedRound) {
         query = query.eq('education_round', selectedRound);
       }
-      if (selectedInstructor && !isInstructor) { // 관리자만 강사 필터 적용
+      if (selectedInstructor) { // 강사가 선택되면 무조건 필터 적용
         query = query.eq('instructor_id', selectedInstructor);
       }
 
@@ -216,6 +217,9 @@ export const useCourseReportsData = (
       if (surveysError) throw surveysError;
 
       console.log('Fetched detailed surveys:', surveys);
+      console.log('Selected instructor:', selectedInstructor);
+      console.log('Selected course:', selectedCourse);
+      console.log('Selected round:', selectedRound);
 
       // 데이터 집계
       const instructorStatsMap = new Map();
@@ -226,6 +230,8 @@ export const useCourseReportsData = (
       let allOperationSatisfactions: number[] = [];
 
       surveys?.forEach(survey => {
+        console.log('Processing survey:', survey.id, 'instructor_id:', survey.instructor_id, 'responses:', survey.survey_responses?.length);
+        
         totalSurveys += 1;
         totalResponses += survey.survey_responses?.length || 0;
 
@@ -263,7 +269,12 @@ export const useCourseReportsData = (
                 return; // 유효하지 않은 값은 건너뛰기
               }
 
-              // 5점 척도를 10점으로 변환
+              // 유효성 검사
+              if (isNaN(score) || score <= 0) {
+                return;
+              }
+
+              // 5점 척도를 10점으로 변환 (10점 척도는 그대로 유지)
               if (score <= 5 && score > 0) {
                 score = score * 2;
               }
@@ -320,7 +331,8 @@ export const useCourseReportsData = (
 
       console.log('Generated course report:', courseReport);
       console.log('Instructor stats:', finalInstructorStats);
-
+      console.log('Generated course report:', courseReport);
+      console.log('Final instructor stats:', finalInstructorStats);
       setReports([courseReport]);
       setInstructorStats(finalInstructorStats);
 
