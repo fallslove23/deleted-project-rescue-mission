@@ -540,7 +540,10 @@ const SurveyResults = () => {
           const questionIds = typeQuestions.map((q) => q.id);
           const typeAnswers = surveyAnswers.filter((a) => questionIds.includes(a.question_id));
           if (typeAnswers.length > 0) {
-            const sum = typeAnswers.reduce((acc, a) => acc + (parseFloat(a.answer_value) || 0), 0);
+            const sum = typeAnswers.reduce((acc, a) => {
+              const value = typeof a.answer_value === 'string' ? parseFloat(a.answer_value) : Number(a.answer_value);
+              return acc + (isNaN(value) ? 0 : value);
+            }, 0);
             const avg = sum / typeAnswers.length;
             if (type === 'instructor') stat.instructorSatisfaction = avg;
             else if (type === 'subject') stat.subjectSatisfaction = avg;
@@ -567,8 +570,11 @@ const SurveyResults = () => {
       const questionAnswers = answers.filter((a) => a.question_id === question.id);
       const totalAnswers = questionAnswers.length;
 
-      if (question.question_type === 'rating') {
-        const values = questionAnswers.map((a) => parseFloat(a.answer_value) || 0);
+      if (question.question_type === 'rating' || question.question_type === 'scale') {
+        const values = questionAnswers.map((a) => {
+          const value = typeof a.answer_value === 'string' ? parseFloat(a.answer_value) : Number(a.answer_value);
+          return isNaN(value) ? 0 : value;
+        });
         const average = values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : '0.0';
 
         const distribution: Record<number, number> = {};

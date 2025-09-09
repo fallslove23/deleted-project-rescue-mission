@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Download, Filter, Calendar, User, BookOpen } from 'lucide-react';
-import { DataTable } from '@/components/data-table/DataTable';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { TestDataToggle } from '@/components/TestDataToggle';
 
