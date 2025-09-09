@@ -542,18 +542,19 @@ const SurveyResults = () => {
       const { data, error } = await query;
       if (error) throw error;
 
+      // 차수 정보를 제거하고 과정명만 사용
       const unique = Array.from(
         new Map(
-          (data ?? []).map((s: any) => [`${s.education_year}-${s.education_round}-${s.course_name}`, s])
+          (data ?? []).map((s: any) => [s.course_name, s])
         ).values()
       ).map((s: any) => ({
         year: s.education_year,
         round: s.education_round,
         course_name: s.course_name,
-        key: `${s.education_year}-${s.education_round}-${s.course_name}`,
+        key: s.course_name, // 과정명만 키로 사용
       }));
 
-      unique.sort((a, b) => b.year - a.year || b.round - a.round);
+      unique.sort((a, b) => a.course_name.localeCompare(b.course_name));
       setAvailableCourses(unique);
     } catch (e) {
       console.error('Error fetching courses:', e);
@@ -569,33 +570,54 @@ const SurveyResults = () => {
   const getFilteredSurveys = () => {
     let filtered = surveys;
     if (selectedYear && selectedYear !== 'all') filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
-    if (selectedRound && selectedRound !== 'all') filtered = filtered.filter((s) => String(s.education_round) === selectedRound);
 
     if (selectedCourse && selectedCourse !== 'all') {
-      const [year, round, ...rest] = selectedCourse.split('-'); // 코스명에 '-' 포함 가능성
-      const courseName = rest.join('-');
-      filtered = filtered.filter(
-        (s) =>
-          String(s.education_year) === year &&
-          String(s.education_round) === round &&
-          s.course_name === courseName
-      );
+      // 과정명으로 직접 필터링
+      filtered = filtered.filter((s) => s.course_name === selectedCourse);
     }
 
     if (canViewAll && selectedInstructor !== 'all') {
-      filtered = filtered.filter((s) => s.instructor_id === selectedInstructor);
+      // 강사별 필터링은 질문 레벨에서 처리 (하나의 설문에 여러 강사가 포함될 수 있음)
+      filtered = filtered;
     }
     return filtered;
   };
 
   const getStatistics = () => {
-    const relevantSurveys = canViewAll
-      ? getFilteredSurveys()
-      : getFilteredSurveys().filter((s) => profile?.instructor_id && s.instructor_id === profile.instructor_id);
+    const relevantSurveys = getFilteredSurveys();
+    let relevantResponses = allResponses.filter((r) => relevantSurveys.some((s) => s.id === r.survey_id));
+    let relevantQuestions = allQuestions.filter((q) => relevantSurveys.some((s) => s.id === q.survey_id));
+    let relevantAnswers = allAnswers.filter((a) => relevantResponses.some((r) => r.id === a.response_id));
 
-    const relevantResponses = selectedSurvey
-      ? responses
-      : allResponses.filter((r) => relevantSurveys.some((s) => s.id === r.survey_id));
+    // 강사별 필터링 (질문 레벨에서 instructor_id 또는 session의 instructor_id로 필터링)
+    if (canViewAll && selectedInstructor !== 'all') {
+      // instructor_id로 설문 질문 필터링하거나 session 기반 필터링
+      const instructorQuestions = relevantQuestions.filter(q => {
+        // survey의 instructor_id 확인
+        const survey = relevantSurveys.find(s => s.id === q.survey_id);
+        return survey && survey.instructor_id === selectedInstructor;
+      });
+      
+      const instructorQuestionIds = instructorQuestions.map(q => q.id);
+      relevantAnswers = relevantAnswers.filter(a => instructorQuestionIds.includes(a.question_id));
+      relevantQuestions = instructorQuestions;
+    } else if (isInstructor && profile?.instructor_id) {
+      // 강사가 로그인한 경우, 본인 관련 질문만 필터링
+      const instructorQuestions = relevantQuestions.filter(q => {
+        const survey = relevantSurveys.find(s => s.id === q.survey_id);
+        return survey && (survey.instructor_id === profile.instructor_id || 
+                         q.satisfaction_type === 'instructor'); // 강사 관련 질문만
+      });
+      
+      const instructorQuestionIds = instructorQuestions.map(q => q.id);
+      relevantAnswers = relevantAnswers.filter(a => instructorQuestionIds.includes(a.question_id));
+      relevantQuestions = instructorQuestions;
+    }
+
+    // 선택된 설문이 있으면 해당 설문의 응답만, 아니면 모든 관련 응답 사용
+    if (selectedSurvey) {
+      relevantResponses = responses; // 이미 선택된 설문의 응답으로 필터링됨
+    }
 
     const totalSurveys = relevantSurveys.length;
     const totalResponses = relevantResponses.length;
@@ -860,7 +882,7 @@ const SurveyResults = () => {
 
         {/* 필터 섹션 */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">교육 연도</label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -879,23 +901,6 @@ const SurveyResults = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">교육 차수</label>
-              <Select value={selectedRound} onValueChange={setSelectedRound}>
-                <SelectTrigger>
-                  <SelectValue placeholder="전체" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체</SelectItem>
-                  {getUniqueRounds().map((round) => (
-                    <SelectItem key={round} value={String(round)}>
-                      {round}차
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">과정</label>
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                 <SelectTrigger>
@@ -905,7 +910,7 @@ const SurveyResults = () => {
                   <SelectItem value="all">전체</SelectItem>
                   {availableCourses.map((course) => (
                     <SelectItem key={course.key} value={course.key}>
-                      {course.year}년 {course.round}차 {course.course_name}
+                      {course.course_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -930,6 +935,43 @@ const SurveyResults = () => {
                 </Select>
               </div>
             )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">설문 선택</label>
+              <Select value={selectedSurvey} onValueChange={setSelectedSurvey}>
+                <SelectTrigger>
+                  <SelectValue placeholder="전체 설문" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">전체 설문</SelectItem>
+                  {getFilteredSurveys().map((survey) => (
+                    <SelectItem key={survey.id} value={survey.id}>
+                      {survey.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSelectedYear('all');
+                  setSelectedCourse('all');
+                  setSelectedInstructor('all');
+                  setSelectedSurvey('');
+                }}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                필터 초기화
+              </Button>
+            </div>
           </div>
         </div>
 
