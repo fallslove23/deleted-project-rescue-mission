@@ -18,8 +18,10 @@ interface Survey {
   title: string;
   education_year: number;
   education_round: number;
+  education_day: number;
   status: string;
   instructor_id: string;
+  course_name?: string;
 }
 
 interface SurveyResponse {
@@ -47,6 +49,14 @@ interface SurveyQuestion {
   order_index: number;
 }
 
+interface CourseSession {
+  id: string;
+  title: string;
+  course_name: string;
+  session_name: string;
+  education_day: number;
+}
+
 interface Instructor {
   id: string;
   name: string;
@@ -72,6 +82,8 @@ const SurveyDetailedAnalysis = () => {
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
+  const [courseSessions, setCourseSessions] = useState<CourseSession[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
   const [comments, setComments] = useState<AnalysisComment[]>([]);
@@ -86,6 +98,7 @@ const SurveyDetailedAnalysis = () => {
       fetchSurveyData();
       fetchResponses();
       fetchQuestionsAndAnswers();
+      fetchCourseSessions();
       loadComments();
     }
   }, [surveyId]);
@@ -180,12 +193,64 @@ const SurveyDetailedAnalysis = () => {
     }
   };
 
+  const fetchCourseSessions = async () => {
+    if (!surveyId) return;
+    
+    try {
+      // 같은 일차의 모든 과목 설문들 가져오기
+      const { data: currentSurvey } = await supabase
+        .from('surveys')
+        .select('education_year, education_round, education_day, course_name')
+        .eq('id', surveyId)
+        .single();
+      
+      if (currentSurvey) {
+        const { data: sameDaySurveys, error } = await supabase
+          .from('surveys')
+          .select(`
+            id, title, course_name, education_day,
+            survey_sessions(session_name)
+          `)
+          .eq('education_year', currentSurvey.education_year)
+          .eq('education_round', currentSurvey.education_round)
+          .eq('education_day', currentSurvey.education_day)
+          .order('course_name');
+        
+        if (error) throw error;
+        
+        const sessions = sameDaySurveys?.map(survey => ({
+          id: survey.id,
+          title: survey.title,
+          course_name: survey.course_name || '',
+          session_name: survey.survey_sessions?.[0]?.session_name || survey.title,
+          education_day: survey.education_day
+        })) || [];
+        
+        setCourseSessions(sessions);
+      }
+    } catch (error) {
+      console.error('Error fetching course sessions:', error);
+    }
+  };
+
   const categorizeQuestions = () => {
+    // 선택된 과목에 따라 필터링
+    let filteredQuestions = questions;
+    if (selectedCourse !== 'all') {
+      // 해당 과목의 설문 ID 찾기
+      const selectedSurvey = courseSessions.find(session => 
+        session.course_name === selectedCourse || session.session_name === selectedCourse
+      );
+      if (selectedSurvey) {
+        filteredQuestions = questions.filter(q => q.survey_id === selectedSurvey.id);
+      }
+    }
+
     const subjectQuestions: SurveyQuestion[] = [];
     const instructorQuestions: SurveyQuestion[] = [];
     const operationQuestions: SurveyQuestion[] = [];
 
-    questions.forEach(question => {
+    filteredQuestions.forEach(question => {
       const questionText = question.question_text?.toLowerCase() || '';
       
       // 강사 관련 키워드
@@ -330,6 +395,44 @@ const SurveyDetailedAnalysis = () => {
     });
 
     return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
+  };
+
+  const calculateOverallSatisfaction = () => {
+    const { subjectQuestions, instructorQuestions, operationQuestions } = categorizeQuestions();
+    const allRatingQuestions = [...subjectQuestions, ...instructorQuestions, ...operationQuestions]
+      .filter(q => q.question_type === 'rating' || q.question_type === 'scale');
+    
+    if (allRatingQuestions.length === 0) return '0';
+
+    let totalScore = 0;
+    let totalCount = 0;
+
+    allRatingQuestions.forEach(question => {
+      const questionAnswers = answers.filter(a => a.question_id === question.id);
+      const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+      
+      if (ratings.length > 0) {
+        const maxScore = Math.max(...ratings);
+        let convertedRatings = ratings;
+        
+        if (maxScore <= 5) {
+          convertedRatings = ratings.map(r => r * 2);
+        }
+        
+        totalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
+        totalCount += convertedRatings.length;
+      }
+    });
+
+    return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
+  };
+
+  const getAvailableCourses = () => {
+    const courses = courseSessions
+      .map(session => session.course_name || session.session_name)
+      .filter((course, index, self) => course && self.indexOf(course) === index)
+      .sort();
+    return courses;
   };
 
   const handleSendResults = async () => {
@@ -629,8 +732,38 @@ const SurveyDetailedAnalysis = () => {
             </Button>
           </div>
 
+          {/* 과목 선택 필터 */}
+          {courseSessions.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>과목 선택</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={selectedCourse === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedCourse('all')}
+                  >
+                    전체
+                  </Button>
+                  {getAvailableCourses().map(course => (
+                    <Button
+                      key={course}
+                      variant={selectedCourse === course ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedCourse(course)}
+                    >
+                      {course}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* 종합 만족도 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -680,6 +813,24 @@ const SurveyDetailedAnalysis = () => {
                   <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {operationQuestions.length}개 질문 기준
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-purple-500" />
+                  총 만족도
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-500">{calculateOverallSatisfaction()}</div>
+                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    전체 만족도 질문 기준
                   </div>
                 </div>
               </CardContent>

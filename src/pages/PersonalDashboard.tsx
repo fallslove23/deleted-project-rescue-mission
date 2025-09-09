@@ -272,10 +272,18 @@ const PersonalDashboard: FC = () => {
     }
 
     if (selectedPeriod === 'round') {
-      const roundData: Record<string, { total: number; count: number; responses: number }> = {};
+      const roundData: Record<string, { total: number; count: number; responses: number; courses: Set<string> }> = {};
       filteredSurveys.forEach(survey => {
         const roundKey = `${survey.education_year}-${survey.education_round}차`;
-        if (!roundData[roundKey]) roundData[roundKey] = { total: 0, count: 0, responses: 0 };
+        if (!roundData[roundKey]) roundData[roundKey] = { total: 0, count: 0, responses: 0, courses: new Set() };
+        
+        // Add course to track course diversity
+        if (survey.course_name) {
+          const match = survey.course_name.match(/.*?-\s*(.+)$/);
+          const courseType = match ? match[1].trim() : survey.course_name;
+          roundData[roundKey].courses.add(courseType);
+        }
+        
         const surveyResponses = responses.filter(r => r.survey_id === survey.id);
         roundData[roundKey].responses += surveyResponses.length;
 
@@ -285,7 +293,9 @@ const PersonalDashboard: FC = () => {
           ratingAnswers.forEach(answer => {
             const rating = parseFloat(answer.answer_text);
             if (!isNaN(rating) && rating > 0) {
-              roundData[roundKey].total += rating;
+              // Convert 5-point scale to 10-point scale
+              const convertedRating = rating <= 5 ? rating * 2 : rating;
+              roundData[roundKey].total += convertedRating;
               roundData[roundKey].count++;
             }
           });
@@ -298,11 +308,70 @@ const PersonalDashboard: FC = () => {
           average: data.count > 0 ? (data.total / data.count) : 0,
           responses: data.responses,
           satisfaction: data.count > 0 ? Math.round((data.total / data.count) * 10) : 0,
+          courses: Array.from(data.courses).join(', '),
+          courseCount: data.courses.size
         }))
         .sort((a, b) => a.period.localeCompare(b.period));
     }
 
     return [];
+  };
+
+  const getCourseBreakdown = () => {
+    let filteredSurveys = surveys;
+    if (selectedYear && selectedYear !== 'all') {
+      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
+    }
+    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
+      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
+    }
+    if (selectedRound === 'latest' && filteredSurveys.length > 0) {
+      const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
+      const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
+      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
+      filteredSurveys = filteredSurveys.filter(s => s.education_year === latestYear && s.education_round === latestRound);
+    }
+
+    const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
+    const courseData: Record<string, { total: number; count: number; responses: number; surveys: number }> = {};
+
+    filteredSurveys.forEach(survey => {
+      if (!survey.course_name) return;
+      const match = survey.course_name.match(/.*?-\s*(.+)$/);
+      const courseType = match ? match[1].trim() : survey.course_name;
+      
+      if (!courseData[courseType]) {
+        courseData[courseType] = { total: 0, count: 0, responses: 0, surveys: 0 };
+      }
+      
+      courseData[courseType].surveys++;
+      const surveyResponses = responses.filter(r => r.survey_id === survey.id);
+      courseData[courseType].responses += surveyResponses.length;
+
+      surveyResponses.forEach(response => {
+        const responseAnswers = answers.filter(a => a.response_id === response.id);
+        const ratingAnswers = responseAnswers.filter(a => ratingQuestions.some(q => q.id === a.question_id));
+        ratingAnswers.forEach(answer => {
+          const rating = parseFloat(answer.answer_text);
+          if (!isNaN(rating) && rating > 0) {
+            // Convert 5-point scale to 10-point scale
+            const convertedRating = rating <= 5 ? rating * 2 : rating;
+            courseData[courseType].total += convertedRating;
+            courseData[courseType].count++;
+          }
+        });
+      });
+    });
+
+    return Object.entries(courseData)
+      .map(([course, data]) => ({
+        course,
+        avgSatisfaction: data.count > 0 ? +(data.total / data.count).toFixed(1) : 0,
+        responses: data.responses,
+        surveys: data.surveys,
+        satisfactionPercentage: data.count > 0 ? Math.round((data.total / data.count) * 10) : 0
+      }))
+      .sort((a, b) => b.avgSatisfaction - a.avgSatisfaction);
   };
 
   const getSummaryStats = () => {
@@ -391,6 +460,7 @@ const PersonalDashboard: FC = () => {
   const trendData = getTrendData();
   const summaryStats = getSummaryStats();
   const ratingDistribution = getRatingDistribution();
+  const courseBreakdown = getCourseBreakdown();
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
 
   /* ─────────────────────────────────── Header Actions ─────────────────────────────────── */
@@ -599,6 +669,7 @@ const PersonalDashboard: FC = () => {
             <Tabs defaultValue="trend" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="trend">만족도 트렌드</TabsTrigger>
+                <TabsTrigger value="courses">과목별 분석</TabsTrigger>
                 <TabsTrigger value="distribution">평점 분포</TabsTrigger>
                 <TabsTrigger value="insights">인사이트</TabsTrigger>
               </TabsList>
@@ -632,6 +703,136 @@ const PersonalDashboard: FC = () => {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="courses" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>과목별 만족도</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {courseBreakdown.map((course, index) => (
+                          <div key={course.course} className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">{course.course}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {course.avgSatisfaction.toFixed(1)}점
+                              </span>
+                            </div>
+                            <Progress value={course.satisfactionPercentage} className="h-2" />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>설문 {course.surveys}개</span>
+                              <span>응답 {course.responses}개</span>
+                            </div>
+                          </div>
+                        ))}
+                        {courseBreakdown.length === 0 && (
+                          <p className="text-center text-muted-foreground py-8">
+                            과목별 데이터가 없습니다.
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>과목별 상세 통계</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {courseBreakdown.map((course, index) => (
+                          <Card key={course.course} className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium">{course.course}</h4>
+                              <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                {course.avgSatisfaction.toFixed(1)}점
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              <div>설문: {course.surveys}개</div>
+                              <div>응답: {course.responses}개</div>
+                              <div>만족도: {course.satisfactionPercentage}%</div>
+                              <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
+                            </div>
+                          </Card>
+                        ))}
+                        {courseBreakdown.length === 0 && (
+                          <p className="text-center text-muted-foreground py-8">
+                            표시할 과목이 없습니다.
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="courses" className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>과목별 만족도</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {courseBreakdown.map((course, index) => (
+                          <div key={course.course} className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">{course.course}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {course.avgSatisfaction.toFixed(1)}점
+                              </span>
+                            </div>
+                            <Progress value={course.satisfactionPercentage} className="h-2" />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>설문 {course.surveys}개</span>
+                              <span>응답 {course.responses}개</span>
+                            </div>
+                          </div>
+                        ))}
+                        {courseBreakdown.length === 0 && (
+                          <p className="text-center text-muted-foreground py-8">
+                            과목별 데이터가 없습니다.
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>과목별 상세 통계</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {courseBreakdown.map((course, index) => (
+                          <Card key={course.course} className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium">{course.course}</h4>
+                              <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                {course.avgSatisfaction.toFixed(1)}점
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                              <div>설문: {course.surveys}개</div>
+                              <div>응답: {course.responses}개</div>
+                              <div>만족도: {course.satisfactionPercentage}%</div>
+                              <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
+                            </div>
+                          </Card>
+                        ))}
+                        {courseBreakdown.length === 0 && (
+                          <p className="text-center text-muted-foreground py-8">
+                            표시할 과목이 없습니다.
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
 
               <TabsContent value="distribution" className="space-y-4">
