@@ -117,7 +117,7 @@ const DashboardTemplateManagement = () => {
   };
 
   const actions = (
-    <Button onClick={handleCreateTemplate}>
+    <Button onClick={handleCreateTemplate} size="sm">
       <Plus className="h-4 w-4 mr-2" />
       새 템플릿
     </Button>

@@ -39,7 +39,19 @@ interface InstructorCourse {
   created_at: string;
 }
 
-const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
+const InstructorManagement = ({ 
+  showPageHeader = true, 
+  showActions = true,
+  onAddInstructor,
+  onSyncUsers,
+  onRefresh 
+}: { 
+  showPageHeader?: boolean; 
+  showActions?: boolean;
+  onAddInstructor?: () => void;
+  onSyncUsers?: () => void;
+  onRefresh?: () => void;
+}) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -610,41 +622,43 @@ const InstructorManagement = ({ showPageHeader = true }: { showPageHeader?: bool
   return (
     <div className="space-y-6">
       {/* 액션 버튼들 */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={openAddDialog}
-            className="flex items-center gap-2 rounded-full px-3"
-            size="sm"
-          >
-            <Plus className="h-4 w-4" />
-            새 강사 추가
-          </Button>
-          <Button 
-            onClick={handleSyncAllInstructors} 
-            variant="outline"
-            disabled={creatingUsers}
-            className="flex items-center gap-2 rounded-full px-3"
-            size="sm"
-          >
-            <RefreshCcw className={`h-4 w-4 ${creatingUsers ? 'animate-spin' : ''}`} />
-            계정 동기화
-          </Button>
-          <Button
-            onClick={fetchData}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            disabled={loading}
-          >
-            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            새로고침
-          </Button>
+      {showActions && (
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={openAddDialog}
+              className="flex items-center gap-2 rounded-full px-3"
+              size="sm"
+            >
+              <Plus className="h-4 w-4" />
+              새 강사 추가
+            </Button>
+            <Button 
+              onClick={handleSyncAllInstructors} 
+              variant="outline"
+              disabled={creatingUsers}
+              className="flex items-center gap-2 rounded-full px-3"
+              size="sm"
+            >
+              <RefreshCcw className={`h-4 w-4 ${creatingUsers ? 'animate-spin' : ''}`} />
+              계정 동기화
+            </Button>
+            <Button
+              onClick={fetchData}
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={loading}
+            >
+              <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              새로고침
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            강사 정보 및 계정 관리 - 전체 {filteredInstructors.length}개
+          </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          강사 정보 및 계정 관리 - 전체 {filteredInstructors.length}개
-        </div>
-      </div>
+      )}
 
       <div className="space-y-6">
           <div className="flex gap-1 border rounded-md p-1">

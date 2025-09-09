@@ -626,7 +626,7 @@ export default function SurveyManagementV2() {
           size="sm"
           onClick={exportCsvAll}
         >
-          <Download className="w-4 h-4 mr-1.5" />
+          <Download className="h-4 w-4 mr-2" />
           CSV
         </Button>,
         <Button
@@ -636,7 +636,7 @@ export default function SurveyManagementV2() {
           onClick={() => setQuickOpen(true)}
           disabled={!availableYears.length || !availableCourseNames.length}
         >
-          <Wand2 className="w-4 h-4 mr-1.5" />
+          <Wand2 className="h-4 w-4 mr-2" />
           빠른 생성
         </Button>,
         <Button
@@ -644,7 +644,7 @@ export default function SurveyManagementV2() {
           size="sm"
           onClick={() => setCreateOpen(true)}
         >
-          <Plus className="w-4 h-4 mr-1.5" />
+          <Plus className="h-4 w-4 mr-2" />
           새로 생성
         </Button>
       ]}
