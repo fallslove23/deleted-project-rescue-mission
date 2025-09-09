@@ -108,6 +108,7 @@ const SurveyResults = () => {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [showCourseStats, setShowCourseStats] = useState<boolean>(false);
   const [availableCourses, setAvailableCourses] = useState<
     { year: number; round: number; course_name: string; key: string }[]
   >([]);
@@ -1070,117 +1071,147 @@ const SurveyResults = () => {
         )}
 
         {/* 과정별 통계 카드 */}
-        {courseStats.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                과정별 통계
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {courseStats.map((course) => (
-                  <Card
-                    key={course.key}
-                    className="border-2 border-muted-foreground/30 hover:border-primary transition-colors bg-gradient-to-br from-background to-muted/20"
-                  >
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">
-                        {course.displayName}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">진행중인 설문</span>
-                        <span className="font-semibold text-primary">{course.surveys.length}개</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">총 응답 수</span>
-                        <span className="font-semibold text-primary">{course.responses}개</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">과목 만족도</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">
-                            {course.subjectSatisfaction > 0 ? `${course.subjectSatisfaction.toFixed(1)}/10` : '-'}
-                          </span>
-                          {course.subjectSatisfaction > 0 && (
-                            <Badge
-                              variant={
-                                course.subjectSatisfaction >= 8
-                                  ? 'default'
-                                  : course.subjectSatisfaction >= 6
-                                  ? 'secondary'
-                                  : 'destructive'
-                              }
-                            >
-                              {course.subjectSatisfaction >= 8 ? '우수' : course.subjectSatisfaction >= 6 ? '보통' : '개선필요'}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">강사 만족도</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">
-                            {course.instructorSatisfaction > 0 ? `${course.instructorSatisfaction.toFixed(1)}/10` : '-'}
-                          </span>
-                          {course.instructorSatisfaction > 0 && (
-                            <Badge
-                              variant={
-                                course.instructorSatisfaction >= 8
-                                  ? 'default'
-                                  : course.instructorSatisfaction >= 6
-                                  ? 'secondary'
-                                  : 'destructive'
-                              }
-                            >
-                              {course.instructorSatisfaction >= 8 ? '우수' : course.instructorSatisfaction >= 6 ? '보통' : '개선필요'}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">운영 만족도</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">
-                            {course.operationSatisfaction > 0 ? `${course.operationSatisfaction.toFixed(1)}/10` : '-'}
-                          </span>
-                          {course.operationSatisfaction > 0 && (
-                            <Badge
-                              variant={
-                                course.operationSatisfaction >= 8 ? 'default' : course.operationSatisfaction >= 6 ? 'secondary' : 'destructive'
-                              }
-                            >
-                              {course.operationSatisfaction >= 8 ? '우수' : course.operationSatisfaction >= 6 ? '보통' : '개선필요'}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                과정별 통계
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>과목별 통계 데이터가 없습니다.</p>
-                <p className="text-sm">설문 응답이 있는 경우 통계가 표시됩니다.</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">과정별 통계</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCourseStats(!showCourseStats)}
+              className="flex items-center gap-2"
+            >
+              {showCourseStats ? (
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                  숨기기
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  보기
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {showCourseStats && (
+            courseStats.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    과정별 통계
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {courseStats.map((course) => (
+                      <Card
+                        key={course.key}
+                        className="border-2 border-muted-foreground/30 hover:border-primary transition-colors bg-gradient-to-br from-background to-muted/20"
+                      >
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium text-muted-foreground">
+                            {course.displayName}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">진행중인 설문</span>
+                            <span className="font-semibold text-primary">{course.surveys.length}개</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">총 응답 수</span>
+                            <span className="font-semibold text-primary">{course.responses}개</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">과목 만족도</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">
+                                {course.subjectSatisfaction > 0 ? `${course.subjectSatisfaction.toFixed(1)}/10` : '-'}
+                              </span>
+                              {course.subjectSatisfaction > 0 && (
+                                <Badge
+                                  variant={
+                                    course.subjectSatisfaction >= 8
+                                      ? 'default'
+                                      : course.subjectSatisfaction >= 6
+                                      ? 'secondary'
+                                      : 'destructive'
+                                  }
+                                >
+                                  {course.subjectSatisfaction >= 8 ? '우수' : course.subjectSatisfaction >= 6 ? '보통' : '개선필요'}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">강사 만족도</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">
+                                {course.instructorSatisfaction > 0 ? `${course.instructorSatisfaction.toFixed(1)}/10` : '-'}
+                              </span>
+                              {course.instructorSatisfaction > 0 && (
+                                <Badge
+                                  variant={
+                                    course.instructorSatisfaction >= 8
+                                      ? 'default'
+                                      : course.instructorSatisfaction >= 6
+                                      ? 'secondary'
+                                      : 'destructive'
+                                  }
+                                >
+                                  {course.instructorSatisfaction >= 8 ? '우수' : course.instructorSatisfaction >= 6 ? '보통' : '개선필요'}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">운영 만족도</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">
+                                {course.operationSatisfaction > 0 ? `${course.operationSatisfaction.toFixed(1)}/10` : '-'}
+                              </span>
+                              {course.operationSatisfaction > 0 && (
+                                <Badge
+                                  variant={
+                                    course.operationSatisfaction >= 8 ? 'default' : course.operationSatisfaction >= 6 ? 'secondary' : 'destructive'
+                                  }
+                                >
+                                  {course.operationSatisfaction >= 8 ? '우수' : course.operationSatisfaction >= 6 ? '보통' : '개선필요'}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    과정별 통계
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>과목별 통계 데이터가 없습니다.</p>
+                    <p className="text-sm">설문 응답이 있는 경우 통계가 표시됩니다.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          )}
+        </div>
 
         {/* 설문조사 목록 */}
         <Card>
