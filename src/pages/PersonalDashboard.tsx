@@ -153,6 +153,19 @@ const PersonalDashboard: FC = () => {
 
       let filteredSurveys = surveysData || [];
 
+      // 강사에게 설문이 없는 경우에도 데이터 표시를 위해 전체 설문 조회
+      if (isInstructor && (!filteredSurveys || filteredSurveys.length === 0)) {
+        console.log('강사의 설문이 없어 전체 설문을 조회합니다.');
+        const { data: allSurveysData, error: allSurveysError } = await supabase
+          .from('surveys')
+          .select('*')
+          .order('education_year', { ascending: false })
+          .order('education_round', { ascending: false });
+        
+        if (allSurveysError) throw allSurveysError;
+        filteredSurveys = allSurveysData || [];
+      }
+
       // 최신 회차 필터링
       if (selectedRound === 'latest' && filteredSurveys.length > 0) {
         const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));

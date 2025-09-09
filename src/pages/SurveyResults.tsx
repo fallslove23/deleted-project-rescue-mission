@@ -191,6 +191,7 @@ const SurveyResults = () => {
         }
       }
 
+      // 강사인 경우 본인 설문 우선 표시하되, 없으면 전체 설문 표시
       if (isInstructor && !canViewAll) {
         let instructorId = profile?.instructor_id;
         
@@ -207,6 +208,7 @@ const SurveyResults = () => {
         }
         
         if (instructorId) {
+          // 먼저 본인 설문이 있는지 확인
           let surveyQuery = supabase
             .from('surveys')
             .select('id')
@@ -222,16 +224,10 @@ const SurveyResults = () => {
           if (instructorSurveys && instructorSurveys.length > 0) {
             const ids = instructorSurveys.map((s: any) => s.id);
             query = query.in('survey_id', ids);
-          } else {
-            // 강사에게 설문이 없는 경우 빈 결과 반환
-            setAllResponses([]);
-            return;
           }
-        } else {
-          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
-          setAllResponses([]);
-          return;
+          // 본인 설문이 없어도 전체 설문을 보여줌 (필터링하지 않음)
         }
+        // instructor_id를 찾을 수 없어도 전체 설문을 보여줌
       }
 
       const { data, error } = await query.order('submitted_at', { ascending: false });
@@ -251,6 +247,7 @@ const SurveyResults = () => {
         surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
       }
 
+      // 강사인 경우 본인 설문 우선 표시하되, 없으면 전체 설문 표시
       if (isInstructor && !canViewAll) {
         let instructorId = profile?.instructor_id;
         
@@ -267,13 +264,18 @@ const SurveyResults = () => {
         }
         
         if (instructorId) {
-          surveyQuery = surveyQuery.eq('instructor_id', instructorId);
-        } else {
-          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
-          setAllQuestions([]);
-          setAllAnswers([]);
-          return;
+          // 먼저 본인 설문이 있는지 확인
+          const { data: instructorSurveys } = await supabase
+            .from('surveys')
+            .select('id')
+            .eq('instructor_id', instructorId);
+          
+          if (instructorSurveys && instructorSurveys.length > 0) {
+            surveyQuery = surveyQuery.eq('instructor_id', instructorId);
+          }
+          // 본인 설문이 없어도 전체 설문을 보여줌 (필터링하지 않음)
         }
+        // instructor_id를 찾을 수 없어도 전체 설문을 보여줌
       }
 
       const { data: surveyData, error: surveyError } = await surveyQuery;
@@ -506,6 +508,7 @@ const SurveyResults = () => {
         query = query.or('is_test.is.null,is_test.eq.false');
       }
 
+      // 강사인 경우 본인 설문 우선 표시하되, 없으면 전체 설문 표시
       if (isInstructor && !canViewAll) {
         let instructorId = profile?.instructor_id;
         
@@ -522,12 +525,18 @@ const SurveyResults = () => {
         }
         
         if (instructorId) {
-          query = query.eq('instructor_id', instructorId);
-        } else {
-          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
-          setAvailableCourses([]);
-          return;
+          // 먼저 본인 설문이 있는지 확인
+          const { data: instructorSurveys } = await supabase
+            .from('surveys')
+            .select('id')
+            .eq('instructor_id', instructorId);
+          
+          if (instructorSurveys && instructorSurveys.length > 0) {
+            query = query.eq('instructor_id', instructorId);
+          }
+          // 본인 설문이 없어도 전체 설문을 보여줌 (필터링하지 않음)
         }
+        // instructor_id를 찾을 수 없어도 전체 설문을 보여줌
       }
 
       const { data, error } = await query;
