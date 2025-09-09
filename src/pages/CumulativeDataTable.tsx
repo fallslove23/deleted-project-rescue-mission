@@ -48,7 +48,7 @@ const CumulativeDataTable = () => {
     try {
       setLoading(true);
       
-      const { data: surveys, error: surveyError } = await supabase
+      let query = supabase
         .from('surveys')
         .select(`
           id,
@@ -61,6 +61,13 @@ const CumulativeDataTable = () => {
           instructor:instructors(name)
         `)
         .not('course_name', 'is', null);
+
+      // 테스트 데이터 필터링
+      if (!testDataOptions.includeTestData) {
+        query = query.or('is_test.is.null,is_test.eq.false');
+      }
+
+      const { data: surveys, error: surveyError } = await query;
 
       if (surveyError) throw surveyError;
 
@@ -87,10 +94,17 @@ const CumulativeDataTable = () => {
 
   const fetchFilterOptions = async () => {
     try {
-      const { data: surveys } = await supabase
+      let query = supabase
         .from('surveys')
         .select('education_year, course_name')
         .not('course_name', 'is', null);
+
+      // 테스트 데이터 필터링
+      if (!testDataOptions.includeTestData) {
+        query = query.or('is_test.is.null,is_test.eq.false');
+      }
+
+      const { data: surveys } = await query;
 
       if (surveys) {
         const years = [...new Set(surveys.map(s => s.education_year))].sort((a, b) => b - a);
@@ -162,7 +176,7 @@ const CumulativeDataTable = () => {
   return (
     <div className="space-y-6">
       {/* Test Data Toggle */}
-      {canViewAll && (
+      {testDataOptions.canToggleTestData && (
         <div className="flex justify-end">
           <TestDataToggle testDataOptions={testDataOptions} />
         </div>

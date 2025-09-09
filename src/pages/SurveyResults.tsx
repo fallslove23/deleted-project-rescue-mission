@@ -175,14 +175,33 @@ const SurveyResults = () => {
   // ======= Data fetchers =======
   const fetchAllResponses = async () => {
     try {
-      let query = testDataOptions.includeTestData
-        ? supabase.from('survey_responses').select('*')
-        : supabase.from('analytics_responses').select('*');
+      let query = supabase.from('survey_responses').select('*');
+
+      // 테스트 데이터 필터링
+      if (!testDataOptions.includeTestData) {
+        // 테스트 설문의 응답 제외
+        const { data: nonTestSurveys } = await supabase
+          .from('surveys')
+          .select('id')
+          .or('is_test.is.null,is_test.eq.false');
+        
+        if (nonTestSurveys && nonTestSurveys.length > 0) {
+          const surveyIds = nonTestSurveys.map(s => s.id);
+          query = query.in('survey_id', surveyIds);
+        }
+      }
 
       if (isInstructor && profile?.instructor_id && !canViewAll) {
-        const surveyQuery = testDataOptions.includeTestData
-          ? supabase.from('surveys').select('id').eq('instructor_id', profile.instructor_id)
-          : supabase.from('analytics_surveys').select('id').eq('instructor_id', profile.instructor_id);
+        let surveyQuery = supabase
+          .from('surveys')
+          .select('id')
+          .eq('instructor_id', profile.instructor_id);
+        
+        // 테스트 데이터 필터링
+        if (!testDataOptions.includeTestData) {
+          surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
+        }
+        
         const { data: instructorSurveys } = await surveyQuery;
 
         if (instructorSurveys && instructorSurveys.length > 0) {
@@ -201,9 +220,12 @@ const SurveyResults = () => {
 
   const fetchAllQuestionsAndAnswers = async () => {
     try {
-      let surveyQuery = testDataOptions.includeTestData
-        ? supabase.from('surveys').select('id')
-        : supabase.from('analytics_surveys').select('id');
+      let surveyQuery = supabase.from('surveys').select('id');
+
+      // 테스트 데이터 필터링
+      if (!testDataOptions.includeTestData) {
+        surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
+      }
 
       if (isInstructor && profile?.instructor_id && !canViewAll) {
         surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
@@ -227,10 +249,10 @@ const SurveyResults = () => {
       if (qErr) throw qErr;
       setAllQuestions((qData ?? []) as SurveyQuestion[]);
 
-      const respQuery = testDataOptions.includeTestData
-        ? supabase.from('survey_responses').select('id').in('survey_id', surveyIds)
-        : supabase.from('analytics_responses').select('id').in('survey_id', surveyIds);
-      const { data: respIds, error: rErr } = await respQuery;
+      const { data: respIds, error: rErr } = await supabase
+        .from('survey_responses')
+        .select('id')
+        .in('survey_id', surveyIds);
       if (rErr) throw rErr;
 
       if (respIds && respIds.length) {
@@ -378,6 +400,12 @@ const SurveyResults = () => {
   const fetchSurveys = async () => {
     try {
       let query = supabase.from('surveys').select('*');
+      
+      // 테스트 데이터 필터링
+      if (!testDataOptions.includeTestData) {
+        query = query.or('is_test.is.null,is_test.eq.false');
+      }
+      
       if (isInstructor && profile?.instructor_id && !canViewAll) {
         query = query.eq('instructor_id', profile.instructor_id);
       }
@@ -407,6 +435,11 @@ const SurveyResults = () => {
         .select('education_year, education_round, course_name, instructor_id, status')
         .not('course_name', 'is', null)
         .in('status', ['completed', 'active']);
+
+      // 테스트 데이터 필터링
+      if (!testDataOptions.includeTestData) {
+        query = query.or('is_test.is.null,is_test.eq.false');
+      }
 
       if (isInstructor && profile?.instructor_id && !canViewAll) {
         query = query.eq('instructor_id', profile.instructor_id);

@@ -34,7 +34,7 @@ interface Instructor {
   photo_url: string;
 }
 
-export const useSurveyResultsData = (profile: any, canViewAll: boolean, isInstructor: boolean) => {
+export const useSurveyResultsData = (profile: any, canViewAll: boolean, isInstructor: boolean, testDataOptions?: any) => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [allResponses, setAllResponses] = useState<SurveyResponse[]>([]);
   const [allInstructors, setAllInstructors] = useState<Instructor[]>([]);
@@ -57,6 +57,11 @@ export const useSurveyResultsData = (profile: any, canViewAll: boolean, isInstru
         .select('education_year, education_round, course_name')
         .not('course_name', 'is', null)
         .in('status', ['completed', 'active']);
+
+      // 테스트 데이터 필터링
+      if (!testDataOptions?.includeTestData) {
+        query = query.or('is_test.is.null,is_test.eq.false');
+      }
 
       // 강사인 경우 자신의 설문만 필터링
       if (isInstructor && profile?.instructor_id && !canViewAll) {
@@ -104,6 +109,11 @@ export const useSurveyResultsData = (profile: any, canViewAll: boolean, isInstru
         .select('*')
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
+      // 테스트 데이터 필터링
+      if (!testDataOptions?.includeTestData) {
+        query = query.or('is_test.is.null,is_test.eq.false');
+      }
+
       // 강사인 경우 자신의 강의 설문만 조회
       if (isInstructor && profile?.instructor_id && !canViewAll) {
         query = query.eq('instructor_id', profile.instructor_id);
@@ -136,10 +146,17 @@ export const useSurveyResultsData = (profile: any, canViewAll: boolean, isInstru
       
       // 강사인 경우 자신의 강의 설문에 대한 응답만 조회
       if (isInstructor && profile?.instructor_id && !canViewAll) {
-        const { data: instructorSurveys } = await supabase
+        let surveyQuery = supabase
           .from('surveys')
           .select('id')
           .eq('instructor_id', profile.instructor_id);
+        
+        // 테스트 데이터 필터링
+        if (!testDataOptions?.includeTestData) {
+          surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
+        }
+        
+        const { data: instructorSurveys } = await surveyQuery;
         
         if (instructorSurveys && instructorSurveys.length > 0) {
           const surveyIds = instructorSurveys.map(s => s.id);

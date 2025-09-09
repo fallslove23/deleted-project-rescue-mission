@@ -48,11 +48,15 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [loading, setLoading] = useState(true);
-  const { userRoles } = useAuth();
+  const { userRoles, user } = useAuth();
+  
   const isAdmin = userRoles.includes('admin');
   const isOperator = userRoles.includes('operator');
   const isDirector = userRoles.includes('director');
   const canViewAll = isAdmin || isOperator || isDirector;
+  
+  // 테스트 데이터 포함 여부 (개발자만 가능)
+  const canIncludeTestData = user?.email === 'sethetrend87@osstem.com';
 
   useEffect(() => {
     fetchData();
@@ -65,6 +69,11 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
       
       // 설문 데이터 가져오기
       let surveyQuery = supabase.from('surveys').select('*');
+      
+      // 테스트 데이터 필터링 (개발자가 아닌 경우)
+      if (!canIncludeTestData) {
+        surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
+      }
       
       // instructorId가 지정되어 있으면 해당 강사만, 없고 권한이 있으면 전체
       if (instructorId) {

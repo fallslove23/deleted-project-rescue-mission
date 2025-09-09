@@ -12,16 +12,14 @@ export interface TestDataOptions {
 
 export function useTestDataToggle(): TestDataOptions {
   const [includeTestData, setIncludeTestData] = useState(false);
-  const { userRoles } = useAuth();
+  const { userRoles, user } = useAuth();
   
-  // Only admins, operators, and directors can toggle test data
-  const canToggleTestData = userRoles.includes('admin') || 
-                           userRoles.includes('operator') || 
-                           userRoles.includes('director');
+  // Only the specific developer can toggle test data
+  const canToggleTestData = user?.email === 'sethetrend87@osstem.com';
 
-  const getSurveyTable = () => includeTestData ? 'surveys' : 'analytics_surveys';
-  const getResponseTable = () => includeTestData ? 'survey_responses' : 'analytics_responses';
-  const getAnswerTable = () => includeTestData ? 'question_answers' : 'analytics_question_answers';
+  const getSurveyTable = () => 'surveys'; // Always use surveys table
+  const getResponseTable = () => 'survey_responses'; // Always use survey_responses table
+  const getAnswerTable = () => 'question_answers'; // Always use question_answers table
 
   return {
     includeTestData,
