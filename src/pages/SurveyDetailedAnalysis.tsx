@@ -822,7 +822,7 @@ const SurveyDetailedAnalysis = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-purple-500" />
-                  총 만족도
+                  과정 만족도 (종합)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -830,7 +830,7 @@ const SurveyDetailedAnalysis = () => {
                   <div className="text-3xl font-bold text-purple-500">{calculateOverallSatisfaction()}</div>
                   <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    전체 만족도 질문 기준
+                    강사+과목+운영 종합
                   </div>
                 </div>
               </CardContent>

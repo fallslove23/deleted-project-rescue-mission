@@ -182,7 +182,7 @@ const CourseReports = () => {
       fill: 'hsl(var(--chart-1))' 
     },
     { 
-      name: '과정 만족도', 
+      name: '과목 만족도', 
       value: !isNaN(currentReport.avg_course_satisfaction) ? Number(currentReport.avg_course_satisfaction.toFixed(1)) : 0, 
       fill: 'hsl(var(--chart-2))' 
     },
@@ -199,7 +199,7 @@ const CourseReports = () => {
       value: !isNaN(currentReport.avg_instructor_satisfaction) ? Number(currentReport.avg_instructor_satisfaction.toFixed(1)) : 0 
     },
     { 
-      name: '과정 만족도', 
+      name: '과목 만족도', 
       value: !isNaN(currentReport.avg_course_satisfaction) ? Number(currentReport.avg_course_satisfaction.toFixed(1)) : 0 
     },
     { 
@@ -217,7 +217,7 @@ const CourseReports = () => {
   const openDrillDown = (type: 'instructor' | 'course' | 'operation') => {
     const titles = {
       instructor: '강사 만족도',
-      course: '과정 만족도', 
+      course: '과목 만족도', 
       operation: '운영 만족도'
     };
     setDrillDownModal({ isOpen: true, type, title: titles[type] });
@@ -316,7 +316,7 @@ const CourseReports = () => {
 
         {/* 메인 통계 카드들 */}
         {currentReport && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">총 설문</CardTitle>
@@ -358,7 +358,7 @@ const CourseReports = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">과정 만족도</CardTitle>
+                <CardTitle className="text-sm font-medium">과목 만족도</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -368,52 +368,71 @@ const CourseReports = () => {
                 <p className="text-xs text-muted-foreground">평균 만족도</p>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">과정 만족도 (종합)</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {overallSatisfaction ? overallSatisfaction.toFixed(1) : '0.0'}
+                </div>
+                <p className="text-xs text-muted-foreground">강사+과목+운영 평균</p>
+              </CardContent>
+            </Card>
           </div>
         )}
 
-        {/* 만족도 차트 - Grouped Bar Chart로 개선 */}
+        {/* 만족도 차트 섹션 */}
         {satisfactionChartData.length > 0 && (
           <div className="space-y-6">
-            {/* 섹션 헤더 강화 */}
-            <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-6 border-l-4 border-blue-500">
-              <h2 className="text-xl font-bold text-blue-700 mb-2 flex items-center gap-2">
-                <BarChart3 className="h-6 w-6" />
+            {/* 섹션 헤더 */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-l-4 border-blue-500">
+              <h2 className="text-lg font-semibold text-blue-700 mb-1 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
                 영역별 만족도 비교
               </h2>
-              <p className="text-muted-foreground">
-                강사, 과정, 운영 영역별 만족도를 그룹화하여 비교 분석합니다
+              <p className="text-sm text-muted-foreground">
+                강사, 과목, 운영 영역별 만족도를 비교 분석합니다
               </p>
             </div>
 
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle>영역별 만족도 분석</CardTitle>
-                <CardDescription>각 영역별 현재 만족도와 목표 수준 비교</CardDescription>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">영역별 만족도 분석</CardTitle>
+                <CardDescription>각 영역별 현재 만족도 현황</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <ComposedChart data={satisfactionChartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" className="text-muted-foreground" />
-                    <YAxis domain={[0, 5]} className="text-muted-foreground" />
+                <ResponsiveContainer width="100%" height={300}>
+                  <ReBarChart data={satisfactionChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis 
+                      domain={[0, 5]} 
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                    />
                     <Tooltip 
                       contentStyle={{
-                        backgroundColor: 'hsl(var(--background))',
+                        backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
+                        borderRadius: '6px',
+                        fontSize: '12px'
                       }}
+                      formatter={(value: any) => [`${value}점`, '만족도']}
                     />
-                    <Legend />
-                    <Bar dataKey="value" name="현재 만족도" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="target" 
-                      stroke="hsl(var(--destructive))" 
-                      strokeWidth={2}
-                      name="목표 수준 (4.0)"
-                      dot={{ fill: 'hsl(var(--destructive))' }}
+                    <Bar 
+                      dataKey="value" 
+                      fill="hsl(var(--primary))" 
+                      radius={[2, 2, 0, 0]}
+                      maxBarSize={80}
                     />
-                  </ComposedChart>
+                  </ReBarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>

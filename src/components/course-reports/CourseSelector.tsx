@@ -85,13 +85,14 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
           <label className="text-sm font-medium">교육 차수</label>
           <Select
             value={roundValue}
-            onValueChange={(v) => onRoundChange(v === 'all' ? '' : v)} // 'all' 선택 시 부모에 '' 전달(호환)
+            onValueChange={(v) => onRoundChange(v === 'all' ? '' : v)}
+            disabled={!selectedCourse}
           >
             <SelectTrigger>
-              <SelectValue placeholder="차수 선택" />
+              <SelectValue placeholder={selectedCourse ? "차수 선택" : "먼저 과정을 선택하세요"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">전체</SelectItem> {/* 빈 문자열 금지 → 토큰 사용 */}
+              <SelectItem value="all">전체</SelectItem>
               {availableRounds.map((round) => (
                 <SelectItem key={String(round)} value={round.toString()}>
                   {round}차

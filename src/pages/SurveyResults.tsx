@@ -964,7 +964,7 @@ const SurveyResults = () => {
                         <span className="font-semibold text-primary">{course.responses}개</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">과정 만족도</span>
+                        <span className="text-sm text-muted-foreground">과목 만족도</span>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">
                             {course.subjectSatisfaction > 0 ? `${course.subjectSatisfaction.toFixed(1)}/10` : '-'}

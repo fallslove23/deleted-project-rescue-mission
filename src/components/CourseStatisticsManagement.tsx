@@ -865,7 +865,7 @@ const StatisticForm = ({ initialData, onSave, onCancel }: StatisticFormProps) =>
           />
         </div>
         <div>
-          <Label htmlFor="course_satisfaction">과정 만족도</Label>
+          <Label htmlFor="course_satisfaction">과목 만족도</Label>
           <Input
             id="course_satisfaction"
             name="course_satisfaction"

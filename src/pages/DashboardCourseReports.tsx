@@ -69,7 +69,7 @@ const DashboardCourseReports = () => {
   const handleSatisfactionClick = (type: 'instructor' | 'course' | 'operation') => {
     const titles = {
       instructor: '강사 만족도',
-      course: '과정 만족도', 
+      course: '과목 만족도', 
       operation: '운영 만족도'
     };
     setDrillDownModal({ isOpen: true, type, title: titles[type] });
@@ -243,7 +243,7 @@ const DashboardCourseReports = () => {
               onClick={() => handleSatisfactionClick('course')}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">과정 만족도</CardTitle>
+                <CardTitle className="text-sm font-medium">과목 만족도</CardTitle>
                 {getSatisfactionIcon(currentReport.avg_course_satisfaction)}
               </CardHeader>
               <CardContent>
