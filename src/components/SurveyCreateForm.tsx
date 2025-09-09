@@ -260,7 +260,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
           survey_id: survey.id,
           question_text: '과정 내용에 대한 전반적인 만족도는?',
           question_type: 'rating',
-          satisfaction_type: 'subject',
+          satisfaction_type: 'course',
           is_required: true,
           order_index: 1,
           scope: 'session'
