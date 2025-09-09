@@ -1,5 +1,5 @@
 // src/pages/SurveyResults.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -639,6 +639,13 @@ const SurveyResults = () => {
       ? getFilteredSurveys()
       : getFilteredSurveys().filter((s) => profile?.instructor_id && s.instructor_id === profile.instructor_id);
 
+    console.log('📊 Course Statistics Debug:', {
+      relevantSurveys: relevantSurveys.length,
+      allResponses: allResponses.length,
+      allQuestions: allQuestions.length,
+      allAnswers: allAnswers.length
+    });
+
     const currentYear = new Date().getFullYear();
     const recent = relevantSurveys.filter((s) => s.education_year >= currentYear - 1);
 
@@ -664,7 +671,7 @@ const SurveyResults = () => {
           responses: 0,
           year: survey.education_year,
           round: survey.education_round,
-          course_name: survey.course_name,
+          course_name: survey.course_name || '미지정',
           instructorSatisfaction: 0,
           subjectSatisfaction: 0,
           operationSatisfaction: 0,
@@ -674,7 +681,7 @@ const SurveyResults = () => {
       courseStats[key].responses += allResponses.filter((r) => r.survey_id === survey.id).length;
     });
 
-    // 만족도 계산
+    // 만족도 계산 개선
     Object.keys(courseStats).forEach((key) => {
       const stat = courseStats[key];
       const surveyIds = stat.surveys.map((s) => s.id);
@@ -684,30 +691,66 @@ const SurveyResults = () => {
         .map((r) => r.id);
       const surveyAnswers = allAnswers.filter((a) => responseIds.includes(a.response_id));
 
-      ['instructor', 'subject', 'operation'].forEach((type) => {
-        const typeQuestions = surveyQuestions.filter((q) => q.satisfaction_type === type && q.question_type === 'rating');
+      console.log(`📋 ${key} 통계:`, {
+        surveyQuestions: surveyQuestions.length,
+        surveyAnswers: surveyAnswers.length,
+        responseIds: responseIds.length
+      });
+
+      // 만족도 타입별 계산 (더 유연하게 매칭)
+      const satisfactionTypes = [
+        { key: 'instructorSatisfaction', types: ['instructor'] },
+        { key: 'subjectSatisfaction', types: ['subject', 'course'] }, 
+        { key: 'operationSatisfaction', types: ['operation'] }
+      ];
+
+      satisfactionTypes.forEach(({ key: satKey, types }) => {
+        const typeQuestions = surveyQuestions.filter((q) => 
+          types.includes(q.satisfaction_type || '') && 
+          ['rating', 'scale'].includes(q.question_type)
+        );
+        
         if (typeQuestions.length > 0) {
           const questionIds = typeQuestions.map((q) => q.id);
           const typeAnswers = surveyAnswers.filter((a) => questionIds.includes(a.question_id));
+          
           if (typeAnswers.length > 0) {
-            const sum = typeAnswers.reduce((acc, a) => {
-              const value = typeof a.answer_value === 'string' ? parseFloat(a.answer_value) : Number(a.answer_value);
-              return acc + (isNaN(value) ? 0 : value);
-            }, 0);
-            const avg = sum / typeAnswers.length;
-            if (type === 'instructor') stat.instructorSatisfaction = avg;
-            else if (type === 'subject') stat.subjectSatisfaction = avg;
-            else if (type === 'operation') stat.operationSatisfaction = avg;
+            const values = typeAnswers.map(a => {
+              let value = 0;
+              if (typeof a.answer_value === 'string') {
+                value = parseFloat(a.answer_value);
+              } else if (typeof a.answer_value === 'number') {
+                value = a.answer_value;
+              } else if (a.answer_value && typeof a.answer_value === 'object') {
+                // JSON 형태일 경우 처리
+                value = parseFloat(String(a.answer_value));
+              }
+              return isNaN(value) ? 0 : value;
+            });
+            
+            const sum = values.reduce((acc, v) => acc + v, 0);
+            const avg = sum / values.length;
+            (stat as any)[satKey] = avg;
+            
+            console.log(`${satKey} 계산:`, {
+              questions: typeQuestions.length,
+              answers: typeAnswers.length,
+              values: values.slice(0, 5), // 처음 5개만 로그
+              avg
+            });
           }
         }
       });
     });
 
-    return Object.values(courseStats).map((stat) => ({
+    const result = Object.values(courseStats).map((stat) => ({
       ...stat,
       key: `${stat.year}-${stat.round}-${stat.course_name}`,
       displayName: `${stat.year}년 ${stat.round}차 ${stat.course_name}`,
     }));
+
+    console.log('📈 최종 courseStats:', result);
+    return result;
   };
 
   // ======= Visualization helpers =======
@@ -842,9 +885,19 @@ const SurveyResults = () => {
     });
   };
 
-  // ======= Derived data =======
-  const statistics = getStatistics();
-  const courseStats = getCourseStatistics();
+  // ======= Derived data with memoization =======
+  const statistics = useMemo(() => {
+    const result = getStatistics();
+    console.log('🔄 Statistics 재계산:', result);
+    return result;
+  }, [getFilteredSurveys(), allResponses, selectedSurvey, responses, selectedInstructor, profile?.instructor_id]);
+
+  const courseStats = useMemo(() => {
+    const result = getCourseStatistics();
+    console.log('🔄 CourseStats 재계산:', result.length, 'courses');
+    return result;
+  }, [getFilteredSurveys(), allResponses, allQuestions, allAnswers, profile?.instructor_id]);
+
   const questionAnalyses = getQuestionAnalyses();
 
   if (loading) {
@@ -977,98 +1030,101 @@ const SurveyResults = () => {
         </div>
 
         {/* 통계 카드 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-6 w-6 text-blue-600" />
+                <div className="p-1.5 bg-blue-100 rounded-md">
+                  <FileText className="h-4 w-4 text-blue-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">총 설문</p>
-                  <p className="text-2xl font-bold">{statistics.totalSurveys}</p>
+                <div className="ml-2">
+                  <p className="text-xs font-medium text-gray-600">총 설문</p>
+                  <p className="text-lg font-bold">{statistics.totalSurveys}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
+                <div className="p-1.5 bg-green-100 rounded-md">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">총 응답</p>
-                  <p className="text-2xl font-bold">{statistics.totalResponses}</p>
+                <div className="ml-2">
+                  <p className="text-xs font-medium text-gray-600">총 응답</p>
+                  <p className="text-lg font-bold">{statistics.totalResponses}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-yellow-600" />
+                <div className="p-1.5 bg-yellow-100 rounded-md">
+                  <BarChart3 className="h-4 w-4 text-yellow-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">진행중인 설문</p>
-                  <p className="text-2xl font-bold">{statistics.activeSurveys}</p>
+                <div className="ml-2">
+                  <p className="text-xs font-medium text-gray-600">진행중</p>
+                  <p className="text-lg font-bold">{statistics.activeSurveys}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <IconBarChart className="h-6 w-6 text-purple-600" />
+                <div className="p-1.5 bg-purple-100 rounded-md">
+                  <IconBarChart className="h-4 w-4 text-purple-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">완료된 설문</p>
-                  <p className="text-2xl font-bold">{statistics.completedSurveys}</p>
+                <div className="ml-2">
+                  <p className="text-xs font-medium text-gray-600">완료</p>
+                  <p className="text-lg font-bold">{statistics.completedSurveys}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center">
+                <div className="p-1.5 bg-indigo-100 rounded-md">
+                  <TrendingUp className="h-4 w-4 text-indigo-600" />
+                </div>
+                <div className="ml-2">
+                  <p className="text-xs font-medium text-gray-600">평균 만족도</p>
+                  <p className="text-lg font-bold">
+                    {courseStats.length > 0 
+                      ? (courseStats.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / courseStats.length).toFixed(1)
+                      : '0.0'
+                    }
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center">
+                <div className="p-1.5 bg-pink-100 rounded-md">
+                  <FileText className="h-4 w-4 text-pink-600" />
+                </div>
+                <div className="ml-2">
+                  <p className="text-xs font-medium text-gray-600">응답률</p>
+                  <p className="text-lg font-bold">
+                    {courseStats.length > 0 
+                      ? Math.round((statistics.totalResponses / Math.max(courseStats.reduce((acc, course) => acc + course.surveys.length * 20, 0), 1)) * 100) + '%'
+                      : '0%'
+                    }
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* 트렌드 차트 (향후 구현) */}
-        {courseStats.length > 0 ? (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                월별 트렌드
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>트렌드 차트는 향후 업데이트될 예정입니다.</p>
-                <p className="text-sm">현재는 과정별 통계를 확인하실 수 있습니다.</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                월별 트렌드
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>트렌드 데이터가 없습니다.</p>
-                <p className="text-sm">설문 응답이 있는 경우 트렌드 차트가 표시됩니다.</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* 과정별 통계 카드 */}
         <div className="mb-6">
@@ -1101,37 +1157,31 @@ const SurveyResults = () => {
           {showCourseStats && (
             courseStats.length > 0 ? (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    과정별 통계
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {courseStats.map((course) => (
                       <Card
                         key={course.key}
-                        className="border-2 border-muted-foreground/30 hover:border-primary transition-colors bg-gradient-to-br from-background to-muted/20"
+                        className="border border-border hover:border-primary transition-colors"
                       >
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-muted-foreground">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium">
                             {course.displayName}
                           </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">진행중인 설문</span>
-                            <span className="font-semibold text-primary">{course.surveys.length}개</span>
+                        <CardContent className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">설문 수</span>
+                            <span className="font-medium">{course.surveys.length}개</span>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">총 응답 수</span>
-                            <span className="font-semibold text-primary">{course.responses}개</span>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">응답 수</span>
+                            <span className="font-medium">{course.responses}개</span>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">과목 만족도</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">과목 만족도</span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">
                                 {course.subjectSatisfaction > 0 ? `${course.subjectSatisfaction.toFixed(1)}/10` : '-'}
                               </span>
                               {course.subjectSatisfaction > 0 && (
@@ -1143,16 +1193,17 @@ const SurveyResults = () => {
                                       ? 'secondary'
                                       : 'destructive'
                                   }
+                                  className="text-xs px-1"
                                 >
                                   {course.subjectSatisfaction >= 8 ? '우수' : course.subjectSatisfaction >= 6 ? '보통' : '개선필요'}
                                 </Badge>
                               )}
                             </div>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">강사 만족도</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">강사 만족도</span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">
                                 {course.instructorSatisfaction > 0 ? `${course.instructorSatisfaction.toFixed(1)}/10` : '-'}
                               </span>
                               {course.instructorSatisfaction > 0 && (
@@ -1164,16 +1215,17 @@ const SurveyResults = () => {
                                       ? 'secondary'
                                       : 'destructive'
                                   }
+                                  className="text-xs px-1"
                                 >
                                   {course.instructorSatisfaction >= 8 ? '우수' : course.instructorSatisfaction >= 6 ? '보통' : '개선필요'}
                                 </Badge>
                               )}
                             </div>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">운영 만족도</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">운영 만족도</span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">
                                 {course.operationSatisfaction > 0 ? `${course.operationSatisfaction.toFixed(1)}/10` : '-'}
                               </span>
                               {course.operationSatisfaction > 0 && (
@@ -1181,6 +1233,7 @@ const SurveyResults = () => {
                                   variant={
                                     course.operationSatisfaction >= 8 ? 'default' : course.operationSatisfaction >= 6 ? 'secondary' : 'destructive'
                                   }
+                                  className="text-xs px-1"
                                 >
                                   {course.operationSatisfaction >= 8 ? '우수' : course.operationSatisfaction >= 6 ? '보통' : '개선필요'}
                                 </Badge>
@@ -1195,18 +1248,10 @@ const SurveyResults = () => {
               </Card>
             ) : (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    과정별 통계
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>과목별 통계 데이터가 없습니다.</p>
-                    <p className="text-sm">설문 응답이 있는 경우 통계가 표시됩니다.</p>
-                  </div>
+                <CardContent className="text-center py-8 text-muted-foreground">
+                  <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>과목별 통계 데이터가 없습니다.</p>
+                  <p className="text-sm">설문 응답이 있는 경우 통계가 표시됩니다.</p>
                 </CardContent>
               </Card>
             )
@@ -1295,22 +1340,22 @@ const SurveyResults = () => {
                   {questionAnalyses.length > 0 ? (
                     <div className="space-y-6">
                       {/* 상단 카드 */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <Card>
-                          <CardContent className="pt-6">
-                            <div className="text-2xl font-bold">{questions.length}</div>
+                          <CardContent className="pt-3 pb-3">
+                            <div className="text-lg font-bold">{questions.length}</div>
                             <p className="text-xs text-muted-foreground">총 질문 수</p>
                           </CardContent>
                         </Card>
                         <Card>
-                          <CardContent className="pt-6">
-                            <div className="text-2xl font-bold">{responses.length}</div>
+                          <CardContent className="pt-3 pb-3">
+                            <div className="text-lg font-bold">{responses.length}</div>
                             <p className="text-xs text-muted-foreground">총 응답 수</p>
                           </CardContent>
                         </Card>
                         <Card>
-                          <CardContent className="pt-6">
-                            <div className="text-2xl font-bold">
+                          <CardContent className="pt-3 pb-3">
+                            <div className="text-lg font-bold">
                               {(() => {
                                 const expected =
                                   surveys.find((s) => s.id === selectedSurvey)?.expected_participants ??
@@ -1323,10 +1368,10 @@ const SurveyResults = () => {
                           </CardContent>
                         </Card>
                         <Card>
-                          <CardContent className="pt-6 flex items-center justify-between">
+                          <CardContent className="pt-3 pb-3 flex items-center justify-between">
                             <div>
-                              <div className="text-lg font-bold">CSV</div>
-                              <p className="text-xs text-muted-foreground">데이터 다운로드</p>
+                              <div className="text-sm font-bold">CSV</div>
+                              <p className="text-xs text-muted-foreground">다운로드</p>
                             </div>
                             <div className="flex gap-1">
                               <Button
@@ -1334,16 +1379,18 @@ const SurveyResults = () => {
                                 size="sm"
                                 onClick={() => handleExportCSV('responses')}
                                 title="응답 데이터 CSV 다운로드"
+                                className="p-2"
                               >
-                                <FileSpreadsheet className="h-4 w-4" />
+                                <FileSpreadsheet className="h-3 w-3" />
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleExportCSV('summary')}
                                 title="요약 통계 CSV 다운로드"
+                                className="p-2"
                               >
-                                <BarChart3 className="h-4 w-4" />
+                                <BarChart3 className="h-3 w-3" />
                               </Button>
                             </div>
                           </CardContent>
