@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import ProgramManager from "@/components/ProgramManager";
 import { Separator } from "@/components/ui/separator";
 import { Zap, Plus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SurveyCreateFormProps {
   onSuccess: (surveyId: string) => void;
@@ -18,6 +19,7 @@ interface SurveyCreateFormProps {
 
 export default function SurveyCreateForm({ onSuccess, templates, initialTemplate }: SurveyCreateFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [creatingTestSurvey, setCreatingTestSurvey] = useState(false);
 
@@ -533,17 +535,19 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
           </div>
 
           <div className="flex justify-between gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={createTestSurvey}
-              disabled={creatingTestSurvey || loading}
-              className="flex items-center gap-2"
-            >
-              <Zap className="h-4 w-4" />
-              {creatingTestSurvey ? "테스트 설문 생성 중..." : "테스트 설문 생성"}
-            </Button>
-            <Button type="submit" disabled={loading} className="flex items-center gap-2">
+            {user?.email === 'sethetrend87@osstem.com' && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={createTestSurvey}
+                disabled={creatingTestSurvey || loading}
+                className="flex items-center gap-2"
+              >
+                <Zap className="h-4 w-4" />
+                {creatingTestSurvey ? "테스트 설문 생성 중..." : "테스트 설문 생성"}
+              </Button>
+            )}
+            <Button type="submit" disabled={loading} className="flex items-center gap-2 ml-auto">
               <Plus className="h-4 w-4" />
               {loading ? "생성 중..." : "설문 생성"}
             </Button>
