@@ -353,13 +353,23 @@ const handler = async (req: Request): Promise<Response> => {
         if ((emailResponse as any)?.error) {
           const err: any = (emailResponse as any).error;
           console.error(`Resend reported an error for ${email}:`, err);
+
+          // Map common Resend errors to actionable messages
+          const status = err?.statusCode;
+          let friendly = err?.message || 'Unknown Resend error';
+          if (status === 401) {
+            friendly = 'Resend 401: API 키가 올바르지 않거나 권한이 없습니다. (RESEND_API_KEY 확인)';
+          } else if (status === 403) {
+            friendly = 'Resend 403: 샌드박스 발신자(onboarding@resend.dev)는 "Test Emails" 허용 목록 또는 검증된 도메인으로만 전송 가능합니다. 수신자 이메일을 Resend > Settings > Test Emails에 추가하시거나 도메인을 검증하세요.';
+          }
+
           failedEmails.push(email);
           emailResults.push({
             to: email,
             name: recipientNames.get(email) || email.split('@')[0],
             status: 'failed',
-            error: err?.message || 'Unknown Resend error',
-            errorCode: err?.statusCode
+            error: friendly,
+            errorCode: status
           });
         } else {
           emailResults.push({
@@ -373,12 +383,20 @@ const handler = async (req: Request): Promise<Response> => {
       } catch (emailError) {
         console.error(`Failed to send email to ${email}:`, emailError);
         console.error("Detailed error:", JSON.stringify(emailError, null, 2));
+        const status = (emailError as any)?.statusCode || (emailError as any)?.code;
+        let friendly = (emailError as any)?.message ?? 'Unknown error';
+        if (status === 401) {
+          friendly = 'Resend 401: API 키가 올바르지 않거나 권한이 없습니다. (RESEND_API_KEY 확인)';
+        } else if (status === 403) {
+          friendly = 'Resend 403: 샌드박스 발신자(onboarding@resend.dev)는 "Test Emails" 허용 목록 또는 검증된 도메인으로만 전송 가능합니다. 수신자 이메일을 Resend > Settings > Test Emails에 추가하시거나 도메인을 검증하세요.';
+        }
         failedEmails.push(email);
         emailResults.push({
           to: email,
           name: recipientNames.get(email) || email.split('@')[0],
           status: 'failed',
-          error: (emailError as any)?.message ?? 'Unknown error'
+          error: friendly,
+          errorCode: status
         });
       }
     }
