@@ -298,18 +298,26 @@ const SurveyParticipateSession = () => {
       return;
     }
 
+    console.log('🚀 세션 설문 제출 시작:', { surveyId, answersCount: answers.length });
     setSubmitting(true);
     try {
+      console.log('📝 응답 데이터 삽입 중...');
       const { data: responseData, error: responseError } = await supabase
         .from('survey_responses')
         .insert({ survey_id: surveyId, respondent_email: null })
         .select('id')
         .single();
-      if (responseError) throw responseError;
+      
+      if (responseError) {
+        console.error('❌ 응답 데이터 삽입 실패:', responseError);
+        throw responseError;
+      }
+      console.log('✅ 응답 데이터 삽입 성공:', responseData);
 
       const validAnswers = answers.filter((a) =>
         Array.isArray(a.answer) ? a.answer.length > 0 : String(a.answer || '').trim() !== ''
       );
+      console.log('📋 유효한 답변:', validAnswers.length, '개');
 
       if (validAnswers.length > 0) {
         const rows = validAnswers.map((a) => ({
@@ -318,22 +326,45 @@ const SurveyParticipateSession = () => {
           answer_text: Array.isArray(a.answer) ? a.answer.join(', ') : a.answer,
           answer_value: a.answer,
         }));
+        console.log('💾 답변 데이터 삽입 중...', rows.length, '개 항목');
         const { error: answersError } = await supabase.from('question_answers').insert(rows);
-        if (answersError) throw answersError;
+        if (answersError) {
+          console.error('❌ 답변 데이터 삽입 실패:', answersError);
+          throw answersError;
+        }
+        console.log('✅ 답변 데이터 삽입 성공');
       }
 
       if (session) {
         try {
+          console.log('🎯 설문 완료 마킹 중...');
           await markSurveyCompleted(surveyId!);
-        } catch {/* no-op */}
+          console.log('✅ 설문 완료 마킹 성공');
+        } catch (markError) {
+          console.error('⚠️ 설문 완료 마킹 실패 (비필수):', markError);
+        }
       }
-      if (completedKey) localStorage.setItem(completedKey, '1');
+      if (completedKey) {
+        localStorage.setItem(completedKey, '1');
+        console.log('💾 로컬 스토리지 완료 표시 저장됨');
+      }
 
+      console.log('🎉 세션 설문 제출 완료!');
       toast({ title: '설문 참여 완료!', description: '소중한 의견을 주셔서 감사합니다.' });
       navigate('/');
     } catch (error) {
-      console.error('Error submitting survey:', error);
-      toast({ title: '제출 중 오류가 발생했습니다', description: '다시 시도해 주세요.', variant: 'destructive' });
+      console.error('💥 세션 설문 제출 중 오류 발생:', error);
+      console.error('오류 세부 정보:', {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint
+      });
+      toast({ 
+        title: '제출 중 오류가 발생했습니다', 
+        description: `오류: ${error?.message || '알 수 없는 오류'}`, 
+        variant: 'destructive' 
+      });
     } finally {
       setSubmitting(false);
     }
