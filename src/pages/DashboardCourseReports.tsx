@@ -164,8 +164,8 @@ const DashboardCourseReports = () => {
 
   return (
     <DashboardLayout
-      title={isInstructor ? "과정별 결과 보고 / My Course Reports" : "과정별 결과 보고 / Course Reports"}
-      subtitle={isInstructor ? '개인 성과 및 과목별 피드백 분석 / Personal Performance & Course Feedback' : '조직 전체 과정 운영 결과 및 인사이트 / Organization-wide Course Performance & Insights'}
+      title={isInstructor ? "과정별 결과 보고" : "과정별 결과 보고"}
+      subtitle={isInstructor ? '개인 성과 및 과목별 피드백 분석' : '조직 전체 과정 운영 결과 및 인사이트'}
       icon={<TrendingUp className="h-5 w-5 text-white" />}
       actions={actions}
       loading={loading}

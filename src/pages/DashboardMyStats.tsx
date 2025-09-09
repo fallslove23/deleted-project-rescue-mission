@@ -7,8 +7,8 @@ import { InstructorInsightCards } from '@/components/dashboard/InstructorInsight
 const DashboardMyStats = () => {
   return (
     <DashboardLayout
-      title="나의 만족도 통계 / My Satisfaction Stats"
-      subtitle="개인 성과 분석 및 자기 개선 포인트 / Personal Performance & Self-Improvement"
+      title="나의 만족도 통계"
+      subtitle="개인 성과 분석 및 자기 개선 포인트"
       icon={<Award className="h-5 w-5 text-white" />}
     >
       <PersonalDashboard />
