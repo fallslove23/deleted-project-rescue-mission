@@ -103,7 +103,7 @@ const SurveyResults = () => {
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
   const [allQuestions, setAllQuestions] = useState<SurveyQuestion[]>([]);
   const [allAnswers, setAllAnswers] = useState<QuestionAnswer[]>([]);
-  const [selectedSurvey, setSelectedSurvey] = useState<string>('');
+  const [selectedSurvey, setSelectedSurvey] = useState<string>('all');
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
@@ -155,7 +155,7 @@ const SurveyResults = () => {
 
   // 선택된 설문이 바뀌면 해당 설문 응답/질문/답변 로드
   useEffect(() => {
-    if (selectedSurvey) {
+    if (selectedSurvey && selectedSurvey !== 'all') {
       // 기존: fetchReports();  // ❌ 존재하지 않는 함수 호출 제거
       fetchQuestionsAndAnswers();
     }
@@ -164,7 +164,7 @@ const SurveyResults = () => {
 
   // allResponses 또는 selectedSurvey가 바뀌면 responses를 계산해서 세팅
   useEffect(() => {
-    if (!selectedSurvey) {
+    if (!selectedSurvey || selectedSurvey === 'all') {
       setResponses([]);
       return;
     }
@@ -320,7 +320,7 @@ const SurveyResults = () => {
   };
 
   const fetchQuestionsAndAnswers = async () => {
-    if (!selectedSurvey) return;
+    if (!selectedSurvey || selectedSurvey === 'all') return;
     try {
       const { data: qData, error: qErr } = await supabase
         .from('survey_questions')
@@ -615,7 +615,7 @@ const SurveyResults = () => {
     }
 
     // 선택된 설문이 있으면 해당 설문의 응답만, 아니면 모든 관련 응답 사용
-    if (selectedSurvey) {
+    if (selectedSurvey && selectedSurvey !== 'all') {
       relevantResponses = responses; // 이미 선택된 설문의 응답으로 필터링됨
     }
 
@@ -713,7 +713,7 @@ const SurveyResults = () => {
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#ff00ff', '#00ffff'];
 
   const getQuestionAnalyses = () => {
-    if (!selectedSurvey || questions.length === 0) return [];
+    if (!selectedSurvey || selectedSurvey === 'all' || questions.length === 0) return [];
 
     return questions.map((question) => {
       const questionAnswers = answers.filter((a) => a.question_id === question.id);
@@ -945,7 +945,7 @@ const SurveyResults = () => {
                   <SelectValue placeholder="전체 설문" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">전체 설문</SelectItem>
+                  <SelectItem value="all">전체 설문</SelectItem>
                   {getFilteredSurveys().map((survey) => (
                     <SelectItem key={survey.id} value={survey.id}>
                       {survey.title}
@@ -962,7 +962,7 @@ const SurveyResults = () => {
                   setSelectedYear('all');
                   setSelectedCourse('all');
                   setSelectedInstructor('all');
-                  setSelectedSurvey('');
+                  setSelectedSurvey('all');
                 }}
                 className="flex items-center gap-2 whitespace-nowrap"
               >
