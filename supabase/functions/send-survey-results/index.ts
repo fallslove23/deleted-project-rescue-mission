@@ -155,9 +155,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Fixed sender and reply-to per internal policy
-    const FROM_ADDRESS = "onboarding@resend.dev";
-    const REPLY_TO_EMAIL = "SSeduadmin@osstem.com";
+    // Sender and reply-to addresses (use secrets; fallback to Resend sandbox)
+    const FROM_ADDRESS = Deno.env.get("RESEND_FROM_ADDRESS") || "onboarding@resend.dev";
+    const REPLY_TO_EMAIL = Deno.env.get("RESEND_REPLY_TO") || FROM_ADDRESS;
 
     // Display name mapping for author based on reply-to email
     const SENDER_DISPLAY_MAP: Record<string, string> = {

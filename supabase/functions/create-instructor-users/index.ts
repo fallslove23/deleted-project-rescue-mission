@@ -33,6 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const results = [];
     const emailPromises = [];
+    const FROM_ADDRESS = Deno.env.get("RESEND_FROM_ADDRESS") ?? "onboarding@resend.dev";
 
     for (const instructor of instructors) {
       try {
@@ -63,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Send welcome email
         const emailPromise = resend.emails.send({
-          from: "BS교육원 설문시스템 <noreply@bsedu.co.kr>",
+          from: FROM_ADDRESS,
           to: [instructor.email],
           subject: "설문 시스템 계정 생성 완료",
           html: `
