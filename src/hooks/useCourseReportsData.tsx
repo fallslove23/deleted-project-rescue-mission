@@ -223,6 +223,29 @@ export const useCourseReportsData = (
         .eq('education_year', selectedYear)
         .in('status', ['completed', 'active']);
 
+      // 다중 강사 정보를 가져오는 함수
+      const getInstructorNames = async (survey: any) => {
+        if (survey.instructor_id && survey.instructors?.name) {
+          return survey.instructors.name;
+        }
+        
+        if (survey.course_id) {
+          const { data: courseInstructors } = await supabase
+            .from('instructor_courses')
+            .select('instructor_id, instructors!instructor_id(name)')
+            .eq('course_id', survey.course_id);
+          
+          if (courseInstructors && courseInstructors.length > 0) {
+            const names = courseInstructors
+              .map(ic => (ic.instructors as any)?.name)
+              .filter(Boolean);
+            return names.join(', ');
+          }
+        }
+        
+        return survey.course_name || '강사 정보 없음';
+      };
+
       // 강사인 경우 본인 설문만 필터링
       if (isInstructor && instructorId) {
         query = query.eq('instructor_id', instructorId);
@@ -269,7 +292,7 @@ export const useCourseReportsData = (
 
         // 강사 정보 처리 개선
         const instructorId = survey.instructor_id;
-        const instructorName = survey.instructors?.name || '알 수 없음';
+        const instructorName = survey.instructors?.name || survey.course_name || '강사 정보 없음';
         
         if (instructorId) {
           if (!instructorStatsMap.has(instructorId)) {
@@ -512,7 +535,7 @@ export const useCourseReportsData = (
               survey_count: 0,
               response_count: 0,
               instructor_satisfactions: [],
-              instructor_name: (survey as any).instructors?.name || 'Unknown'
+              instructor_name: (survey as any).instructors?.name || survey.course_name || '강사 정보 없음'
             };
 
             existingStat.survey_count += 1;
