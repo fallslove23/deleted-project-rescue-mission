@@ -578,8 +578,8 @@ const SurveyResults = () => {
     }
 
     if (canViewAll && selectedInstructor !== 'all') {
-      // 강사별 필터링은 질문 레벨에서 처리 (하나의 설문에 여러 강사가 포함될 수 있음)
-      filtered = filtered;
+      // 강사별 필터링을 설문의 instructor_id로 처리
+      filtered = filtered.filter((s) => s.instructor_id === selectedInstructor);
     }
     return filtered;
   };
@@ -757,70 +757,88 @@ const SurveyResults = () => {
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#ff00ff', '#00ffff'];
 
   const getQuestionAnalyses = () => {
-    if (!selectedSurvey || selectedSurvey === 'all' || questions.length === 0) return [];
+    // 전체 설문 선택 시 모든 질문 분석, 개별 설문 선택 시 해당 설문 질문만 분석
+    if (selectedSurvey === 'all') {
+      const filteredSurveys = getFilteredSurveys();
+      if (filteredSurveys.length === 0) return [];
+      
+      const allSurveyIds = filteredSurveys.map(s => s.id);
+      const allSurveyQuestions = allQuestions.filter(q => allSurveyIds.includes(q.survey_id));
+      const allSurveyResponseIds = allResponses.filter(r => allSurveyIds.includes(r.survey_id)).map(r => r.id);
+      const allSurveyAnswers = allAnswers.filter(a => allSurveyResponseIds.includes(a.response_id));
+      
+      return allSurveyQuestions.map((question) => {
+        const questionAnswers = allSurveyAnswers.filter((a) => a.question_id === question.id);
+        return getQuestionAnalysis(question, questionAnswers);
+      });
+    } else if (!selectedSurvey || questions.length === 0) return [];
 
     return questions.map((question) => {
       const questionAnswers = answers.filter((a) => a.question_id === question.id);
-      const totalAnswers = questionAnswers.length;
-
-      if (question.question_type === 'rating' || question.question_type === 'scale') {
-        const values = questionAnswers.map((a) => {
-          const value = typeof a.answer_value === 'string' ? parseFloat(a.answer_value) : Number(a.answer_value);
-          return isNaN(value) ? 0 : value;
-        });
-        const average = values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : '0.0';
-
-        const distribution: Record<number, number> = {};
-        for (let i = 1; i <= 10; i++) distribution[i] = 0;
-        values.forEach((val) => {
-          if (val >= 1 && val <= 10) distribution[val]++;
-        });
-
-        const chartData = Object.entries(distribution).map(([key, value]) => ({
-          name: `${key}점`,
-          value,
-        }));
-
-        return {
-          question,
-          type: 'rating' as const,
-          totalAnswers,
-          average,
-          chartData,
-        };
-      } else if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
-        const counts: Record<string, number> = {};
-        questionAnswers.forEach((a) => {
-          try {
-            const answerArray = Array.isArray(a.answer_value) ? a.answer_value : JSON.parse(a.answer_value || '[]');
-            answerArray.forEach((ans: string) => {
-              counts[ans] = (counts[ans] || 0) + 1;
-            });
-          } catch {
-            const answerText = a.answer_text || String(a.answer_value || '');
-            if (answerText) counts[answerText] = (counts[answerText] || 0) + 1;
-          }
-        });
-
-        const chartData = Object.entries(counts)
-          .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value);
-
-        return {
-          question,
-          type: 'chart' as const,
-          totalAnswers,
-          chartData,
-        };
-      } else {
-        return {
-          question,
-          type: 'text' as const,
-          totalAnswers,
-          answers: questionAnswers.map((a) => a.answer_text).filter(Boolean),
-        };
-      }
+      return getQuestionAnalysis(question, questionAnswers);
     });
+  };
+
+  const getQuestionAnalysis = (question: SurveyQuestion, questionAnswers: QuestionAnswer[]) => {
+    const totalAnswers = questionAnswers.length;
+
+    if (question.question_type === 'rating' || question.question_type === 'scale') {
+      const values = questionAnswers.map((a) => {
+        const value = typeof a.answer_value === 'string' ? parseFloat(a.answer_value) : Number(a.answer_value);
+        return isNaN(value) ? 0 : value;
+      });
+      const average = values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : '0.0';
+
+      const distribution: Record<number, number> = {};
+      for (let i = 1; i <= 10; i++) distribution[i] = 0;
+      values.forEach((val) => {
+        if (val >= 1 && val <= 10) distribution[val]++;
+      });
+
+      const chartData = Object.entries(distribution).map(([key, value]) => ({
+        name: `${key}점`,
+        value,
+      }));
+
+      return {
+        question,
+        type: 'rating' as const,
+        totalAnswers,
+        average,
+        chartData,
+      };
+    } else if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
+      const counts: Record<string, number> = {};
+      questionAnswers.forEach((a) => {
+        try {
+          const answerArray = Array.isArray(a.answer_value) ? a.answer_value : JSON.parse(a.answer_value || '[]');
+          answerArray.forEach((ans: string) => {
+            counts[ans] = (counts[ans] || 0) + 1;
+          });
+        } catch {
+          const answerText = a.answer_text || String(a.answer_value || '');
+          if (answerText) counts[answerText] = (counts[answerText] || 0) + 1;
+        }
+      });
+
+      const chartData = Object.entries(counts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+      return {
+        question,
+        type: 'chart' as const,
+        totalAnswers,
+        chartData,
+      };
+    } else {
+      return {
+        question,
+        type: 'text' as const,
+        totalAnswers,
+        answers: questionAnswers.map((a) => a.answer_text).filter(Boolean),
+      };
+    }
   };
 
   // ======= Event handlers =======
@@ -1320,10 +1338,12 @@ const SurveyResults = () => {
         </Card>
 
         {/* 선택된 설문 분석 */}
-        {selectedSurvey && (
+        {selectedSurvey && (getFilteredSurveys().length > 0 || selectedSurvey !== 'all') && (
           <Card>
             <CardHeader>
-              <CardTitle>선택된 설문 분석</CardTitle>
+              <CardTitle>
+                {selectedSurvey === 'all' ? '전체 설문 분석' : '선택된 설문 분석'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="overview" className="space-y-4">
@@ -1343,13 +1363,23 @@ const SurveyResults = () => {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <Card>
                           <CardContent className="pt-3 pb-3">
-                            <div className="text-lg font-bold">{questions.length}</div>
+                            <div className="text-lg font-bold">
+                              {selectedSurvey === 'all' 
+                                ? allQuestions.filter(q => getFilteredSurveys().some(s => s.id === q.survey_id)).length
+                                : questions.length
+                              }
+                            </div>
                             <p className="text-xs text-muted-foreground">총 질문 수</p>
                           </CardContent>
                         </Card>
                         <Card>
                           <CardContent className="pt-3 pb-3">
-                            <div className="text-lg font-bold">{responses.length}</div>
+                            <div className="text-lg font-bold">
+                              {selectedSurvey === 'all'
+                                ? allResponses.filter(r => getFilteredSurveys().some(s => s.id === r.survey_id)).length
+                                : responses.length
+                              }
+                            </div>
                             <p className="text-xs text-muted-foreground">총 응답 수</p>
                           </CardContent>
                         </Card>
