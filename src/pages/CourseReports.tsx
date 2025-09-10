@@ -163,12 +163,22 @@ const CourseReports = () => {
     return { change, percentage };
   };
 
+  // 차트용 안전한 데이터 준비
+  const safeCourseStatistics = courseStatistics?.map(stat => ({
+    ...stat,
+    enrolled_count: isNaN(stat.enrolled_count) ? 0 : stat.enrolled_count,
+    total_satisfaction: isNaN(stat.total_satisfaction) || !isFinite(stat.total_satisfaction) ? 0 : stat.total_satisfaction,
+    instructor_satisfaction: isNaN(stat.instructor_satisfaction) || !isFinite(stat.instructor_satisfaction) ? 0 : stat.instructor_satisfaction,
+    course_satisfaction: isNaN(stat.course_satisfaction) || !isFinite(stat.course_satisfaction) ? 0 : stat.course_satisfaction,
+    operation_satisfaction: isNaN(stat.operation_satisfaction) || !isFinite(stat.operation_satisfaction) ? 0 : stat.operation_satisfaction
+  })).filter(stat => stat.enrolled_count > 0 || stat.total_satisfaction > 0) || [];
+
   const surveyChange = previousReport ? calculateChange(currentReport?.total_surveys || 0, previousReport.total_surveys) : null;
   const responseChange = previousReport ? calculateChange(currentReport?.total_responses || 0, previousReport.total_responses) : null;
   const instructorChange = previousReport ? calculateChange(currentReport?.avg_instructor_satisfaction || 0, previousReport.avg_instructor_satisfaction) : null;
 
   const instructorTrendData = instructorStats
-    .filter(instructor => !isNaN(instructor.avg_satisfaction) && instructor.avg_satisfaction > 0)
+    .filter(instructor => !isNaN(instructor.avg_satisfaction) && isFinite(instructor.avg_satisfaction) && instructor.avg_satisfaction > 0)
     .map(instructor => ({
       name: instructor.instructor_name,
       만족도: Number(instructor.avg_satisfaction.toFixed(1)) || 0,
@@ -178,20 +188,20 @@ const CourseReports = () => {
   const satisfactionChartData = currentReport ? [
     { 
       name: '강사 만족도', 
-      value: !isNaN(currentReport.avg_instructor_satisfaction) ? Number(currentReport.avg_instructor_satisfaction.toFixed(1)) : 0, 
+      value: !isNaN(currentReport.avg_instructor_satisfaction) && isFinite(currentReport.avg_instructor_satisfaction) ? Number(currentReport.avg_instructor_satisfaction.toFixed(1)) : 0, 
       fill: 'hsl(var(--chart-1))' 
     },
     { 
       name: '과목 만족도', 
-      value: !isNaN(currentReport.avg_course_satisfaction) ? Number(currentReport.avg_course_satisfaction.toFixed(1)) : 0, 
+      value: !isNaN(currentReport.avg_course_satisfaction) && isFinite(currentReport.avg_course_satisfaction) ? Number(currentReport.avg_course_satisfaction.toFixed(1)) : 0, 
       fill: 'hsl(var(--chart-2))' 
     },
     { 
       name: '운영 만족도', 
-      value: !isNaN(currentReport.report_data?.operation_satisfaction || 0) ? Number((currentReport.report_data?.operation_satisfaction || 0).toFixed(1)) : 0, 
+      value: !isNaN(currentReport.report_data?.operation_satisfaction || 0) && isFinite(currentReport.report_data?.operation_satisfaction || 0) ? Number((currentReport.report_data?.operation_satisfaction || 0).toFixed(1)) : 0, 
       fill: 'hsl(var(--chart-3))' 
     }
-  ].filter(item => !isNaN(item.value) && item.value >= 0) : [];
+  ].filter(item => !isNaN(item.value) && isFinite(item.value) && item.value >= 0) : [];
 
   const currentRoundData = currentReport ? [
     { 
@@ -522,7 +532,7 @@ const CourseReports = () => {
         )}
 
         {/* 과정별 통계 차트 */}
-        {courseStatistics && courseStatistics.length > 0 && (
+        {safeCourseStatistics && safeCourseStatistics.length > 0 && (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border-l-4 border-orange-500">
               <h2 className="text-lg font-semibold text-orange-700 mb-1 flex items-center gap-2">
@@ -541,7 +551,7 @@ const CourseReports = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={350}>
-                  <ComposedChart data={courseStatistics} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <ComposedChart data={safeCourseStatistics} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                     <XAxis 
                       dataKey="course_name" 

@@ -652,6 +652,12 @@ export const useCourseReportsData = (
             response.question_answers?.forEach((answer: any) => {
               if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
                 let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
+                
+                // NaN 및 무효한 값 검증
+                if (isNaN(score) || !isFinite(score) || score <= 0) {
+                  return; // 유효하지 않은 값은 건너뛰기
+                }
+                
                 if (score <= 5 && score > 0) score = score * 2;
                 
                 if (answer.survey_questions.satisfaction_type === 'instructor') {
@@ -667,15 +673,23 @@ export const useCourseReportsData = (
         });
 
         const trendArray = Array.from(trendMap.values())
-          .map(data => ({
-            round: `${data.round}차`,
-            강사만족도: data.instructor.length > 0 ? 
-              Number((data.instructor.reduce((a, b) => a + b, 0) / data.instructor.length).toFixed(1)) : 0,
-            과정만족도: data.course.length > 0 ? 
-              Number((data.course.reduce((a, b) => a + b, 0) / data.course.length).toFixed(1)) : 0,
-            운영만족도: data.operation.length > 0 ? 
-              Number((data.operation.reduce((a, b) => a + b, 0) / data.operation.length).toFixed(1)) : 0
-          }))
+          .map(data => {
+            // 안전한 평균 계산 함수
+            const safeAverage = (arr: number[]) => {
+              if (!arr || arr.length === 0) return 0;
+              const validScores = arr.filter(score => !isNaN(score) && isFinite(score));
+              if (validScores.length === 0) return 0;
+              const avg = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+              return isNaN(avg) || !isFinite(avg) ? 0 : Number(avg.toFixed(1));
+            };
+
+            return {
+              round: `${data.round}차`,
+              강사만족도: safeAverage(data.instructor),
+              과정만족도: safeAverage(data.course),
+              운영만족도: safeAverage(data.operation)
+            };
+          })
           .filter(item => item.강사만족도 > 0 || item.과정만족도 > 0 || item.운영만족도 > 0)
           .slice(-5); // 최근 5개만
 
@@ -779,7 +793,7 @@ export const useCourseReportsData = (
                 return;
               }
 
-              if (isNaN(score) || score <= 0) return;
+              if (isNaN(score) || score <= 0 || !isFinite(score)) return;
 
               // 5점 척도를 10점으로 변환
               if (score <= 5 && score > 0) {
@@ -798,37 +812,45 @@ export const useCourseReportsData = (
         });
       });
 
+      // 안전한 평균 계산 함수
+      const safeAverage = (arr: number[]) => {
+        if (!arr || arr.length === 0) return 0;
+        const validScores = arr.filter(score => !isNaN(score) && isFinite(score));
+        if (validScores.length === 0) return 0;
+        const avg = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+        return isNaN(avg) || !isFinite(avg) ? 0 : Number(avg.toFixed(1));
+      };
+
       // 최종 통계 계산
-      const statistics = Array.from(courseMap.values()).map(course => ({
-        id: `${course.course_name}-${course.year}`,
-        year: course.year,
-        round: course.round,
-        course_name: course.course_name,
-        enrolled_count: course.enrolled_count,
-        cumulative_count: course.total_responses,
-        instructor_satisfaction: course.instructor_satisfactions.length > 0
-          ? Number((course.instructor_satisfactions.reduce((a, b) => a + b, 0) / course.instructor_satisfactions.length).toFixed(1))
-          : null,
-        course_satisfaction: course.course_satisfactions.length > 0
-          ? Number((course.course_satisfactions.reduce((a, b) => a + b, 0) / course.course_satisfactions.length).toFixed(1))
-          : null,
-        operation_satisfaction: course.operation_satisfactions.length > 0
-          ? Number((course.operation_satisfactions.reduce((a, b) => a + b, 0) / course.operation_satisfactions.length).toFixed(1))
-          : null,
-        total_satisfaction: course.instructor_satisfactions.length > 0 && course.course_satisfactions.length > 0 && course.operation_satisfactions.length > 0
-          ? Number((
-              (course.instructor_satisfactions.reduce((a, b) => a + b, 0) / course.instructor_satisfactions.length +
-               course.course_satisfactions.reduce((a, b) => a + b, 0) / course.course_satisfactions.length +
-               course.operation_satisfactions.reduce((a, b) => a + b, 0) / course.operation_satisfactions.length) / 3
-            ).toFixed(1))
-          : null,
-        course_days: 5, // 기본값
-        course_start_date: new Date().toISOString().split('T')[0],
-        course_end_date: new Date().toISOString().split('T')[0],
-        status: 'completed',
-        education_hours: null,
-        education_days: null
-      }));
+      const statistics = Array.from(courseMap.values()).map(course => {
+        const instructorAvg = safeAverage(course.instructor_satisfactions);
+        const courseAvg = safeAverage(course.course_satisfactions);
+        const operationAvg = safeAverage(course.operation_satisfactions);
+        
+        // 전체 만족도는 모든 항목이 있을 때만 계산
+        const totalSatisfaction = instructorAvg > 0 && courseAvg > 0 && operationAvg > 0
+          ? Number(((instructorAvg + courseAvg + operationAvg) / 3).toFixed(1))
+          : 0;
+
+        return {
+          id: `${course.course_name}-${course.year}`,
+          year: course.year,
+          round: course.round,
+          course_name: course.course_name,
+          enrolled_count: course.enrolled_count,
+          cumulative_count: course.total_responses,
+          instructor_satisfaction: instructorAvg || 0,
+          course_satisfaction: courseAvg || 0,
+          operation_satisfaction: operationAvg || 0,
+          total_satisfaction: totalSatisfaction,
+          course_days: 5, // 기본값
+          course_start_date: new Date().toISOString().split('T')[0],
+          course_end_date: new Date().toISOString().split('T')[0],
+          status: 'completed',
+          education_hours: null,
+          education_days: null
+        };
+      });
 
       setCourseStatistics(statistics);
       console.log('Course statistics calculated:', statistics);
