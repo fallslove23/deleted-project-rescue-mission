@@ -656,6 +656,15 @@ const SurveyParticipate = () => {
         </div>
 
         {/* 강사 정보 섹션 - 강사 만족도 질문일 때만 동적으로 표시 */}
+        {(() => {
+          console.log('강사 정보 표시 조건 (참여):', {
+            isCourseEvaluation,
+            hasCurrentQuestionInstructor: !!currentQuestionInstructor,
+            currentQuestion: questions[currentStep],
+            instructorData: currentQuestionInstructor
+          });
+          return null;
+        })()}
         {currentQuestionInstructor && (
           <div className="mb-6">
             <InstructorInfoSection instructor={currentQuestionInstructor} />

@@ -114,6 +114,7 @@ const SurveyPreview = () => {
 
       // 강사 ID가 있으면 강사 정보 가져오기
       if (surveyData.instructor_id) {
+        console.log('강사 ID 발견:', surveyData.instructor_id);
         const { data: instructorData, error: instructorError } = await supabase
           .from('instructors')
           .select('*')
@@ -121,8 +122,13 @@ const SurveyPreview = () => {
           .maybeSingle();
 
         if (!instructorError && instructorData) {
+          console.log('강사 정보 로드됨:', instructorData);
           setInstructor(instructorData);
+        } else {
+          console.log('강사 정보 로드 실패:', instructorError);
         }
+      } else {
+        console.log('설문에 강사 ID가 없음');
       }
 
       // 섹션 가져오기
@@ -443,6 +449,16 @@ const SurveyPreview = () => {
         </div>
 
         {/* 강사 정보 (강사 만족도 질문일 때만 표시) */}
+        {(() => {
+          console.log('강사 정보 표시 조건 확인:', {
+            isCourseEvaluation,
+            hasInstructor: !!instructor,
+            currentQuestionsLength: currentQuestions.length,
+            satisfactionType: currentQuestions[0]?.satisfaction_type,
+            instructorData: instructor
+          });
+          return null;
+        })()}
         {isCourseEvaluation && instructor && currentQuestions.length > 0 && 
          currentQuestions[0].satisfaction_type === 'instructor' && (
           <div className="mb-6">
