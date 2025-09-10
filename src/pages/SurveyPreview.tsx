@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, Eye, AlertTriangle, Copy } from 'lucide-react';
+import { getSurveyUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -643,13 +644,13 @@ const SurveyPreview = () => {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Input 
-                    value={`${window.location.origin}/survey/${surveyId}`} 
+                    value={getSurveyUrl(surveyId!)} 
                     readOnly 
                     className="flex-1"
                   />
                   <Button 
                     onClick={() => {
-                      const surveyUrl = `${window.location.origin}/survey/${surveyId}`;
+                      const surveyUrl = getSurveyUrl(surveyId!);
                       navigator.clipboard.writeText(surveyUrl);
                       toast({
                         title: "링크 복사 완료",

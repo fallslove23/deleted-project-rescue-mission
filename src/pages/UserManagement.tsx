@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Users, Edit, Search, UserX, Shield, Key, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getBaseUrl } from '@/lib/utils';
 
 
 interface UserProfile {
@@ -154,7 +155,7 @@ const UserManagement = () => {
   const handleResetPassword = async (user: UserProfile) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/change-password`
+        redirectTo: `${getBaseUrl()}/change-password`
       });
 
       if (error) throw error;

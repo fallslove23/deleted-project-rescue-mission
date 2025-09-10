@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { translateAuthError } from '@/utils/authErrorTranslator';
+import { getBaseUrl } from '@/lib/utils';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -71,7 +72,7 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/change-password`
+        redirectTo: `${getBaseUrl()}/change-password`
       });
       
       if (error) throw error;

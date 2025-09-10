@@ -29,6 +29,7 @@ import {
   Pause,
   MoreHorizontal,
 } from "lucide-react";
+import { getSurveyUrl } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -510,7 +511,7 @@ export default function SurveyManagementV2() {
   };
 
   const handleCopyLink = (surveyId: string) => {
-    const link = `${window.location.origin}/survey/${surveyId}`;
+    const link = getSurveyUrl(surveyId);
     navigator.clipboard.writeText(link);
     toast({
       title: "링크 복사됨",
@@ -896,7 +897,7 @@ export default function SurveyManagementV2() {
                           QR 코드
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => {
-                          const surveyUrl = `${window.location.origin}/survey/${survey.id}`;
+                          const surveyUrl = getSurveyUrl(survey.id);
                           navigator.clipboard.writeText(surveyUrl);
                           toast({
                             title: "링크 복사 완료",
@@ -1029,7 +1030,7 @@ export default function SurveyManagementV2() {
               {qrSurveyId && (
                 <div className="p-4 bg-white rounded-lg border">
                   <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/survey/${qrSurveyId}`)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(getSurveyUrl(qrSurveyId))}`}
                     alt="QR Code"
                     className="w-48 h-48"
                   />
@@ -1038,7 +1039,7 @@ export default function SurveyManagementV2() {
               <div className="text-sm text-center space-y-2">
                 <p>참여자가 이 QR 코드를 스캔하여 설문에 참여할 수 있습니다.</p>
                 <p className="text-muted-foreground break-all">
-                  {window.location.origin}/survey/{qrSurveyId}
+                  {getSurveyUrl(qrSurveyId!)}
                 </p>
               </div>
               <Button 
