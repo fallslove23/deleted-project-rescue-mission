@@ -1150,9 +1150,12 @@ export type Database = {
           education_year: number | null
           end_date: string | null
           expected_participants: number | null
+          group_number: number | null
+          group_type: string | null
           id: string
           instructor_id: string | null
           is_combined: boolean | null
+          is_grouped: boolean
           is_test: boolean | null
           program_id: string | null
           round_label: string | null
@@ -1176,9 +1179,12 @@ export type Database = {
           education_year?: number | null
           end_date?: string | null
           expected_participants?: number | null
+          group_number?: number | null
+          group_type?: string | null
           id?: string
           instructor_id?: string | null
           is_combined?: boolean | null
+          is_grouped?: boolean
           is_test?: boolean | null
           program_id?: string | null
           round_label?: string | null
@@ -1202,9 +1208,12 @@ export type Database = {
           education_year?: number | null
           end_date?: string | null
           expected_participants?: number | null
+          group_number?: number | null
+          group_type?: string | null
           id?: string
           instructor_id?: string | null
           is_combined?: boolean | null
+          is_grouped?: boolean
           is_test?: boolean | null
           program_id?: string | null
           round_label?: string | null
