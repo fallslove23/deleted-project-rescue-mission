@@ -534,7 +534,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
           )}
 
           {/* 합반 설정 (BS Advanced일 때만) */}
-          {form.program_name === "BS Advanced" && (
+          {(form.program_name === "BS Advanced" || form.is_combined) && (
             <Card className="border-orange-200 bg-orange-50/50">
               <CardHeader>
                 <CardTitle className="text-sm text-orange-800">합반 설정</CardTitle>
