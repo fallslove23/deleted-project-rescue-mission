@@ -223,6 +223,8 @@ const SurveyParticipate = () => {
 
   const fetchSurveyData = async () => {
     try {
+      console.log('🔍 익명 사용자 설문 접근 시도 - Survey ID:', surveyId);
+      
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
         .select(`
@@ -234,7 +236,10 @@ const SurveyParticipate = () => {
         .eq('id', surveyId)
         .single();
 
-      if (surveyError) throw surveyError;
+      if (surveyError) {
+        console.error('❌ 익명 사용자 설문 접근 실패:', surveyError);
+        throw surveyError;
+      }
       if (!surveyData) {
         toast({
           title: '설문을 찾을 수 없습니다',
