@@ -592,9 +592,9 @@ const SurveyParticipateSession = () => {
               <div className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-sm font-medium">
                 {currentSession.session_name}
               </div>
-              {currentSession.course && (
+              {currentSession.course?.title && (
                 <span className="text-sm text-muted-foreground">
-                  {currentSession.course.title}
+                  과목: {currentSession.course.title}
                 </span>
               )}
             </div>

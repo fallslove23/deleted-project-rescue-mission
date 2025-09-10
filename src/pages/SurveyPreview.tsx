@@ -589,36 +589,6 @@ const SurveyPreview = () => {
           )}
         </div>
 
-        {/* 설문 참여 링크 섹션 */}
-        <div className="mt-8 p-4 bg-muted/50 rounded-lg border">
-          <h3 className="text-lg font-semibold mb-3">설문 참여 링크</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">참여 URL:</label>
-              <div className="flex items-center gap-2 mt-1">
-                <code className="flex-1 p-2 bg-background rounded border text-sm break-all">
-                  {`${window.location.origin}/survey/${surveyId}`}
-                </code>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/survey/${surveyId}`);
-                    toast({ title: "복사 완료", description: "링크가 클립보드에 복사되었습니다." });
-                  }}
-                >
-                  복사
-                </Button>
-              </div>
-            </div>
-            <Button 
-              className="w-full" 
-              onClick={() => window.open(`/survey/${surveyId}`, '_blank')}
-            >
-              새 탭에서 설문 참여하기
-            </Button>
-          </div>
-        </div>
       </main>
     </div>
   );
