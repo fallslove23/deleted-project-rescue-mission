@@ -37,7 +37,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('📝 입력 데이터:', { surveyId, originalUrl, expiresInDays })
+    // 요청을 보낸 앱의 오리진 우선 사용 (없으면 함수 오리진)
+    const requestOrigin = req.headers.get('origin')
+      || (originalUrl ? new URL(originalUrl).origin : null)
+      || new URL(req.url).origin
+
+    console.log('📝 입력 데이터:', { surveyId, originalUrl, expiresInDays, requestOrigin })
 
     // 설문이 존재하는지 확인
     const { data: survey, error: surveyError } = await supabase
@@ -69,7 +74,7 @@ Deno.serve(async (req) => {
 
     if (existingShortUrl) {
       console.log('🔄 기존 짧은 URL 반환:', existingShortUrl.short_code)
-      const shortUrl = `${new URL(req.url).origin}/s/${existingShortUrl.short_code}`
+      const shortUrl = `${requestOrigin}/s/${existingShortUrl.short_code}`
       
       return new Response(
         JSON.stringify({
@@ -87,7 +92,7 @@ Deno.serve(async (req) => {
     }
 
     // 원본 URL 설정 (제공되지 않은 경우 기본값 사용)
-    const finalOriginalUrl = originalUrl || `${new URL(req.url).origin}/survey/${surveyId}`
+    const finalOriginalUrl = originalUrl || `${requestOrigin}/survey/${surveyId}`
 
     // 짧은 코드 생성
     const { data: shortCodeData, error: codeError } = await supabase
@@ -138,7 +143,7 @@ Deno.serve(async (req) => {
 
     console.log('✅ 짧은 URL 생성 완료:', shortUrlData)
 
-    const shortUrl = `${new URL(req.url).origin}/s/${shortCode}`
+    const shortUrl = `${requestOrigin}/s/${shortCode}`
 
     return new Response(
       JSON.stringify({
