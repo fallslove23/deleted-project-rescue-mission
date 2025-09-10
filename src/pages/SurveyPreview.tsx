@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Eye, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Eye, AlertTriangle, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -42,6 +42,8 @@ interface Question {
   order_index: number;
   section_id?: string;
   satisfaction_type?: string;
+  session_id?: string;
+  scope?: string;
 }
 
 interface Section {
@@ -68,6 +70,8 @@ const SurveyPreview = () => {
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
+  const [currentQuestionInstructor, setCurrentQuestionInstructor] = useState<Instructor | null>(null);
+  const [sessionInstructorMap, setSessionInstructorMap] = useState<Map<string, Instructor>>(new Map());
   const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
 
   useEffect(() => {
@@ -75,6 +79,17 @@ const SurveyPreview = () => {
       fetchSurveyData();
     }
   }, [surveyId]);
+
+  // 현재 질문의 세션에 따른 강사 정보 업데이트
+  useEffect(() => {
+    const currentQuestion = questions[currentStep];
+    if (currentQuestion?.session_id && sessionInstructorMap.has(currentQuestion.session_id)) {
+      const sessionInstructor = sessionInstructorMap.get(currentQuestion.session_id);
+      setCurrentQuestionInstructor(sessionInstructor);
+    } else {
+      setCurrentQuestionInstructor(instructor); // 기본 강사로 fallback
+    }
+  }, [currentStep, questions, sessionInstructorMap, instructor]);
 
   const fetchSurveyData = async () => {
     try {
@@ -112,12 +127,43 @@ const SurveyPreview = () => {
       const isCourseEval = surveyData.survey_templates?.is_course_evaluation;
       setIsCourseEvaluation(!!isCourseEval);
 
-      // 강사 정보 가져오기 - 단순하고 확실한 방법
-      let instructorData = null;
-      
+      // 강사 정보 가져오기 - 세션별 강사 정보 구조 고려
       console.log('강사 정보 조회 시작 - 설문 ID:', surveyId);
       
-      // survey_instructors 테이블에서 강사 정보 조회
+      // 현재 설문에 있는 모든 세션과 해당 강사 정보를 가져옴
+      const { data: allSessionInstructors, error: sessionError } = await supabase
+        .from('survey_sessions')
+        .select(`
+          id,
+          session_name,
+          instructor_id,
+          instructors (
+            id,
+            name,
+            email,
+            photo_url,
+            bio
+          )
+        `)
+        .eq('survey_id', surveyId);
+
+      console.log('세션별 강사 정보:', allSessionInstructors, 'Error:', sessionError);
+      
+      // 세션별 강사 정보를 저장하여 나중에 질문별로 매칭
+      const newSessionInstructorMap = new Map();
+      if (!sessionError && allSessionInstructors) {
+        allSessionInstructors.forEach(session => {
+          if (session.instructors) {
+            newSessionInstructorMap.set(session.id, session.instructors);
+          }
+        });
+      }
+      setSessionInstructorMap(newSessionInstructorMap);
+      
+      // 기본 강사 정보 설정 (첫 번째 세션의 강사 또는 survey_instructors에서)
+      let defaultInstructorData = null;
+      
+      // survey_instructors 테이블에서 강사 정보 조회 (백업)
       const { data: surveyInstructors, error: siError } = await supabase
         .from('survey_instructors')
         .select(`
@@ -131,27 +177,26 @@ const SurveyPreview = () => {
         `)
         .eq('survey_id', surveyId);
 
-      console.log('Survey-instructors 조회 결과:', surveyInstructors, 'Error:', siError);
-
       if (!siError && surveyInstructors && surveyInstructors.length > 0) {
         const instructors = surveyInstructors
           .map(si => si.instructors)
           .filter(Boolean) as Instructor[];
         
         if (instructors.length > 0) {
-          console.log('Survey-instructors에서 강사 정보 발견:', instructors);
-          instructorData = {
-            id: instructors[0].id,
-            name: instructors.map(i => i.name).join(', '),
-            email: instructors[0].email,
-            photo_url: instructors[0].photo_url,
-            bio: instructors[0].bio
-          };
+          defaultInstructorData = instructors[0];
+        }
+      }
+      
+      // 세션에서 첫 번째 강사 가져오기 (우선순위)
+      if (allSessionInstructors && allSessionInstructors.length > 0) {
+        const firstSessionWithInstructor = allSessionInstructors.find(s => s.instructors);
+        if (firstSessionWithInstructor?.instructors) {
+          defaultInstructorData = firstSessionWithInstructor.instructors;
         }
       }
 
-      // 개별 instructor_id로 조회 (backup)
-      if (!instructorData && surveyData.instructor_id) {
+      // 개별 instructor_id로 조회 (최종 백업)
+      if (!defaultInstructorData && surveyData.instructor_id) {
         console.log('개별 강사 ID로 조회:', surveyData.instructor_id);
         const { data: singleInstructor, error: instructorError } = await supabase
           .from('instructors')
@@ -160,14 +205,13 @@ const SurveyPreview = () => {
           .maybeSingle();
 
         if (!instructorError && singleInstructor) {
-          console.log('개별 강사 정보 로드됨:', singleInstructor);
-          instructorData = singleInstructor;
+          defaultInstructorData = singleInstructor;
         }
       }
 
-      if (instructorData) {
-        setInstructor(instructorData);
-        console.log('최종 강사 정보 설정됨:', instructorData);
+      if (defaultInstructorData) {
+        setInstructor(defaultInstructorData);
+        console.log('기본 강사 정보 설정됨:', defaultInstructorData);
       } else {
         console.log('강사 정보를 찾을 수 없음');
       }
@@ -489,10 +533,10 @@ const SurveyPreview = () => {
           <Progress value={progress} className="h-2 mb-4" />
         </div>
 
-        {/* 강사 정보 표시 - 강사 정보가 있을 때 항상 표시 */}
-        {instructor && (
+        {/* 강사 정보 표시 - 현재 질문의 세션에 맞는 강사 표시 */}
+        {currentQuestionInstructor && (
           <div className="mb-6">
-            <InstructorInfoSection instructor={instructor} />
+            <InstructorInfoSection instructor={currentQuestionInstructor} />
           </div>
         )}
 
@@ -543,6 +587,37 @@ const SurveyPreview = () => {
               미리보기 완료
             </Button>
           )}
+        </div>
+
+        {/* 설문 참여 링크 섹션 */}
+        <div className="mt-8 p-4 bg-muted/50 rounded-lg border">
+          <h3 className="text-lg font-semibold mb-3">설문 참여 링크</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">참여 URL:</label>
+              <div className="flex items-center gap-2 mt-1">
+                <code className="flex-1 p-2 bg-background rounded border text-sm break-all">
+                  {`${window.location.origin}/survey/${surveyId}`}
+                </code>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/survey/${surveyId}`);
+                    toast({ title: "복사 완료", description: "링크가 클립보드에 복사되었습니다." });
+                  }}
+                >
+                  복사
+                </Button>
+              </div>
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={() => window.open(`/survey/${surveyId}`, '_blank')}
+            >
+              새 탭에서 설문 참여하기
+            </Button>
+          </div>
         </div>
       </main>
     </div>
