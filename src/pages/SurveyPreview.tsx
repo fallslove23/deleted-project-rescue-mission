@@ -112,11 +112,42 @@ const SurveyPreview = () => {
       const isCourseEval = surveyData.survey_templates?.is_course_evaluation;
       setIsCourseEvaluation(!!isCourseEval);
 
-      // 강사 정보 가져오기 - 개별 강사 ID 또는 코스 기반 다중 강사
+      // 강사 정보 가져오기 - 우선순위: survey_instructors > 개별 instructor_id > course 기반
       let instructorData = null;
       
-      if (surveyData.instructor_id) {
-        // 개별 강사 ID가 있는 경우
+      // 1. survey_instructors 테이블에서 다중 강사 확인
+      const { data: surveyInstructors, error: siError } = await supabase
+        .from('survey_instructors')
+        .select(`
+          instructors (
+            id,
+            name,
+            email,
+            photo_url,
+            bio
+          )
+        `)
+        .eq('survey_id', surveyId);
+
+      if (!siError && surveyInstructors && surveyInstructors.length > 0) {
+        const instructors = surveyInstructors
+          .map(si => si.instructors as Instructor)
+          .filter((instructor): instructor is Instructor => instructor !== null);
+        
+        if (instructors.length > 0) {
+          console.log('Survey-instructors 테이블에서 강사 정보 로드됨:', instructors);
+          instructorData = {
+            id: instructors[0].id,
+            name: instructors.map(i => i.name).join(', '),
+            email: instructors[0].email,
+            photo_url: instructors[0].photo_url,
+            bio: instructors[0].bio
+          };
+        }
+      }
+
+      // 2. 개별 instructor_id 확인
+      if (!instructorData && surveyData.instructor_id) {
         console.log('개별 강사 ID 발견:', surveyData.instructor_id);
         const { data: singleInstructor, error: instructorError } = await supabase
           .from('instructors')
@@ -128,11 +159,12 @@ const SurveyPreview = () => {
           console.log('개별 강사 정보 로드됨:', singleInstructor);
           instructorData = singleInstructor;
         }
-      } else if (surveyData.course_id) {
-        // 코스 ID를 통해 다중 강사 정보 가져오기
-        console.log('코스 ID 발견, 다중 강사 조회:', surveyData.course_id);
+      }
+
+      // 3. 코스 기반 강사 정보 확인 (instructor_courses 테이블)
+      if (!instructorData && surveyData.course_id) {
+        console.log('코스 ID 발견, 코스 기반 강사 조회:', surveyData.course_id);
         
-        // 1단계: instructor_courses에서 instructor_id들을 가져오기
         const { data: instructorCourses, error: icError } = await supabase
           .from('instructor_courses')
           .select('instructor_id')
@@ -141,15 +173,13 @@ const SurveyPreview = () => {
         if (!icError && instructorCourses && instructorCourses.length > 0) {
           const instructorIds = instructorCourses.map(ic => ic.instructor_id);
           
-          // 2단계: 강사 정보들을 가져오기
           const { data: instructors, error: instructorsError } = await supabase
             .from('instructors')
             .select('id, name, email, photo_url, bio')
             .in('id', instructorIds);
 
           if (!instructorsError && instructors && instructors.length > 0) {
-            console.log('다중 강사 정보 로드됨:', instructors);
-            // 첫 번째 강사를 기본으로 하되, 이름을 합쳐서 표시
+            console.log('코스 기반 다중 강사 정보 로드됨:', instructors);
             instructorData = {
               id: instructors[0].id,
               name: instructors.map(i => i.name).join(', '),
@@ -163,7 +193,7 @@ const SurveyPreview = () => {
 
       if (instructorData) {
         setInstructor(instructorData);
-        console.log('강사 정보 설정됨:', instructorData);
+        console.log('최종 강사 정보 설정됨:', instructorData);
       } else {
         console.log('강사 정보를 찾을 수 없음');
       }

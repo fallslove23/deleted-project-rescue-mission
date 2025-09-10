@@ -684,6 +684,77 @@ export type Database = {
           },
         ]
       }
+      survey_instructors: {
+        Row: {
+          created_at: string
+          id: string
+          instructor_id: string
+          survey_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instructor_id: string
+          survey_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instructor_id?: string
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_instructors_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       survey_questions: {
         Row: {
           created_at: string
