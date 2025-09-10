@@ -633,6 +633,12 @@ const SurveyDetailedAnalysis = () => {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   };
 
+  // 과목이 여러 개인지 확인하는 함수
+  const shouldShowSubjectTabs = () => {
+    const subjects = getAvailableSubjects();
+    return subjects.length > 1;
+  };
+
   const handleSendResults = async () => {
     setSendingResults(true);
     try {
@@ -1008,16 +1014,18 @@ const SurveyDetailedAnalysis = () => {
 
           {/* 과목별 상세 분석 탭 */}
           <Tabs defaultValue="all" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 overflow-x-auto">
-              <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
-                전체 분석
-              </TabsTrigger>
-              {getAvailableSubjects().map(subject => (
-                <TabsTrigger key={subject.id} value={subject.id} className="text-sm touch-friendly whitespace-nowrap">
-                  {subject.displayName}
+            {shouldShowSubjectTabs() && (
+              <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 overflow-x-auto">
+                <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
+                  전체 분석
                 </TabsTrigger>
-              ))}
-            </TabsList>
+                {getAvailableSubjects().map(subject => (
+                  <TabsTrigger key={subject.id} value={subject.id} className="text-sm touch-friendly whitespace-nowrap">
+                    {subject.displayName}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            )}
 
             {/* 전체 분석 탭 */}
             <TabsContent value="all" className="space-y-4">
@@ -1072,8 +1080,8 @@ const SurveyDetailedAnalysis = () => {
               </Tabs>
             </TabsContent>
 
-            {/* 각 과목별 분석 탭 */}
-            {getAvailableSubjects().map((subject) => {
+            {/* 각 과목별 분석 탭 - 과목이 여러 개일 때만 표시 */}
+            {shouldShowSubjectTabs() && getAvailableSubjects().map((subject) => {
               const subjectAnalysis = getSubjectAnalysis(subject.id);
               return (
                 <TabsContent key={subject.id} value={subject.id} className="space-y-4">

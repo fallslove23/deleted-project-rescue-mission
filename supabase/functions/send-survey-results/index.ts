@@ -172,6 +172,19 @@ const handler = async (req: Request): Promise<Response> => {
       .select("*")
       .eq("survey_id", surveyId);
 
+    // 응답이 없는 경우 이메일을 보내지 않음
+    if (!responses || responses.length === 0) {
+      console.log("No survey responses found, skipping email send");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "응답이 없는 설문입니다. 이메일을 발송하지 않습니다.",
+          responseCount: 0
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { data: questions } = await supabaseClient
       .from("survey_questions")
       .select("*")

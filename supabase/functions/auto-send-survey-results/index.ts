@@ -102,15 +102,29 @@ serve(async (req) => {
       }
     });
 
-    // 3) Filter targets to send
-    let targets = dueSurveys.filter((s) => !hasSuccessfulLog.get(s.id));
+    // 3) Check which surveys have responses before sending
+    const surveyResponseCounts = new Map<string, number>();
+    for (const survey of dueSurveys) {
+      const { data: responseCount } = await supabase
+        .from("survey_responses")
+        .select("id", { count: "exact" })
+        .eq("survey_id", survey.id);
+      surveyResponseCounts.set(survey.id, responseCount?.length || 0);
+    }
+
+    // 4) Filter targets to send (exclude surveys without responses and already sent)
+    let targets = dueSurveys.filter((s) => {
+      const hasResponses = (surveyResponseCounts.get(s.id) || 0) > 0;
+      const alreadySent = hasSuccessfulLog.get(s.id);
+      return hasResponses && !alreadySent;
+    });
     if (limit) targets = targets.slice(0, limit);
 
     if (targets.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: "All due surveys already processed",
+          message: "All due surveys already processed or have no responses",
           processed: 0,
           skipped: dueSurveys.length,
           details: [],
