@@ -144,8 +144,8 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         round_label: (form.program_name === "BS Advanced" && form.is_combined) ? round_label : null,
         
         // 분반 관련 필드
-        group_type: form.is_grouped ? form.group_type : null,
-        group_number: form.is_grouped ? Number(form.group_number) : null,
+        group_type: form.is_grouped && (form.group_type === 'even' || form.group_type === 'odd') ? form.group_type : null,
+        group_number: form.is_grouped && form.group_number && Number(form.group_number) > 0 ? Number(form.group_number) : null,
         is_grouped: form.is_grouped,
       };
 
@@ -495,8 +495,8 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
                         onChange={(e) => onChange("group_type", e.target.value)}
                       >
                         <option value="">선택하세요</option>
-                        <option value="짝수조">짝수조</option>
-                        <option value="홀수조">홀수조</option>
+                        <option value="even">짝수조</option>
+                        <option value="odd">홀수조</option>
                       </select>
                     </div>
                     <div>

@@ -273,8 +273,8 @@ export default function SurveyBuilder() {
         
         // 분반 관련 필드
         is_grouped: isGrouped,
-        group_type: isGrouped ? groupType : null,
-        group_number: isGrouped ? groupNumber : null,
+        group_type: isGrouped ? (groupType || null) : null,
+        group_number: isGrouped ? (groupNumber ?? null) : null,
       };
       const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
       if (error) throw error;
@@ -1047,8 +1047,8 @@ export default function SurveyBuilder() {
                             onChange={(e) => setGroupType(e.target.value)}
                           >
                             <option value="">선택하세요</option>
-                            <option value="짝수조">짝수조</option>
-                            <option value="홀수조">홀수조</option>
+                            <option value="even">짝수조</option>
+                            <option value="odd">홀수조</option>
                           </select>
                         </div>
                         <div>
