@@ -50,6 +50,21 @@ interface AvailableCourse {
   key: string;
 }
 
+// 코스명 정규화: '홀수조/짝수조', '숫자조/숫자반' 등 분반 표기를 제거
+const normalizeCourseName = (name?: string | null) => {
+  if (!name) return '';
+  let n = String(name);
+  // 괄호 안의 '홀수조'/'짝수조' 제거
+  n = n.replace(/\((?:홀수조|짝수조)\)/g, '');
+  // '11/12조' 같은 표기 제거
+  n = n.replace(/\b\d{1,2}\/\d{1,2}조\b/g, '');
+  // 끝이나 공백 앞의 '숫자조' 또는 '숫자반' 제거
+  n = n.replace(/\b\d{1,2}\s*(?:조|반)\b/g, '');
+  // 여분 공백 정리
+  n = n.replace(/\s{2,}/g, ' ').trim();
+  return n;
+};
+
 export const useCourseReportsData = (
   selectedYear: number, 
   selectedCourse: string, 
@@ -123,16 +138,23 @@ export const useCourseReportsData = (
       console.log('Fetched surveys for course selection:', surveys);
 
       // 중복 제거 및 과정별 그룹화
-      const uniqueCourses = Array.from(
-        new Map(
-          surveys?.map(s => [s.course_name, s])
-        ).values()
-      ).map(s => ({
-        year: s.education_year,
-        round: s.education_round,
-        course_name: s.course_name,
-        key: s.course_name
-      }));
+      // 코스명 정규화 기준으로 중복 제거 (분반/조 표기 제거 후 그룹화)
+      const courseGroups = new Map<string, any[]>();
+      (surveys || []).forEach((s: any) => {
+        const key = normalizeCourseName(s.course_name);
+        if (!courseGroups.has(key)) courseGroups.set(key, []);
+        courseGroups.get(key)!.push(s);
+      });
+
+      const uniqueCourses = Array.from(courseGroups.keys()).map((key) => {
+        const any = courseGroups.get(key)![0];
+        return {
+          year: any.education_year,
+          round: any.education_round,
+          course_name: key,
+          key,
+        };
+      });
 
       // 사용 가능한 차수 추출
       const rounds = Array.from(new Set(surveys?.map(s => s.education_round))).sort((a, b) => a - b);
@@ -201,10 +223,7 @@ export const useCourseReportsData = (
         query = query.eq('instructor_id', instructorId);
       }
 
-      // 필터 적용
-      if (selectedCourse) {
-        query = query.eq('course_name', selectedCourse);
-      }
+      // 필터 적용 (과정명은 정규화 비교 위해 서버 필터 제외하고 클라이언트에서 필터)
       if (selectedRound) {
         query = query.eq('education_round', selectedRound);
       }
@@ -218,8 +237,16 @@ export const useCourseReportsData = (
 
       console.log('Fetched detailed surveys:', surveys);
       console.log('Selected instructor:', selectedInstructor);
-      console.log('Selected course:', selectedCourse);
+      console.log('Selected course (normalized):', selectedCourse);
       console.log('Selected round:', selectedRound);
+
+      // 정규화된 과정명으로 클라이언트 측 필터링 (분반/조 통합)
+      const filteredSurveys = (surveys || []).filter((s: any) => {
+        if (selectedCourse) {
+          return normalizeCourseName(s.course_name) === selectedCourse;
+        }
+        return true;
+      });
 
       // 데이터 집계
       const instructorStatsMap = new Map();
@@ -229,7 +256,7 @@ export const useCourseReportsData = (
       let allCourseSatisfactions: number[] = [];
       let allOperationSatisfactions: number[] = [];
 
-      surveys?.forEach(survey => {
+      filteredSurveys.forEach(survey => {
         console.log('Processing survey:', survey.id, 'instructor_id:', survey.instructor_id, 'responses:', survey.survey_responses?.length);
         
         totalSurveys += 1;
@@ -256,8 +283,8 @@ export const useCourseReportsData = (
         }
 
         // 만족도 점수 계산
-        survey.survey_responses?.forEach(response => {
-          response.question_answers?.forEach(answer => {
+        survey.survey_responses?.forEach((response: any) => {
+          response.question_answers?.forEach((answer: any) => {
             if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
               let score: number;
               
@@ -354,7 +381,7 @@ export const useCourseReportsData = (
       await fetchTrendData(selectedYear, selectedCourse);
 
       // 서술형 응답 가져오기
-      await fetchTextualResponses(surveys);
+      await fetchTextualResponses(filteredSurveys);
 
       // 과정별 통계 가져오기
       await fetchCourseStatistics(selectedYear);
@@ -545,16 +572,19 @@ export const useCourseReportsData = (
         query = query.eq('instructor_id', instructorId);
       }
 
-      if (course) {
-        query = query.eq('course_name', course);
-      }
+      // 과정명은 정규화 후 클라이언트에서 필터링
 
       const { data: trendSurveys } = await query;
       
-      if (trendSurveys) {
+      const filteredTrendSurveys = (trendSurveys || []).filter((s: any) => {
+        if (course) return normalizeCourseName(s.course_name) === course;
+        return true;
+      });
+      
+      if (filteredTrendSurveys) {
         const trendMap = new Map();
         
-        trendSurveys.forEach(survey => {
+        filteredTrendSurveys.forEach((survey: any) => {
           const round = survey.education_round;
           if (!trendMap.has(round)) {
             trendMap.set(round, {
@@ -567,8 +597,8 @@ export const useCourseReportsData = (
           
           const roundData = trendMap.get(round);
           
-          survey.survey_responses?.forEach(response => {
-            response.question_answers?.forEach(answer => {
+          survey.survey_responses?.forEach((response: any) => {
+            response.question_answers?.forEach((answer: any) => {
               if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
                 let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
                 if (score <= 5 && score > 0) score = score * 2;
@@ -666,10 +696,10 @@ export const useCourseReportsData = (
       const courseMap = new Map();
 
       surveys?.forEach(survey => {
-        const courseKey = survey.course_name;
+        const courseKey = normalizeCourseName(survey.course_name);
         if (!courseMap.has(courseKey)) {
           courseMap.set(courseKey, {
-            course_name: survey.course_name,
+            course_name: courseKey,
             year: survey.education_year,
             round: survey.education_round,
             enrolled_count: 0,
