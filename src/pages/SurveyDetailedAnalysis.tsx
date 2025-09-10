@@ -218,6 +218,9 @@ const SurveyDetailedAnalysis = () => {
             instructors (
               id,
               name
+            ),
+            survey_sessions (
+              session_name
             )
           `)
           .eq('education_year', currentSurvey.education_year)
@@ -227,15 +230,20 @@ const SurveyDetailedAnalysis = () => {
         
         if (error) throw error;
         
-        const sessions = sameDaySurveys?.map(survey => ({
-          id: survey.id,
-          title: survey.title,
-          course_name: survey.course_name || '',
-          session_name: survey.course_name || survey.title,
-          education_day: survey.education_day,
-          instructor_name: (survey as any).instructors?.name || '',
-          instructor_id: survey.instructor_id
-        })) || [];
+        const sessions = sameDaySurveys?.map(survey => {
+          const sessionData = (survey as any).survey_sessions?.[0];
+          const sessionName = sessionData?.session_name || survey.title;
+          
+          return {
+            id: survey.id,
+            title: survey.title,
+            course_name: survey.course_name || '',
+            session_name: sessionName,
+            education_day: survey.education_day,
+            instructor_name: (survey as any).instructors?.name || '',
+            instructor_id: survey.instructor_id
+          };
+        }) || [];
         
         setCourseSessions(sessions);
       }
@@ -250,7 +258,7 @@ const SurveyDetailedAnalysis = () => {
     if (selectedCourse !== 'all') {
       // 해당 과목의 설문 ID 찾기
       const selectedSurvey = courseSessions.find(session => 
-        session.course_name === selectedCourse || session.session_name === selectedCourse
+        session.session_name === selectedCourse
       );
       if (selectedSurvey) {
         filteredQuestions = questions.filter(q => q.survey_id === selectedSurvey.id);
@@ -622,8 +630,8 @@ const SurveyDetailedAnalysis = () => {
     return courseSessions
       .map(session => ({
         id: session.id,
-        displayName: `${session.course_name || session.session_name}${session.instructor_name ? ` - ${session.instructor_name}` : ''}`,
-        courseName: session.course_name || session.session_name,
+        displayName: `${session.session_name}${session.instructor_name ? ` - ${session.instructor_name}` : ''}`,
+        courseName: session.session_name,
         instructorName: session.instructor_name || ''
       }))
       .filter((subject, index, self) => 
