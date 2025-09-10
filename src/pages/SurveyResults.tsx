@@ -1105,20 +1105,33 @@ const SurveyResults = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200 shadow-lg">
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-1.5 bg-indigo-100 rounded-md">
-                  <TrendingUp className="h-4 w-4 text-indigo-600" />
+                <div className="p-2 bg-blue-500 rounded-lg shadow-md">
+                  <TrendingUp className="h-5 w-5 text-white" />
                 </div>
-                <div className="ml-2">
-                  <p className="text-xs font-medium text-gray-600">평균 만족도</p>
-                  <p className="text-lg font-bold">
+                <div className="ml-3">
+                  <p className="text-sm font-semibold text-blue-800 mb-1">평균 만족도</p>
+                  <p className="text-2xl font-bold text-blue-900">
                     {courseStats.length > 0 
                       ? (courseStats.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / courseStats.length).toFixed(1)
                       : '0.0'
                     }
+                    <span className="text-lg text-blue-700 ml-1">/10</span>
                   </p>
+                  <div className="mt-1">
+                    <div className="w-20 h-1.5 bg-blue-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${courseStats.length > 0 
+                            ? ((courseStats.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / courseStats.length) / 10) * 100
+                            : 0}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1276,6 +1289,127 @@ const SurveyResults = () => {
           )}
         </div>
 
+        {/* 만족도 트렌드 그래프 */}
+        {selectedSurvey && selectedSurvey !== 'all' && courseStats.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">만족도 트렌드 분석</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {/* 과정별 만족도 트렌드 */}
+              <Card className="shadow-sm border border-gray-200">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                    과정별 만족도 추세
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsBarChart
+                        data={courseStats.map((course) => ({
+                          name: `${course.round}차`,
+                          과목만족도: parseFloat(course.subjectSatisfaction.toFixed(1)),
+                          운영만족도: parseFloat(course.operationSatisfaction.toFixed(1)),
+                        }))}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        barCategoryGap="20%"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                        <XAxis 
+                          dataKey="name" 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          axisLine={{ stroke: '#d1d5db' }}
+                        />
+                        <YAxis 
+                          domain={[0, 10]} 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          axisLine={{ stroke: '#d1d5db' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#ffffff', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+                        <Legend 
+                          wrapperStyle={{ paddingTop: '20px' }}
+                        />
+                        <Bar 
+                          dataKey="과목만족도" 
+                          fill="#3b82f6" 
+                          name="과목 만족도"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="운영만족도" 
+                          fill="#10b981" 
+                          name="운영 만족도"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </RechartsBarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 강사 만족도 트렌드 */}
+              <Card className="shadow-sm border border-gray-200">
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 border-b">
+                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-orange-600" />
+                    강사 만족도 추세
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsBarChart
+                        data={courseStats.map((course) => ({
+                          name: `${course.round}차`,
+                          강사만족도: parseFloat(course.instructorSatisfaction.toFixed(1)),
+                        }))}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        barCategoryGap="20%"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#fef3c7" />
+                        <XAxis 
+                          dataKey="name" 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          axisLine={{ stroke: '#d1d5db' }}
+                        />
+                        <YAxis 
+                          domain={[0, 10]} 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          axisLine={{ stroke: '#d1d5db' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#ffffff', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+                        <Legend 
+                          wrapperStyle={{ paddingTop: '20px' }}
+                        />
+                        <Bar 
+                          dataKey="강사만족도" 
+                          fill="#f59e0b" 
+                          name="강사 만족도"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </RechartsBarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
         {/* 설문조사 목록 */}
         <Card>
           <CardHeader>
@@ -1358,163 +1492,7 @@ const SurveyResults = () => {
           </CardContent>
         </Card>
 
-        {/* 과정별 만족도 트렌드 그래프 */}
-        {selectedSurvey && selectedSurvey !== 'all' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 과정별 만족도 트렌드 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">과정별 만족도 추세</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart
-                      data={courseStats.map((course, index) => ({
-                        name: `${course.round}차`,
-                        과목만족도: course.subjectSatisfaction,
-                        운영만족도: course.operationSatisfaction,
-                      }))}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 10]} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="과목만족도" fill="#8884d8" name="과목 만족도" />
-                      <Bar dataKey="운영만족도" fill="#82ca9d" name="운영 만족도" />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* 강사 만족도 트렌드 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">강사 만족도 추세</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart
-                      data={courseStats.map((course) => ({
-                        name: `${course.round}차`,
-                        강사만족도: course.instructorSatisfaction,
-                      }))}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 10]} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="강사만족도" fill="#ffc658" name="강사 만족도" />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* 선택된 설문의 질문별 분석 */}
-        {selectedSurvey && selectedSurvey !== 'all' && questionAnalyses.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>질문별 분석 결과</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {questionAnalyses.map((analysis, index) => (
-                  <div key={index} className="border-b pb-6 last:border-b-0">
-                    <h4 className="font-medium mb-3">
-                      {index + 1}. {analysis.question.question_text}
-                    </h4>
-                    
-                    {analysis.type === 'rating' && (
-                      <div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">{analysis.average}</div>
-                            <div className="text-sm text-muted-foreground">평균 점수</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold">{analysis.totalAnswers}</div>
-                            <div className="text-sm text-muted-foreground">총 응답 수</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold">
-                              {parseFloat(analysis.average) >= 8 ? '우수' : parseFloat(analysis.average) >= 6 ? '보통' : '개선필요'}
-                            </div>
-                            <div className="text-sm text-muted-foreground">만족도</div>
-                          </div>
-                        </div>
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RechartsBarChart data={analysis.chartData}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="name" />
-                              <YAxis />
-                              <Tooltip />
-                              <Bar dataKey="value" fill="#8884d8" />
-                            </RechartsBarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {analysis.type === 'chart' && (
-                      <div>
-                        <div className="text-center mb-4">
-                          <div className="text-2xl font-bold">{analysis.totalAnswers}</div>
-                          <div className="text-sm text-muted-foreground">총 응답 수</div>
-                        </div>
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={analysis.chartData}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                              >
-                                {analysis.chartData.map((_, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {analysis.type === 'text' && (
-                      <div>
-                        <div className="text-center mb-4">
-                          <div className="text-2xl font-bold">{analysis.totalAnswers}</div>
-                          <div className="text-sm text-muted-foreground">총 응답 수</div>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto space-y-2">
-                          {analysis.answers?.map((answer, idx) => (
-                            <div key={idx} className="p-3 bg-muted rounded text-sm">
-                              {answer}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
