@@ -13,7 +13,7 @@ import { ArrowLeft, Eye, AlertTriangle, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import ShortUrlGenerator from '@/components/ShortUrlGenerator';
+
 
 interface Survey {
   id: string;
@@ -630,9 +630,41 @@ const SurveyPreview = () => {
           )}
         </div>
 
-        {/* 짧은 URL 생성 섹션 */}
+        {/* 설문 링크 복사 섹션 */}
         <div className="mt-8">
-          <ShortUrlGenerator surveyId={surveyId!} surveyTitle={survey.title} />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Copy className="h-5 w-5" />
+                설문 링크 복사
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Input 
+                    value={`${window.location.origin}/survey/${surveyId}`} 
+                    readOnly 
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={() => {
+                      const surveyUrl = `${window.location.origin}/survey/${surveyId}`;
+                      navigator.clipboard.writeText(surveyUrl);
+                      toast({
+                        title: "링크 복사 완료",
+                        description: "설문 링크가 클립보드에 복사되었습니다.",
+                      });
+                    }}
+                    variant="outline"
+                    size="icon"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
