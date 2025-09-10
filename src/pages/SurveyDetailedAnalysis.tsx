@@ -427,6 +427,196 @@ const SurveyDetailedAnalysis = () => {
     return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
   };
 
+  const getCourseAnalysis = (courseName: string) => {
+    // 선택된 과목에 따라 질문들을 필터링하고 분석
+    const prevSelectedCourse = selectedCourse;
+    
+    // 임시로 selectedCourse를 변경하여 categorizeQuestions 함수 사용
+    const tempCourseName = courseName === 'all' ? 'all' : courseName;
+    
+    let filteredQuestions = questions;
+    if (tempCourseName !== 'all') {
+      // 해당 과목의 설문 ID 찾기
+      const selectedSurvey = courseSessions.find(session => 
+        session.course_name === tempCourseName || session.session_name === tempCourseName
+      );
+      if (selectedSurvey) {
+        filteredQuestions = questions.filter(q => q.survey_id === selectedSurvey.id);
+      }
+    }
+
+    const subjectQuestions: SurveyQuestion[] = [];
+    const instructorQuestions: SurveyQuestion[] = [];
+    const operationQuestions: SurveyQuestion[] = [];
+
+    filteredQuestions.forEach(question => {
+      const questionText = question.question_text?.toLowerCase() || '';
+      
+      // 강사 관련 키워드
+      if (questionText.includes('강사') || 
+          questionText.includes('지도') || 
+          questionText.includes('설명') || 
+          questionText.includes('질문응답') ||
+          questionText.includes('교수법') ||
+          questionText.includes('전달력') ||
+          questionText.includes('준비도')) {
+        instructorQuestions.push(question);
+      }
+      // 운영 관련 키워드
+      else if (questionText.includes('환경') ||
+               questionText.includes('시설') ||
+               questionText.includes('운영') ||
+               questionText.includes('서비스') ||
+               questionText.includes('지원') ||
+               questionText.includes('관리') ||
+               questionText.includes('시간') ||
+               questionText.includes('일정')) {
+        operationQuestions.push(question);
+      }
+      // 과목 관련 키워드 또는 rating/scale 타입
+      else if (questionText.includes('과정') || 
+               questionText.includes('과목') ||
+               questionText.includes('교육') || 
+               questionText.includes('내용') || 
+               questionText.includes('커리큘럼') ||
+               questionText.includes('교재') ||
+               (question.question_type === 'rating' || question.question_type === 'scale')) {
+        subjectQuestions.push(question);
+      } else {
+        // 기본적으로 과목 만족도로 분류
+        subjectQuestions.push(question);
+      }
+    });
+
+    return {
+      subjectQuestions,
+      instructorQuestions,
+      operationQuestions,
+      subjectAnalyses: getQuestionAnalysis(subjectQuestions),
+      instructorAnalyses: getQuestionAnalysis(instructorQuestions),
+      operationAnalyses: getQuestionAnalysis(operationQuestions),
+      subjectAverage: calculateCategoryAverage(subjectQuestions),
+      instructorAverage: calculateCategoryAverage(instructorQuestions),
+      operationAverage: calculateCategoryAverage(operationQuestions)
+    };
+  };
+
+  const renderQuestionAnalysis = (analysis: any, index: number) => (
+    <Card key={analysis.question.id}>
+      <CardHeader>
+        <CardTitle className="text-lg">
+          Q{index + 1}. {analysis.question.question_text}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          총 응답 수: {analysis.totalAnswers}개
+          {analysis.question.is_required && (
+            <Badge variant="secondary" className="ml-2">필수</Badge>
+          )}
+        </p>
+      </CardHeader>
+      <CardContent>
+        {analysis.type === 'chart' && (
+          <div className="space-y-4">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={analysis.chartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {analysis.chartData.map((entry: any, idx: number) => (
+                      <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find((d: any) => d.name === name)?.percentage}%)`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {analysis.chartData.map((item: any, idx: number) => (
+                <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                    />
+                    <span className="text-sm">{item.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{item.value}개</p>
+                    <p className="text-xs text-muted-foreground">{item.percentage}%</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {analysis.type === 'rating' && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary">{analysis.average}</div>
+              <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsBarChart data={analysis.chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find((d: any) => d.name === name)?.percentage}%)`, '응답 수']} />
+                  <Bar dataKey="value" fill="#8884d8" />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {analysis.chartData.map((item: any, idx: number) => (
+                <div key={item.name} className="flex items-center gap-4">
+                  <span className="text-sm w-12">{item.name}</span>
+                  <div className="flex-1">
+                    <Progress value={item.percentage} className="h-2" />
+                  </div>
+                  <span className="text-sm text-muted-foreground w-16">
+                    {item.value}개 ({item.percentage}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {analysis.type === 'text' && (
+          <div className="space-y-3">
+            {analysis.answers && analysis.answers.length > 0 ? (
+              analysis.answers.map((answer: any, idx: number) => (
+                <div key={answer.id} className="p-3 border rounded-lg">
+                  <p className="text-sm">{answer.answer_text}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(answer.created_at).toLocaleString()}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                아직 응답이 없습니다.
+              </p>
+            )}
+            {analysis.totalAnswers > 10 && (
+              <p className="text-sm text-muted-foreground text-center">
+                총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
+              </p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   const getAvailableCourses = () => {
     const courses = courseSessions
       .map(session => session.course_name || session.session_name)
@@ -732,35 +922,6 @@ const SurveyDetailedAnalysis = () => {
             </Button>
           </div>
 
-          {/* 과목 선택 필터 */}
-          {courseSessions.length > 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>과목 선택</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant={selectedCourse === 'all' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedCourse('all')}
-                  >
-                    전체
-                  </Button>
-                  {getAvailableCourses().map(course => (
-                    <Button
-                      key={course}
-                      variant={selectedCourse === course ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedCourse(course)}
-                    >
-                      {course}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* 종합 만족도 */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -837,18 +998,17 @@ const SurveyDetailedAnalysis = () => {
             </Card>
           </div>
 
-          {/* 상세 분석 탭 */}
-          <Tabs defaultValue="subject" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="subject" className="text-sm touch-friendly">
-                과목 만족도 ({subjectQuestions.length})
+          {/* 과목별 상세 분석 탭 */}
+          <Tabs defaultValue={courseSessions.length > 1 ? "all" : "all"} className="space-y-4">
+            <TabsList className={`grid w-full ${courseSessions.length <= 1 ? 'grid-cols-1' : `grid-cols-${Math.min(courseSessions.length + 1, 6)}`} overflow-x-auto`}>
+              <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
+                전체 분석
               </TabsTrigger>
-              <TabsTrigger value="instructor" className="text-sm touch-friendly">
-                강사 만족도 ({instructorQuestions.length})
-              </TabsTrigger>
-              <TabsTrigger value="operation" className="text-sm touch-friendly">
-                운영 만족도 ({operationQuestions.length})
-              </TabsTrigger>
+              {getAvailableCourses().map(course => (
+                <TabsTrigger key={course} value={course} className="text-sm touch-friendly whitespace-nowrap">
+                  {course}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
             <TabsContent value="subject" className="space-y-4">
