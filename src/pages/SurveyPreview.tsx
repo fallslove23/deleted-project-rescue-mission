@@ -489,18 +489,8 @@ const SurveyPreview = () => {
           <Progress value={progress} className="h-2 mb-4" />
         </div>
 
-        {/* 강사 정보 표시 - 강사 정보가 있고 강사 만족도 관련 질문일 때 */}
-        {(() => {
-          console.log('강사 정보 표시 조건 확인:', {
-            hasInstructor: !!instructor,
-            currentQuestionsLength: currentQuestions.length,
-            satisfactionType: currentQuestions[0]?.satisfaction_type,
-            instructorData: instructor
-          });
-          return null;
-        })()}
-        {instructor && currentQuestions.length > 0 && 
-         currentQuestions[0].satisfaction_type === 'instructor' && (
+        {/* 강사 정보 표시 - 강사 정보가 있을 때 항상 표시 */}
+        {instructor && (
           <div className="mb-6">
             <InstructorInfoSection instructor={instructor} />
           </div>

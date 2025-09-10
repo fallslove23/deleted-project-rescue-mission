@@ -339,10 +339,10 @@ const Index = () => {
                         </div>
                       )}
                       {(() => {
-                        // 강사 정보 표시 로직
+                        // 강사 정보 표시 로직 - 일반화된 방식
                         let instructorName = '';
                         
-                        // survey_instructors에서 확인
+                        // survey_instructors에서 먼저 확인
                         if (survey.survey_instructors && survey.survey_instructors.length > 0) {
                           const names = survey.survey_instructors
                             .map(si => si.instructors.name)
@@ -352,12 +352,12 @@ const Index = () => {
                           }
                         }
                         
-                        // 개별 instructor 확인
+                        // 개별 instructor 확인 (fallback)
                         if (!instructorName && survey.instructors?.name) {
                           instructorName = survey.instructors.name;
                         }
                         
-                        // 강사 정보가 있으면 표시
+                        // 강사 정보가 있으면 항상 표시
                         if (instructorName) {
                           return (
                             <div className="flex items-center gap-2">
