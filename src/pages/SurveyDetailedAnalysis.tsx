@@ -55,6 +55,8 @@ interface CourseSession {
   course_name: string;
   session_name: string;
   education_day: number;
+  instructor_name?: string;
+  instructor_id?: string;
 }
 
 interface Instructor {
@@ -207,7 +209,17 @@ const SurveyDetailedAnalysis = () => {
       if (currentSurvey) {
         const { data: sameDaySurveys, error } = await supabase
           .from('surveys')
-          .select('id, title, course_name, education_day')
+          .select(`
+            id, 
+            title, 
+            course_name, 
+            education_day, 
+            instructor_id,
+            instructors (
+              id,
+              name
+            )
+          `)
           .eq('education_year', currentSurvey.education_year)
           .eq('education_round', currentSurvey.education_round)
           .eq('education_day', currentSurvey.education_day)
@@ -220,7 +232,9 @@ const SurveyDetailedAnalysis = () => {
           title: survey.title,
           course_name: survey.course_name || '',
           session_name: survey.course_name || survey.title,
-          education_day: survey.education_day
+          education_day: survey.education_day,
+          instructor_name: (survey as any).instructors?.name || '',
+          instructor_id: survey.instructor_id
         })) || [];
         
         setCourseSessions(sessions);
@@ -424,22 +438,12 @@ const SurveyDetailedAnalysis = () => {
     return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
   };
 
-  const getCourseAnalysis = (courseName: string) => {
-    // 선택된 과목에 따라 질문들을 필터링하고 분석
-    const prevSelectedCourse = selectedCourse;
-    
-    // 임시로 selectedCourse를 변경하여 categorizeQuestions 함수 사용
-    const tempCourseName = courseName === 'all' ? 'all' : courseName;
-    
+  const getSubjectAnalysis = (subjectId: string) => {
+    // 선택된 과목에 따라 질문들을 필터링하고 분석    
     let filteredQuestions = questions;
-    if (tempCourseName !== 'all') {
-      // 해당 과목의 설문 ID 찾기
-      const selectedSurvey = courseSessions.find(session => 
-        session.course_name === tempCourseName || session.session_name === tempCourseName
-      );
-      if (selectedSurvey) {
-        filteredQuestions = questions.filter(q => q.survey_id === selectedSurvey.id);
-      }
+    if (subjectId !== 'all') {
+      // 해당 과목의 설문 ID로 필터링
+      filteredQuestions = questions.filter(q => q.survey_id === subjectId);
     }
 
     const subjectQuestions: SurveyQuestion[] = [];
@@ -614,12 +618,19 @@ const SurveyDetailedAnalysis = () => {
     </Card>
   );
 
-  const getAvailableCourses = () => {
-    const courses = courseSessions
-      .map(session => session.course_name || session.session_name)
-      .filter((course, index, self) => course && self.indexOf(course) === index)
-      .sort();
-    return courses;
+  const getAvailableSubjects = () => {
+    return courseSessions
+      .map(session => ({
+        id: session.id,
+        displayName: `${session.course_name || session.session_name}${session.instructor_name ? ` - ${session.instructor_name}` : ''}`,
+        courseName: session.course_name || session.session_name,
+        instructorName: session.instructor_name || ''
+      }))
+      .filter((subject, index, self) => 
+        subject.courseName && 
+        self.findIndex(s => s.id === subject.id) === index
+      )
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
   };
 
   const handleSendResults = async () => {
@@ -1001,9 +1012,9 @@ const SurveyDetailedAnalysis = () => {
               <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
                 전체 분석
               </TabsTrigger>
-              {getAvailableCourses().map(course => (
-                <TabsTrigger key={course} value={course} className="text-sm touch-friendly whitespace-nowrap">
-                  {course}
+              {getAvailableSubjects().map(subject => (
+                <TabsTrigger key={subject.id} value={subject.id} className="text-sm touch-friendly whitespace-nowrap">
+                  {subject.displayName}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -1062,10 +1073,10 @@ const SurveyDetailedAnalysis = () => {
             </TabsContent>
 
             {/* 각 과목별 분석 탭 */}
-            {getAvailableCourses().map((course) => {
-              const courseAnalysis = getCourseAnalysis(course);
+            {getAvailableSubjects().map((subject) => {
+              const subjectAnalysis = getSubjectAnalysis(subject.id);
               return (
-                <TabsContent key={course} value={course} className="space-y-4">
+                <TabsContent key={subject.id} value={subject.id} className="space-y-4">
                   {/* 해당 과목의 종합 만족도 카드 */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
@@ -1077,10 +1088,10 @@ const SurveyDetailedAnalysis = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-500">{courseAnalysis.subjectAverage}</div>
+                          <div className="text-3xl font-bold text-blue-500">{subjectAnalysis.subjectAverage}</div>
                           <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {courseAnalysis.subjectQuestions.length}개 질문 기준
+                            {subjectAnalysis.subjectQuestions.length}개 질문 기준
                           </div>
                         </div>
                       </CardContent>
@@ -1095,10 +1106,10 @@ const SurveyDetailedAnalysis = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-orange-500">{courseAnalysis.instructorAverage}</div>
+                          <div className="text-3xl font-bold text-orange-500">{subjectAnalysis.instructorAverage}</div>
                           <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {courseAnalysis.instructorQuestions.length}개 질문 기준
+                            {subjectAnalysis.instructorQuestions.length}개 질문 기준
                           </div>
                         </div>
                       </CardContent>
@@ -1113,10 +1124,10 @@ const SurveyDetailedAnalysis = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-green-500">{courseAnalysis.operationAverage}</div>
+                          <div className="text-3xl font-bold text-green-500">{subjectAnalysis.operationAverage}</div>
                           <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {courseAnalysis.operationQuestions.length}개 질문 기준
+                            {subjectAnalysis.operationQuestions.length}개 질문 기준
                           </div>
                         </div>
                       </CardContent>
@@ -1127,19 +1138,19 @@ const SurveyDetailedAnalysis = () => {
                   <Tabs defaultValue="subject" className="space-y-4">
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="subject" className="text-sm touch-friendly">
-                        과목 만족도 ({courseAnalysis.subjectQuestions.length})
+                        과목 만족도 ({subjectAnalysis.subjectQuestions.length})
                       </TabsTrigger>
                       <TabsTrigger value="instructor" className="text-sm touch-friendly">
-                        강사 만족도 ({courseAnalysis.instructorQuestions.length})
+                        강사 만족도 ({subjectAnalysis.instructorQuestions.length})
                       </TabsTrigger>
                       <TabsTrigger value="operation" className="text-sm touch-friendly">
-                        운영 만족도 ({courseAnalysis.operationQuestions.length})
+                        운영 만족도 ({subjectAnalysis.operationQuestions.length})
                       </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="subject" className="space-y-4">
-                      {courseAnalysis.subjectAnalyses.length > 0 ? (
-                        courseAnalysis.subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                      {subjectAnalysis.subjectAnalyses.length > 0 ? (
+                        subjectAnalysis.subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
                       ) : (
                         <Card>
                           <CardContent className="text-center py-8">
@@ -1150,8 +1161,8 @@ const SurveyDetailedAnalysis = () => {
                     </TabsContent>
 
                     <TabsContent value="instructor" className="space-y-4">
-                      {courseAnalysis.instructorAnalyses.length > 0 ? (
-                        courseAnalysis.instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                      {subjectAnalysis.instructorAnalyses.length > 0 ? (
+                        subjectAnalysis.instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
                       ) : (
                         <Card>
                           <CardContent className="text-center py-8">
@@ -1162,8 +1173,8 @@ const SurveyDetailedAnalysis = () => {
                     </TabsContent>
 
                     <TabsContent value="operation" className="space-y-4">
-                      {courseAnalysis.operationAnalyses.length > 0 ? (
-                        courseAnalysis.operationAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                      {subjectAnalysis.operationAnalyses.length > 0 ? (
+                        subjectAnalysis.operationAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
                       ) : (
                         <Card>
                           <CardContent className="text-center py-8">
