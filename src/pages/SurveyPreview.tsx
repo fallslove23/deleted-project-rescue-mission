@@ -58,13 +58,22 @@ interface Answer {
   answer: string | string[];
 }
 
+interface SectionWithSession {
+  id: string;
+  name: string;
+  description?: string;
+  order_index: number;
+  session_name?: string;
+  course_title?: string;
+}
+
 const SurveyPreview = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [survey, setSurvey] = useState<Survey | null>(null);
-  const [sections, setSections] = useState<Section[]>([]);
+  const [sections, setSections] = useState<SectionWithSession[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +233,32 @@ const SurveyPreview = () => {
         .order('order_index');
 
       if (sectionsError) throw sectionsError;
-      setSections(sectionsData || []);
+      
+      // 세션 정보 가져오기
+      const { data: sessionsData } = await supabase
+        .from('survey_sessions')
+        .select(`
+          id,
+          session_name,
+          courses(title)
+        `)
+        .eq('survey_id', surveyId);
+
+      // 섹션과 세션 정보를 결합
+      const transformedSections: SectionWithSession[] = (sectionsData || []).map(section => {
+        // 첫 번째 세션의 정보를 사용 (일반적으로 섹션이 세션에 매핑됨)
+        const firstSession = sessionsData?.[0];
+        return {
+          id: section.id,
+          name: section.name,
+          description: section.description,
+          order_index: section.order_index,
+          session_name: firstSession?.session_name,
+          course_title: firstSession?.courses?.title
+        };
+      });
+      
+      setSections(transformedSections);
 
       // 질문 가져오기
       const { data: questionsData, error: questionsError } = await supabase
@@ -306,7 +340,13 @@ const SurveyPreview = () => {
     // 해당 질문이 속한 섹션 찾기
     if (currentQuestion.section_id) {
       const section = sections.find(s => s.id === currentQuestion.section_id);
-      return section?.name || "설문 미리보기";
+      if (section) {
+        // 과목명이 있으면 함께 표시
+        if (section.course_title) {
+          return `${section.course_title} - ${section.name}`;
+        }
+        return section.name;
+      }
     }
     
     return "설문 미리보기";
