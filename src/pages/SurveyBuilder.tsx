@@ -877,6 +877,9 @@ export default function SurveyBuilder() {
 
   /* ───────────────────────────── actions (header) ────────────────────────── */
   const desktopActions = [
+    <Button key="manage" variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate('/survey-management-v2')}>
+      <ArrowLeft className="w-4 h-4 mr-1.5" /> 설문 관리
+    </Button>,
     <Button key="back" variant="outline" size="sm" className="rounded-full px-3" onClick={() => navigate(-1)}>
       <ArrowLeft className="w-4 h-4 mr-1.5" /> 뒤로
     </Button>,
