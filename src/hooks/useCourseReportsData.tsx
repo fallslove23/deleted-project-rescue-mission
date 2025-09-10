@@ -269,8 +269,8 @@ export const useCourseReportsData = (
                 return; // 유효하지 않은 값은 건너뛰기
               }
 
-              // 유효성 검사
-              if (isNaN(score) || score <= 0) {
+              // 유효성 검사 - NaN과 무효한 값 필터링
+              if (isNaN(score) || score <= 0 || !isFinite(score)) {
                 return;
               }
 
@@ -294,12 +294,29 @@ export const useCourseReportsData = (
         });
       });
 
-      const finalInstructorStats = Array.from(instructorStatsMap.values()).map(stat => ({
-        ...stat,
-        avg_satisfaction: stat.satisfactions.length > 0
-          ? Number((stat.satisfactions.reduce((a: number, b: number) => a + b, 0) / stat.satisfactions.length).toFixed(1)) || 0
-          : 0
-      })).filter(stat => stat.survey_count > 0); // 실제 데이터가 있는 강사만 포함
+      const finalInstructorStats = Array.from(instructorStatsMap.values()).map(stat => {
+        const validSatisfactions = stat.satisfactions.filter(s => !isNaN(s) && isFinite(s));
+        const avgSatisfaction = validSatisfactions.length > 0
+          ? validSatisfactions.reduce((a: number, b: number) => a + b, 0) / validSatisfactions.length
+          : 0;
+        
+        return {
+          ...stat,
+          avg_satisfaction: isNaN(avgSatisfaction) || !isFinite(avgSatisfaction) ? 0 : Number(avgSatisfaction.toFixed(1))
+        };
+      }).filter(stat => stat.survey_count > 0); // 실제 데이터가 있는 강사만 포함
+
+      // 유효한 만족도 점수만 필터링
+      const validInstructorSatisfactions = allInstructorSatisfactions.filter(s => !isNaN(s) && isFinite(s));
+      const validCourseSatisfactions = allCourseSatisfactions.filter(s => !isNaN(s) && isFinite(s));
+      const validOperationSatisfactions = allOperationSatisfactions.filter(s => !isNaN(s) && isFinite(s));
+
+      // 평균 계산 함수
+      const calculateAverage = (scores: number[]) => {
+        if (scores.length === 0) return 0;
+        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+        return isNaN(avg) || !isFinite(avg) ? 0 : Number(avg.toFixed(1));
+      };
 
       // 종합 통계 생성
       const courseReport: CourseReport = {
@@ -309,21 +326,15 @@ export const useCourseReportsData = (
         course_title: selectedCourse || (isInstructor ? '내 담당 과정' : '전체 과정'),
         total_surveys: totalSurveys,
         total_responses: totalResponses,
-        avg_instructor_satisfaction: allInstructorSatisfactions.length > 0 
-          ? Number((allInstructorSatisfactions.reduce((a, b) => a + b, 0) / allInstructorSatisfactions.length).toFixed(1)) || 0
-          : 0,
-        avg_course_satisfaction: allCourseSatisfactions.length > 0
-          ? Number((allCourseSatisfactions.reduce((a, b) => a + b, 0) / allCourseSatisfactions.length).toFixed(1)) || 0
-          : 0,
+        avg_instructor_satisfaction: calculateAverage(validInstructorSatisfactions),
+        avg_course_satisfaction: calculateAverage(validCourseSatisfactions),
         report_data: {
-          operation_satisfaction: allOperationSatisfactions.length > 0
-            ? Number((allOperationSatisfactions.reduce((a, b) => a + b, 0) / allOperationSatisfactions.length).toFixed(1)) || 0
-            : 0,
+          operation_satisfaction: calculateAverage(validOperationSatisfactions),
           instructor_count: finalInstructorStats.length,
           satisfaction_distribution: {
-            instructor: allInstructorSatisfactions,
-            course: allCourseSatisfactions,
-            operation: allOperationSatisfactions
+            instructor: validInstructorSatisfactions,
+            course: validCourseSatisfactions,
+            operation: validOperationSatisfactions
           }
         },
         created_at: new Date().toISOString()

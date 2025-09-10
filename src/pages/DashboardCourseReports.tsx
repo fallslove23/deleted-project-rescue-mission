@@ -123,30 +123,35 @@ const DashboardCourseReports = () => {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
   const currentReport = reports[0];
 
+  // 안전한 숫자 변환 함수
+  const safeToFixed = (value: number, digits: number = 1) => {
+    return isNaN(value) || !isFinite(value) ? 0 : Number(value.toFixed(digits));
+  };
+
   // 차트 데이터 구성
   const satisfactionData = currentReport ? [
     { 
       name: '강사', 
-      value: Number(currentReport.avg_instructor_satisfaction.toFixed(1)),
+      value: safeToFixed(currentReport.avg_instructor_satisfaction),
       color: '#3b82f6'
     },
     { 
       name: '과정', 
-      value: Number(currentReport.avg_course_satisfaction.toFixed(1)),
+      value: safeToFixed(currentReport.avg_course_satisfaction),
       color: '#10b981'
     },
     { 
       name: '운영', 
-      value: Number((currentReport.report_data?.operation_satisfaction || 0).toFixed(1)),
+      value: safeToFixed(currentReport.report_data?.operation_satisfaction || 0),
       color: '#f59e0b'
     }
   ] : [];
 
   const trendData = reports.map(report => ({
     name: `${report.education_round}차`,
-    instructor: Number(report.avg_instructor_satisfaction.toFixed(1)),
-    course: Number(report.avg_course_satisfaction.toFixed(1)),
-    operation: Number((report.report_data?.operation_satisfaction || 0).toFixed(1))
+    instructor: safeToFixed(report.avg_instructor_satisfaction),
+    course: safeToFixed(report.avg_course_satisfaction),
+    operation: safeToFixed(report.report_data?.operation_satisfaction || 0)
   })).reverse();
 
   const getSatisfactionIcon = (score: number) => {
