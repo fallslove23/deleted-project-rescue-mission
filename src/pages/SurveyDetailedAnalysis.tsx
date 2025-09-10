@@ -207,10 +207,7 @@ const SurveyDetailedAnalysis = () => {
       if (currentSurvey) {
         const { data: sameDaySurveys, error } = await supabase
           .from('surveys')
-          .select(`
-            id, title, course_name, education_day,
-            survey_sessions(session_name)
-          `)
+          .select('id, title, course_name, education_day')
           .eq('education_year', currentSurvey.education_year)
           .eq('education_round', currentSurvey.education_round)
           .eq('education_day', currentSurvey.education_day)
@@ -222,7 +219,7 @@ const SurveyDetailedAnalysis = () => {
           id: survey.id,
           title: survey.title,
           course_name: survey.course_name || '',
-          session_name: survey.survey_sessions?.[0]?.session_name || survey.title,
+          session_name: survey.course_name || survey.title,
           education_day: survey.education_day
         })) || [];
         
@@ -999,8 +996,8 @@ const SurveyDetailedAnalysis = () => {
           </div>
 
           {/* 과목별 상세 분석 탭 */}
-          <Tabs defaultValue={courseSessions.length > 1 ? "all" : "all"} className="space-y-4">
-            <TabsList className={`grid w-full ${courseSessions.length <= 1 ? 'grid-cols-1' : `grid-cols-${Math.min(courseSessions.length + 1, 6)}`} overflow-x-auto`}>
+          <Tabs defaultValue="all" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 overflow-x-auto">
               <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
                 전체 분석
               </TabsTrigger>
@@ -1011,383 +1008,174 @@ const SurveyDetailedAnalysis = () => {
               ))}
             </TabsList>
 
-            <TabsContent value="subject" className="space-y-4">
-              {subjectAnalyses.length > 0 ? (
-                subjectAnalyses.map((analysis, index) => (
-                  <Card key={analysis.question.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Q{index + 1}. {analysis.question.question_text}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        총 응답 수: {analysis.totalAnswers}개
-                        {analysis.question.is_required && (
-                          <Badge variant="secondary" className="ml-2">필수</Badge>
-                        )}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      {analysis.type === 'chart' && (
-                        <div className="space-y-4">
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={analysis.chartData}
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={40}
-                                  outerRadius={80}
-                                  paddingAngle={5}
-                                  dataKey="value"
-                                >
-                                  {analysis.chartData.map((entry, idx) => (
-                                    <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, name]} />
-                              </PieChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {analysis.chartData.map((item, idx) => (
-                              <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-4 h-4 rounded-full" 
-                                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                                  />
-                                  <span className="text-sm">{item.name}</span>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-medium">{item.value}개</p>
-                                  <p className="text-xs text-muted-foreground">{item.percentage}%</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+            {/* 전체 분석 탭 */}
+            <TabsContent value="all" className="space-y-4">
+              <Tabs defaultValue="subject" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="subject" className="text-sm touch-friendly">
+                    과목 만족도 ({subjectQuestions.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="instructor" className="text-sm touch-friendly">
+                    강사 만족도 ({instructorQuestions.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="operation" className="text-sm touch-friendly">
+                    운영 만족도 ({operationQuestions.length})
+                  </TabsTrigger>
+                </TabsList>
 
-                      {analysis.type === 'rating' && (
-                        <div className="space-y-4">
-                          <div className="text-center">
-                            <div className="text-3xl font-bold text-primary">{analysis.average}</div>
-                            <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
-                          </div>
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <RechartsBarChart data={analysis.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                <Bar dataKey="value" fill="#8884d8" />
-                              </RechartsBarChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="space-y-2">
-                            {analysis.chartData.map((item, idx) => (
-                              <div key={item.name} className="flex items-center gap-4">
-                                <span className="text-sm w-12">{item.name}</span>
-                                <div className="flex-1">
-                                  <Progress value={item.percentage} className="h-2" />
-                                </div>
-                                <span className="text-sm text-muted-foreground w-16">
-                                  {item.value}개 ({item.percentage}%)
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                <TabsContent value="subject" className="space-y-4">
+                  {subjectAnalyses.length > 0 ? (
+                    subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                  ) : (
+                    <Card>
+                      <CardContent className="text-center py-8">
+                        <p className="text-muted-foreground">과목 관련 질문이 없습니다.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
 
-                      {analysis.type === 'text' && (
-                        <div className="space-y-3">
-                          {analysis.answers && analysis.answers.length > 0 ? (
-                            analysis.answers.map((answer, idx) => (
-                              <div key={answer.id} className="p-3 border rounded-lg">
-                                <p className="text-sm">{answer.answer_text}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {new Date(answer.created_at).toLocaleString()}
-                                </p>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-muted-foreground text-center py-8">
-                              아직 응답이 없습니다.
-                            </p>
-                          )}
-                          {analysis.totalAnswers > 10 && (
-                            <p className="text-sm text-muted-foreground text-center">
-                              총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">과목 관련 질문이 없습니다.</p>
-                  </CardContent>
-                </Card>
-              )}
+                <TabsContent value="instructor" className="space-y-4">
+                  {instructorAnalyses.length > 0 ? (
+                    instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                  ) : (
+                    <Card>
+                      <CardContent className="text-center py-8">
+                        <p className="text-muted-foreground">강사 관련 질문이 없습니다.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="operation" className="space-y-4">
+                  {operationAnalyses.length > 0 ? (
+                    operationAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                  ) : (
+                    <Card>
+                      <CardContent className="text-center py-8">
+                        <p className="text-muted-foreground">운영 관련 질문이 없습니다.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
-            <TabsContent value="instructor" className="space-y-4">
-              {instructorAnalyses.length > 0 ? (
-                instructorAnalyses.map((analysis, index) => (
-                  <Card key={analysis.question.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Q{index + 1}. {analysis.question.question_text}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        총 응답 수: {analysis.totalAnswers}개
-                        {analysis.question.is_required && (
-                          <Badge variant="secondary" className="ml-2">필수</Badge>
-                        )}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      {analysis.type === 'chart' && (
-                        <div className="space-y-4">
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={analysis.chartData}
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={40}
-                                  outerRadius={80}
-                                  paddingAngle={5}
-                                  dataKey="value"
-                                >
-                                  {analysis.chartData.map((entry, idx) => (
-                                    <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, name]} />
-                              </PieChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {analysis.chartData.map((item, idx) => (
-                              <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-4 h-4 rounded-full" 
-                                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                                  />
-                                  <span className="text-sm">{item.name}</span>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-medium">{item.value}개</p>
-                                  <p className="text-xs text-muted-foreground">{item.percentage}%</p>
-                                </div>
-                              </div>
-                            ))}
+            {/* 각 과목별 분석 탭 */}
+            {getAvailableCourses().map((course) => {
+              const courseAnalysis = getCourseAnalysis(course);
+              return (
+                <TabsContent key={course} value={course} className="space-y-4">
+                  {/* 해당 과목의 종합 만족도 카드 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-blue-500" />
+                          과목 만족도
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{courseAnalysis.subjectAverage}</div>
+                          <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {courseAnalysis.subjectQuestions.length}개 질문 기준
                           </div>
                         </div>
-                      )}
+                      </CardContent>
+                    </Card>
 
-                      {analysis.type === 'rating' && (
-                        <div className="space-y-4">
-                          <div className="text-center">
-                            <div className="text-3xl font-bold text-primary">{analysis.average}</div>
-                            <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
-                          </div>
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <RechartsBarChart data={analysis.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                <Bar dataKey="value" fill="#8884d8" />
-                              </RechartsBarChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="space-y-2">
-                            {analysis.chartData.map((item, idx) => (
-                              <div key={item.name} className="flex items-center gap-4">
-                                <span className="text-sm w-12">{item.name}</span>
-                                <div className="flex-1">
-                                  <Progress value={item.percentage} className="h-2" />
-                                </div>
-                                <span className="text-sm text-muted-foreground w-16">
-                                  {item.value}개 ({item.percentage}%)
-                                </span>
-                              </div>
-                            ))}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Star className="h-5 w-5 text-orange-500" />
+                          강사 만족도
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-orange-500">{courseAnalysis.instructorAverage}</div>
+                          <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {courseAnalysis.instructorQuestions.length}개 질문 기준
                           </div>
                         </div>
-                      )}
+                      </CardContent>
+                    </Card>
 
-                      {analysis.type === 'text' && (
-                        <div className="space-y-3">
-                          {analysis.answers && analysis.answers.length > 0 ? (
-                            analysis.answers.map((answer, idx) => (
-                              <div key={answer.id} className="p-3 border rounded-lg">
-                                <p className="text-sm">{answer.answer_text}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {new Date(answer.created_at).toLocaleString()}
-                                </p>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-muted-foreground text-center py-8">
-                              아직 응답이 없습니다.
-                            </p>
-                          )}
-                          {analysis.totalAnswers > 10 && (
-                            <p className="text-sm text-muted-foreground text-center">
-                              총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
-                            </p>
-                          )}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-green-500" />
+                          운영 만족도
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-green-500">{courseAnalysis.operationAverage}</div>
+                          <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {courseAnalysis.operationQuestions.length}개 질문 기준
+                          </div>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">강사 관련 질문이 없습니다.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-            <TabsContent value="operation" className="space-y-4">
-              {operationAnalyses.length > 0 ? (
-                operationAnalyses.map((analysis, index) => (
-                  <Card key={analysis.question.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Q{index + 1}. {analysis.question.question_text}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        총 응답 수: {analysis.totalAnswers}개
-                        {analysis.question.is_required && (
-                          <Badge variant="secondary" className="ml-2">필수</Badge>
-                        )}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      {analysis.type === 'chart' && (
-                        <div className="space-y-4">
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie
-                                  data={analysis.chartData}
-                                  cx="50%"
-                                  cy="50%"
-                                  innerRadius={40}
-                                  outerRadius={80}
-                                  paddingAngle={5}
-                                  dataKey="value"
-                                >
-                                  {analysis.chartData.map((entry, idx) => (
-                                    <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                                  ))}
-                                </Pie>
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, name]} />
-                              </PieChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {analysis.chartData.map((item, idx) => (
-                              <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-4 h-4 rounded-full" 
-                                    style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                                  />
-                                  <span className="text-sm">{item.name}</span>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-medium">{item.value}개</p>
-                                  <p className="text-xs text-muted-foreground">{item.percentage}%</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                  {/* 해당 과목의 상세 분석 서브탭 */}
+                  <Tabs defaultValue="subject" className="space-y-4">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="subject" className="text-sm touch-friendly">
+                        과목 만족도 ({courseAnalysis.subjectQuestions.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="instructor" className="text-sm touch-friendly">
+                        강사 만족도 ({courseAnalysis.instructorQuestions.length})
+                      </TabsTrigger>
+                      <TabsTrigger value="operation" className="text-sm touch-friendly">
+                        운영 만족도 ({courseAnalysis.operationQuestions.length})
+                      </TabsTrigger>
+                    </TabsList>
 
-                      {analysis.type === 'rating' && (
-                        <div className="space-y-4">
-                          <div className="text-center">
-                            <div className="text-3xl font-bold text-primary">{analysis.average}</div>
-                            <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
-                          </div>
-                          <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <RechartsBarChart data={analysis.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                <Bar dataKey="value" fill="#8884d8" />
-                              </RechartsBarChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="space-y-2">
-                            {analysis.chartData.map((item, idx) => (
-                              <div key={item.name} className="flex items-center gap-4">
-                                <span className="text-sm w-12">{item.name}</span>
-                                <div className="flex-1">
-                                  <Progress value={item.percentage} className="h-2" />
-                                </div>
-                                <span className="text-sm text-muted-foreground w-16">
-                                  {item.value}개 ({item.percentage}%)
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                    <TabsContent value="subject" className="space-y-4">
+                      {courseAnalysis.subjectAnalyses.length > 0 ? (
+                        courseAnalysis.subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                      ) : (
+                        <Card>
+                          <CardContent className="text-center py-8">
+                            <p className="text-muted-foreground">과목 관련 질문이 없습니다.</p>
+                          </CardContent>
+                        </Card>
                       )}
+                    </TabsContent>
 
-                      {analysis.type === 'text' && (
-                        <div className="space-y-3">
-                          {analysis.answers && analysis.answers.length > 0 ? (
-                            analysis.answers.map((answer, idx) => (
-                              <div key={answer.id} className="p-3 border rounded-lg">
-                                <p className="text-sm">{answer.answer_text}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {new Date(answer.created_at).toLocaleString()}
-                                </p>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-muted-foreground text-center py-8">
-                              아직 응답이 없습니다.
-                            </p>
-                          )}
-                          {analysis.totalAnswers > 10 && (
-                            <p className="text-sm text-muted-foreground text-center">
-                              총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
-                            </p>
-                          )}
-                        </div>
+                    <TabsContent value="instructor" className="space-y-4">
+                      {courseAnalysis.instructorAnalyses.length > 0 ? (
+                        courseAnalysis.instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                      ) : (
+                        <Card>
+                          <CardContent className="text-center py-8">
+                            <p className="text-muted-foreground">강사 관련 질문이 없습니다.</p>
+                          </CardContent>
+                        </Card>
                       )}
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <p className="text-muted-foreground">운영 관련 질문이 없습니다.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
+                    </TabsContent>
+
+                    <TabsContent value="operation" className="space-y-4">
+                      {courseAnalysis.operationAnalyses.length > 0 ? (
+                        courseAnalysis.operationAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                      ) : (
+                        <Card>
+                          <CardContent className="text-center py-8">
+                            <p className="text-muted-foreground">운영 관련 질문이 없습니다.</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+              );
+            })}
           </Tabs>
         </div>
       </main>
