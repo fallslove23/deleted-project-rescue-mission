@@ -1057,20 +1057,20 @@ const SurveyResults = () => {
 
         {/* 평균 만족도 - 가장 중요한 지표로 상단에 배치 */}
         <div className="mb-6">
-          <Card className="bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-100 border-2 border-emerald-300 shadow-xl">
+          <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border-2 border-primary/30 shadow-xl">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="p-3 bg-emerald-500 rounded-xl shadow-lg mr-4">
-                    <TrendingUp className="h-8 w-8 text-white" />
+                  <div className="p-3 bg-primary rounded-xl shadow-lg mr-4">
+                    <TrendingUp className="h-8 w-8 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-emerald-800 mb-1">전체 평균 만족도</p>
-                    <p className="text-sm text-emerald-600">가장 중요한 핵심 지표</p>
+                    <p className="text-lg font-bold text-primary mb-1">전체 평균 만족도</p>
+                    <p className="text-sm text-primary/70">가장 중요한 핵심 지표</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-4xl font-bold text-emerald-900">
+                  <p className="text-4xl font-bold text-primary">
                     {(() => {
                       // 0점 제외하고 평균 계산
                       const validSatisfactions = courseStats.filter(course => course.subjectSatisfaction > 0);
@@ -1078,12 +1078,12 @@ const SurveyResults = () => {
                         ? (validSatisfactions.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / validSatisfactions.length).toFixed(1)
                         : '0.0';
                     })()}
-                    <span className="text-2xl text-emerald-700 ml-1">/10</span>
+                    <span className="text-2xl text-primary/70 ml-1">/10</span>
                   </p>
                   <div className="mt-2 flex justify-end">
-                    <div className="w-32 h-2.5 bg-emerald-200 rounded-full overflow-hidden">
+                    <div className="w-32 h-2.5 bg-primary/20 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                        className="h-full bg-primary rounded-full transition-all duration-700"
                         style={{ 
                           width: `${(() => {
                             const validSatisfactions = courseStats.filter(course => course.subjectSatisfaction > 0);
@@ -1106,11 +1106,11 @@ const SurveyResults = () => {
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-1.5 bg-blue-100 rounded-md">
-                  <FileText className="h-4 w-4 text-blue-600" />
+                <div className="p-1.5 bg-chart-1/20 rounded-md">
+                  <FileText className="h-4 w-4" style={{ color: 'hsl(var(--chart-1))' }} />
                 </div>
                 <div className="ml-2">
-                  <p className="text-xs font-medium text-gray-600">총 설문</p>
+                  <p className="text-xs font-medium text-muted-foreground">총 설문</p>
                   <p className="text-lg font-bold">{statistics.totalSurveys}</p>
                 </div>
               </div>
@@ -1120,11 +1120,11 @@ const SurveyResults = () => {
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-1.5 bg-green-100 rounded-md">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
+                <div className="p-1.5 bg-chart-2/20 rounded-md">
+                  <TrendingUp className="h-4 w-4" style={{ color: 'hsl(var(--chart-2))' }} />
                 </div>
                 <div className="ml-2">
-                  <p className="text-xs font-medium text-gray-600">총 응답</p>
+                  <p className="text-xs font-medium text-muted-foreground">총 응답</p>
                   <p className="text-lg font-bold">{statistics.totalResponses}</p>
                 </div>
               </div>
@@ -1134,11 +1134,11 @@ const SurveyResults = () => {
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-1.5 bg-yellow-100 rounded-md">
-                  <BarChart3 className="h-4 w-4 text-yellow-600" />
+                <div className="p-1.5 bg-chart-warning/20 rounded-md">
+                  <BarChart3 className="h-4 w-4" style={{ color: 'hsl(var(--chart-warning))' }} />
                 </div>
                 <div className="ml-2">
-                  <p className="text-xs font-medium text-gray-600">진행중</p>
+                  <p className="text-xs font-medium text-muted-foreground">진행중</p>
                   <p className="text-lg font-bold">{statistics.activeSurveys}</p>
                 </div>
               </div>
@@ -1148,11 +1148,11 @@ const SurveyResults = () => {
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-1.5 bg-purple-100 rounded-md">
-                  <IconBarChart className="h-4 w-4 text-purple-600" />
+                <div className="p-1.5 bg-chart-3/20 rounded-md">
+                  <IconBarChart className="h-4 w-4" style={{ color: 'hsl(var(--chart-3))' }} />
                 </div>
                 <div className="ml-2">
-                  <p className="text-xs font-medium text-gray-600">완료</p>
+                  <p className="text-xs font-medium text-muted-foreground">완료</p>
                   <p className="text-lg font-bold">{statistics.completedSurveys}</p>
                 </div>
               </div>
@@ -1162,11 +1162,11 @@ const SurveyResults = () => {
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
-                <div className="p-1.5 bg-pink-100 rounded-md">
-                  <FileText className="h-4 w-4 text-pink-600" />
+                <div className="p-1.5 bg-chart-4/20 rounded-md">
+                  <FileText className="h-4 w-4" style={{ color: 'hsl(var(--chart-4))' }} />
                 </div>
                 <div className="ml-2">
-                  <p className="text-xs font-medium text-gray-600">응답률</p>
+                  <p className="text-xs font-medium text-muted-foreground">응답률</p>
                   <p className="text-lg font-bold">
                     {courseStats.length > 0 
                       ? Math.round((statistics.totalResponses / Math.max(courseStats.reduce((acc, course) => acc + course.surveys.length * 20, 0), 1)) * 100) + '%'
@@ -1317,10 +1317,10 @@ const SurveyResults = () => {
             <h2 className="text-xl font-bold mb-4 text-gray-900">만족도 트렌드 분석</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* 과정별 만족도 트렌드 */}
-              <Card className="shadow-sm border border-gray-200">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-blue-600" />
+              <Card className="shadow-sm border border-border">
+                <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 border-b">
+                  <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-primary" />
                     과정별 만족도 추세
                   </CardTitle>
                 </CardHeader>
@@ -1336,57 +1336,57 @@ const SurveyResults = () => {
                          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                          barCategoryGap="20%"
                        >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                        <XAxis 
-                          dataKey="name" 
-                          tick={{ fontSize: 12, fill: '#6b7280' }}
-                          axisLine={{ stroke: '#d1d5db' }}
-                        />
-                        <YAxis 
-                          domain={[0, 10]} 
-                          tick={{ fontSize: 12, fill: '#6b7280' }}
-                          axisLine={{ stroke: '#d1d5db' }}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#ffffff', 
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                        />
-                        <Legend 
-                          wrapperStyle={{ paddingTop: '20px' }}
-                        />
-                        <Bar 
-                          dataKey="과목만족도" 
-                          fill="#3b82f6" 
-                          name="과목 만족도"
-                          radius={[4, 4, 0, 0]}
-                        />
-                        <Bar 
-                          dataKey="운영만족도" 
-                          fill="#10b981" 
-                          name="운영 만족도"
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                         <XAxis 
+                           dataKey="name" 
+                           tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                           axisLine={{ stroke: 'hsl(var(--border))' }}
+                         />
+                         <YAxis 
+                           domain={[0, 10]} 
+                           tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                           axisLine={{ stroke: 'hsl(var(--border))' }}
+                         />
+                         <Tooltip 
+                           contentStyle={{ 
+                             backgroundColor: 'hsl(var(--card))', 
+                             border: '1px solid hsl(var(--border))',
+                             borderRadius: '8px',
+                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                           }}
+                         />
+                         <Legend 
+                           wrapperStyle={{ paddingTop: '20px' }}
+                         />
+                         <Bar 
+                           dataKey="과목만족도" 
+                           fill="hsl(var(--chart-1))" 
+                           name="과목 만족도"
+                           radius={[4, 4, 0, 0]}
+                         />
+                         <Bar 
+                           dataKey="운영만족도" 
+                           fill="hsl(var(--chart-2))" 
+                           name="운영 만족도"
+                           radius={[4, 4, 0, 0]}
+                         />
+                       </RechartsBarChart>
+                     </ResponsiveContainer>
+                   </div>
+                 </CardContent>
+               </Card>
 
-              {/* 강사 만족도 트렌드 */}
-              <Card className="shadow-sm border border-gray-200">
-                <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 border-b">
-                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-orange-600" />
-                    강사 만족도 추세
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
+               {/* 강사 만족도 트렌드 */}
+               <Card className="shadow-sm border border-border">
+                 <CardHeader className="bg-gradient-to-r from-chart-3/10 to-chart-4/10 border-b">
+                   <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                     <TrendingUp className="h-5 w-5" style={{ color: 'hsl(var(--chart-3))' }} />
+                     강사 만족도 추세
+                   </CardTitle>
+                 </CardHeader>
+                 <CardContent className="p-6">
+                   <div className="h-72">
+                     <ResponsiveContainer width="100%" height="100%">
                        <RechartsBarChart
                          data={courseStats.filter(course => course.instructorSatisfaction > 0).map((course) => ({
                            name: `${course.round}차`,
@@ -1395,39 +1395,39 @@ const SurveyResults = () => {
                          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                          barCategoryGap="20%"
                        >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#fef3c7" />
-                        <XAxis 
-                          dataKey="name" 
-                          tick={{ fontSize: 12, fill: '#6b7280' }}
-                          axisLine={{ stroke: '#d1d5db' }}
-                        />
-                        <YAxis 
-                          domain={[0, 10]} 
-                          tick={{ fontSize: 12, fill: '#6b7280' }}
-                          axisLine={{ stroke: '#d1d5db' }}
-                        />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#ffffff', 
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                        />
-                        <Legend 
-                          wrapperStyle={{ paddingTop: '20px' }}
-                        />
-                        <Bar 
-                          dataKey="강사만족도" 
-                          fill="#f59e0b" 
-                          name="강사 만족도"
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
+                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                         <XAxis 
+                           dataKey="name" 
+                           tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                           axisLine={{ stroke: 'hsl(var(--border))' }}
+                         />
+                         <YAxis 
+                           domain={[0, 10]} 
+                           tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                           axisLine={{ stroke: 'hsl(var(--border))' }}
+                         />
+                         <Tooltip 
+                           contentStyle={{ 
+                             backgroundColor: 'hsl(var(--card))', 
+                             border: '1px solid hsl(var(--border))',
+                             borderRadius: '8px',
+                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                           }}
+                         />
+                         <Legend 
+                           wrapperStyle={{ paddingTop: '20px' }}
+                         />
+                         <Bar 
+                           dataKey="강사만족도" 
+                           fill="hsl(var(--chart-3))" 
+                           name="강사 만족도"
+                           radius={[4, 4, 0, 0]}
+                         />
+                       </RechartsBarChart>
+                     </ResponsiveContainer>
+                   </div>
+                 </CardContent>
+               </Card>
             </div>
           </div>
         )}
