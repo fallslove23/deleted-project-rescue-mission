@@ -895,6 +895,17 @@ export default function SurveyManagementV2() {
                           <QrCode className="h-4 w-4 mr-2" />
                           QR 코드
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          const surveyUrl = `${window.location.origin}/survey/${survey.id}`;
+                          navigator.clipboard.writeText(surveyUrl);
+                          toast({
+                            title: "링크 복사 완료",
+                            description: "설문 링크가 클립보드에 복사되었습니다.",
+                          });
+                        }}>
+                          <Link className="h-4 w-4 mr-2" />
+                          링크 복사
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDuplicateSurvey(survey.id)}>
                           <Copy className="h-4 w-4 mr-2" />
                           복제
