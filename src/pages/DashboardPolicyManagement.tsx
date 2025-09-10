@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Users, Database, Eye, EyeOff, AlertTriangle, CheckCircle, Settings, UserCog } from 'lucide-react';
+import { Shield, Users, Database, Eye, EyeOff, AlertTriangle, CheckCircle, Settings, UserCog, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -53,6 +53,7 @@ const DashboardPolicyManagement = () => {
   const [usersLoading, setUsersLoading] = useState(true);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [savingRoles, setSavingRoles] = useState<string | null>(null);
+  const [isPolicyDetailsExpanded, setIsPolicyDetailsExpanded] = useState(false);
 
   const isAdmin = userRoles.includes('admin');
 
@@ -756,104 +757,121 @@ const DashboardPolicyManagement = () => {
 
                 {/* 상세 RLS 정책 목록 */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Settings className="h-5 w-5" />
-                      상세 RLS 정책 목록
+                  <CardHeader 
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => setIsPolicyDetailsExpanded(!isPolicyDetailsExpanded)}
+                  >
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        상세 RLS 정책 목록
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {policies.length}개 정책
+                        </span>
+                        {isPolicyDetailsExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    {loading ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                        <p className="text-muted-foreground mt-2">정책 정보를 불러오는 중...</p>
-                      </div>
-                    ) : policies.length === 0 ? (
-                      <Alert>
-                        <Settings className="h-4 w-4" />
-                        <AlertDescription>
-                          등록된 RLS 정책이 없거나 조회 결과가 비어 있습니다.
-                        </AlertDescription>
-                      </Alert>
-                    ) : (
-                      <div>
-                        <div className="flex items-center justify-between mb-4">
-                          <p className="text-sm text-muted-foreground">총 {policies.length}개 정책</p>
-                          <div className="flex items-center gap-2">
-                            <a
-                              href="https://supabase.com/dashboard/project/zxjiugmqfzqluviuwztr/sql/new"
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-sm underline text-primary"
-                            >
-                              SQL 에디터 열기
-                            </a>
-                            <Button variant="outline" size="sm" onClick={fetchPolicies}>새로고침</Button>
+                  {isPolicyDetailsExpanded && (
+                    <CardContent>
+                      {loading ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                          <p className="text-muted-foreground mt-2">정책 정보를 불러오는 중...</p>
+                        </div>
+                      ) : policies.length === 0 ? (
+                        <Alert>
+                          <Settings className="h-4 w-4" />
+                          <AlertDescription>
+                            등록된 RLS 정책이 없거나 조회 결과가 비어 있습니다.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <p className="text-sm text-muted-foreground">총 {policies.length}개 정책</p>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href="https://supabase.com/dashboard/project/zxjiugmqfzqluviuwztr/sql/new"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm underline text-primary"
+                              >
+                                SQL 에디터 열기
+                              </a>
+                              <Button variant="outline" size="sm" onClick={fetchPolicies}>새로고침</Button>
+                            </div>
+                          </div>
+                          <div className="rounded-md border overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="min-w-[120px]">테이블</TableHead>
+                                  <TableHead className="min-w-[200px]">정책명</TableHead>
+                                  <TableHead className="min-w-[80px]">명령</TableHead>
+                                  <TableHead className="min-w-[100px]">역할</TableHead>
+                                  <TableHead className="min-w-[80px]">상태</TableHead>
+                                  <TableHead className="min-w-[200px]">USING 조건</TableHead>
+                                  <TableHead className="min-w-[200px]">WITH CHECK</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {policies.map((p) => (
+                                  <TableRow key={`${p.table_name}-${p.policy_name}-${p.command}`}>
+                                    <TableCell className="font-medium font-mono text-sm">{p.table_name}</TableCell>
+                                    <TableCell className="text-sm max-w-[200px]">
+                                      <div className="truncate" title={p.policy_name}>
+                                        {p.policy_name}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="secondary" className="text-xs">{p.command}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-xs">
+                                      <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">
+                                        {p.roles}
+                                      </code>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={p.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}>
+                                        {p.is_enabled ? '활성' : '비활성'}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="max-w-[200px]">
+                                      <div 
+                                        className="text-xs text-muted-foreground truncate cursor-help"
+                                        title={p.using_expression}
+                                      >
+                                        <code className="bg-gray-50 px-1 py-0.5 rounded">
+                                          {p.using_expression}
+                                        </code>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="max-w-[200px]">
+                                      <div 
+                                        className="text-xs text-muted-foreground truncate cursor-help"
+                                        title={p.with_check}
+                                      >
+                                        <code className="bg-gray-50 px-1 py-0.5 rounded">
+                                          {p.with_check}
+                                        </code>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
                           </div>
                         </div>
-                        <div className="rounded-md border overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="min-w-[120px]">테이블</TableHead>
-                                <TableHead className="min-w-[200px]">정책명</TableHead>
-                                <TableHead className="min-w-[80px]">명령</TableHead>
-                                <TableHead className="min-w-[100px]">역할</TableHead>
-                                <TableHead className="min-w-[80px]">상태</TableHead>
-                                <TableHead className="min-w-[200px]">USING 조건</TableHead>
-                                <TableHead className="min-w-[200px]">WITH CHECK</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {policies.map((p) => (
-                                <TableRow key={`${p.table_name}-${p.policy_name}-${p.command}`}>
-                                  <TableCell className="font-medium font-mono text-sm">{p.table_name}</TableCell>
-                                  <TableCell className="text-sm max-w-[200px]">
-                                    <div className="truncate" title={p.policy_name}>
-                                      {p.policy_name}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="secondary" className="text-xs">{p.command}</Badge>
-                                  </TableCell>
-                                  <TableCell className="text-xs">
-                                    <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">
-                                      {p.roles}
-                                    </code>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge className={p.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}>
-                                      {p.is_enabled ? '활성' : '비활성'}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell className="max-w-[200px]">
-                                    <div 
-                                      className="text-xs text-muted-foreground truncate cursor-help"
-                                      title={p.using_expression}
-                                    >
-                                      <code className="bg-gray-50 px-1 py-0.5 rounded">
-                                        {p.using_expression}
-                                      </code>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="max-w-[200px]">
-                                    <div 
-                                      className="text-xs text-muted-foreground truncate cursor-help"
-                                      title={p.with_check}
-                                    >
-                                      <code className="bg-gray-50 px-1 py-0.5 rounded">
-                                        {p.with_check}
-                                      </code>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
+                      )}
+                    </CardContent>
+                  )}
                 </Card>
               </>
             ) : (
