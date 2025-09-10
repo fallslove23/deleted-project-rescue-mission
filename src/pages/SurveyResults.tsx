@@ -454,6 +454,7 @@ const SurveyResults = () => {
         query = query.or('is_test.is.null,is_test.eq.false');
       }
       
+      // 강사인 경우 본인 설문 조회 (관리자/운영자/임원은 전체 조회)
       if (isInstructor && !canViewAll) {
         let instructorId = profile?.instructor_id;
         
@@ -471,16 +472,21 @@ const SurveyResults = () => {
         
         if (instructorId) {
           query = query.eq('instructor_id', instructorId);
+          console.log('🔍 강사 설문 필터링:', { instructorId, userEmail: user?.email });
         } else {
-          // instructor_id를 찾을 수 없는 경우 빈 결과 반환
+          // instructor_id를 찾을 수 없는 경우 빈 결과 반환 (보안상 중요)
+          console.warn('⚠️ 강사 권한이지만 instructor_id를 찾을 수 없습니다.');
           setSurveys([]);
           return;
         }
       }
+      
       const { data, error } = await query
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
       if (error) throw error;
+      
+      console.log('📋 조회된 설문 수:', (data ?? []).length);
       setSurveys((data ?? []) as Survey[]);
     } catch (e) {
       console.error('Error fetching surveys:', e);
@@ -635,11 +641,26 @@ const SurveyResults = () => {
   };
 
   const getCourseStatistics = () => {
-    const relevantSurveys = canViewAll
-      ? getFilteredSurveys()
-      : getFilteredSurveys().filter((s) => profile?.instructor_id && s.instructor_id === profile.instructor_id);
+    // 강사인 경우 본인 설문만 필터링, 관리자/운영자/임원은 전체 또는 필터링된 설문
+    const relevantSurveys = isInstructor && !canViewAll
+      ? getFilteredSurveys().filter((s) => {
+          // 강사는 본인의 설문만 볼 수 있음
+          if (profile?.instructor_id && s.instructor_id === profile.instructor_id) {
+            return true;
+          }
+          // 이메일로 매칭되는 강사 설문
+          if (user?.email && allInstructors.some(i => i.email === user.email && i.id === s.instructor_id)) {
+            return true;
+          }
+          return false;
+        })
+      : getFilteredSurveys();
 
     console.log('📊 Course Statistics Debug:', {
+      isInstructor,
+      canViewAll,
+      userEmail: user?.email,
+      instructorId: profile?.instructor_id,
       relevantSurveys: relevantSurveys.length,
       allResponses: allResponses.length,
       allQuestions: allQuestions.length,
@@ -949,8 +970,17 @@ const SurveyResults = () => {
                 설문 결과 분석
               </h1>
               <p className="text-gray-600 mt-1">
-                설문 응답을 분석하고 통계를 확인하세요
+                {isInstructor && !canViewAll 
+                  ? "본인 담당 설문의 응답을 분석하고 통계를 확인하세요" 
+                  : "설문 응답을 분석하고 통계를 확인하세요"}
               </p>
+              {isInstructor && !canViewAll && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-700">
+                    💡 강사 권한으로 본인이 담당한 설문 결과만 조회할 수 있습니다.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <TestDataToggle 
@@ -1017,42 +1047,43 @@ const SurveyResults = () => {
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">설문 선택</label>
-              <Select value={selectedSurvey} onValueChange={setSelectedSurvey}>
-                <SelectTrigger>
-                  <SelectValue placeholder="전체 설문" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 설문</SelectItem>
-                  {getFilteredSurveys().map((survey) => (
-                    <SelectItem key={survey.id} value={survey.id}>
-                      {survey.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSelectedYear('all');
-                  setSelectedCourse('all');
-                  setSelectedInstructor('all');
-                  setSelectedSurvey('all');
-                }}
-                className="flex items-center gap-2 whitespace-nowrap"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                필터 초기화
-              </Button>
-            </div>
+        {/* 설문 선택 */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">설문 선택</label>
+            <Select value={selectedSurvey} onValueChange={setSelectedSurvey}>
+              <SelectTrigger>
+                <SelectValue placeholder="전체 설문" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 설문</SelectItem>
+                {getFilteredSurveys().map((survey) => (
+                  <SelectItem key={survey.id} value={survey.id}>
+                    {survey.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          
+          <div className="flex items-end">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSelectedYear('all');
+                setSelectedCourse('all');
+                if (canViewAll) setSelectedInstructor('all'); // 강사는 본인 설문만 볼 수 있으므로 초기화하지 않음
+                setSelectedSurvey('all');
+              }}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              필터 초기화
+            </Button>
+          </div>
+        </div>
         </div>
 
         {/* 평균 만족도 - 가장 중요한 지표로 상단에 배치 */}
