@@ -9,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Users, Database, Eye, EyeOff, AlertTriangle, CheckCircle, Settings, UserCog } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 
 interface PagePermission {
@@ -36,6 +38,12 @@ interface UserPermission {
   created_at: string;
 }
 
+interface RoleOption {
+  value: string;
+  label: string;
+  description: string;
+}
+
 const DashboardPolicyManagement = () => {
   const { userRoles, user } = useAuth();
   const { toast } = useToast();
@@ -43,8 +51,18 @@ const DashboardPolicyManagement = () => {
   const [users, setUsers] = useState<UserPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [savingRoles, setSavingRoles] = useState<string | null>(null);
 
   const isAdmin = userRoles.includes('admin');
+
+  // 사용 가능한 역할 옵션
+  const roleOptions: RoleOption[] = [
+    { value: 'admin', label: '관리자', description: '모든 권한' },
+    { value: 'operator', label: '운영자', description: '설문 및 데이터 관리' },
+    { value: 'director', label: '원장', description: '결과 조회 및 분석' },
+    { value: 'instructor', label: '강사', description: '개인 통계 조회' }
+  ];
 
   // 페이지별 권한 설정
   const pagePermissions: PagePermission[] = [
@@ -227,6 +245,53 @@ const DashboardPolicyManagement = () => {
     }
   };
 
+  // 사용자 역할 업데이트
+  const updateUserRoles = async (userId: string, newRoles: string[]) => {
+    try {
+      setSavingRoles(userId);
+      
+      const { error } = await supabase.rpc('admin_set_user_roles_safe', {
+        target_user_id: userId,
+        roles: newRoles as ('admin' | 'operator' | 'director' | 'instructor')[]
+      });
+
+      if (error) throw error;
+
+      // 로컬 상태 업데이트
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, roles: newRoles } : u
+      ));
+
+      toast({
+        title: '권한 변경 완료',
+        description: '사용자 권한이 성공적으로 업데이트되었습니다.',
+      });
+
+      setEditingUserId(null);
+    } catch (e: any) {
+      console.error('Failed to update user roles', e);
+      toast({
+        title: '권한 변경 실패',
+        description: e.message || '오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingRoles(null);
+    }
+  };
+
+  // 역할 토글
+  const toggleRole = (userId: string, role: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    const newRoles = user.roles.includes(role)
+      ? user.roles.filter(r => r !== role)
+      : [...user.roles, role];
+
+    updateUserRoles(userId, newRoles);
+  };
+
   useEffect(() => {
     fetchPolicies();
     fetchUsers();
@@ -342,9 +407,10 @@ const DashboardPolicyManagement = () => {
                           <TableHeader>
                             <TableRow>
                               <TableHead>이메일</TableHead>
-                              <TableHead>보유 역할</TableHead>
+                              <TableHead>역할 관리</TableHead>
                               <TableHead>가입일</TableHead>
-                              <TableHead>접근 가능 페이지</TableHead>
+                              <TableHead>접근 페이지</TableHead>
+                              <TableHead>작업</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -352,19 +418,46 @@ const DashboardPolicyManagement = () => {
                               const userAccessiblePages = pagePermissions.filter(page => 
                                 page.requiredRoles.some(role => u.roles.includes(role))
                               );
+                              const isEditing = editingUserId === u.id;
+                              const isSaving = savingRoles === u.id;
+                              
                               return (
                                 <TableRow key={u.id}>
                                   <TableCell className="font-medium">{u.email}</TableCell>
                                   <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                      {u.roles.length > 0 ? u.roles.map((role) => (
-                                        <Badge key={role} className={getRoleColor(role)}>
-                                          {role}
-                                        </Badge>
-                                      )) : (
-                                        <Badge variant="outline">역할 없음</Badge>
-                                      )}
-                                    </div>
+                                    {isEditing ? (
+                                      <div className="space-y-2">
+                                        {roleOptions.map((role) => (
+                                          <div key={role.value} className="flex items-center space-x-2">
+                                            <Checkbox
+                                              id={`${u.id}-${role.value}`}
+                                              checked={u.roles.includes(role.value)}
+                                              onCheckedChange={() => toggleRole(u.id, role.value)}
+                                              disabled={isSaving}
+                                            />
+                                            <label
+                                              htmlFor={`${u.id}-${role.value}`}
+                                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+                                              {role.label}
+                                            </label>
+                                            <span className="text-xs text-muted-foreground">
+                                              ({role.description})
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="flex flex-wrap gap-1">
+                                        {u.roles.length > 0 ? u.roles.map((role) => (
+                                          <Badge key={role} className={getRoleColor(role)}>
+                                            {roleOptions.find(r => r.value === role)?.label || role}
+                                          </Badge>
+                                        )) : (
+                                          <Badge variant="outline">역할 없음</Badge>
+                                        )}
+                                      </div>
+                                    )}
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
                                     {new Date(u.created_at).toLocaleDateString('ko-KR')}
@@ -373,6 +466,31 @@ const DashboardPolicyManagement = () => {
                                     <span className="text-sm">
                                       {userAccessiblePages.length}개 페이지
                                     </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      {isEditing ? (
+                                        <>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setEditingUserId(null)}
+                                            disabled={isSaving}
+                                          >
+                                            취소
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => setEditingUserId(u.id)}
+                                          disabled={u.id === user?.id} // 본인은 편집 불가
+                                        >
+                                          편집
+                                        </Button>
+                                      )}
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               );
