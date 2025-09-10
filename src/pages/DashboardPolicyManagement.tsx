@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Users, Database, Eye, EyeOff, AlertTriangle, CheckCircle, Settings } from 'lucide-react';
+import { Shield, Users, Database, Eye, EyeOff, AlertTriangle, CheckCircle, Settings, UserCog } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -29,11 +29,20 @@ interface PolicyInfo {
   is_enabled: boolean;
 }
 
+interface UserPermission {
+  id: string;
+  email: string;
+  roles: string[];
+  created_at: string;
+}
+
 const DashboardPolicyManagement = () => {
   const { userRoles, user } = useAuth();
   const { toast } = useToast();
   const [policies, setPolicies] = useState<PolicyInfo[]>([]);
+  const [users, setUsers] = useState<UserPermission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usersLoading, setUsersLoading] = useState(true);
 
   const isAdmin = userRoles.includes('admin');
 
@@ -170,8 +179,57 @@ const DashboardPolicyManagement = () => {
     }
   };
 
+  // 전체 사용자 권한 정보 조회
+  const fetchUsers = async () => {
+    if (!isAdmin) {
+      setUsersLoading(false);
+      return;
+    }
+
+    try {
+      setUsersLoading(true);
+      
+      // 먼저 모든 프로필을 가져옴
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, created_at')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) throw profilesError;
+
+      // 각 사용자의 역할을 별도로 조회
+      const usersWithRoles = await Promise.all(
+        (profilesData || []).map(async (profile) => {
+          const { data: rolesData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', profile.id);
+
+          return {
+            id: profile.id,
+            email: profile.email || '',
+            roles: rolesData?.map(r => r.role) || [],
+            created_at: profile.created_at
+          };
+        })
+      );
+
+      setUsers(usersWithRoles);
+    } catch (e: any) {
+      console.error('Failed to load users', e);
+      toast({
+        title: '사용자 조회 실패',
+        description: e.message || '오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPolicies();
+    fetchUsers();
   }, [isAdmin]);
 
   // 역할별 색상
@@ -239,13 +297,106 @@ const DashboardPolicyManagement = () => {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="permissions" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="users" disabled={!isAdmin}>
+              사용자 권한 {!isAdmin && '(관리자 전용)'}
+            </TabsTrigger>
             <TabsTrigger value="permissions">페이지 권한</TabsTrigger>
             <TabsTrigger value="policies" disabled={!isAdmin}>
               RLS 정책 {!isAdmin && '(관리자 전용)'}
             </TabsTrigger>
           </TabsList>
+
+          {/* 사용자 권한 관리 탭 (관리자 전용) */}
+          <TabsContent value="users" className="space-y-4">
+            {isAdmin ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCog className="h-5 w-5" />
+                    전체 사용자 권한 관리
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {usersLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground mt-2">사용자 정보를 불러오는 중...</p>
+                    </div>
+                  ) : users.length === 0 ? (
+                    <Alert>
+                      <Users className="h-4 w-4" />
+                      <AlertDescription>
+                        등록된 사용자가 없습니다.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-muted-foreground">총 {users.length}명의 사용자</p>
+                        <Button variant="outline" size="sm" onClick={fetchUsers}>새로고침</Button>
+                      </div>
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>이메일</TableHead>
+                              <TableHead>보유 역할</TableHead>
+                              <TableHead>가입일</TableHead>
+                              <TableHead>접근 가능 페이지</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {users.map((u) => {
+                              const userAccessiblePages = pagePermissions.filter(page => 
+                                page.requiredRoles.some(role => u.roles.includes(role))
+                              );
+                              return (
+                                <TableRow key={u.id}>
+                                  <TableCell className="font-medium">{u.email}</TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                      {u.roles.length > 0 ? u.roles.map((role) => (
+                                        <Badge key={role} className={getRoleColor(role)}>
+                                          {role}
+                                        </Badge>
+                                      )) : (
+                                        <Badge variant="outline">역할 없음</Badge>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {new Date(u.created_at).toLocaleDateString('ko-KR')}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-sm">
+                                      {userAccessiblePages.length}개 페이지
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      사용자 권한 관리는 관리자 권한이 필요합니다.
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
           {/* 페이지 권한 탭 */}
           <TabsContent value="permissions" className="space-y-4">
