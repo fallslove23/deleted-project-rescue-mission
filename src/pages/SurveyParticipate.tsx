@@ -237,7 +237,7 @@ const SurveyParticipate = () => {
           )
         `)
         .eq('id', surveyId)
-        .single();
+        .maybeSingle();
 
       if (surveyError) {
         console.error('❌ 익명 사용자 설문 접근 실패:', surveyError);
