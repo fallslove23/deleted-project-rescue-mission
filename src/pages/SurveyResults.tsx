@@ -697,7 +697,7 @@ const SurveyResults = () => {
         responseIds: responseIds.length
       });
 
-      // 만족도 타입별 계산 (더 유연하게 매칭)
+      // 만족도 타입별 계산 (더 유연하게 매칭) - 0점은 평균에서 제외
       const satisfactionTypes = [
         { key: 'instructorSatisfaction', types: ['instructor'] },
         { key: 'subjectSatisfaction', types: ['subject', 'course'] }, 
@@ -728,16 +728,24 @@ const SurveyResults = () => {
               return isNaN(value) ? 0 : value;
             });
             
-            const sum = values.reduce((acc, v) => acc + v, 0);
-            const avg = sum / values.length;
-            (stat as any)[satKey] = avg;
+            // 0점이 아닌 값들만 필터링해서 평균 계산
+            const validValues = values.filter(v => v > 0);
             
-            console.log(`${satKey} 계산:`, {
-              questions: typeQuestions.length,
-              answers: typeAnswers.length,
-              values: values.slice(0, 5), // 처음 5개만 로그
-              avg
-            });
+            if (validValues.length > 0) {
+              const sum = validValues.reduce((acc, v) => acc + v, 0);
+              const avg = sum / validValues.length;
+              (stat as any)[satKey] = avg;
+              
+              console.log(`${satKey} 계산 (0점 제외):`, {
+                questions: typeQuestions.length,
+                totalAnswers: typeAnswers.length,
+                validAnswers: validValues.length,
+                validValues: validValues.slice(0, 5), // 처음 5개만 로그
+                avg
+              });
+            } else {
+              (stat as any)[satKey] = 0; // 유효한 값이 없으면 0으로 설정
+            }
           }
         }
       });
@@ -1047,8 +1055,54 @@ const SurveyResults = () => {
           </div>
         </div>
 
+        {/* 평균 만족도 - 가장 중요한 지표로 상단에 배치 */}
+        <div className="mb-6">
+          <Card className="bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-100 border-2 border-emerald-300 shadow-xl">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-3 bg-emerald-500 rounded-xl shadow-lg mr-4">
+                    <TrendingUp className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-emerald-800 mb-1">전체 평균 만족도</p>
+                    <p className="text-sm text-emerald-600">가장 중요한 핵심 지표</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-4xl font-bold text-emerald-900">
+                    {(() => {
+                      // 0점 제외하고 평균 계산
+                      const validSatisfactions = courseStats.filter(course => course.subjectSatisfaction > 0);
+                      return validSatisfactions.length > 0 
+                        ? (validSatisfactions.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / validSatisfactions.length).toFixed(1)
+                        : '0.0';
+                    })()}
+                    <span className="text-2xl text-emerald-700 ml-1">/10</span>
+                  </p>
+                  <div className="mt-2 flex justify-end">
+                    <div className="w-32 h-2.5 bg-emerald-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                        style={{ 
+                          width: `${(() => {
+                            const validSatisfactions = courseStats.filter(course => course.subjectSatisfaction > 0);
+                            return validSatisfactions.length > 0 
+                              ? ((validSatisfactions.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / validSatisfactions.length) / 10) * 100
+                              : 0;
+                          })()}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* 통계 카드 */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-center">
@@ -1100,38 +1154,6 @@ const SurveyResults = () => {
                 <div className="ml-2">
                   <p className="text-xs font-medium text-gray-600">완료</p>
                   <p className="text-lg font-bold">{statistics.completedSurveys}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200 shadow-lg">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-500 rounded-lg shadow-md">
-                  <TrendingUp className="h-5 w-5 text-white" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-semibold text-blue-800 mb-1">평균 만족도</p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    {courseStats.length > 0 
-                      ? (courseStats.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / courseStats.length).toFixed(1)
-                      : '0.0'
-                    }
-                    <span className="text-lg text-blue-700 ml-1">/10</span>
-                  </p>
-                  <div className="mt-1">
-                    <div className="w-20 h-1.5 bg-blue-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${courseStats.length > 0 
-                            ? ((courseStats.reduce((acc, course) => acc + course.subjectSatisfaction, 0) / courseStats.length) / 10) * 100
-                            : 0}%` 
-                        }}
-                      ></div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1305,15 +1327,15 @@ const SurveyResults = () => {
                 <CardContent className="p-6">
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={courseStats.map((course) => ({
-                          name: `${course.round}차`,
-                          과목만족도: parseFloat(course.subjectSatisfaction.toFixed(1)),
-                          운영만족도: parseFloat(course.operationSatisfaction.toFixed(1)),
-                        }))}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                        barCategoryGap="20%"
-                      >
+                       <RechartsBarChart
+                         data={courseStats.filter(course => course.subjectSatisfaction > 0 || course.operationSatisfaction > 0).map((course) => ({
+                           name: `${course.round}차`,
+                           과목만족도: course.subjectSatisfaction > 0 ? parseFloat(course.subjectSatisfaction.toFixed(1)) : null,
+                           운영만족도: course.operationSatisfaction > 0 ? parseFloat(course.operationSatisfaction.toFixed(1)) : null,
+                         }))}
+                         margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                         barCategoryGap="20%"
+                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                         <XAxis 
                           dataKey="name" 
@@ -1365,14 +1387,14 @@ const SurveyResults = () => {
                 <CardContent className="p-6">
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={courseStats.map((course) => ({
-                          name: `${course.round}차`,
-                          강사만족도: parseFloat(course.instructorSatisfaction.toFixed(1)),
-                        }))}
-                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                        barCategoryGap="20%"
-                      >
+                       <RechartsBarChart
+                         data={courseStats.filter(course => course.instructorSatisfaction > 0).map((course) => ({
+                           name: `${course.round}차`,
+                           강사만족도: course.instructorSatisfaction > 0 ? parseFloat(course.instructorSatisfaction.toFixed(1)) : null,
+                         }))}
+                         margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                         barCategoryGap="20%"
+                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="#fef3c7" />
                         <XAxis 
                           dataKey="name" 
