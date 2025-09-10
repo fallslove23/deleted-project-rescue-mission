@@ -15,6 +15,7 @@ import ChangePassword from "./pages/ChangePassword";
 import DashboardOverview from "./pages/DashboardOverview";
 import DashboardSurveyResults from "./pages/DashboardSurveyResults";
 import DashboardCourseReports from "./pages/DashboardCourseReports";
+import DashboardPolicyManagement from "./pages/DashboardPolicyManagement";
 import DashboardInstructorManagement from "./pages/DashboardInstructorManagement";
 import DashboardTemplateManagement from "./pages/DashboardTemplateManagement";
 import DashboardMyStats from "./pages/DashboardMyStats";
@@ -305,6 +306,15 @@ function AppContent() {
         element={
           <ProtectedRoute allowedRoles={["admin", "operator", "director", "instructor"]}>
             <DashboardCourseReports />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/policy-management"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <DashboardPolicyManagement />
           </ProtectedRoute>
         }
       />

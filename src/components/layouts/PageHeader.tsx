@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { BarChart3, LogOut } from "lucide-react";
+import { RoleAccessIndicator } from "@/components/RoleAccessIndicator";
 
 interface PageHeaderProps {
   title: string;
@@ -34,6 +35,7 @@ export function PageHeader({ title, subtitle, icon }: PageHeaderProps) {
         </div>
         
         <div className="flex items-center gap-2">
+          <RoleAccessIndicator />
           <span className="text-xs md:text-sm text-muted-foreground hidden sm:block">
             환영합니다, {user?.email}
           </span>

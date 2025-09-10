@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, BarChart3, Users, UserCheck, BookOpen, FileText, 
-  Mail, Settings, TrendingUp, Award, PieChart, Database, Code
+  Mail, Settings, TrendingUp, Award, PieChart, Database, Code, Shield
 } from "lucide-react";
 
 export function AdminSidebar() {
@@ -53,6 +53,7 @@ export function AdminSidebar() {
         items: [
           { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, exact: false },
           { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings, exact: false },
+          { title: "정책 관리", url: "/dashboard/policy-management", icon: Shield, exact: false },
           { title: "누적 데이터", url: "/dashboard/cumulative-data", icon: Database, exact: false }
         ]
       }
