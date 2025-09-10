@@ -921,14 +921,6 @@ export default function SurveyManagementV2() {
                       <BarChart className="h-4 w-4 mr-1" />
                       분석
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopyLink(survey.id)}
-                    >
-                      <Link className="h-4 w-4 mr-1" />
-                      링크
-                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
