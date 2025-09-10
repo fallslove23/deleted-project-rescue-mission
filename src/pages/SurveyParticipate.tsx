@@ -111,6 +111,7 @@ const SurveyParticipate = () => {
   const [tokenValidated, setTokenValidated] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [surveyPhase, setSurveyPhase] = useState<'intro' | 'survey' | 'completed'>('intro');
 
   const completedKey = surveyId ? `survey_completed_${surveyId}` : '';
 
@@ -461,8 +462,8 @@ const SurveyParticipate = () => {
       }
 
       console.log('🎉 설문 제출 완료!');
-      toast({ title: '설문 참여 완료!', description: '소중한 의견을 주셔서 감사합니다.' });
-      navigate('/');
+      setSurveyPhase('completed');
+      // navigate('/'); // 바로 이동하지 않고 완료 화면 표시
     } catch (error) {
       console.error('💥 설문 제출 중 오류 발생:', error);
       console.error('오류 세부 정보:', {
@@ -563,6 +564,155 @@ const SurveyParticipate = () => {
           <p className="text-muted-foreground mb-4">요청하신 설문이 존재하지 않거나 삭제되었습니다.</p>
           <Button onClick={() => navigate('/')}>홈으로 돌아가기</Button>
         </div>
+      </div>
+    );
+  }
+
+  // 설문 시작 화면
+  if (surveyPhase === 'intro') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center space-y-4">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <User className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-bold">{survey?.title}</CardTitle>
+            {survey?.description && (
+              <p className="text-muted-foreground leading-relaxed">{survey.description}</p>
+            )}
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {/* 강사 정보 표시 */}
+            {instructor && (
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <InstructorInfoSection instructor={instructor} />
+              </div>
+            )}
+
+            {/* 설문 정보 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div className="space-y-2">
+                <div className="text-2xl font-bold text-primary">{questions.length}</div>
+                <div className="text-sm text-muted-foreground">총 문항 수</div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-2xl font-bold text-primary">~{Math.ceil(questions.length * 0.5)}</div>
+                <div className="text-sm text-muted-foreground">예상 소요시간 (분)</div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-2xl font-bold text-primary">익명</div>
+                <div className="text-sm text-muted-foreground">응답 방식</div>
+              </div>
+            </div>
+
+            {/* 안내사항 */}
+            <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200">
+                <div className="space-y-2">
+                  <div className="font-medium">참여 안내사항</div>
+                  <ul className="text-sm space-y-1 list-disc list-inside">
+                    <li>모든 응답은 익명으로 처리되며 개인정보는 수집되지 않습니다</li>
+                    <li>진솔하고 건설적인 의견을 작성해 주세요</li>
+                    <li>중간에 나가시면 응답이 저장되지 않습니다</li>
+                    <li>모든 필수 문항에 응답해 주셔야 제출이 가능합니다</li>
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+
+            {/* 시작 버튼 */}
+            <div className="text-center space-y-4">
+              <Button 
+                size="lg" 
+                className="w-full sm:w-auto px-8 py-3 text-lg"
+                onClick={() => setSurveyPhase('survey')}
+              >
+                <Send className="w-5 h-5 mr-2" />
+                설문 시작하기
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                시작 버튼을 클릭하시면 설문에 동의하신 것으로 간주됩니다
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // 설문 완료 화면
+  if (surveyPhase === 'completed') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center space-y-4">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="w-10 h-10 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-green-800 dark:text-green-400">
+              설문 참여 완료!
+            </CardTitle>
+            <p className="text-muted-foreground text-lg">
+              소중한 의견을 주셔서 진심으로 감사합니다
+            </p>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {/* 완료 메시지 */}
+            <div className="text-center space-y-4">
+              <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-6">
+                <h3 className="font-semibold text-green-800 dark:text-green-400 mb-2">
+                  응답이 성공적으로 제출되었습니다
+                </h3>
+                <p className="text-sm text-green-700 dark:text-green-300 leading-relaxed">
+                  여러분의 의견은 교육 품질 향상을 위해 소중히 활용됩니다. 
+                  더 나은 교육 환경을 만들어 나가는데 큰 도움이 됩니다.
+                </p>
+              </div>
+            </div>
+
+            {/* 설문 정보 요약 */}
+            <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
+              <h4 className="font-medium">참여하신 설문</h4>
+              <p className="text-sm text-muted-foreground">{survey?.title}</p>
+              <div className="text-xs text-muted-foreground flex items-center gap-4">
+                <span>• 총 {questions.length}개 문항 응답 완료</span>
+                <span>• {new Date().toLocaleDateString('ko-KR')} 제출</span>
+              </div>
+            </div>
+
+            {/* 추가 안내 */}
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <div className="font-medium">참고사항</div>
+                  <ul className="text-sm space-y-1">
+                    <li>• 설문 결과는 익명으로 처리되어 통계 분석에만 사용됩니다</li>
+                    <li>• 개별 응답 내용은 교육 개선 목적으로만 활용됩니다</li>
+                    <li>• 추가 문의사항이 있으시면 교육 담당자에게 연락해 주세요</li>
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+
+            {/* 홈으로 돌아가기 버튼 */}
+            <div className="text-center pt-4">
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => navigate('/')}
+                className="px-8"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                홈으로 돌아가기
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
