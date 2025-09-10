@@ -2252,6 +2252,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      save_answers_bulk: {
+        Args: { p_answers: Json }
+        Returns: undefined
+      }
       update_course_statistics: {
         Args: Record<PropertyKey, never>
         Returns: undefined

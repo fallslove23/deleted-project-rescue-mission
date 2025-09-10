@@ -320,33 +320,32 @@ const SurveyParticipateSession = () => {
       console.log('📋 유효한 답변:', validAnswers.length, '개');
 
         if (validAnswers.length > 0) {
-          const rows = validAnswers.map((a) => ({
+          const answersData = validAnswers.map((a) => ({
             response_id: responseData.id,
             question_id: a.questionId,
             answer_text: Array.isArray(a.answer) ? a.answer.join(', ') : a.answer,
             answer_value: a.answer,
           }));
-          console.log('💾 답변 데이터 삽입 중...', rows.length, '개 항목');
+          console.log('💾 답변 데이터 일괄 삽입 중...', answersData.length, '개 항목');
 
-          // 큰 페이로드 타임아웃을 방지하기 위해 청크 단위로 분할 삽입
-          const chunkSize = 15;
-          for (let i = 0; i < rows.length; i += chunkSize) {
-            const chunk = rows.slice(i, i + chunkSize);
-            let attempts = 0;
-            while (attempts < 2) {
-              const { error } = await supabase.from('question_answers').insert(chunk);
-              if (!error) break;
-              const msg = (error as any)?.message || '';
-              const code = (error as any)?.code;
-              if (code === '57014' || /statement timeout/i.test(msg)) {
-                attempts++;
-                console.warn(`⏳ 타임아웃으로 재시도 (${attempts})...`, { i, size: chunk.length });
-                await new Promise((r) => setTimeout(r, 300));
-                continue;
-              }
-              console.error('❌ 답변 데이터 삽입 실패:', error);
-              throw error;
+          // RPC 함수를 사용한 서버 측 일괄 처리
+          let attempts = 0;
+          while (attempts < 2) {
+            const { error } = await supabase.rpc('save_answers_bulk', {
+              p_answers: answersData
+            });
+            if (!error) break;
+            
+            const msg = (error as any)?.message || '';
+            const code = (error as any)?.code;
+            if (code === '57014' || /statement timeout/i.test(msg)) {
+              attempts++;
+              console.warn(`⏳ 타임아웃으로 재시도 (${attempts})...`);
+              await new Promise((r) => setTimeout(r, 500));
+              continue;
             }
+            console.error('❌ 답변 데이터 삽입 실패:', error);
+            throw error;
           }
           console.log('✅ 답변 데이터 삽입 성공');
         }
