@@ -540,6 +540,85 @@ export type Database = {
           },
         ]
       }
+      short_urls: {
+        Row: {
+          click_count: number
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          original_url: string
+          short_code: string
+          survey_id: string | null
+        }
+        Insert: {
+          click_count?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          original_url: string
+          short_code: string
+          survey_id?: string | null
+        }
+        Update: {
+          click_count?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          original_url?: string
+          short_code?: string
+          survey_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "short_urls_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "short_urls_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "short_urls_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "short_urls_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "short_urls_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "short_urls_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       survey_analysis_comments: {
         Row: {
           author_id: string
@@ -2042,6 +2121,10 @@ export type Database = {
           instructor_id_param: string
           instructor_password: string
         }
+        Returns: string
+      }
+      generate_short_code: {
+        Args: { length?: number }
         Returns: string
       }
       generate_survey_code: {

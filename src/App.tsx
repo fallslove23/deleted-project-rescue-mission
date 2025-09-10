@@ -35,6 +35,7 @@ import TemplateBuilder from "./pages/TemplateBuilder";
 import SurveyResults from "./pages/SurveyResults";
 import SurveyDetailedAnalysis from "./pages/SurveyDetailedAnalysis";
 import DeveloperTestScreen from "./pages/DeveloperTestScreen";
+import ShortUrlRedirect from "./pages/ShortUrlRedirect";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -183,6 +184,9 @@ function AppContent() {
       />
 
       <Route path="/survey/:surveyId" element={<SurveyParticipate />} />
+      
+      {/* 짧은 URL 리다이렉트 라우트 */}
+      <Route path="/s/:shortCode" element={<ShortUrlRedirect />} />
 
       <Route
         path="/survey-preview/:surveyId"

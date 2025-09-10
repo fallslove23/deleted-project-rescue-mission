@@ -13,6 +13,7 @@ import { ArrowLeft, Eye, AlertTriangle, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import ShortUrlGenerator from '@/components/ShortUrlGenerator';
 
 interface Survey {
   id: string;
@@ -629,6 +630,10 @@ const SurveyPreview = () => {
           )}
         </div>
 
+        {/* 짧은 URL 생성 섹션 */}
+        <div className="mt-8">
+          <ShortUrlGenerator surveyId={surveyId!} surveyTitle={survey.title} />
+        </div>
       </main>
     </div>
   );
