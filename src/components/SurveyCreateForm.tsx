@@ -41,6 +41,11 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     combined_round_start: null as number | null,
     combined_round_end: null as number | null,
     round_label: "",
+    
+    // 분반 관련 필드
+    is_grouped: false,
+    group_type: "",
+    group_number: null as number | null,
   });
 
   // 제목 자동 생성
@@ -51,10 +56,17 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     const program = form.program_name;
 
     if (year && r && d && program) {
-      const title = `${year}-${program}-${r}차-${d}일차 설문`;
+      let title = `${year}-${program}-${r}차-${d}일차`;
+      
+      // 분반 설정이 있으면 조 번호 추가 (차수 뒤)
+      if (form.is_grouped && form.group_number) {
+        title += ` ${form.group_number}조`;
+      }
+      
+      title += ' 설문';
       setForm((prev) => ({ ...prev, title }));
     }
-  }, [form.education_year, form.education_round, form.education_day, form.program_name]);
+  }, [form.education_year, form.education_round, form.education_day, form.program_name, form.is_grouped, form.group_number]);
 
   // 합반 라벨 자동 생성
   useEffect(() => {
@@ -130,6 +142,11 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         combined_round_start: (form.program_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_start) : null,
         combined_round_end: (form.program_name === "BS Advanced" && form.is_combined) ? Number(form.combined_round_end) : null,
         round_label: (form.program_name === "BS Advanced" && form.is_combined) ? round_label : null,
+        
+        // 분반 관련 필드
+        group_type: form.is_grouped ? form.group_type : null,
+        group_number: form.is_grouped ? Number(form.group_number) : null,
+        is_grouped: form.is_grouped,
       };
 
       const { data: survey, error: surveyError } = await supabase
@@ -447,6 +464,57 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
               placeholder="자동으로 생성됩니다"
             />
           </div>
+
+          {/* 분반 설정 (영업 BS 집체교육일 때) */}
+          {form.program_name === "영업 BS 집체교육" && (
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardHeader>
+                <CardTitle className="text-sm text-blue-800">분반 설정</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="is_grouped"
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600"
+                    checked={form.is_grouped}
+                    onChange={(e) => onChange("is_grouped", e.target.checked)}
+                  />
+                  <Label htmlFor="is_grouped" className="text-sm font-medium">
+                    분반으로 운영 (조별 설문)
+                  </Label>
+                </div>
+
+                {form.is_grouped && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>분반 유형</Label>
+                      <select 
+                        className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                        value={form.group_type}
+                        onChange={(e) => onChange("group_type", e.target.value)}
+                      >
+                        <option value="">선택하세요</option>
+                        <option value="짝수조">짝수조</option>
+                        <option value="홀수조">홀수조</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label>조 번호</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={form.group_number || ""}
+                        onChange={(e) => onChange("group_number", Number(e.target.value))}
+                        placeholder="조 번호 (예: 11, 12)"
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* 합반 설정 (BS Advanced일 때만) */}
           {form.program_name === "BS Advanced" && (
