@@ -473,8 +473,8 @@ const DashboardPolicyManagement = () => {
                                       {isEditing ? (
                                         <>
                                           <Button
-                                            size="sm"
                                             variant="outline"
+                                            size="sm"
                                             onClick={() => setEditingUserId(null)}
                                             disabled={isSaving}
                                           >
@@ -483,12 +483,12 @@ const DashboardPolicyManagement = () => {
                                         </>
                                       ) : (
                                         <Button
-                                          size="sm"
                                           variant="outline"
+                                          size="sm"
                                           onClick={() => setEditingUserId(u.id)}
-                                          disabled={u.id === user?.id} // 본인은 편집 불가
+                                          disabled={isSaving}
                                         >
-                                          편집
+                                          {isSaving ? '저장중...' : '편집'}
                                         </Button>
                                       )}
                                     </div>
@@ -504,100 +504,86 @@ const DashboardPolicyManagement = () => {
                 </CardContent>
               </Card>
             ) : (
-              <Card>
-                <CardContent className="pt-6">
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      사용자 권한 관리는 관리자 권한이 필요합니다.
-                    </AlertDescription>
-                  </Alert>
-                </CardContent>
-              </Card>
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  사용자 권한 관리는 관리자만 접근할 수 있습니다.
+                </AlertDescription>
+              </Alert>
             )}
           </TabsContent>
 
-          {/* 페이지 권한 탭 */}
+          {/* 페이지 권한 현황 탭 */}
           <TabsContent value="permissions" className="space-y-4">
-            {/* 접근 가능한 페이지 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-600">
-                  <Eye className="h-5 w-5" />
-                  접근 가능한 페이지 ({accessiblePages.length}개)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  {accessiblePages.map((page) => (
-                    <div 
-                      key={page.path}
-                      className={`border-l-4 ${getCategoryColor(page.category)} bg-green-50 p-3 rounded-r-lg`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">{page.title}</h4>
-                          <p className="text-sm text-muted-foreground">{page.description}</p>
-                          <code className="text-xs bg-gray-100 px-1 py-0.5 rounded mt-1 inline-block">
-                            {page.path}
-                          </code>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {page.requiredRoles.map((role) => (
-                            <Badge
-                              key={role}
-                              variant={userRoles.includes(role) ? 'default' : 'secondary'}
-                              className={userRoles.includes(role) ? getRoleColor(role) : 'opacity-50'}
-                            >
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 접근 제한된 페이지 */}
-            {inaccessiblePages.length > 0 && (
+            <div className="grid gap-4">
+              {/* 접근 가능한 페이지 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-600">
-                    <EyeOff className="h-5 w-5" />
-                    접근 제한된 페이지 ({inaccessiblePages.length}개)
+                  <CardTitle className="flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-green-600" />
+                    접근 가능한 페이지 ({accessiblePages.length}개)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3">
-                    {inaccessiblePages.map((page) => (
-                      <div 
-                        key={page.path}
-                        className={`border-l-4 ${getCategoryColor(page.category)} bg-red-50 p-3 rounded-r-lg opacity-75`}
-                      >
+                    {accessiblePages.map((page) => (
+                      <div key={page.path} className={`p-4 border-l-4 rounded-lg bg-green-50 ${getCategoryColor(page.category)}`}>
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-medium text-gray-600">{page.title}</h4>
-                            <p className="text-sm text-muted-foreground">{page.description}</p>
-                            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded mt-1 inline-block">
-                              {page.path}
-                            </code>
+                            <h4 className="font-medium text-sm">{page.title}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">{page.description}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-muted-foreground">필요 역할:</span>
+                              {page.requiredRoles.map((role) => (
+                                <Badge key={role} variant="outline" className="text-xs">
+                                  {roleOptions.find(r => r.value === role)?.label || role}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1">
-                            {page.requiredRoles.map((role) => (
-                              <Badge key={role} variant="secondary" className="opacity-50">
-                                {role}
-                              </Badge>
-                            ))}
-                          </div>
+                          <CheckCircle className="h-5 w-5 text-green-600" />
                         </div>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
-            )}
+
+              {/* 접근 제한된 페이지 */}
+              {inaccessiblePages.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <EyeOff className="h-5 w-5 text-red-600" />
+                      접근 제한된 페이지 ({inaccessiblePages.length}개)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3">
+                      {inaccessiblePages.map((page) => (
+                        <div key={page.path} className={`p-4 border-l-4 rounded-lg bg-red-50 ${getCategoryColor(page.category)}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium text-sm">{page.title}</h4>
+                              <p className="text-xs text-muted-foreground mt-1">{page.description}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-xs text-muted-foreground">필요 역할:</span>
+                                {page.requiredRoles.map((role) => (
+                                  <Badge key={role} variant="outline" className="text-xs">
+                                    {roleOptions.find(r => r.value === role)?.label || role}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <AlertTriangle className="h-5 w-5 text-red-600" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
 
           {/* RLS 정책 탭 (관리자 전용) */}
@@ -613,145 +599,138 @@ const DashboardPolicyManagement = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {loading ? (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                        <p className="text-muted-foreground mt-2">권한 정보를 불러오는 중...</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {/* 권한 매트릭스 */}
-                        <div className="grid gap-4">
-                          {/* 핵심 테이블별 권한 요약 */}
-                          {[
-                            {
-                              table: 'surveys',
-                              title: '설문 관리',
-                              description: '설문 생성, 수정, 조회',
-                              roles: {
-                                admin: ['조회', '생성', '수정', '삭제'],
-                                operator: ['조회', '생성', '수정', '삭제'],
-                                director: ['조회'],
-                                instructor: ['본인 설문 조회'],
-                                public: ['공개 설문 조회']
-                              }
-                            },
-                            {
-                              table: 'survey_responses',
-                              title: '설문 응답',
-                              description: '설문 응답 제출 및 조회',
-                              roles: {
-                                admin: ['모든 응답 조회'],
-                                operator: ['모든 응답 조회'],
-                                director: ['모든 응답 조회'],
-                                instructor: ['본인 설문 응답 조회'],
-                                public: ['응답 제출만 가능']
-                              }
-                            },
-                            {
-                              table: 'question_answers',
-                              title: '질문 답변',
-                              description: '설문 질문별 답변 데이터',
-                              roles: {
-                                admin: ['모든 답변 조회'],
-                                operator: ['모든 답변 조회'],
-                                director: ['모든 답변 조회'],
-                                instructor: ['본인 설문 답변 조회'],
-                                public: ['답변 제출만 가능']
-                              }
-                            },
-                            {
-                              table: 'instructors',
-                              title: '강사 정보',
-                              description: '강사 프로필 및 정보 관리',
-                              roles: {
-                                admin: ['조회', '생성', '수정', '삭제'],
-                                operator: ['조회', '생성', '수정', '삭제'],
-                                director: ['조회'],
-                                instructor: ['본인 정보 조회'],
-                                public: ['공개 정보 조회']
-                              }
-                            },
-                            {
-                              table: 'profiles',
-                              title: '사용자 프로필',
-                              description: '사용자 계정 및 역할 정보',
-                              roles: {
-                                admin: ['모든 프로필 조회'],
-                                operator: ['제한적 조회'],
-                                director: ['제한적 조회'],
-                                instructor: ['본인 프로필만'],
-                                public: ['접근 불가']
-                              }
-                            },
-                            {
-                              table: 'courses',
-                              title: '과목 관리',
-                              description: '과목 및 프로그램 정보',
-                              roles: {
-                                admin: ['조회', '생성', '수정', '삭제'],
-                                operator: ['조회', '생성', '수정', '삭제'],
-                                director: ['조회'],
-                                instructor: ['조회'],
-                                public: ['제한적 조회']
-                              }
+                    <div className="space-y-6">
+                      {/* 권한 매트릭스 */}
+                      <div className="grid gap-4">
+                        {/* 핵심 테이블별 권한 요약 */}
+                        {[
+                          {
+                            table: 'surveys',
+                            title: '설문 관리',
+                            description: '설문 생성, 수정, 조회',
+                            roles: {
+                              admin: ['조회', '생성', '수정', '삭제'],
+                              operator: ['조회', '생성', '수정', '삭제'],
+                              director: ['조회'],
+                              instructor: ['본인 설문 조회'],
+                              public: ['공개 설문 조회']
                             }
-                          ].map((tableInfo) => (
-                            <div key={tableInfo.table} className="border rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-3">
-                                <div>
-                                  <h4 className="font-semibold text-sm">{tableInfo.title}</h4>
-                                  <p className="text-xs text-muted-foreground">{tableInfo.description}</p>
-                                </div>
-                                <Badge variant="outline" className="text-xs font-mono">{tableInfo.table}</Badge>
+                          },
+                          {
+                            table: 'survey_responses',
+                            title: '설문 응답',
+                            description: '설문 응답 제출 및 조회',
+                            roles: {
+                              admin: ['모든 응답 조회'],
+                              operator: ['모든 응답 조회'],
+                              director: ['모든 응답 조회'],
+                              instructor: ['본인 설문 응답 조회'],
+                              public: ['응답 제출만 가능']
+                            }
+                          },
+                          {
+                            table: 'question_answers',
+                            title: '질문 답변',
+                            description: '설문 질문별 답변 데이터',
+                            roles: {
+                              admin: ['모든 답변 조회'],
+                              operator: ['모든 답변 조회'],
+                              director: ['모든 답변 조회'],
+                              instructor: ['본인 설문 답변 조회'],
+                              public: ['답변 제출만 가능']
+                            }
+                          },
+                          {
+                            table: 'instructors',
+                            title: '강사 정보',
+                            description: '강사 프로필 및 정보 관리',
+                            roles: {
+                              admin: ['조회', '생성', '수정', '삭제'],
+                              operator: ['조회', '생성', '수정', '삭제'],
+                              director: ['조회'],
+                              instructor: ['본인 정보 조회'],
+                              public: ['공개 정보 조회']
+                            }
+                          },
+                          {
+                            table: 'profiles',
+                            title: '사용자 프로필',
+                            description: '사용자 계정 및 역할 정보',
+                            roles: {
+                              admin: ['모든 프로필 조회'],
+                              operator: ['제한적 조회'],
+                              director: ['제한적 조회'],
+                              instructor: ['본인 프로필만'],
+                              public: ['접근 불가']
+                            }
+                          },
+                          {
+                            table: 'courses',
+                            title: '과목 관리',
+                            description: '과목 및 프로그램 정보',
+                            roles: {
+                              admin: ['조회', '생성', '수정', '삭제'],
+                              operator: ['조회', '생성', '수정', '삭제'],
+                              director: ['조회'],
+                              instructor: ['조회'],
+                              public: ['제한적 조회']
+                            }
+                          }
+                        ].map((tableInfo) => (
+                          <div key={tableInfo.table} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div>
+                                <h4 className="font-semibold text-sm">{tableInfo.title}</h4>
+                                <p className="text-xs text-muted-foreground">{tableInfo.description}</p>
                               </div>
-                              <div className="grid grid-cols-5 gap-2 text-xs">
-                                {Object.entries(tableInfo.roles).map(([role, permissions]) => (
-                                  <div key={role} className="space-y-1">
-                                    <div className={`px-2 py-1 rounded text-center font-medium ${getRoleColor(role)}`}>
-                                      {role === 'public' ? '비회원' : roleOptions.find(r => r.value === role)?.label || role}
-                                    </div>
-                                    <div className="space-y-1">
-                                      {permissions.map((permission, idx) => (
-                                        <div key={idx} className="text-xs bg-gray-50 px-2 py-1 rounded text-center">
-                                          {permission}
-                                        </div>
-                                      ))}
-                                    </div>
+                              <Badge variant="outline" className="text-xs font-mono">{tableInfo.table}</Badge>
+                            </div>
+                            <div className="grid grid-cols-5 gap-2 text-xs">
+                              {Object.entries(tableInfo.roles).map(([role, permissions]) => (
+                                <div key={role} className="space-y-1">
+                                  <div className={`px-2 py-1 rounded text-center font-medium ${getRoleColor(role)}`}>
+                                    {role === 'public' ? '비회원' : roleOptions.find(r => r.value === role)?.label || role}
                                   </div>
-                                ))}
-                              </div>
+                                  <div className="space-y-1">
+                                    {permissions.map((permission, idx) => (
+                                      <div key={idx} className="text-xs bg-gray-50 px-2 py-1 rounded text-center">
+                                        {permission}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
+                      </div>
 
-                        {/* 주요 보안 정책 요약 */}
-                        <div className="border rounded-lg p-4 bg-yellow-50">
-                          <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                            <Shield className="h-4 w-4 text-yellow-600" />
-                            주요 보안 정책
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                            <div>
-                              <h5 className="font-medium mb-1">데이터 접근 제한</h5>
-                              <ul className="space-y-1 text-muted-foreground">
-                                <li>• 교육생(비회원)은 설문 응답만 가능</li>
-                                <li>• 강사는 본인 설문 결과만 조회 가능</li>
-                                <li>• 관리자/운영자만 전체 데이터 접근</li>
-                              </ul>
-                            </div>
-                            <div>
-                              <h5 className="font-medium mb-1">권한 상속 구조</h5>
-                              <ul className="space-y-1 text-muted-foreground">
-                                <li>• 관리자 &gt; 운영자 &gt; 원장 &gt; 강사</li>
-                                <li>• 상위 역할은 하위 권한 포함</li>
-                                <li>• 시스템 관리는 관리자만 가능</li>
-                              </ul>
-                            </div>
+                      {/* 주요 보안 정책 요약 */}
+                      <div className="border rounded-lg p-4 bg-yellow-50">
+                        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-yellow-600" />
+                          주요 보안 정책
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          <div>
+                            <h5 className="font-medium mb-1">데이터 접근 제한</h5>
+                            <ul className="space-y-1 text-muted-foreground">
+                              <li>• 교육생(비회원)은 설문 응답만 가능</li>
+                              <li>• 강사는 본인 설문 결과만 조회 가능</li>
+                              <li>• 관리자/운영자만 전체 데이터 접근</li>
+                            </ul>
+                          </div>
+                          <div>
+                            <h5 className="font-medium mb-1">권한 상속 구조</h5>
+                            <ul className="space-y-1 text-muted-foreground">
+                              <li>• 관리자 &gt; 운영자 &gt; 원장 &gt; 강사</li>
+                              <li>• 상위 역할은 하위 권한 포함</li>
+                              <li>• 시스템 관리는 관리자만 가능</li>
+                            </ul>
                           </div>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -795,7 +774,6 @@ const DashboardPolicyManagement = () => {
                       ) : (
                         <div>
                           <div className="flex items-center justify-between mb-4">
-                            <p className="text-sm text-muted-foreground">총 {policies.length}개 정책</p>
                             <div className="flex items-center gap-2">
                               <a
                                 href="https://supabase.com/dashboard/project/zxjiugmqfzqluviuwztr/sql/new"
