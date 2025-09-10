@@ -1291,14 +1291,31 @@ const SurveyResults = () => {
                 </div>
               ) : (
                 getFilteredSurveys().map((survey) => (
-                  <div key={survey.id} className="p-3 border rounded-lg transition-colors hover:bg-muted/50">
+                  <div 
+                    key={survey.id} 
+                    className={`p-3 border rounded-lg transition-all cursor-pointer ${
+                      selectedSurvey === survey.id 
+                        ? 'border-primary bg-primary/5 shadow-md' 
+                        : 'hover:bg-muted/50 hover:border-muted-foreground/50'
+                    }`}
+                    onClick={() => setSelectedSurvey(survey.id)}
+                  >
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-medium break-words">{survey.title}</h4>
-                        <p className="text-sm text-muted-foreground break-words">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                            selectedSurvey === survey.id ? 'border-primary bg-primary' : 'border-gray-300'
+                          }`}>
+                            {selectedSurvey === survey.id && (
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            )}
+                          </div>
+                          <h4 className="font-medium break-words">{survey.title}</h4>
+                        </div>
+                        <p className="text-sm text-muted-foreground break-words ml-6">
                           {survey.education_year}년 {survey.education_round}차
                         </p>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 ml-6">
                           <Badge variant={survey.status === 'active' ? 'default' : 'secondary'} className="text-xs">
                             {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
                           </Badge>
@@ -1311,7 +1328,10 @@ const SurveyResults = () => {
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => navigate(`/dashboard/detailed-analysis/${survey.id}`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/dashboard/detailed-analysis/${survey.id}`);
+                          }}
                           className="text-xs h-9 px-3 bg-primary hover:bg-primary/90"
                         >
                           상세 분석
@@ -1319,7 +1339,8 @@ const SurveyResults = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedSurvey(survey.id);
                             openEmailDialog();
                           }}
@@ -1337,201 +1358,160 @@ const SurveyResults = () => {
           </CardContent>
         </Card>
 
-        {/* 선택된 설문 분석 */}
-        {selectedSurvey && (getFilteredSurveys().length > 0 || selectedSurvey !== 'all') && (
+        {/* 과정별 만족도 트렌드 그래프 */}
+        {selectedSurvey && selectedSurvey !== 'all' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 과정별 만족도 트렌드 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">과정별 만족도 추세</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart
+                      data={courseStats.map((course, index) => ({
+                        name: `${course.round}차`,
+                        과목만족도: course.subjectSatisfaction,
+                        운영만족도: course.operationSatisfaction,
+                      }))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 10]} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="과목만족도" fill="#8884d8" name="과목 만족도" />
+                      <Bar dataKey="운영만족도" fill="#82ca9d" name="운영 만족도" />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 강사 만족도 트렌드 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">강사 만족도 추세</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart
+                      data={courseStats.map((course) => ({
+                        name: `${course.round}차`,
+                        강사만족도: course.instructorSatisfaction,
+                      }))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 10]} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="강사만족도" fill="#ffc658" name="강사 만족도" />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* 선택된 설문의 질문별 분석 */}
+        {selectedSurvey && selectedSurvey !== 'all' && questionAnalyses.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>
-                {selectedSurvey === 'all' ? '전체 설문 분석' : '선택된 설문 분석'}
-              </CardTitle>
+              <CardTitle>질문별 분석 결과</CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="overview" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="overview" className="text-sm">
-                    전체 분석
-                  </TabsTrigger>
-                  <TabsTrigger value="round-stats" className="text-sm">
-                    회차별 통계
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview" className="space-y-4">
-                  {questionAnalyses.length > 0 ? (
-                    <div className="space-y-6">
-                      {/* 상단 카드 */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <Card>
-                          <CardContent className="pt-3 pb-3">
-                            <div className="text-lg font-bold">
-                              {selectedSurvey === 'all' 
-                                ? allQuestions.filter(q => getFilteredSurveys().some(s => s.id === q.survey_id)).length
-                                : questions.length
-                              }
+              <div className="space-y-6">
+                {questionAnalyses.map((analysis, index) => (
+                  <div key={index} className="border-b pb-6 last:border-b-0">
+                    <h4 className="font-medium mb-3">
+                      {index + 1}. {analysis.question.question_text}
+                    </h4>
+                    
+                    {analysis.type === 'rating' && (
+                      <div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-primary">{analysis.average}</div>
+                            <div className="text-sm text-muted-foreground">평균 점수</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold">{analysis.totalAnswers}</div>
+                            <div className="text-sm text-muted-foreground">총 응답 수</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold">
+                              {parseFloat(analysis.average) >= 8 ? '우수' : parseFloat(analysis.average) >= 6 ? '보통' : '개선필요'}
                             </div>
-                            <p className="text-xs text-muted-foreground">총 질문 수</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="pt-3 pb-3">
-                            <div className="text-lg font-bold">
-                              {selectedSurvey === 'all'
-                                ? allResponses.filter(r => getFilteredSurveys().some(s => s.id === r.survey_id)).length
-                                : responses.length
-                              }
-                            </div>
-                            <p className="text-xs text-muted-foreground">총 응답 수</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="pt-3 pb-3">
-                            <div className="text-lg font-bold">
-                              {(() => {
-                                const expected =
-                                  surveys.find((s) => s.id === selectedSurvey)?.expected_participants ??
-                                  responses.length;
-                                const rate = expected > 0 ? Math.round((responses.length / expected) * 100) : 0;
-                                return `${rate}%`;
-                              })()}
-                            </div>
-                            <p className="text-xs text-muted-foreground">응답률</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="pt-3 pb-3 flex items-center justify-between">
-                            <div>
-                              <div className="text-sm font-bold">CSV</div>
-                              <p className="text-xs text-muted-foreground">다운로드</p>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleExportCSV('responses')}
-                                title="응답 데이터 CSV 다운로드"
-                                className="p-2"
-                              >
-                                <FileSpreadsheet className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleExportCSV('summary')}
-                                title="요약 통계 CSV 다운로드"
-                                className="p-2"
-                              >
-                                <BarChart3 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                            <div className="text-sm text-muted-foreground">만족도</div>
+                          </div>
+                        </div>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RechartsBarChart data={analysis.chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis />
+                              <Tooltip />
+                              <Bar dataKey="value" fill="#8884d8" />
+                            </RechartsBarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
-
-                      {/* 질문별 분석 */}
-                      <div className="space-y-4">
-                        {questionAnalyses.map((analysis, idx) => (
-                          <Card key={analysis.question.id}>
-                            <CardHeader>
-                              <CardTitle className="text-base">
-                                {idx + 1}. {analysis.question.question_text}
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              {analysis.type === 'chart' && (
-                                <div className="h-64">
-                                  {analysis.chartData.some((d) => d.value > 0) ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                      <PieChart>
-                                        <Pie
-                                          data={analysis.chartData}
-                                          cx="50%"
-                                          cy="50%"
-                                          labelLine={false}
-                                          label={({ name, percentage }) => `${name}: ${percentage}%`}
-                                          outerRadius={80}
-                                          dataKey="value"
-                                        >
-                                          {analysis.chartData.map((_, i) => (
-                                            <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
-                                          ))}
-                                        </Pie>
-                                        <Tooltip />
-                                      </PieChart>
-                                    </ResponsiveContainer>
-                                  ) : (
-                                    <div className="flex items-center justify-center h-full text-muted-foreground">
-                                      <div className="text-center">
-                                        <IconBarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">데이터가 없습니다</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {analysis.type === 'rating' && (
-                                <div className="space-y-2">
-                                  <div className="text-sm">
-                                    평균: <span className="font-semibold">{analysis.average}</span>
-                                  </div>
-                                  <div className="h-64">
-                                    {analysis.chartData.some((d) => d.value > 0) ? (
-                                      <ResponsiveContainer width="100%" height="100%">
-                                        <RechartsBarChart data={analysis.chartData}>
-                                          <CartesianGrid strokeDasharray="3 3" />
-                                          <XAxis dataKey="name" />
-                                          <YAxis allowDecimals={false} />
-                                          <Tooltip />
-                                          <Bar dataKey="value" radius={[4, 4, 0, 0]} />
-                                        </RechartsBarChart>
-                                      </ResponsiveContainer>
-                                    ) : (
-                                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                                        <div className="text-center">
-                                          <IconBarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                          <p className="text-sm">데이터가 없습니다</p>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {analysis.type === 'text' && (
-                                <div className="space-y-2 text-sm">
-                                  {analysis.totalAnswers === 0 ? (
-                                    <div className="text-muted-foreground">텍스트 응답이 없습니다.</div>
-                                  ) : (
-                                    analysis.answers!.map((a, idx) => (
-                                      <div key={idx} className="p-2 bg-muted/50 rounded border-l-2 border-primary">
-                                        {a}
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        ))}
+                    )}
+                    
+                    {analysis.type === 'chart' && (
+                      <div>
+                        <div className="text-center mb-4">
+                          <div className="text-2xl font-bold">{analysis.totalAnswers}</div>
+                          <div className="text-sm text-muted-foreground">총 응답 수</div>
+                        </div>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={analysis.chartData}
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              >
+                                {analysis.chartData.map((_, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <IconBarChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>분석할 데이터가 없습니다.</p>
-                      <p className="text-sm">선택된 설문에 응답이 없거나 질문이 없습니다.</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="round-stats" className="space-y-4">
-                  <div className="text-center py-8 text-muted-foreground">
-                    <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>회차별 통계는 향후 구현될 예정입니다.</p>
-                    <p className="text-sm">현재는 전체 분석만 확인하실 수 있습니다.</p>
+                    )}
+                    
+                    {analysis.type === 'text' && (
+                      <div>
+                        <div className="text-center mb-4">
+                          <div className="text-2xl font-bold">{analysis.totalAnswers}</div>
+                          <div className="text-sm text-muted-foreground">총 응답 수</div>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto space-y-2">
+                          {analysis.answers?.map((answer, idx) => (
+                            <div key={idx} className="p-3 bg-muted rounded text-sm">
+                              {answer}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </TabsContent>
-              </Tabs>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
