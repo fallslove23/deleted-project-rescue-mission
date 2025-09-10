@@ -518,43 +518,6 @@ export default function SurveyManagementV2() {
     });
   };
 
-  const generateShortUrl = async (surveyId: string, surveyTitle: string) => {
-    try {
-      console.log('🔗 짧은 URL 생성 시작:', surveyId);
-
-      const { data, error } = await supabase.functions.invoke('create-short-url', {
-        body: {
-          surveyId,
-          originalUrl: `${window.location.origin}/survey/${surveyId}`,
-          expiresInDays: 30
-        }
-      });
-
-      if (error) {
-        console.error('❌ 짧은 URL 생성 실패:', error);
-        throw error;
-      }
-
-      if (data.success) {
-        // 짧은 URL을 클립보드에 복사
-        await navigator.clipboard.writeText(data.shortUrl);
-        toast({
-          title: '짧은 URL 생성 완료!',
-          description: `${data.shortCode} - 짧은 URL이 클립보드에 복사되었습니다.`,
-        });
-        console.log('✅ 짧은 URL 생성 성공:', data.shortUrl);
-      } else {
-        throw new Error(data.error || '알 수 없는 오류');
-      }
-    } catch (error) {
-      console.error('💥 짧은 URL 생성 오류:', error);
-      toast({
-        title: '짧은 URL 생성 실패',
-        description: error.message || '짧은 URL 생성 중 오류가 발생했습니다.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleBulkStatusChange = async (surveyIds: string[], newStatus: string) => {
     try {
@@ -903,15 +866,6 @@ export default function SurveyManagementV2() {
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       미리보기
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => generateShortUrl(survey.id, survey.title)}
-                      title="짧은 URL 생성"
-                    >
-                      <Link className="h-4 w-4 mr-1" />
-                      짧은 URL
                     </Button>
                     <Button
                       variant="outline"

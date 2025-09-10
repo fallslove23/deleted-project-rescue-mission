@@ -117,7 +117,7 @@ const SurveyPreview = () => {
           )
         `)
         .eq('id', surveyId)
-        .single();
+        .maybeSingle();
 
       if (surveyError) throw surveyError;
 
