@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Send, User, KeyRound, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Send, User, KeyRound, AlertCircle, CheckCircle, FileText, ClipboardCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
@@ -574,23 +574,18 @@ const SurveyParticipate = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl">
           <CardHeader className="text-center space-y-4">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-              <User className="w-8 h-8 text-primary" />
+            <div className="w-20 h-20 bg-gradient-to-r from-primary to-primary/70 rounded-full flex items-center justify-center mx-auto shadow-lg">
+              <FileText className="w-10 h-10 text-white" />
             </div>
             <CardTitle className="text-2xl font-bold">{survey?.title}</CardTitle>
             {survey?.description && (
-              <p className="text-muted-foreground leading-relaxed">{survey.description}</p>
+              <p className="text-muted-foreground leading-relaxed">
+                {survey.description.replace(/강사 만족도/g, '과정 만족도')}
+              </p>
             )}
           </CardHeader>
           
           <CardContent className="space-y-6">
-            {/* 강사 정보 표시 */}
-            {instructor && (
-              <div className="border rounded-lg p-4 bg-muted/30">
-                <InstructorInfoSection instructor={instructor} />
-              </div>
-            )}
-
             {/* 설문 정보 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
               <div className="space-y-2">
