@@ -459,10 +459,27 @@ const SurveyParticipate = () => {
           answer_value: a.answer,
         }));
         console.log('💾 답변 데이터 삽입 중...', rows.length, '개 항목');
-        const { error: answersError } = await supabase.from('question_answers').insert(rows);
-        if (answersError) {
-          console.error('❌ 답변 데이터 삽입 실패:', answersError);
-          throw answersError;
+
+        // 큰 페이로드로 인한 DB statement timeout을 피하기 위해 청크 단위로 분할 삽입
+        const chunkSize = 15; // 안전한 배치 크기
+        for (let i = 0; i < rows.length; i += chunkSize) {
+          const chunk = rows.slice(i, i + chunkSize);
+          let attempts = 0;
+          while (attempts < 2) {
+            const { error } = await supabase.from('question_answers').insert(chunk);
+            if (!error) break;
+            const msg = (error as any)?.message || '';
+            const code = (error as any)?.code;
+            // statement timeout(57014) 발생 시 한 번 재시도
+            if (code === '57014' || /statement timeout/i.test(msg)) {
+              attempts++;
+              console.warn(`⏳ 타임아웃으로 재시도 (${attempts})...`, { i, size: chunk.length });
+              await new Promise((r) => setTimeout(r, 300));
+              continue;
+            }
+            console.error('❌ 답변 데이터 삽입 실패:', error);
+            throw error;
+          }
         }
         console.log('✅ 답변 데이터 삽입 성공');
       }
