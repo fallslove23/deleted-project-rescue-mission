@@ -254,10 +254,10 @@ const SurveyParticipate = () => {
       const isCourseEval = surveyData.survey_templates?.is_course_evaluation;
       setIsCourseEvaluation(!!isCourseEval);
 
-      // 강사 정보 가져오기 - 우선순위: survey_instructors > 개별 instructor_id > course 기반
+      // 강사 정보 가져오기 - 단순하고 확실한 방법
       let instructorData = null;
       
-      // 1. survey_instructors 테이블에서 다중 강사 확인
+      // survey_instructors 테이블에서 강사 정보 조회
       const { data: surveyInstructors, error: siError } = await supabase
         .from('survey_instructors')
         .select(`
@@ -273,8 +273,8 @@ const SurveyParticipate = () => {
 
       if (!siError && surveyInstructors && surveyInstructors.length > 0) {
         const instructors = surveyInstructors
-          .map(si => si.instructors as Instructor)
-          .filter((instructor): instructor is Instructor => instructor !== null);
+          .map(si => si.instructors)
+          .filter(Boolean) as Instructor[];
         
         if (instructors.length > 0) {
           instructorData = {
@@ -287,7 +287,7 @@ const SurveyParticipate = () => {
         }
       }
 
-      // 2. 개별 instructor_id 확인
+      // 개별 instructor_id로 조회 (backup)
       if (!instructorData && surveyData.instructor_id) {
         const { data: singleInstructor } = await supabase
           .from('instructors')
@@ -295,33 +295,6 @@ const SurveyParticipate = () => {
           .eq('id', surveyData.instructor_id)
           .maybeSingle();
         if (singleInstructor) instructorData = singleInstructor;
-      }
-
-      // 3. 코스 기반 강사 정보 확인
-      if (!instructorData && surveyData.course_id) {
-        const { data: instructorCourses } = await supabase
-          .from('instructor_courses')
-          .select('instructor_id')
-          .eq('course_id', surveyData.course_id);
-
-        if (instructorCourses && instructorCourses.length > 0) {
-          const instructorIds = instructorCourses.map(ic => ic.instructor_id);
-          
-          const { data: instructors } = await supabase
-            .from('instructors')
-            .select('id, name, email, photo_url, bio')
-            .in('id', instructorIds);
-
-          if (instructors && instructors.length > 0) {
-            instructorData = {
-              id: instructors[0].id,
-              name: instructors.map(i => i.name).join(', '),
-              email: instructors[0].email,
-              photo_url: instructors[0].photo_url,
-              bio: instructors[0].bio
-            };
-          }
-        }
       }
 
       if (instructorData) setInstructor(instructorData);

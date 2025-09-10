@@ -23,7 +23,14 @@ interface Survey {
   instructor_id?: string;
   course_id?: string;
   course_name?: string;
+  survey_instructors?: Array<{
+    instructors: {
+      id: string;
+      name: string;
+    };
+  }>;
   instructors?: {
+    id: string;
     name: string;
   };
   courses?: {
@@ -71,7 +78,11 @@ const Index = () => {
           end_date,
           instructor_id,
           course_id,
-          course_name
+          course_name,
+          survey_instructors (
+            instructors (id, name)
+          ),
+          instructors (id, name)
         `)
         .in('status', ['active', 'public'])
         .order('created_at', { ascending: false });
@@ -327,6 +338,36 @@ const Index = () => {
                           <span>과정: {survey.course_name}</span>
                         </div>
                       )}
+                      {(() => {
+                        // 강사 정보 표시 로직
+                        let instructorName = '';
+                        
+                        // survey_instructors에서 확인
+                        if (survey.survey_instructors && survey.survey_instructors.length > 0) {
+                          const names = survey.survey_instructors
+                            .map(si => si.instructors.name)
+                            .filter(Boolean);
+                          if (names.length > 0) {
+                            instructorName = names.join(', ');
+                          }
+                        }
+                        
+                        // 개별 instructor 확인
+                        if (!instructorName && survey.instructors?.name) {
+                          instructorName = survey.instructors.name;
+                        }
+                        
+                        // 강사 정보가 있으면 표시
+                        if (instructorName) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span>강사: {instructorName}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span>생성일: {formatDate(survey.created_at)}</span>

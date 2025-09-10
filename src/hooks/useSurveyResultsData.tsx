@@ -106,7 +106,13 @@ export const useSurveyResultsData = (profile: any, canViewAll: boolean, isInstru
     try {
       let query = supabase
         .from('surveys')
-        .select('*')
+        .select(`
+          *,
+          survey_instructors (
+            instructors (id, name)
+          ),
+          instructors (id, name)
+        `)
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
       // 테스트 데이터 필터링
