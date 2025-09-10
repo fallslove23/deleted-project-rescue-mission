@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -25,6 +26,7 @@ interface PolicyInfo {
   roles: string;
   using_expression: string;
   with_check: string;
+  is_enabled: boolean;
 }
 
 const DashboardPolicyManagement = () => {
@@ -144,56 +146,28 @@ const DashboardPolicyManagement = () => {
     );
   };
 
-  // RLS 정책 정보 (정적 데이터로 우선 구성)
+  // RLS 정책 정보 조회 (DB 함수 호출)
   const fetchPolicies = async () => {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
 
-    // 실제 RLS 정책 정보 (하드코딩으로 우선 구성)
-    const staticPolicies: PolicyInfo[] = [
-      {
-        table_name: 'surveys',
-        policy_name: 'Admins and operators manage surveys',
-        command: 'ALL',
-        roles: 'admin, operator',
-        using_expression: 'is_admin() OR is_operator()',
-        with_check: 'is_admin() OR is_operator()'
-      },
-      {
-        table_name: 'survey_responses',
-        policy_name: 'Instructors can view responses to their surveys',
-        command: 'SELECT',
-        roles: 'instructor, admin, operator, director',
-        using_expression: 'instructor access or privileged roles',
-        with_check: ''
-      },
-      {
-        table_name: 'profiles',
-        policy_name: 'Allow users to view own profile',
-        command: 'SELECT',
-        roles: 'authenticated',
-        using_expression: 'auth.uid() = id',
-        with_check: ''
-      },
-      {
-        table_name: 'user_roles',
-        policy_name: 'Admins can manage user roles',
-        command: 'ALL',
-        roles: 'admin',
-        using_expression: 'is_admin()',
-        with_check: 'is_admin()'
-      },
-      {
-        table_name: 'instructors',
-        policy_name: 'Authenticated users can view instructors',
-        command: 'SELECT',
-        roles: 'authenticated',
-        using_expression: 'true',
-        with_check: ''
-      }
-    ];
-
-    setPolicies(staticPolicies);
-    setLoading(false);
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.rpc('get_rls_policies');
+      if (error) throw error;
+      setPolicies((data || []) as PolicyInfo[]);
+    } catch (e: any) {
+      console.error('Failed to load RLS policies', e);
+      toast({
+        title: '정책 조회 실패',
+        description: e.message || '오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -372,14 +346,70 @@ const DashboardPolicyManagement = () => {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                       <p className="text-muted-foreground mt-2">정책 정보를 불러오는 중...</p>
                     </div>
-                  ) : (
+                  ) : policies.length === 0 ? (
                     <Alert>
                       <Settings className="h-4 w-4" />
                       <AlertDescription>
-                        RLS 정책 조회 기능은 데이터베이스 함수가 필요합니다. 
-                        현재는 수동으로 Supabase 대시보드에서 확인해 주세요.
+                        등록된 RLS 정책이 없거나 조회 결과가 비어 있습니다.
                       </AlertDescription>
                     </Alert>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-muted-foreground">총 {policies.length}개 정책</p>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href="https://supabase.com/dashboard/project/zxjiugmqfzqluviuwztr/sql/new"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-sm underline text-primary"
+                          >
+                            SQL 에디터 열기
+                          </a>
+                          <Button variant="outline" size="sm" onClick={fetchPolicies}>새로고침</Button>
+                        </div>
+                      </div>
+                      <div className="rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>테이블</TableHead>
+                              <TableHead>정책명</TableHead>
+                              <TableHead>명령</TableHead>
+                              <TableHead>역할</TableHead>
+                              <TableHead>USING</TableHead>
+                              <TableHead>WITH CHECK</TableHead>
+                              <TableHead>모드</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {policies.map((p) => (
+                              <TableRow key={`${p.table_name}-${p.policy_name}-${p.command}`}>
+                                <TableCell className="font-medium">{p.table_name}</TableCell>
+                                <TableCell>{p.policy_name}</TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary">{p.command}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <code className="text-xs">{p.roles}</code>
+                                </TableCell>
+                                <TableCell className="max-w-[320px]">
+                                  <code className="text-xs break-words">{p.using_expression}</code>
+                                </TableCell>
+                                <TableCell className="max-w-[320px]">
+                                  <code className="text-xs break-words">{p.with_check}</code>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={p.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}>
+                                    {p.is_enabled ? 'PERMISSIVE' : 'RESTRICTIVE'}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
                   )}
                 </CardContent>
               </Card>

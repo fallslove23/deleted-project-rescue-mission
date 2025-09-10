@@ -2017,6 +2017,18 @@ export type Database = {
           total_responses: number
         }[]
       }
+      get_rls_policies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          command: string
+          is_enabled: boolean
+          policy_name: string
+          roles: string
+          table_name: string
+          using_expression: string
+          with_check: string
+        }[]
+      }
       get_session_statistics: {
         Args: { session_id_param?: string; survey_id_param?: string }
         Returns: {
