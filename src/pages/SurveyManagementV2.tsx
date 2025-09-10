@@ -851,7 +851,9 @@ export default function SurveyManagementV2() {
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       <div>과정: {survey.course_name} - {survey.education_year}년 {survey.education_round}차 {survey.education_day}일차</div>
-                      <div>강사: {survey.instructor_name}</div>
+                      {survey.instructor_name && (
+                        <div>강사: {survey.instructor_name}</div>
+                      )}
                       <div>생성일: {formatSafeDate(survey.created_at)}</div>
                     </div>
                   </div>

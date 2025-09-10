@@ -692,7 +692,7 @@ const SurveyResults = () => {
           responses: 0,
           year: survey.education_year,
           round: survey.education_round,
-          course_name: survey.course_name || '미지정',
+          course_name: survey.course_name || '',
           instructorSatisfaction: 0,
           subjectSatisfaction: 0,
           operationSatisfaction: 0,

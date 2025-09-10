@@ -122,7 +122,7 @@ const CumulativeDataTable = () => {
             education_year: survey.education_year,
             education_round: survey.education_round,
             course_name: survey.course_name,
-            instructor_name: (survey.instructor as any)?.name || '미지정',
+            instructor_name: (survey.instructor as any)?.name || '',
             response_count: responseCount || 0,
             avg_satisfaction: Math.round(avgSatisfaction * 10) / 10, // 소수점 1자리
             submitted_at: survey.created_at,
