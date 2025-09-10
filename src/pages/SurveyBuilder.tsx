@@ -38,8 +38,18 @@ const toLocalDateTime = (iso: string | null) => {
 const toSafeISOString = (local: string | null) => {
   if (!local) return null; const d = new Date(local); return isNaN(d.getTime()) ? null : d.toISOString();
 };
-const buildTitle = (year: number | null, round: number | null, day: number | null, courseName: string | null) =>
-  !year || !round || !day || !courseName ? "" : `${year}-${courseName}-${round}차-${day}일차 설문`;
+const buildTitle = (year: number | null, round: number | null, day: number | null, courseName: string | null, isGrouped?: boolean, groupNumber?: number | null) => {
+  if (!year || !round || !day || !courseName) return "";
+  let title = `${year}-${courseName}-${round}차-${day}일차`;
+  
+  // 분반 설정이 있으면 조 번호 추가 (차수 뒤)
+  if (isGrouped && groupNumber) {
+    title += ` ${groupNumber}조`;
+  }
+  
+  title += ' 설문';
+  return title;
+};
 
 /* ───────────────────────────────── types ───────────────────────────────── */
 type Survey = {
@@ -48,6 +58,11 @@ type Survey = {
   education_year: number | null; education_round: number | null; education_day: number | null;
   course_name: string | null; expected_participants: number | null; is_test: boolean | null;
   status: "draft" | "active" | "public" | "completed" | null; created_at: string | null; updated_at: string | null;
+  
+  // 분반 관련 필드
+  is_grouped?: boolean | null;
+  group_type?: string | null;
+  group_number?: number | null;
 };
 type SurveyQuestion = {
   id: string; question_text: string; question_type: string; options: any; is_required: boolean;
@@ -89,6 +104,11 @@ export default function SurveyBuilder() {
   const [educationDay, setEducationDay] = useState<number>(1);
   const [courseName, setCourseName] = useState<string>("");
 
+  // 분반 관련 상태
+  const [isGrouped, setIsGrouped] = useState<boolean>(false);
+  const [groupType, setGroupType] = useState<string>("");
+  const [groupNumber, setGroupNumber] = useState<number | null>(null);
+
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -108,8 +128,8 @@ export default function SurveyBuilder() {
   const [sectionForm, setSectionForm] = useState({ name: "", description: "" });
 
   const title = useMemo(
-    () => buildTitle(educationYear, educationRound, educationDay, courseName),
-    [educationYear, educationRound, educationDay, courseName]
+    () => buildTitle(educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber),
+    [educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber]
   );
 
   /* ───────────────────────────── data loaders ───────────────────────────── */
@@ -128,6 +148,11 @@ export default function SurveyBuilder() {
       setEducationRound(s.education_round ?? 1);
       setEducationDay(s.education_day ?? 1);
       setCourseName(s.course_name ?? "");
+      
+      // 분반 정보 로드
+      setIsGrouped(s.is_grouped ?? false);
+      setGroupType(s.group_type ?? "");
+      setGroupNumber(s.group_number ?? null);
       const { startLocal, endLocal } = getDefaultStartEndLocal();
       setStartAt(toLocalDateTime(s.start_date) || startLocal);
       setEndAt(toLocalDateTime(s.end_date) || endLocal);
@@ -245,6 +270,11 @@ export default function SurveyBuilder() {
         start_date: toSafeISOString(startAt || startLocal),
         end_date: toSafeISOString(endAt || endLocal),
         description,
+        
+        // 분반 관련 필드
+        is_grouped: isGrouped,
+        group_type: isGrouped ? groupType : null,
+        group_number: isGrouped ? groupNumber : null,
       };
       const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
       if (error) throw error;
@@ -986,6 +1016,57 @@ export default function SurveyBuilder() {
                   <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
                 </div>
               </div>
+
+              {/* 분반 설정 (영업 BS 집체교육일 때) */}
+              {courseName === "영업 BS 집체교육" && (
+                <Card className="border-blue-200 bg-blue-50/50 mt-4">
+                  <CardHeader>
+                    <CardTitle className="text-sm text-blue-800">분반 설정</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="is_grouped"
+                        type="checkbox"
+                        className="h-4 w-4 text-blue-600"
+                        checked={isGrouped}
+                        onChange={(e) => setIsGrouped(e.target.checked)}
+                      />
+                      <Label htmlFor="is_grouped" className="text-sm font-medium">
+                        분반으로 운영 (조별 설문)
+                      </Label>
+                    </div>
+
+                    {isGrouped && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>분반 유형</Label>
+                          <select 
+                            className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                            value={groupType}
+                            onChange={(e) => setGroupType(e.target.value)}
+                          >
+                            <option value="">선택하세요</option>
+                            <option value="짝수조">짝수조</option>
+                            <option value="홀수조">홀수조</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label>조 번호</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="99"
+                            value={groupNumber || ""}
+                            onChange={(e) => setGroupNumber(Number(e.target.value) || null)}
+                            placeholder="조 번호 (예: 11, 12)"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="flex justify-end">
                 <Button onClick={saveBasic} disabled={saving || loading || !survey}>
