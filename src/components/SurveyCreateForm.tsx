@@ -48,6 +48,23 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     group_number: null as number | null,
   });
 
+  // 프로그램 변경 시 기본값 설정
+  useEffect(() => {
+    if (form.program_name === "BS Advanced") {
+      // BS Advanced는 기본으로 합반 설정
+      onChange("is_combined", true);
+      onChange("is_grouped", false);
+    } else if (form.program_name?.includes("영업 BS 집체교육")) {
+      // 영업 BS 집체교육은 기본으로 분반 설정
+      onChange("is_grouped", true);
+      onChange("is_combined", false);
+    } else {
+      // 기타 프로그램은 기본값으로 초기화
+      onChange("is_combined", false);
+      onChange("is_grouped", false);
+    }
+  }, [form.program_name]);
+
   // 제목 자동 생성
   useEffect(() => {
     const year = String(form.education_year);
@@ -466,7 +483,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
           </div>
 
           {/* 분반 설정 (영업 BS 집체교육일 때) */}
-          {form.program_name === "영업 BS 집체교육" && (
+          {form.program_name?.includes("영업 BS 집체교육") && (
             <Card className="border-blue-200 bg-blue-50/50">
               <CardHeader>
                 <CardTitle className="text-sm text-blue-800">분반 설정</CardTitle>
