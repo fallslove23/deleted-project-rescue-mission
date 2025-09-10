@@ -602,86 +602,260 @@ const DashboardPolicyManagement = () => {
           {/* RLS 정책 탭 (관리자 전용) */}
           <TabsContent value="policies" className="space-y-4">
             {isAdmin ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    RLS 정책 현황
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground mt-2">정책 정보를 불러오는 중...</p>
-                    </div>
-                  ) : policies.length === 0 ? (
-                    <Alert>
-                      <Settings className="h-4 w-4" />
-                      <AlertDescription>
-                        등록된 RLS 정책이 없거나 조회 결과가 비어 있습니다.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-muted-foreground">총 {policies.length}개 정책</p>
-                        <div className="flex items-center gap-2">
-                          <a
-                            href="https://supabase.com/dashboard/project/zxjiugmqfzqluviuwztr/sql/new"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm underline text-primary"
-                          >
-                            SQL 에디터 열기
-                          </a>
-                          <Button variant="outline" size="sm" onClick={fetchPolicies}>새로고침</Button>
+              <>
+                {/* 역할별 권한 매트릭스 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Database className="h-5 w-5" />
+                      역할별 데이터 접근 권한
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-muted-foreground mt-2">권한 정보를 불러오는 중...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* 권한 매트릭스 */}
+                        <div className="grid gap-4">
+                          {/* 핵심 테이블별 권한 요약 */}
+                          {[
+                            {
+                              table: 'surveys',
+                              title: '설문 관리',
+                              description: '설문 생성, 수정, 조회',
+                              roles: {
+                                admin: ['조회', '생성', '수정', '삭제'],
+                                operator: ['조회', '생성', '수정', '삭제'],
+                                director: ['조회'],
+                                instructor: ['본인 설문 조회'],
+                                public: ['공개 설문 조회']
+                              }
+                            },
+                            {
+                              table: 'survey_responses',
+                              title: '설문 응답',
+                              description: '설문 응답 제출 및 조회',
+                              roles: {
+                                admin: ['모든 응답 조회'],
+                                operator: ['모든 응답 조회'],
+                                director: ['모든 응답 조회'],
+                                instructor: ['본인 설문 응답 조회'],
+                                public: ['응답 제출만 가능']
+                              }
+                            },
+                            {
+                              table: 'question_answers',
+                              title: '질문 답변',
+                              description: '설문 질문별 답변 데이터',
+                              roles: {
+                                admin: ['모든 답변 조회'],
+                                operator: ['모든 답변 조회'],
+                                director: ['모든 답변 조회'],
+                                instructor: ['본인 설문 답변 조회'],
+                                public: ['답변 제출만 가능']
+                              }
+                            },
+                            {
+                              table: 'instructors',
+                              title: '강사 정보',
+                              description: '강사 프로필 및 정보 관리',
+                              roles: {
+                                admin: ['조회', '생성', '수정', '삭제'],
+                                operator: ['조회', '생성', '수정', '삭제'],
+                                director: ['조회'],
+                                instructor: ['본인 정보 조회'],
+                                public: ['공개 정보 조회']
+                              }
+                            },
+                            {
+                              table: 'profiles',
+                              title: '사용자 프로필',
+                              description: '사용자 계정 및 역할 정보',
+                              roles: {
+                                admin: ['모든 프로필 조회'],
+                                operator: ['제한적 조회'],
+                                director: ['제한적 조회'],
+                                instructor: ['본인 프로필만'],
+                                public: ['접근 불가']
+                              }
+                            },
+                            {
+                              table: 'courses',
+                              title: '과목 관리',
+                              description: '과목 및 프로그램 정보',
+                              roles: {
+                                admin: ['조회', '생성', '수정', '삭제'],
+                                operator: ['조회', '생성', '수정', '삭제'],
+                                director: ['조회'],
+                                instructor: ['조회'],
+                                public: ['제한적 조회']
+                              }
+                            }
+                          ].map((tableInfo) => (
+                            <div key={tableInfo.table} className="border rounded-lg p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <div>
+                                  <h4 className="font-semibold text-sm">{tableInfo.title}</h4>
+                                  <p className="text-xs text-muted-foreground">{tableInfo.description}</p>
+                                </div>
+                                <Badge variant="outline" className="text-xs font-mono">{tableInfo.table}</Badge>
+                              </div>
+                              <div className="grid grid-cols-5 gap-2 text-xs">
+                                {Object.entries(tableInfo.roles).map(([role, permissions]) => (
+                                  <div key={role} className="space-y-1">
+                                    <div className={`px-2 py-1 rounded text-center font-medium ${getRoleColor(role)}`}>
+                                      {role === 'public' ? '비회원' : roleOptions.find(r => r.value === role)?.label || role}
+                                    </div>
+                                    <div className="space-y-1">
+                                      {permissions.map((permission, idx) => (
+                                        <div key={idx} className="text-xs bg-gray-50 px-2 py-1 rounded text-center">
+                                          {permission}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* 주요 보안 정책 요약 */}
+                        <div className="border rounded-lg p-4 bg-yellow-50">
+                          <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-yellow-600" />
+                            주요 보안 정책
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            <div>
+                              <h5 className="font-medium mb-1">데이터 접근 제한</h5>
+                              <ul className="space-y-1 text-muted-foreground">
+                                <li>• 교육생(비회원)은 설문 응답만 가능</li>
+                                <li>• 강사는 본인 설문 결과만 조회 가능</li>
+                                <li>• 관리자/운영자만 전체 데이터 접근</li>
+                              </ul>
+                            </div>
+                            <div>
+                              <h5 className="font-medium mb-1">권한 상속 구조</h5>
+                              <ul className="space-y-1 text-muted-foreground">
+                                <li>• 관리자 &gt; 운영자 &gt; 원장 &gt; 강사</li>
+                                <li>• 상위 역할은 하위 권한 포함</li>
+                                <li>• 시스템 관리는 관리자만 가능</li>
+                              </ul>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>테이블</TableHead>
-                              <TableHead>정책명</TableHead>
-                              <TableHead>명령</TableHead>
-                              <TableHead>역할</TableHead>
-                              <TableHead>USING</TableHead>
-                              <TableHead>WITH CHECK</TableHead>
-                              <TableHead>모드</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {policies.map((p) => (
-                              <TableRow key={`${p.table_name}-${p.policy_name}-${p.command}`}>
-                                <TableCell className="font-medium">{p.table_name}</TableCell>
-                                <TableCell>{p.policy_name}</TableCell>
-                                <TableCell>
-                                  <Badge variant="secondary">{p.command}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <code className="text-xs">{p.roles}</code>
-                                </TableCell>
-                                <TableCell className="max-w-[320px]">
-                                  <code className="text-xs break-words">{p.using_expression}</code>
-                                </TableCell>
-                                <TableCell className="max-w-[320px]">
-                                  <code className="text-xs break-words">{p.with_check}</code>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={p.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}>
-                                    {p.is_enabled ? 'PERMISSIVE' : 'RESTRICTIVE'}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* 상세 RLS 정책 목록 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      상세 RLS 정책 목록
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-muted-foreground mt-2">정책 정보를 불러오는 중...</p>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    ) : policies.length === 0 ? (
+                      <Alert>
+                        <Settings className="h-4 w-4" />
+                        <AlertDescription>
+                          등록된 RLS 정책이 없거나 조회 결과가 비어 있습니다.
+                        </AlertDescription>
+                      </Alert>
+                    ) : (
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <p className="text-sm text-muted-foreground">총 {policies.length}개 정책</p>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href="https://supabase.com/dashboard/project/zxjiugmqfzqluviuwztr/sql/new"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm underline text-primary"
+                            >
+                              SQL 에디터 열기
+                            </a>
+                            <Button variant="outline" size="sm" onClick={fetchPolicies}>새로고침</Button>
+                          </div>
+                        </div>
+                        <div className="rounded-md border overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="min-w-[120px]">테이블</TableHead>
+                                <TableHead className="min-w-[200px]">정책명</TableHead>
+                                <TableHead className="min-w-[80px]">명령</TableHead>
+                                <TableHead className="min-w-[100px]">역할</TableHead>
+                                <TableHead className="min-w-[80px]">상태</TableHead>
+                                <TableHead className="min-w-[200px]">USING 조건</TableHead>
+                                <TableHead className="min-w-[200px]">WITH CHECK</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {policies.map((p) => (
+                                <TableRow key={`${p.table_name}-${p.policy_name}-${p.command}`}>
+                                  <TableCell className="font-medium font-mono text-sm">{p.table_name}</TableCell>
+                                  <TableCell className="text-sm max-w-[200px]">
+                                    <div className="truncate" title={p.policy_name}>
+                                      {p.policy_name}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="secondary" className="text-xs">{p.command}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">
+                                      {p.roles}
+                                    </code>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={p.is_enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}>
+                                      {p.is_enabled ? '활성' : '비활성'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="max-w-[200px]">
+                                    <div 
+                                      className="text-xs text-muted-foreground truncate cursor-help"
+                                      title={p.using_expression}
+                                    >
+                                      <code className="bg-gray-50 px-1 py-0.5 rounded">
+                                        {p.using_expression}
+                                      </code>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="max-w-[200px]">
+                                    <div 
+                                      className="text-xs text-muted-foreground truncate cursor-help"
+                                      title={p.with_check}
+                                    >
+                                      <code className="bg-gray-50 px-1 py-0.5 rounded">
+                                        {p.with_check}
+                                      </code>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
             ) : (
               <Card>
                 <CardContent className="pt-6">
