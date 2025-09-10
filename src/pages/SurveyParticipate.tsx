@@ -268,9 +268,29 @@ const SurveyParticipate = () => {
         return;
       }
 
+      // 설문 시간 체크
       const timeZone = 'Asia/Seoul';
-      const nowKST = toZonedTime(new Date(), timeZone);
-      void nowKST;
+      const now = new Date();
+      const startDate = surveyData.start_date ? new Date(surveyData.start_date) : null;
+      const endDate = surveyData.end_date ? new Date(surveyData.end_date) : null;
+
+      // 설문이 아직 시작되지 않은 경우
+      if (startDate && now < startDate) {
+        setError(`설문 시작 시간이 아직 되지 않았습니다. 설문 시작: ${startDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+        return;
+      }
+
+      // 설문이 이미 종료된 경우
+      if (endDate && now > endDate) {
+        setError(`설문이 종료되었습니다. 설문 종료: ${endDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+        return;
+      }
+
+      // 설문이 비활성 상태인 경우
+      if (surveyData.status !== 'active' && surveyData.status !== 'public') {
+        setError('현재 참여할 수 없는 설문입니다.');
+        return;
+      }
 
       setSurvey(surveyData);
 
@@ -839,19 +859,50 @@ const SurveyParticipate = () => {
 
   // 에러 또는 설문 데이터 없음
   if (error || !survey) {
+    const isTimeError = error && (error.includes('시작 시간이') || error.includes('종료되었습니다'));
+    
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
         <Card className="max-w-md mx-auto shadow-lg">
           <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-destructive/10 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+              isTimeError ? 'bg-orange-100' : 'bg-destructive/10'
+            }`}>
+              {isTimeError ? (
+                <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : (
+                <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
             </div>
-            <h2 className="text-xl font-semibold mb-2 text-foreground">설문 접근 오류</h2>
-            <p className="text-muted-foreground mb-6">
+            
+            <h2 className="text-xl font-semibold mb-2 text-foreground">
+              {isTimeError ? '설문 참여 시간 안내' : '설문 접근 오류'}
+            </h2>
+            
+            <p className="text-muted-foreground mb-6 leading-relaxed">
               {error || '설문을 불러올 수 없습니다. 링크를 다시 확인하거나 관리자에게 문의해주세요.'}
             </p>
+            
+            {isTimeError && (
+              <Alert className="mb-6 text-left">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <div className="font-medium">안내사항</div>
+                    <ul className="text-sm space-y-1">
+                      <li>• 설문 참여는 지정된 시간에만 가능합니다</li>
+                      <li>• 설문 시작 시간을 확인하시고 다시 방문해 주세요</li>
+                      <li>• 문의사항은 교육 담당자에게 연락해 주세요</li>
+                    </ul>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-3">
               <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
                 페이지 새로고침
