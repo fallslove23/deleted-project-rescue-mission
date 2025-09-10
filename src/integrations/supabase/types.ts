@@ -1891,6 +1891,7 @@ export type Database = {
           course_name: string | null
           course_title: string | null
           created_at: string | null
+          created_by: string | null
           creator_email: string | null
           description: string | null
           education_day: number | null
@@ -1899,6 +1900,7 @@ export type Database = {
           end_date: string | null
           expected_participants: number | null
           id: string | null
+          instructor_id: string | null
           instructor_name: string | null
           is_combined: boolean | null
           is_test: boolean | null
@@ -1914,6 +1916,20 @@ export type Database = {
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
           {

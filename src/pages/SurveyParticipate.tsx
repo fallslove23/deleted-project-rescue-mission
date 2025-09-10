@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toZonedTime } from 'date-fns-tz';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import LoadingScreen from '@/components/LoadingScreen';
 
 interface Survey {
   id: string;
@@ -109,6 +110,7 @@ const SurveyParticipate = () => {
   const [needsToken, setNeedsToken] = useState(false);
   const [tokenValidated, setTokenValidated] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const completedKey = surveyId ? `survey_completed_${surveyId}` : '';
 
@@ -238,7 +240,22 @@ const SurveyParticipate = () => {
 
       if (surveyError) {
         console.error('❌ 익명 사용자 설문 접근 실패:', surveyError);
-        throw surveyError;
+        // 더 구체적인 에러 처리
+        if (surveyError.code === 'PGRST116') {
+          toast({
+            title: '설문을 찾을 수 없습니다',
+            description: '설문이 존재하지 않거나 접근할 수 없습니다.',
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: '설문 로딩 실패',
+            description: '설문을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+            variant: 'destructive',
+          });
+        }
+        setError(surveyError.message);
+        return;
       }
       if (!surveyData) {
         toast({
@@ -246,7 +263,7 @@ const SurveyParticipate = () => {
           description: '해당 설문이 존재하지 않거나 비활성화되었습니다.',
           variant: 'destructive',
         });
-        navigate('/');
+        setError('설문 데이터가 없습니다');
         return;
       }
 
@@ -669,6 +686,40 @@ const SurveyParticipate = () => {
         );
     }
   };
+
+  // 로딩 중
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  // 에러 또는 설문 데이터 없음
+  if (error || !survey) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
+        <Card className="max-w-md mx-auto shadow-lg">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-destructive/10 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold mb-2 text-foreground">설문 접근 오류</h2>
+            <p className="text-muted-foreground mb-6">
+              {error || '설문을 불러올 수 없습니다. 링크를 다시 확인하거나 관리자에게 문의해주세요.'}
+            </p>
+            <div className="space-y-3">
+              <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
+                페이지 새로고침
+              </Button>
+              <Button onClick={() => window.location.href = '/'} className="w-full">
+                메인 페이지로 이동
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
