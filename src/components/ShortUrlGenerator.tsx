@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,9 +55,9 @@ const ShortUrlGenerator = ({ surveyId, surveyTitle }: ShortUrlGeneratorProps) =>
   };
 
   // 컴포넌트 마운트 시 기존 URL 확인
-  useState(() => {
+  useEffect(() => {
     checkExistingShortUrl();
-  });
+  }, [surveyId]);
 
   // 새 짧은 URL 생성
   const generateShortUrl = async () => {
