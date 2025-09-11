@@ -223,7 +223,8 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: responses } = await supabaseClient
       .from("survey_responses")
       .select("*")
-      .eq("survey_id", surveyId);
+      .eq("survey_id", surveyId)
+      .neq("is_test", true);
 
     // 응답이 없는 경우 이메일을 보내지 않음
     if (!responses || responses.length === 0) {
@@ -248,43 +249,76 @@ const handler = async (req: Request): Promise<Response> => {
       .from("question_answers")
       .select(`
         *,
-        survey_questions (question_text, question_type, options)
+        survey_questions (question_text, question_type, satisfaction_type, options)
       `)
       .in("response_id", responses?.map(r => r.id) || []);
 
     const responseCount = responses?.length || 0;
-    const instructorName = survey.instructors?.name || '강사';
+    const instructorName = survey.instructors?.name || '미등록';
     const courseTitle = survey.courses?.title || '강의';
 
-    // Generate question analysis
+    // Generate question analysis (robust parsing)
     const questionAnalysis: Record<string, any> = {};
-    answers?.forEach(answer => {
+    answers?.forEach((answer: any) => {
+      const q = answer.survey_questions || {};
       const questionId = answer.question_id;
       if (!questionAnalysis[questionId]) {
         questionAnalysis[questionId] = {
-          question: answer.survey_questions.question_text,
-          type: answer.survey_questions.question_type,
-          answers: [],
+          question: q.question_text,
+          type: q.question_type,
+          satisfaction_type: q.satisfaction_type,
+          answers: [] as any[],
           stats: {}
         };
       }
-      questionAnalysis[questionId].answers.push(answer.answer_text || answer.answer_value);
+
+      const qa = questionAnalysis[questionId];
+      const val = answer.answer_value;
+      const text = answer.answer_text;
+
+      if (qa.type === 'rating' || qa.type === 'scale') {
+        let n: number | null = null;
+        if (typeof val === 'number') n = val;
+        else if (typeof val === 'string' && !isNaN(Number(val))) n = Number(val);
+        else if (val && typeof val === 'object') {
+          const maybe: any = (val as any).value ?? (val as any).score ?? null;
+          if (maybe != null && !isNaN(Number(maybe))) n = Number(maybe);
+        } else if (typeof text === 'string' && !isNaN(Number(text))) {
+          n = Number(text);
+        }
+        if (typeof n === 'number' && !isNaN(n)) qa.answers.push(n);
+      } else if (qa.type === 'multiple_choice' || qa.type === 'single_choice') {
+        const pushChoice = (s: any) => {
+          if (s === null || typeof s === 'undefined') return;
+          const v = typeof s === 'object' ? (s.label ?? s.value ?? JSON.stringify(s)) : s;
+          const str = String(v).trim();
+          if (str) qa.answers.push(str);
+        };
+        if (typeof text === 'string' && text.trim()) pushChoice(text);
+        else if (Array.isArray(val)) val.forEach(pushChoice);
+        else if (typeof val === 'string') pushChoice(val);
+        else if (typeof val === 'object' && val) pushChoice(val);
+      } else {
+        if (typeof text === 'string' && text.trim()) qa.answers.push(text.trim());
+      }
     });
 
     // Calculate statistics for each question
-    Object.keys(questionAnalysis).forEach(questionId => {
-      const qa = questionAnalysis[questionId];
+    Object.keys(questionAnalysis).forEach((qid) => {
+      const qa = questionAnalysis[qid];
       if (qa.type === 'rating' || qa.type === 'scale') {
-        const numericAnswers = qa.answers.filter(a => a !== null && !isNaN(a)).map(Number);
+        const numericAnswers: number[] = qa.answers.filter((a: any) => typeof a === 'number' && !isNaN(a));
         if (numericAnswers.length > 0) {
-          qa.stats.average = (numericAnswers.reduce((sum, val) => sum + val, 0) / numericAnswers.length).toFixed(1);
+          const avg = numericAnswers.reduce((sum: number, val: number) => sum + val, 0) / numericAnswers.length;
+          qa.stats.average = Number(avg.toFixed(1));
           qa.stats.count = numericAnswers.length;
         }
       } else if (qa.type === 'multiple_choice' || qa.type === 'single_choice') {
         const counts: Record<string, number> = {};
-        qa.answers.forEach(answer => {
+        qa.answers.forEach((answer: any) => {
           if (answer) {
-            counts[answer] = (counts[answer] || 0) + 1;
+            const key = String(answer);
+            counts[key] = (counts[key] || 0) + 1;
           }
         });
         qa.stats.distribution = counts;
