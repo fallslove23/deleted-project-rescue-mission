@@ -45,15 +45,7 @@ function AppContent() {
 
   const routes = (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <>
-            <Index />
-            <DefaultRedirect />
-          </>
-        }
-      />
+      <Route path="/" element={<Index />} />
 
       <Route path="/auth" element={<Auth />} />
 
