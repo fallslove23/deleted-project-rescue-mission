@@ -13,6 +13,7 @@ const corsHeaders = {
 interface SendResultsRequest {
   surveyId: string;
   recipients: string[];
+  force?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -23,8 +24,8 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("Edge function called with request");
     
-    const { surveyId, recipients }: SendResultsRequest = await req.json();
-    console.log("Parsed request:", { surveyId, recipients });
+    const { surveyId, recipients, force }: SendResultsRequest = await req.json();
+    console.log("Parsed request:", { surveyId, recipients, force });
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     console.log("Resend API key check:", resendApiKey ? "✓ Key found" : "✗ Key missing");
@@ -55,6 +56,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (surveyError || !survey) {
       throw new Error("Survey not found");
+    }
+
+    // Idempotency guard: skip if already successfully sent unless force=true
+    if (!force) {
+      const { data: existingLog } = await supabaseClient
+        .from("email_logs")
+        .select("id, status, created_at")
+        .eq("survey_id", surveyId)
+        .in("status", ["success", "partial"] as any)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingLog) {
+        console.log("Existing successful/partial email log found, skipping send:", existingLog);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            alreadySent: true,
+            message: "이미 발송된 설문 결과로 중복 발송을 건너뜁니다.",
+            surveyId,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
     }
 
     // Resolve recipients (support role tokens and defaults)
