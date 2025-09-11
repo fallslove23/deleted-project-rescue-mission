@@ -260,16 +260,16 @@ const Index = () => {
         </header>
 
         <main className="container mx-auto px-4 py-8">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-2 font-display">설문조사 시스템</h2>
-            <p className="text-muted-foreground font-sans">
-              참여 가능한 설문조사 목록입니다. 설문조사를 클릭하여 참여해주세요.
-            </p>
-          </div>
-
-          {/* 서브메뉴바 - 오늘/전체 선택 */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 p-1 bg-muted rounded-lg w-fit">
+          <div className="mb-8 flex items-start justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground mb-2 font-display">설문조사 시스템</h2>
+              <p className="text-muted-foreground font-sans">
+                참여 가능한 설문조사 목록입니다. 설문조사를 클릭하여 참여해주세요.
+              </p>
+            </div>
+            
+            {/* 오늘/전체 선택 버튼 - 우측 상단으로 이동 */}
+            <div className="flex items-center gap-2 p-1 bg-muted rounded-lg">
               <Button
                 variant={timeFilter === 'today' ? 'default' : 'ghost'}
                 size="sm"
