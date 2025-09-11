@@ -48,6 +48,7 @@ const Index = () => {
   const [allSurveys, setAllSurveys] = useState<Survey[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [timeFilter, setTimeFilter] = useState<'today' | 'all'>('today'); // 기본값: 오늘
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ const Index = () => {
 
   useEffect(() => {
     filterSurveys();
-  }, [selectedCourse, allSurveys]);
+  }, [selectedCourse, timeFilter, allSurveys]);
 
   const fetchData = async () => {
     try {
@@ -124,12 +125,33 @@ const Index = () => {
   };
 
   const filterSurveys = () => {
-    if (selectedCourse === 'all') {
-      setSurveys(allSurveys);
-    } else {
-      const filtered = allSurveys.filter(survey => survey.course_id === selectedCourse);
-      setSurveys(filtered);
+    let filtered = allSurveys;
+    
+    // 과정별 필터링
+    if (selectedCourse !== 'all') {
+      filtered = filtered.filter(survey => survey.course_id === selectedCourse);
     }
+    
+    // 시간별 필터링 (오늘/전체)
+    if (timeFilter === 'today') {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      
+      filtered = filtered.filter(survey => {
+        // start_date가 오늘이거나, start_date가 없고 created_at이 오늘인 경우
+        if (survey.start_date) {
+          const startDate = new Date(survey.start_date);
+          return startDate >= todayStart && startDate <= todayEnd;
+        } else {
+          // start_date가 없으면 created_at으로 판단
+          const createdDate = new Date(survey.created_at);
+          return createdDate >= todayStart && createdDate <= todayEnd;
+        }
+      });
+    }
+    
+    setSurveys(filtered);
   };
 
   const getStatusBadge = (status: string) => {
@@ -239,10 +261,34 @@ const Index = () => {
 
         <main className="container mx-auto px-4 py-8">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-foreground mb-2 font-display">진행중인 설문조사</h2>
+            <h2 className="text-3xl font-bold text-foreground mb-2 font-display">설문조사 시스템</h2>
             <p className="text-muted-foreground font-sans">
               참여 가능한 설문조사 목록입니다. 설문조사를 클릭하여 참여해주세요.
             </p>
+          </div>
+
+          {/* 서브메뉴바 - 오늘/전체 선택 */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 p-1 bg-muted rounded-lg w-fit">
+              <Button
+                variant={timeFilter === 'today' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setTimeFilter('today')}
+                className="px-4 py-2"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                오늘 설문
+              </Button>
+              <Button
+                variant={timeFilter === 'all' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setTimeFilter('all')}
+                className="px-4 py-2"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                전체 설문
+              </Button>
+            </div>
           </div>
 
           {/* 과정별 필터 */}
@@ -255,7 +301,7 @@ const Index = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <label className="text-sm font-medium font-sans">과정 선택:</label>
                   <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                     <SelectTrigger className="w-[200px] font-sans">
@@ -283,19 +329,35 @@ const Index = () => {
               <p className="text-muted-foreground text-lg font-sans">
                 {loading 
                   ? '설문을 불러오는 중입니다...'
-                  : selectedCourse === 'all' 
-                    ? '현재 진행중인 설문조사가 없습니다.' 
-                    : '선택한 과정에 진행중인 설문조사가 없습니다.'
+                  : timeFilter === 'today'
+                    ? selectedCourse === 'all' 
+                      ? '오늘 진행중인 설문조사가 없습니다.' 
+                      : '선택한 과정에 오늘 진행중인 설문조사가 없습니다.'
+                    : selectedCourse === 'all' 
+                      ? '현재 진행중인 설문조사가 없습니다.' 
+                      : '선택한 과정에 진행중인 설문조사가 없습니다.'
                 }
               </p>
-              {!loading && selectedCourse !== 'all' && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => setSelectedCourse('all')}
-                  className="mt-4"
-                >
-                  전체 설문 보기
-                </Button>
+              {!loading && (
+                <div className="mt-4 space-y-2">
+                  {timeFilter === 'today' && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setTimeFilter('all')}
+                      className="mr-2"
+                    >
+                      전체 설문 보기
+                    </Button>
+                  )}
+                  {selectedCourse !== 'all' && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setSelectedCourse('all')}
+                    >
+                      모든 과정 보기
+                    </Button>
+                  )}
+                </div>
               )}
               {!loading && surveys.length === 0 && allSurveys.length === 0 && (
                 <div className="mt-4 text-sm text-muted-foreground">
@@ -311,83 +373,105 @@ const Index = () => {
               )}
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {surveys.map((survey) => (
-                <Card key={survey.id} className="cursor-pointer hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
-                      {getStatusBadge(survey.status)}
+            <>
+              {/* 과정별로 그룹화하여 표시 */}
+              {(() => {
+                // 과정별로 설문 그룹화
+                const groupedSurveys = surveys.reduce((groups, survey) => {
+                  const courseName = survey.course_name || '기타';
+                  if (!groups[courseName]) {
+                    groups[courseName] = [];
+                  }
+                  groups[courseName].push(survey);
+                  return groups;
+                }, {} as Record<string, Survey[]>);
+
+                return Object.entries(groupedSurveys).map(([courseName, courseSurveys]) => (
+                  <div key={courseName} className="mb-8">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-bold text-foreground font-display flex items-center gap-2">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                        {courseName}
+                        <Badge variant="secondary" className="ml-2 font-sans">
+                          {courseSurveys.length}개
+                        </Badge>
+                      </h3>
                     </div>
-                    {survey.description && (
-                      <CardDescription className="font-sans">{survey.description}</CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm font-sans">
-                      {survey.course_name && (
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span>과정: {survey.course_name}</span>
-                        </div>
-                      )}
-                      {(() => {
-                        // 강사 정보 표시 로직 - 일반화된 방식
-                        let instructorName = '';
-                        
-                        // survey_instructors에서 먼저 확인
-                        if (survey.survey_instructors && survey.survey_instructors.length > 0) {
-                          const names = survey.survey_instructors
-                            .map(si => si.instructors.name)
-                            .filter(Boolean);
-                          if (names.length > 0) {
-                            instructorName = names.join(', ');
-                          }
-                        }
-                        
-                        // 개별 instructor 확인 (fallback)
-                        if (!instructorName && survey.instructors?.name) {
-                          instructorName = survey.instructors.name;
-                        }
-                        
-                        // 강사 정보가 있으면 항상 표시
-                        if (instructorName) {
-                          return (
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-muted-foreground" />
-                              <span>강사: {instructorName}</span>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {courseSurveys.map((survey) => (
+                        <Card key={survey.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
+                              {getStatusBadge(survey.status)}
                             </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>생성일: {formatDate(survey.created_at)}</span>
-                      </div>
-                      {(survey.start_date || survey.end_date) && (
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span>
-                            {survey.start_date && `시작: ${formatDate(survey.start_date)}`}
-                            {survey.start_date && survey.end_date && ' | '}
-                            {survey.end_date && `종료: ${formatDate(survey.end_date)}`}
-                          </span>
-                        </div>
-                      )}
+                            {survey.description && (
+                              <CardDescription className="font-sans">{survey.description}</CardDescription>
+                            )}
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2 text-sm font-sans">
+                              {(() => {
+                                // 강사 정보 표시 로직 - 일반화된 방식
+                                let instructorName = '';
+                                
+                                // survey_instructors에서 먼저 확인
+                                if (survey.survey_instructors && survey.survey_instructors.length > 0) {
+                                  const names = survey.survey_instructors
+                                    .map(si => si.instructors.name)
+                                    .filter(Boolean);
+                                  if (names.length > 0) {
+                                    instructorName = names.join(', ');
+                                  }
+                                }
+                                
+                                // 개별 instructor 확인 (fallback)
+                                if (!instructorName && survey.instructors?.name) {
+                                  instructorName = survey.instructors.name;
+                                }
+                                
+                                // 강사 정보가 있으면 항상 표시
+                                if (instructorName) {
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <Users className="h-4 w-4 text-muted-foreground" />
+                                      <span>강사: {instructorName}</span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span>생성일: {formatDate(survey.created_at)}</span>
+                              </div>
+                              {(survey.start_date || survey.end_date) && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                  <span>
+                                    {survey.start_date && `시작: ${formatDate(survey.start_date)}`}
+                                    {survey.start_date && survey.end_date && ' | '}
+                                    {survey.end_date && `종료: ${formatDate(survey.end_date)}`}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-4">
+                              <Button 
+                                onClick={() => navigate(`/survey/${survey.id}`)}
+                                className="w-full"
+                              >
+                                설문 참여하기
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                    <div className="mt-4">
-                      <Button 
-                        onClick={() => navigate(`/survey/${survey.id}`)}
-                        className="w-full"
-                      >
-                        설문 참여하기
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </div>
+                ));
+              })()}
+            </>
           )}
         </main>
       </div>
