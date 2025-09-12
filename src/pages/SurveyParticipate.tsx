@@ -398,8 +398,56 @@ const SurveyParticipate = () => {
     setAnswers((prev) => prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)));
   };
 
-  const getCurrentStepQuestions = () => (questions[currentStep] ? [questions[currentStep]] : []);
-  const getTotalSteps = () => questions.length;
+  // 문항을 타입별로 그룹화하여 페이지 나누기
+  const getQuestionGroups = () => {
+    const groups: Question[][] = [];
+    let currentGroup: Question[] = [];
+    
+    for (const question of questions) {
+      const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
+      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
+      
+      if (isSubjective) {
+        // 주관식: 현재 그룹에 문항이 있으면 먼저 저장
+        if (currentGroup.length > 0) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+        
+        // 주관식 문항 추가 (1~2개씩)
+        currentGroup.push(question);
+        if (currentGroup.length >= 2) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+      } else if (isObjective) {
+        // 객관식: 5~7개씩 그룹화
+        currentGroup.push(question);
+        if (currentGroup.length >= 7) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+      } else {
+        // 기타 문항은 개별 처리
+        if (currentGroup.length > 0) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+        groups.push([question]);
+      }
+    }
+    
+    // 마지막 그룹 처리
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+    
+    return groups;
+  };
+
+  const questionGroups = getQuestionGroups();
+  const getCurrentStepQuestions = () => questionGroups[currentStep] || [];
+  const getTotalSteps = () => questionGroups.length;
 
   const validateCurrentStep = () => {
     const currentQuestions = getCurrentStepQuestions();
@@ -969,7 +1017,9 @@ const SurveyParticipate = () => {
         {/* overflow-hidden 제거 */}
         <Card className="max-w-full">
           <CardHeader className="px-4 sm:px-6">
-            <CardTitle className="text-base sm:text-lg break-words">질문 {currentStep + 1}</CardTitle>
+            <CardTitle className="text-base sm:text-lg break-words">
+              {currentQuestions.length > 1 ? `페이지 ${currentStep + 1}` : `질문 ${currentStep + 1}`}
+            </CardTitle>
             {(() => {
               const q = questions[currentStep];
               if (!q || !q.section_id) return null;
@@ -982,9 +1032,14 @@ const SurveyParticipate = () => {
             {currentQuestions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">이 섹션에는 질문이 없습니다.</div>
             ) : (
-              currentQuestions.map((q) => (
-                <div key={q.id} className="space-y-3">
+              currentQuestions.map((q, index) => (
+                <div key={q.id} className="space-y-3 p-4 border rounded-lg bg-muted/30">
                   <Label className="text-sm sm:text-base break-words hyphens-auto leading-relaxed block">
+                    {currentQuestions.length > 1 && (
+                      <span className="text-sm text-muted-foreground mr-2">
+                        {index + 1}.
+                      </span>
+                    )}
                     {q.question_text}
                     {q.is_required && <span className="text-destructive ml-1">*</span>}
                   </Label>

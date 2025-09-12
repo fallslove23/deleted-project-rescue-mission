@@ -226,36 +226,86 @@ const SurveyParticipateSession = () => {
     return questions.filter(q => q.session_id === sessionId);
   };
 
-  const getCurrentQuestion = () => {
+  // 세션 내 문항을 타입별로 그룹화하여 페이지 나누기
+  const getSessionQuestionGroups = () => {
     const sessionQuestions = getCurrentSessionQuestions();
-    return sessionQuestions[currentQuestionIndex] || null;
+    const groups: Question[][] = [];
+    let currentGroup: Question[] = [];
+    
+    for (const question of sessionQuestions) {
+      const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
+      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
+      
+      if (isSubjective) {
+        // 주관식: 현재 그룹에 문항이 있으면 먼저 저장
+        if (currentGroup.length > 0) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+        
+        // 주관식 문항 추가 (1~2개씩)
+        currentGroup.push(question);
+        if (currentGroup.length >= 2) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+      } else if (isObjective) {
+        // 객관식: 5~7개씩 그룹화
+        currentGroup.push(question);
+        if (currentGroup.length >= 7) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+      } else {
+        // 기타 문항은 개별 처리
+        if (currentGroup.length > 0) {
+          groups.push([...currentGroup]);
+          currentGroup = [];
+        }
+        groups.push([question]);
+      }
+    }
+    
+    // 마지막 그룹 처리
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+    
+    return groups;
   };
 
-  const validateCurrentQuestion = () => {
-    const currentQuestion = getCurrentQuestion();
-    if (!currentQuestion || !currentQuestion.is_required) return true;
-    
-    const answer = answers.find(a => a.questionId === currentQuestion.id);
-    if (!answer || !answer.answer) return false;
-    if (Array.isArray(answer.answer) && answer.answer.length === 0) return false;
-    if (typeof answer.answer === 'string' && answer.answer.trim() === '') return false;
+  const getCurrentQuestions = () => {
+    const groups = getSessionQuestionGroups();
+    return groups[currentQuestionIndex] || [];
+  };
+
+  const validateCurrentQuestions = () => {
+    const currentQuestions = getCurrentQuestions();
+    for (const question of currentQuestions) {
+      if (!question.is_required) continue;
+      
+      const answer = answers.find(a => a.questionId === question.id);
+      if (!answer || !answer.answer) return false;
+      if (Array.isArray(answer.answer) && answer.answer.length === 0) return false;
+      if (typeof answer.answer === 'string' && answer.answer.trim() === '') return false;
+    }
     
     return true;
   };
 
   const handleNext = () => {
-    if (!validateCurrentQuestion()) {
-      toast({ title: '필수 항목을 완성해 주세요', description: '답변을 입력해 주세요.', variant: 'destructive' });
+    if (!validateCurrentQuestions()) {
+      toast({ title: '필수 항목을 완성해 주세요', description: '모든 필수 답변을 입력해 주세요.', variant: 'destructive' });
       return;
     }
     
-    const sessionQuestions = getCurrentSessionQuestions();
+    const sessionGroups = getSessionQuestionGroups();
     
-    if (currentQuestionIndex < sessionQuestions.length - 1) {
-      // 현재 세션의 다음 질문으로
+    if (currentQuestionIndex < sessionGroups.length - 1) {
+      // 현재 세션의 다음 그룹으로
       setCurrentQuestionIndex(prev => prev + 1);
     } else if (currentSessionIndex < surveySessions.length - 1) {
-      // 다음 세션의 첫 번째 질문으로
+      // 다음 세션의 첫 번째 그룹으로
       setCurrentSessionIndex(prev => prev + 1);
       setCurrentQuestionIndex(0);
     }
@@ -263,13 +313,15 @@ const SurveyParticipateSession = () => {
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
-      // 현재 세션의 이전 질문으로
+      // 현재 세션의 이전 그룹으로
       setCurrentQuestionIndex(prev => prev - 1);
     } else if (currentSessionIndex > 0) {
-      // 이전 세션의 마지막 질문으로
+      // 이전 세션으로 이동
       setCurrentSessionIndex(prev => prev - 1);
+      // 이전 세션의 마지막 그룹으로
       const prevSessionQuestions = questions.filter(q => q.session_id === surveySessions[currentSessionIndex - 1].id);
-      setCurrentQuestionIndex(prevSessionQuestions.length - 1);
+      const prevGroups = getSessionQuestionGroups();
+      setCurrentQuestionIndex(prevGroups.length - 1);
     }
   };
 
@@ -283,18 +335,26 @@ const SurveyParticipateSession = () => {
       const sessionQuestions = questions.filter(q => q.session_id === surveySessions[i].id);
       count += sessionQuestions.length;
     }
-    return count + currentQuestionIndex + 1;
+    
+    // 현재 세션의 현재 그룹까지의 문항 수 추가
+    const currentGroups = getSessionQuestionGroups();
+    for (let i = 0; i < currentQuestionIndex; i++) {
+      count += currentGroups[i]?.length || 0;
+    }
+    count += getCurrentQuestions().length;
+    
+    return count;
   };
 
   const isLastQuestion = () => {
-    const sessionQuestions = getCurrentSessionQuestions();
+    const sessionGroups = getSessionQuestionGroups();
     return currentSessionIndex === surveySessions.length - 1 && 
-           currentQuestionIndex === sessionQuestions.length - 1;
+           currentQuestionIndex === sessionGroups.length - 1;
   };
 
   const handleSubmit = async () => {
-    if (!validateCurrentQuestion()) {
-      toast({ title: '필수 항목을 완성해 주세요', description: '답변을 입력해 주세요.', variant: 'destructive' });
+    if (!validateCurrentQuestions()) {
+      toast({ title: '필수 항목을 완성해 주세요', description: '모든 필수 답변을 입력해 주세요.', variant: 'destructive' });
       return;
     }
 
@@ -566,12 +626,12 @@ const SurveyParticipateSession = () => {
   }
 
   const currentSession = surveySessions[currentSessionIndex];
-  const currentQuestion = getCurrentQuestion();
+  const currentQuestions = getCurrentQuestions();
   const totalQuestions = getTotalQuestions();
   const currentQuestionNumber = getCurrentQuestionNumber();
   const progress = totalQuestions > 0 ? (currentQuestionNumber / totalQuestions) * 100 : 0;
 
-  if (!currentQuestion) {
+  if (!currentQuestions || currentQuestions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -621,24 +681,31 @@ const SurveyParticipateSession = () => {
           </CardHeader>
         </Card>
 
-        {/* 질문 카드 */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-lg leading-relaxed">
-                  {currentQuestion.question_text}
-                  {currentQuestion.is_required && (
-                    <span className="text-red-500 ml-1">*</span>
-                  )}
-                </CardTitle>
+        {/* 질문 카드들 */}
+        {currentQuestions.map((question, index) => (
+          <Card key={question.id}>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-lg leading-relaxed">
+                    {currentQuestions.length > 1 && (
+                      <span className="text-sm text-muted-foreground mr-2">
+                        {index + 1}.
+                      </span>
+                    )}
+                    {question.question_text}
+                    {question.is_required && (
+                      <span className="text-red-500 ml-1">*</span>
+                    )}
+                  </CardTitle>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {renderQuestion(currentQuestion)}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {renderQuestion(question)}
+            </CardContent>
+          </Card>
+        ))}
 
         {/* 네비게이션 버튼 */}
         <div className="flex justify-between items-center">
