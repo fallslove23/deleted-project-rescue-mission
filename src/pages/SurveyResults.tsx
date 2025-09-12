@@ -592,6 +592,27 @@ const SurveyResults = () => {
     return normalized;
   };
 
+  // 제목에서 'n일차' 숫자를 추출하여 정렬에 사용
+  const extractDayFromTitle = (title: string): number | null => {
+    const match = title?.match(/(\d+)일차/);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  // 안전한 숫자 파싱 (문자열에 따옴표 포함, 객체 JSON 등 케이스 처리)
+  const toNumeric = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+      const m = val.match(/-?\d+(?:\.\d+)?/);
+      return m ? parseFloat(m[0]) : NaN;
+    }
+    try {
+      const str = JSON.stringify(val ?? '');
+      const m = str.match(/-?\d+(?:\.\d+)?/);
+      return m ? parseFloat(m[0]) : NaN;
+    } catch {
+      return NaN;
+    }
+  };
   const getFilteredSurveys = () => {
     let filtered = surveys;
     if (selectedYear && selectedYear !== 'all') filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
@@ -658,12 +679,21 @@ const SurveyResults = () => {
     const result: Array<Survey | typeof grouped[string]['summary']> = [];
     
     Object.values(grouped).forEach(group => {
-      if (group.individual.length > 1) {
-        // 종합 결과 먼저 추가
-        result.push(group.summary);
-      }
-      // 개별 설문들 추가
-      group.individual.forEach(survey => result.push(survey));
+  if (group.individual.length > 1) {
+    // 종합 결과 먼저 추가
+    result.push(group.summary);
+  }
+  // 개별 설문들을 제목의 '일차' 기준으로 정렬 (없으면 제목 사전순)
+  group.individual.sort((a, b) => {
+    const dayA = extractDayFromTitle(a.title);
+    const dayB = extractDayFromTitle(b.title);
+    if (dayA !== null && dayB !== null) return dayA - dayB;
+    if (dayA !== null) return -1; // 일차 정보가 있는 항목을 우선
+    if (dayB !== null) return 1;
+    return a.title.localeCompare(b.title, 'ko');
+  });
+  // 개별 설문들 추가
+  group.individual.forEach(survey => result.push(survey));
     });
 
     // 년도, 차수 순으로 정렬
