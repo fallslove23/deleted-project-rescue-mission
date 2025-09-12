@@ -78,7 +78,7 @@ interface AnalysisComment {
 const SurveyDetailedAnalysis = () => {
   const navigate = useNavigate();
   const { surveyId } = useParams();
-  const { user } = useAuth();
+  const { user, userRoles } = useAuth();
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
@@ -647,6 +647,28 @@ const SurveyDetailedAnalysis = () => {
     return subjects.length > 1;
   };
 
+  // 강사의 접근 권한 확인 함수
+  const getAccessibleSubjects = () => {
+    const { userRoles } = useAuth();
+    const subjects = getAvailableSubjects();
+    
+    // 관리자 권한(admin, operator, director)이면 모든 과목 접근 가능
+    if (userRoles.some(role => ['admin', 'operator', 'director'].includes(role))) {
+      return subjects;
+    }
+    
+    // 강사 권한이면 본인 담당 과목만 접근 가능
+    if (userRoles.includes('instructor') && user) {
+      return subjects.filter(subject => 
+        courseSessions.some(session => 
+          session.id === subject.id && session.instructor_id === user.id
+        )
+      );
+    }
+    
+    return subjects;
+  };
+
   const handleSendResults = async () => {
     setSendingResults(true);
     try {
@@ -1027,7 +1049,7 @@ const SurveyDetailedAnalysis = () => {
                 <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
                   전체 분석
                 </TabsTrigger>
-                {getAvailableSubjects().map(subject => (
+                {getAccessibleSubjects().map(subject => (
                   <TabsTrigger key={subject.id} value={subject.id} className="text-sm touch-friendly whitespace-nowrap">
                     {subject.displayName}
                   </TabsTrigger>
@@ -1089,7 +1111,7 @@ const SurveyDetailedAnalysis = () => {
             </TabsContent>
 
             {/* 각 과목별 분석 탭 - 과목이 여러 개일 때만 표시 */}
-            {shouldShowSubjectTabs() && getAvailableSubjects().map((subject) => {
+            {shouldShowSubjectTabs() && getAccessibleSubjects().map((subject) => {
               const subjectAnalysis = getSubjectAnalysis(subject.id);
               return (
                 <TabsContent key={subject.id} value={subject.id} className="space-y-4">
