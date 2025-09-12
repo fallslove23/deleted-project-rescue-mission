@@ -249,19 +249,30 @@ const DashboardCourseReports = () => {
               <CardDescription>강사, 과정, 운영 만족도 종합 점수</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <div className="text-6xl font-bold text-primary mb-4">
-                {((currentReport.avg_instructor_satisfaction + 
-                   currentReport.avg_course_satisfaction + 
-                   (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}
-              </div>
-              <div className="text-lg text-muted-foreground mb-4">10점 만점</div>
-              <div className="flex justify-center">
-                <SatisfactionStatusBadge 
-                  score={(currentReport.avg_instructor_satisfaction + 
-                         currentReport.avg_course_satisfaction + 
-                         (currentReport.report_data?.operation_satisfaction || 0)) / 3} 
-                />
-              </div>
+              {(() => {
+                // 0보다 큰 값만 필터링하여 평균 계산
+                const validScores = [
+                  currentReport.avg_instructor_satisfaction,
+                  currentReport.avg_course_satisfaction,
+                  currentReport.report_data?.operation_satisfaction || 0
+                ].filter(score => score > 0);
+                
+                const overallAvg = validScores.length > 0 
+                  ? validScores.reduce((a, b) => a + b, 0) / validScores.length 
+                  : 0;
+                
+                return (
+                  <>
+                    <div className="text-6xl font-bold text-primary mb-4">
+                      {overallAvg.toFixed(1)}
+                    </div>
+                    <div className="text-lg text-muted-foreground mb-4">10점 만점</div>
+                    <div className="flex justify-center">
+                      <SatisfactionStatusBadge score={overallAvg} />
+                    </div>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
         )}
@@ -491,15 +502,6 @@ const DashboardCourseReports = () => {
           </div>
         )}
 
-        {/* 강사 통계 섹션 */}
-        {!loading && !isInstructor && instructorStats.length > 0 && (
-          <InstructorStatsSection
-            instructorStats={instructorStats}
-            previousStats={previousInstructorStats}
-            comparisonLabel={selectedRound ? `${selectedRound - 1}차` : '이전 연도'}
-            onInstructorClick={handleInstructorClick}
-          />
-        )}
 
         {/* 키워드 클라우드 */}
         {!loading && textualResponses.length > 0 && (
