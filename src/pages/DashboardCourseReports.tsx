@@ -133,17 +133,20 @@ const DashboardCourseReports = () => {
     { 
       name: '강사', 
       value: safeToFixed(currentReport.avg_instructor_satisfaction),
-      color: '#3b82f6'
+      color: 'hsl(var(--chart-1))',
+      previous: reports[1] ? safeToFixed(reports[1].avg_instructor_satisfaction) : null
     },
     { 
       name: '과정', 
       value: safeToFixed(currentReport.avg_course_satisfaction),
-      color: '#10b981'
+      color: 'hsl(var(--chart-2))',
+      previous: reports[1] ? safeToFixed(reports[1].avg_course_satisfaction) : null
     },
     { 
       name: '운영', 
       value: safeToFixed(currentReport.report_data?.operation_satisfaction || 0),
-      color: '#f59e0b'
+      color: 'hsl(var(--chart-3))',
+      previous: reports[1] ? safeToFixed(reports[1].report_data?.operation_satisfaction || 0) : null
     }
   ] : [];
 
@@ -153,6 +156,33 @@ const DashboardCourseReports = () => {
     course: safeToFixed(report.avg_course_satisfaction),
     operation: safeToFixed(report.report_data?.operation_satisfaction || 0)
   })).reverse();
+
+  // 강사별 만족도 데이터 (실제 데이터 연동)
+  const instructorSatisfactionData = instructorStats.map(stat => ({
+    name: stat.instructor_name,
+    satisfaction: safeToFixed(stat.avg_satisfaction),
+    responses: stat.response_count,
+    surveys: stat.survey_count
+  })).sort((a, b) => b.satisfaction - a.satisfaction);
+
+  // 만족도 분포 데이터 (실제 데이터 기반)
+  const satisfactionDistribution = [
+    { 
+      name: '우수 (8-10점)', 
+      value: instructorStats.filter(s => s.avg_satisfaction >= 8).length,
+      fill: 'hsl(var(--chart-1))'
+    },
+    { 
+      name: '보통 (6-8점)', 
+      value: instructorStats.filter(s => s.avg_satisfaction >= 6 && s.avg_satisfaction < 8).length,
+      fill: 'hsl(var(--chart-2))'
+    },
+    { 
+      name: '개선필요 (0-6점)', 
+      value: instructorStats.filter(s => s.avg_satisfaction < 6).length,
+      fill: 'hsl(var(--chart-3))'
+    }
+  ].filter(item => item.value > 0);
 
   const getSatisfactionIcon = (score: number) => {
     if (score >= 8) return <Star className="h-4 w-4 text-yellow-500" />;
@@ -311,55 +341,54 @@ const DashboardCourseReports = () => {
         {/* 차트 섹션 */}
         {!loading && currentReport && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 강사 만족도 도넛 차트 */}
+            {/* 강사 만족도 분포 도넛 차트 */}
             <Card 
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => handleSatisfactionClick('instructor')}
             >
               <CardHeader>
                 <CardTitle>강사 만족도 분포</CardTitle>
-                <CardDescription>클릭하여 상세 정보 보기</CardDescription>
+                <CardDescription>등급별 강사 수 분포 (클릭하여 상세 정보 보기)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={[
-                          { name: '우수 (8-10점)', value: instructorStats.filter(s => s.avg_satisfaction >= 8).length, fill: 'hsl(var(--chart-1))' },
-                          { name: '보통 (6-8점)', value: instructorStats.filter(s => s.avg_satisfaction >= 6 && s.avg_satisfaction < 8).length, fill: 'hsl(var(--chart-2))' },
-                          { name: '개선필요 (0-6점)', value: instructorStats.filter(s => s.avg_satisfaction < 6).length, fill: 'hsl(var(--chart-3))' }
-                        ].filter(item => item.value > 0)}
+                        data={satisfactionDistribution}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
                         outerRadius={100}
                         paddingAngle={5}
                         dataKey="value"
-                      >
-                        {instructorStats.map((_, index) => (
-                          <Cell key={`cell-${index}`} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          color: 'hsl(var(--card-foreground))'
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
-            {/* 만족도 비교 차트 */}
+            {/* 영역별 만족도 비교 차트 */}
             <Card
               className="cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => handleSatisfactionClick('course')}
             >
               <CardHeader>
                 <CardTitle>영역별 만족도 비교</CardTitle>
-                <CardDescription>강사, 과정, 운영 만족도 점수 (클릭하여 기간별 데이터 보기)</CardDescription>
+                <CardDescription>현재 vs 이전 기간 비교 (클릭하여 기간별 데이터 보기)</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={satisfactionData}>
+                  <BarChart data={satisfactionData} barCategoryGap="30%">
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" stroke="hsl(var(--foreground))" />
                     <YAxis domain={[0, 10]} stroke="hsl(var(--foreground))" />
@@ -370,12 +399,65 @@ const DashboardCourseReports = () => {
                         borderRadius: '8px',
                         color: 'hsl(var(--card-foreground))'
                       }}
+                      formatter={(value, name, props) => [
+                        `${value}점`,
+                        name === 'value' ? '현재' : name,
+                        props.payload.previous ? `이전: ${props.payload.previous}점` : ''
+                      ]}
                     />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar 
+                      dataKey="value" 
+                      fill="hsl(var(--primary))" 
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={60}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
+
+            {/* 강사별 만족도 현황 */}
+            {!isInstructor && instructorSatisfactionData.length > 0 && (
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>강사별 만족도 현황 (10점 만점)</CardTitle>
+                  <CardDescription>응답 수가 많은 강사 위주로 표시</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={instructorSatisfactionData.slice(0, 8)} layout="horizontal">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" domain={[0, 10]} stroke="hsl(var(--foreground))" />
+                      <YAxis 
+                        type="category" 
+                        dataKey="name" 
+                        stroke="hsl(var(--foreground))"
+                        width={80}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          color: 'hsl(var(--card-foreground))'
+                        }}
+                        formatter={(value, name, props) => [
+                          `만족도: ${value}점`,
+                          `응답수: ${props.payload.responses}개`,
+                          `설문수: ${props.payload.surveys}개`
+                        ]}
+                      />
+                      <Bar 
+                        dataKey="satisfaction" 
+                        fill="hsl(var(--chart-2))" 
+                        radius={[0, 4, 4, 0]}
+                        maxBarSize={25}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
 
             {/* 트렌드 차트 */}
             {trendData.length > 1 && (
