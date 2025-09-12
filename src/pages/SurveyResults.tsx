@@ -574,6 +574,24 @@ const SurveyResults = () => {
     return rounds.sort((a, b) => b - a);
   };
 
+  // 코스명 정규화 함수 (분반/조 정보 제거)
+  const normalizeCourseName = (courseName: string) => {
+    if (!courseName) return '';
+    
+    // 괄호 안의 조별 정보 제거: (홀수조), (짝수조) 등
+    let normalized = courseName.replace(/\((?:홀수조|짝수조|\d+조)\)/g, '');
+    
+    // 일차별, 조별 정보 제거
+    normalized = normalized.replace(/-\d+일차\s*\d*조?/g, '');
+    normalized = normalized.replace(/-\d+일차/g, '');
+    normalized = normalized.replace(/\s*\d+조$/g, '');
+    
+    // 중복 공백 및 하이픈 정리
+    normalized = normalized.replace(/\s{2,}/g, ' ').replace(/-{2,}/g, '-').trim();
+    
+    return normalized;
+  };
+
   const getFilteredSurveys = () => {
     let filtered = surveys;
     if (selectedYear && selectedYear !== 'all') filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
@@ -588,6 +606,79 @@ const SurveyResults = () => {
       filtered = filtered.filter((s) => s.instructor_id === selectedInstructor);
     }
     return filtered;
+  };
+
+  // 설문 그룹화 함수 - 개별 설문과 종합 결과를 함께 표시
+  const getGroupedSurveys = () => {
+    const filtered = getFilteredSurveys();
+    const grouped: {
+      [key: string]: {
+        summary: {
+          id: string;
+          title: string;
+          education_year: number;
+          education_round: number;
+          course_name: string;
+          normalizedName: string;
+          status: string;
+          totalResponses: number;
+          isSummary: true;
+        };
+        individual: Survey[];
+      };
+    } = {};
+
+    // 과정명과 차수로 그룹핑
+    filtered.forEach(survey => {
+      const normalized = normalizeCourseName(survey.course_name);
+      const key = `${survey.education_year}-${survey.education_round}-${normalized}`;
+      
+      if (!grouped[key]) {
+        grouped[key] = {
+          summary: {
+            id: `summary-${key}`,
+            title: `${survey.education_year}년 ${survey.education_round}차 ${normalized} (종합)`,
+            education_year: survey.education_year,
+            education_round: survey.education_round,
+            course_name: normalized,
+            normalizedName: normalized,
+            status: 'completed',
+            totalResponses: 0,
+            isSummary: true
+          },
+          individual: []
+        };
+      }
+      
+      grouped[key].individual.push(survey);
+      grouped[key].summary.totalResponses += allResponses.filter(r => r.survey_id === survey.id).length;
+    });
+
+    // 개별 설문이 2개 이상인 경우에만 종합 결과 표시
+    const result: Array<Survey | typeof grouped[string]['summary']> = [];
+    
+    Object.values(grouped).forEach(group => {
+      if (group.individual.length > 1) {
+        // 종합 결과 먼저 추가
+        result.push(group.summary);
+      }
+      // 개별 설문들 추가
+      group.individual.forEach(survey => result.push(survey));
+    });
+
+    // 년도, 차수 순으로 정렬
+    return result.sort((a, b) => {
+      if (a.education_year !== b.education_year) {
+        return b.education_year - a.education_year;
+      }
+      if (a.education_round !== b.education_round) {
+        return b.education_round - a.education_round;
+      }
+      // 종합 결과가 개별 설문보다 먼저 오도록
+      if ('isSummary' in a && !('isSummary' in b)) return -1;
+      if (!('isSummary' in a) && 'isSummary' in b) return 1;
+      return 0;
+    });
   };
 
   const getStatistics = () => {
@@ -1470,76 +1561,118 @@ const SurveyResults = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {getFilteredSurveys().length === 0 ? (
+              {getGroupedSurveys().length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>설문 결과가 없습니다.</p>
                   <p className="text-sm">선택한 조건에 맞는 설문조사가 없습니다.</p>
                 </div>
               ) : (
-                getFilteredSurveys().map((survey) => (
-                  <div 
-                    key={survey.id} 
-                    className={`p-3 border rounded-lg transition-all cursor-pointer ${
-                      selectedSurvey === survey.id 
-                        ? 'border-primary bg-primary/5 shadow-md' 
-                        : 'hover:bg-muted/50 hover:border-muted-foreground/50'
-                    }`}
-                    onClick={() => setSelectedSurvey(survey.id)}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                            selectedSurvey === survey.id ? 'border-primary bg-primary' : 'border-gray-300'
-                          }`}>
-                            {selectedSurvey === survey.id && (
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                getGroupedSurveys().map((survey) => {
+                  const isSummary = 'isSummary' in survey;
+                  const responses = isSummary 
+                    ? survey.totalResponses
+                    : allResponses.filter((r) => r.survey_id === survey.id).length;
+                  
+                  return (
+                    <div 
+                      key={survey.id} 
+                      className={`p-3 border rounded-lg transition-all cursor-pointer ${
+                        isSummary 
+                          ? 'border-blue-200 bg-blue-50/50' 
+                          : selectedSurvey === survey.id 
+                            ? 'border-primary bg-primary/5 shadow-md' 
+                            : 'hover:bg-muted/50 hover:border-muted-foreground/50'
+                      }`}
+                      onClick={() => {
+                        if (!isSummary) {
+                          setSelectedSurvey(survey.id);
+                        }
+                      }}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            {!isSummary && (
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                selectedSurvey === survey.id ? 'border-primary bg-primary' : 'border-gray-300'
+                              }`}>
+                                {selectedSurvey === survey.id && (
+                                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                                )}
+                              </div>
                             )}
+                            {isSummary && (
+                              <div className="w-4 h-4 rounded bg-blue-500 flex items-center justify-center">
+                                <FileSpreadsheet className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                            <h4 className={`font-medium break-words ${isSummary ? 'text-blue-700' : ''}`}>
+                              {survey.title}
+                            </h4>
                           </div>
-                          <h4 className="font-medium break-words">{survey.title}</h4>
+                          <p className="text-sm text-muted-foreground break-words ml-6">
+                            {survey.education_year}년 {survey.education_round}차
+                          </p>
+                          <div className="flex items-center gap-2 mt-2 ml-6">
+                            <Badge 
+                              variant={isSummary ? 'default' : survey.status === 'active' ? 'default' : 'secondary'} 
+                              className="text-xs"
+                            >
+                              {isSummary ? '종합' : survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              응답 수: {responses}개
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground break-words ml-6">
-                          {survey.education_year}년 {survey.education_round}차
-                        </p>
-                        <div className="flex items-center gap-2 mt-2 ml-6">
-                          <Badge variant={survey.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                            {survey.status === 'active' ? '진행중' : survey.status === 'completed' ? '완료' : '초안'}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            응답 수: {allResponses.filter((r) => r.survey_id === survey.id).length}개
-                          </span>
+                        <div className="flex gap-2 flex-shrink-0">
+                          {!isSummary && (
+                            <>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/dashboard/detailed-analysis/${survey.id}`);
+                                }}
+                                className="text-xs h-9 px-3 bg-primary hover:bg-primary/90"
+                              >
+                                상세 분석
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSurvey(survey.id);
+                                  openEmailDialog();
+                                }}
+                                className="text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
+                              >
+                                <Send className="h-3 w-3 mr-1" />
+                                결과 송부
+                              </Button>
+                            </>
+                          )}
+                          {isSummary && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // 종합 결과 처리 로직 추가 가능
+                              }}
+                              className="text-xs h-9 px-3 border-2 border-blue-300 hover:border-blue-500"
+                            >
+                              종합 분석
+                            </Button>
+                          )}
                         </div>
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/dashboard/detailed-analysis/${survey.id}`);
-                          }}
-                          className="text-xs h-9 px-3 bg-primary hover:bg-primary/90"
-                        >
-                          상세 분석
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedSurvey(survey.id);
-                            openEmailDialog();
-                          }}
-                          className="text-xs h-9 px-3 border-2 border-muted-foreground/30 hover:border-primary"
-                        >
-                          <Send className="h-3 w-3 mr-1" />
-                          결과 송부
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </CardContent>
