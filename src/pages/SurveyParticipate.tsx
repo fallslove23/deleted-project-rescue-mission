@@ -401,46 +401,61 @@ const SurveyParticipate = () => {
   // 문항을 타입별로 그룹화하여 페이지 나누기
   const getQuestionGroups = () => {
     const groups: Question[][] = [];
-    let currentGroup: Question[] = [];
+    let currentObjectiveGroup: Question[] = [];
+    let currentSubjectiveGroup: Question[] = [];
+    
+    const processCurrentGroups = () => {
+      // 객관식 그룹 처리 (5개 이상이면 저장)
+      if (currentObjectiveGroup.length >= 5) {
+        groups.push([...currentObjectiveGroup]);
+        currentObjectiveGroup = [];
+      }
+      // 주관식 그룹 처리 (1개 이상이면 저장)
+      if (currentSubjectiveGroup.length >= 1) {
+        groups.push([...currentSubjectiveGroup]);
+        currentSubjectiveGroup = [];
+      }
+    };
     
     for (const question of questions) {
       const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
       const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
       
       if (isSubjective) {
-        // 주관식: 현재 그룹에 문항이 있으면 먼저 저장
-        if (currentGroup.length > 0) {
-          groups.push([...currentGroup]);
-          currentGroup = [];
+        // 객관식 그룹이 있으면 먼저 처리
+        if (currentObjectiveGroup.length >= 5) {
+          groups.push([...currentObjectiveGroup]);
+          currentObjectiveGroup = [];
         }
         
         // 주관식 문항 추가 (1~2개씩)
-        currentGroup.push(question);
-        if (currentGroup.length >= 2) {
-          groups.push([...currentGroup]);
-          currentGroup = [];
+        currentSubjectiveGroup.push(question);
+        if (currentSubjectiveGroup.length >= 2) {
+          groups.push([...currentSubjectiveGroup]);
+          currentSubjectiveGroup = [];
         }
       } else if (isObjective) {
-        // 객관식: 5~7개씩 그룹화
-        currentGroup.push(question);
-        if (currentGroup.length >= 7) {
-          groups.push([...currentGroup]);
-          currentGroup = [];
+        // 주관식 그룹이 있으면 먼저 처리
+        if (currentSubjectiveGroup.length >= 1) {
+          groups.push([...currentSubjectiveGroup]);
+          currentSubjectiveGroup = [];
+        }
+        
+        // 객관식 문항 추가 (5~7개씩)
+        currentObjectiveGroup.push(question);
+        if (currentObjectiveGroup.length >= 7) {
+          groups.push([...currentObjectiveGroup]);
+          currentObjectiveGroup = [];
         }
       } else {
-        // 기타 문항은 개별 처리
-        if (currentGroup.length > 0) {
-          groups.push([...currentGroup]);
-          currentGroup = [];
-        }
+        // 기타 문항은 현재 그룹들을 먼저 처리하고 개별 저장
+        processCurrentGroups();
         groups.push([question]);
       }
     }
     
-    // 마지막 그룹 처리
-    if (currentGroup.length > 0) {
-      groups.push(currentGroup);
-    }
+    // 마지막 그룹들 처리
+    processCurrentGroups();
     
     return groups;
   };
