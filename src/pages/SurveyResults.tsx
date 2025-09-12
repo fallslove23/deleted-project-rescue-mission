@@ -763,7 +763,7 @@ const SurveyResults = () => {
 
   const getCourseStatistics = () => {
     // 강사인 경우 본인 설문만 필터링, 관리자/운영자/임원은 전체 또는 필터링된 설문
-    const relevantSurveys = isInstructor && !canViewAll
+    let relevantSurveys = isInstructor && !canViewAll
       ? getFilteredSurveys().filter((s) => {
           // 강사는 본인의 설문만 볼 수 있음
           if (profile?.instructor_id && s.instructor_id === profile.instructor_id) {
@@ -777,9 +777,15 @@ const SurveyResults = () => {
         })
       : getFilteredSurveys();
 
+    // 강사별 필터링 추가 적용 (관리자/운영자/임원이 강사를 선택한 경우)
+    if (canViewAll && selectedInstructor !== 'all') {
+      relevantSurveys = relevantSurveys.filter(s => s.instructor_id === selectedInstructor);
+    }
+
     console.log('📊 Course Statistics Debug:', {
       isInstructor,
       canViewAll,
+      selectedInstructor,
       userEmail: user?.email,
       instructorId: profile?.instructor_id,
       relevantSurveys: relevantSurveys.length,
@@ -827,19 +833,29 @@ const SurveyResults = () => {
     Object.keys(courseStats).forEach((key) => {
       const stat = courseStats[key];
       const surveyIds = stat.surveys.map((s) => s.id);
-      const surveyQuestions = allQuestions.filter((q) => surveyIds.includes(q.survey_id));
-      const responseIds = allResponses
-        .filter((r) => surveyIds.includes(r.survey_id))
-        .map((r) => r.id);
-      const surveyAnswers = allAnswers.filter((a) => responseIds.includes(a.response_id));
+      let surveyQuestions = allQuestions.filter((q) => surveyIds.includes(q.survey_id));
+      let surveyResponses = allResponses.filter((r) => surveyIds.includes(r.survey_id));
+      let surveyAnswers = allAnswers.filter((a) => surveyResponses.some((r) => r.id === a.response_id));
+
+      // 강사별 필터링이 적용된 경우 해당 강사 관련 데이터만 포함
+      if (canViewAll && selectedInstructor !== 'all') {
+        // 해당 강사와 관련된 질문만 필터링
+        surveyQuestions = surveyQuestions.filter(q => {
+          const survey = relevantSurveys.find(s => s.id === q.survey_id);
+          return survey && survey.instructor_id === selectedInstructor;
+        });
+        
+        const questionIds = surveyQuestions.map(q => q.id);
+        surveyAnswers = surveyAnswers.filter(a => questionIds.includes(a.question_id));
+      }
 
       console.log(`📋 ${key} 통계:`, {
         surveyQuestions: surveyQuestions.length,
         surveyAnswers: surveyAnswers.length,
-        responseIds: responseIds.length
+        surveyResponses: surveyResponses.length
       });
 
-      // 만족도 타입별 계산 (더 유연하게 매칭) - 0점은 평균에서 제외
+      // 만족도 타입별 계산 (개선된 숫자 파싱 적용)
       const satisfactionTypes = [
         { key: 'instructorSatisfaction', types: ['instructor'] },
         { key: 'subjectSatisfaction', types: ['subject', 'course'] }, 
@@ -857,36 +873,25 @@ const SurveyResults = () => {
           const typeAnswers = surveyAnswers.filter((a) => questionIds.includes(a.question_id));
           
           if (typeAnswers.length > 0) {
-            const values = typeAnswers.map(a => {
-              let value = 0;
-              if (typeof a.answer_value === 'string') {
-                value = parseFloat(a.answer_value);
-              } else if (typeof a.answer_value === 'number') {
-                value = a.answer_value;
-              } else if (a.answer_value && typeof a.answer_value === 'object') {
-                // JSON 형태일 경우 처리
-                value = parseFloat(String(a.answer_value));
-              }
-              return isNaN(value) ? 0 : value;
-            });
+            const values = typeAnswers.map(a => toNumeric(a.answer_value));
             
-            // 0점이 아닌 값들만 필터링해서 평균 계산
-            const validValues = values.filter(v => v > 0);
+            // 0점이 아니고 유효한 값들만 필터링해서 평균 계산
+            const validValues = values.filter(v => !isNaN(v) && v > 0);
             
             if (validValues.length > 0) {
               const sum = validValues.reduce((acc, v) => acc + v, 0);
               const avg = sum / validValues.length;
               (stat as any)[satKey] = avg;
               
-              console.log(`${satKey} 계산 (0점 제외):`, {
+              console.log(`${satKey} 계산 (개선된 파싱):`, {
                 questions: typeQuestions.length,
                 totalAnswers: typeAnswers.length,
                 validAnswers: validValues.length,
-                validValues: validValues.slice(0, 5), // 처음 5개만 로그
+                validValues: validValues.slice(0, 5),
                 avg
               });
             } else {
-              (stat as any)[satKey] = 0; // 유효한 값이 없으면 0으로 설정
+              (stat as any)[satKey] = 0;
             }
           }
         }
@@ -933,11 +938,9 @@ const SurveyResults = () => {
     const totalAnswers = questionAnswers.length;
 
     if (question.question_type === 'rating' || question.question_type === 'scale') {
-      const values = questionAnswers.map((a) => {
-        const value = typeof a.answer_value === 'string' ? parseFloat(a.answer_value) : Number(a.answer_value);
-        return isNaN(value) ? 0 : value;
-      });
-      const average = values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1) : '0.0';
+      const values = questionAnswers.map((a) => toNumeric(a.answer_value));
+      const validValues = values.filter(v => !isNaN(v) && v > 0);
+      const average = validValues.length > 0 ? (validValues.reduce((a, b) => a + b, 0) / validValues.length).toFixed(1) : '0.0';
 
       const distribution: Record<number, number> = {};
       for (let i = 1; i <= 10; i++) distribution[i] = 0;
@@ -1685,19 +1688,23 @@ const SurveyResults = () => {
                               </Button>
                             </>
                           )}
-                          {isSummary && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // 종합 결과 처리 로직 추가 가능
-                              }}
-                              className="text-xs h-9 px-3 border-2 border-blue-300 hover:border-blue-500"
-                            >
-                              종합 분석
-                            </Button>
-                          )}
+                           {isSummary && (
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 // 종합 분석 페이지로 이동
+                                 const courseName = survey.course_name;
+                                 const year = survey.education_year;
+                                 const round = survey.education_round;
+                                 navigate(`/dashboard/course-reports?course=${encodeURIComponent(courseName)}&year=${year}&round=${round}`);
+                               }}
+                               className="text-xs h-9 px-3 border-2 border-blue-300 hover:border-blue-500"
+                             >
+                               종합 분석
+                             </Button>
+                           )}
                         </div>
                       </div>
                     </div>
