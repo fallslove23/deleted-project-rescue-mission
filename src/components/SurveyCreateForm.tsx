@@ -34,6 +34,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     status: "draft",
     template_id: initialTemplate || "none",
     expected_participants: 0,
+    is_final_survey: false,
     
     // 과정 관련 필드
     program_name: "",
@@ -81,9 +82,15 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
       }
       
       title += ' 설문';
+      
+      // 종료 설문이면 태그 추가
+      if (form.is_final_survey) {
+        title = `[종료 설문] ${title}`;
+      }
+      
       setForm((prev) => ({ ...prev, title }));
     }
-  }, [form.education_year, form.education_round, form.education_day, form.program_name, form.is_grouped, form.group_number]);
+  }, [form.education_year, form.education_round, form.education_day, form.program_name, form.is_grouped, form.group_number, form.is_final_survey]);
 
   // 합반 라벨 자동 생성
   useEffect(() => {
@@ -164,6 +171,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         group_type: form.is_grouped && (form.group_type === 'even' || form.group_type === 'odd') ? form.group_type : null,
         group_number: form.is_grouped && form.group_number && Number(form.group_number) > 0 ? Number(form.group_number) : null,
         is_grouped: form.is_grouped,
+        is_final_survey: form.is_final_survey,
       };
 
       const { data: survey, error: surveyError } = await supabase
@@ -480,6 +488,20 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
               onChange={(e) => onChange("title", e.target.value)}
               placeholder="자동으로 생성됩니다"
             />
+          </div>
+
+          {/* 종료 설문 체크박스 */}
+          <div className="flex items-center space-x-2">
+            <input
+              id="is_final_survey"
+              type="checkbox"
+              checked={form.is_final_survey}
+              onChange={(e) => onChange("is_final_survey", e.target.checked)}
+              className="h-4 w-4 text-primary rounded border-gray-300 focus:ring-primary"
+            />
+            <Label htmlFor="is_final_survey" className="text-sm font-medium">
+              종료 설문 (마지막 날 설문)
+            </Label>
           </div>
 
           {/* 분반 설정 (영업 BS 집체교육일 때) */}

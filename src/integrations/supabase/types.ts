@@ -1305,6 +1305,7 @@ export type Database = {
           id: string
           instructor_id: string | null
           is_combined: boolean | null
+          is_final_survey: boolean
           is_grouped: boolean
           is_test: boolean | null
           program_id: string | null
@@ -1334,6 +1335,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_combined?: boolean | null
+          is_final_survey?: boolean
           is_grouped?: boolean
           is_test?: boolean | null
           program_id?: string | null
@@ -1363,6 +1365,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_combined?: boolean | null
+          is_final_survey?: boolean
           is_grouped?: boolean
           is_test?: boolean | null
           program_id?: string | null

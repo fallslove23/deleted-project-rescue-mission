@@ -38,7 +38,7 @@ const toLocalDateTime = (iso: string | null) => {
 const toSafeISOString = (local: string | null) => {
   if (!local) return null; const d = new Date(local); return isNaN(d.getTime()) ? null : d.toISOString();
 };
-const buildTitle = (year: number | null, round: number | null, day: number | null, courseName: string | null, isGrouped?: boolean, groupNumber?: number | null) => {
+const buildTitle = (year: number | null, round: number | null, day: number | null, courseName: string | null, isGrouped?: boolean, groupNumber?: number | null, isFinalSurvey?: boolean) => {
   if (!year || !round || !day || !courseName) return "";
   let title = `${year}-${courseName}-${round}차-${day}일차`;
   
@@ -48,6 +48,12 @@ const buildTitle = (year: number | null, round: number | null, day: number | nul
   }
   
   title += ' 설문';
+  
+  // 종료 설문이면 태그 추가
+  if (isFinalSurvey) {
+    title = `[종료 설문] ${title}`;
+  }
+  
   return title;
 };
 
@@ -58,6 +64,7 @@ type Survey = {
   education_year: number | null; education_round: number | null; education_day: number | null;
   course_name: string | null; expected_participants: number | null; is_test: boolean | null;
   status: "draft" | "active" | "public" | "completed" | null; created_at: string | null; updated_at: string | null;
+  is_final_survey?: boolean | null;
   
   // 분반 관련 필드
   is_grouped?: boolean | null;
@@ -108,6 +115,7 @@ export default function SurveyBuilder() {
   const [isGrouped, setIsGrouped] = useState<boolean>(false);
   const [groupType, setGroupType] = useState<string>("");
   const [groupNumber, setGroupNumber] = useState<number | null>(null);
+  const [isFinalSurvey, setIsFinalSurvey] = useState<boolean>(false);
 
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
@@ -128,8 +136,8 @@ export default function SurveyBuilder() {
   const [sectionForm, setSectionForm] = useState({ name: "", description: "" });
 
   const title = useMemo(
-    () => buildTitle(educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber),
-    [educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber]
+    () => buildTitle(educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber, isFinalSurvey),
+    [educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber, isFinalSurvey]
   );
 
   /* ───────────────────────────── data loaders ───────────────────────────── */
@@ -153,6 +161,7 @@ export default function SurveyBuilder() {
       setIsGrouped(s.is_grouped ?? false);
       setGroupType(s.group_type ?? "");
       setGroupNumber(s.group_number ?? null);
+      setIsFinalSurvey(s.is_final_survey ?? false);
       const { startLocal, endLocal } = getDefaultStartEndLocal();
       setStartAt(toLocalDateTime(s.start_date) || startLocal);
       setEndAt(toLocalDateTime(s.end_date) || endLocal);
@@ -275,6 +284,7 @@ export default function SurveyBuilder() {
         is_grouped: isGrouped,
         group_type: isGrouped ? (groupType || null) : null,
         group_number: isGrouped ? (groupNumber ?? null) : null,
+        is_final_survey: isFinalSurvey,
       };
       const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
       if (error) throw error;
@@ -992,6 +1002,21 @@ export default function SurveyBuilder() {
                 <div className="space-y-2">
                   <Label>일차</Label>
                   <Input type="number" min={1} value={educationDay} onChange={(e) => setEducationDay(parseInt(e.target.value || "1"))} />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="is_final_survey"
+                      type="checkbox"
+                      checked={isFinalSurvey}
+                      onChange={(e) => setIsFinalSurvey(e.target.checked)}
+                      className="h-4 w-4 text-primary rounded border-gray-300 focus:ring-primary"
+                    />
+                    <Label htmlFor="is_final_survey" className="text-sm font-medium">
+                      종료 설문 (마지막 날 설문)
+                    </Label>
+                  </div>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
