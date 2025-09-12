@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line
+  LineChart, Line, PieChart, Pie, Cell
 } from 'recharts';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useState } from 'react';
@@ -211,6 +211,31 @@ const DashboardCourseReports = () => {
           </div>
         )}
 
+        {/* 전체 평균 만족도 강조 섹션 */}
+        {!loading && currentReport && (
+          <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-lg text-primary">전체 평균 만족도</CardTitle>
+              <CardDescription>강사, 과정, 운영 만족도 종합 점수</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <div className="text-6xl font-bold text-primary mb-4">
+                {((currentReport.avg_instructor_satisfaction + 
+                   currentReport.avg_course_satisfaction + 
+                   (currentReport.report_data?.operation_satisfaction || 0)) / 3).toFixed(1)}
+              </div>
+              <div className="text-lg text-muted-foreground mb-4">10점 만점</div>
+              <div className="flex justify-center">
+                <SatisfactionStatusBadge 
+                  score={(currentReport.avg_instructor_satisfaction + 
+                         currentReport.avg_course_satisfaction + 
+                         (currentReport.report_data?.operation_satisfaction || 0)) / 3} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* 기본 통계 카드 */}
         {!loading && currentReport && (
           <CourseStatsCards
@@ -286,20 +311,67 @@ const DashboardCourseReports = () => {
         {/* 차트 섹션 */}
         {!loading && currentReport && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 강사 만족도 도넛 차트 */}
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => handleSatisfactionClick('instructor')}
+            >
+              <CardHeader>
+                <CardTitle>강사 만족도 분포</CardTitle>
+                <CardDescription>클릭하여 상세 정보 보기</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: '우수 (8-10점)', value: instructorStats.filter(s => s.avg_satisfaction >= 8).length, fill: 'hsl(var(--chart-1))' },
+                          { name: '보통 (6-8점)', value: instructorStats.filter(s => s.avg_satisfaction >= 6 && s.avg_satisfaction < 8).length, fill: 'hsl(var(--chart-2))' },
+                          { name: '개선필요 (0-6점)', value: instructorStats.filter(s => s.avg_satisfaction < 6).length, fill: 'hsl(var(--chart-3))' }
+                        ].filter(item => item.value > 0)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {instructorStats.map((_, index) => (
+                          <Cell key={`cell-${index}`} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* 만족도 비교 차트 */}
-            <Card>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => handleSatisfactionClick('course')}
+            >
               <CardHeader>
                 <CardTitle>영역별 만족도 비교</CardTitle>
-                <CardDescription>강사, 과정, 운영 만족도 점수</CardDescription>
+                <CardDescription>강사, 과정, 운영 만족도 점수 (클릭하여 기간별 데이터 보기)</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={satisfactionData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis domain={[0, 10]} />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#3b82f6" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" stroke="hsl(var(--foreground))" />
+                    <YAxis domain={[0, 10]} stroke="hsl(var(--foreground))" />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--card-foreground))'
+                      }}
+                    />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -307,7 +379,7 @@ const DashboardCourseReports = () => {
 
             {/* 트렌드 차트 */}
             {trendData.length > 1 && (
-              <Card>
+              <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle>만족도 트렌드</CardTitle>
                   <CardDescription>차수별 만족도 변화</CardDescription>
@@ -315,13 +387,20 @@ const DashboardCourseReports = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis domain={[0, 10]} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="instructor" stroke="#3b82f6" name="강사" />
-                      <Line type="monotone" dataKey="course" stroke="#10b981" name="과정" />
-                      <Line type="monotone" dataKey="operation" stroke="#f59e0b" name="운영" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" stroke="hsl(var(--foreground))" />
+                      <YAxis domain={[0, 10]} stroke="hsl(var(--foreground))" />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          color: 'hsl(var(--card-foreground))'
+                        }}
+                      />
+                      <Line type="monotone" dataKey="instructor" stroke="hsl(var(--chart-1))" strokeWidth={3} name="강사" />
+                      <Line type="monotone" dataKey="course" stroke="hsl(var(--chart-2))" strokeWidth={3} name="과정" />
+                      <Line type="monotone" dataKey="operation" stroke="hsl(var(--chart-3))" strokeWidth={3} name="운영" />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -353,6 +432,7 @@ const DashboardCourseReports = () => {
           type={drillDownModal.type}
           instructorStats={instructorStats}
           textualResponses={textualResponses}
+          periodData={trendData}
         />
       </div>
     </DashboardLayout>

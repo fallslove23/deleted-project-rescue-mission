@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Star, MessageSquare } from 'lucide-react';
+import { Star, MessageSquare, TrendingUp } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DrillDownModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface DrillDownModalProps {
   type: 'instructor' | 'course' | 'operation';
   instructorStats?: any[];
   textualResponses?: string[];
+  periodData?: any[];
 }
 
 export const DrillDownModal = ({ 
@@ -18,10 +20,21 @@ export const DrillDownModal = ({
   title, 
   type, 
   instructorStats = [], 
-  textualResponses = [] 
+  textualResponses = [],
+  periodData = []
 }: DrillDownModalProps) => {
   // 타입별로 관련된 코멘트 필터링 (실제로는 더 정교한 필터링 로직 필요)
   const relevantComments = textualResponses.slice(0, 10);
+
+  // 기간별 데이터 생성 (임시 데이터 - 실제로는 props로 받아야 함)
+  const mockPeriodData = [
+    { period: '1차', value: 8.2 },
+    { period: '2차', value: 8.5 },
+    { period: '3차', value: 8.1 },
+    { period: '4차', value: 8.7 },
+    { period: '5차', value: 8.9 },
+    { period: '6차', value: 9.1 }
+  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -34,6 +47,41 @@ export const DrillDownModal = ({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* 기간별 누적 트렌드 차트 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                기간별 {title} 누적 트렌드
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={mockPeriodData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="period" stroke="hsl(var(--foreground))" />
+                  <YAxis domain={[0, 10]} stroke="hsl(var(--foreground))" />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      color: 'hsl(var(--card-foreground))'
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={3}
+                    dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 6 }}
+                    activeDot={{ r: 8, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
           {/* 강사별 점수 (강사 만족도인 경우) */}
           {type === 'instructor' && instructorStats.length > 0 && (
             <Card>
