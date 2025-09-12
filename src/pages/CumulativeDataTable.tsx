@@ -58,7 +58,10 @@ const CumulativeDataTable = () => {
           course_name,
           status,
           created_at,
-          instructor:instructors(name)
+          instructor:instructors(name),
+          survey_sessions(
+            instructor:instructors(name)
+          )
         `)
         .not('course_name', 'is', null);
 
@@ -116,13 +119,41 @@ const CumulativeDataTable = () => {
             }
           }
 
+          // 강사 정보 처리 - 메인 강사와 세션별 강사 모두 포함
+          const instructors = new Set<string>();
+          
+          // 메인 강사 추가
+          if ((survey.instructor as any)?.name) {
+            instructors.add((survey.instructor as any).name);
+          }
+          
+          // 세션별 강사 추가
+          if (survey.survey_sessions && Array.isArray(survey.survey_sessions)) {
+            survey.survey_sessions.forEach((session: any) => {
+              if (session.instructor?.name) {
+                instructors.add(session.instructor.name);
+              }
+            });
+          }
+          
+          const instructorList = Array.from(instructors).filter(name => name);
+          let instructorDisplayName = '';
+          
+          if (instructorList.length === 0) {
+            instructorDisplayName = '미지정';
+          } else if (instructorList.length === 1) {
+            instructorDisplayName = instructorList[0];
+          } else {
+            instructorDisplayName = `${instructorList[0]} 외 ${instructorList.length - 1}명`;
+          }
+
           return {
             id: survey.id,
             survey_title: survey.title,
             education_year: survey.education_year,
             education_round: survey.education_round,
             course_name: survey.course_name,
-            instructor_name: (survey.instructor as any)?.name || '',
+            instructor_name: instructorDisplayName,
             response_count: responseCount || 0,
             avg_satisfaction: Math.round(avgSatisfaction * 10) / 10, // 소수점 1자리
             submitted_at: survey.created_at,
