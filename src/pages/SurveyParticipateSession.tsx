@@ -55,6 +55,7 @@ interface Question {
   order_index: number;
   section_id?: string | null;
   session_id?: string | null;
+  satisfaction_type?: string | null;
   scope: 'session' | 'operation';
 }
 
@@ -226,12 +227,13 @@ const SurveyParticipateSession = () => {
     return questions.filter(q => q.session_id === sessionId);
   };
 
-  // 세션 내 문항을 타입별로 그룹화하여 페이지 나누기
+  // 세션 내 문항을 타입별로 그룹화하여 페이지 나누기 (만족도 태그별 분리 포함)
   const getSessionQuestionGroups = () => {
     const sessionQuestions = getCurrentSessionQuestions();
     const groups: Question[][] = [];
     let currentObjectiveGroup: Question[] = [];
     let currentSubjectiveGroup: Question[] = [];
+    let lastSatisfactionType: string | null = null;
     
     const processCurrentGroups = () => {
       // 객관식 그룹 처리 (5개 이상이면 저장)
@@ -249,6 +251,15 @@ const SurveyParticipateSession = () => {
     for (const question of sessionQuestions) {
       const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
       const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
+      const currentSatisfactionType = question.satisfaction_type || null;
+      
+      // 만족도 태그가 변경된 경우 현재 그룹들을 먼저 처리
+      if (lastSatisfactionType !== null && lastSatisfactionType !== currentSatisfactionType) {
+        processCurrentGroups();
+        lastSatisfactionType = currentSatisfactionType;
+      } else if (lastSatisfactionType === null) {
+        lastSatisfactionType = currentSatisfactionType;
+      }
       
       if (isSubjective) {
         // 객관식 그룹이 있으면 먼저 처리
