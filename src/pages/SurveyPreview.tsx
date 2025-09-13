@@ -83,6 +83,7 @@ const SurveyPreview = () => {
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [currentQuestionInstructor, setCurrentQuestionInstructor] = useState<Instructor | null>(null);
   const [sessionInstructorMap, setSessionInstructorMap] = useState<Map<string, Instructor>>(new Map());
+  const [sessionsMap, setSessionsMap] = useState<Map<string, { session_name?: string; course_title?: string }>>(new Map());
   const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
 
   useEffect(() => {
@@ -246,19 +247,20 @@ const SurveyPreview = () => {
         `)
         .eq('survey_id', surveyId);
 
-      // 섹션과 세션 정보를 결합
-      const transformedSections: SectionWithSession[] = (sectionsData || []).map(section => {
-        // 첫 번째 세션의 정보를 사용 (일반적으로 섹션이 세션에 매핑됨)
-        const firstSession = sessionsData?.[0];
-        return {
-          id: section.id,
-          name: section.name,
-          description: section.description,
-          order_index: section.order_index,
-          session_name: firstSession?.session_name,
-          course_title: firstSession?.courses?.title
-        };
+      // 세션 맵 생성: session_id -> { session_name, course_title }
+      const sessionsMapTemp = new Map<string, { session_name?: string; course_title?: string }>();
+      (sessionsData || []).forEach((s: any) => {
+        sessionsMapTemp.set(s.id, { session_name: s.session_name, course_title: s.courses?.title });
       });
+      setSessionsMap(sessionsMapTemp);
+
+      // 섹션과 세션 정보를 결합 (중복 제목 방지를 위해 섹션에는 세션/과목명을 주입하지 않음)
+      const transformedSections: SectionWithSession[] = (sectionsData || []).map(section => ({
+        id: section.id,
+        name: section.name,
+        description: section.description,
+        order_index: section.order_index,
+      }));
       
       setSections(transformedSections);
 
@@ -411,20 +413,34 @@ const SurveyPreview = () => {
   const getStepTitle = () => {
     const currentQuestion = questions[currentStep];
     if (!currentQuestion) return "설문 미리보기";
-    
-    // 해당 질문이 속한 섹션 찾기
-    if (currentQuestion.section_id) {
-      const section = sections.find(s => s.id === currentQuestion.section_id);
-      if (section) {
-        // 과목명이 있으면 함께 표시
-        if (section.course_title) {
-          return `${section.course_title} - ${section.name}`;
-        }
-        return section.name;
-      }
+
+    const section = currentQuestion.section_id
+      ? sections.find(s => s.id === currentQuestion.section_id)
+      : undefined;
+
+    const sessionInfo = currentQuestion.session_id
+      ? sessionsMap.get(currentQuestion.session_id)
+      : undefined;
+
+    const parts: string[] = [];
+    const courseTitle = sessionInfo?.course_title?.trim();
+    const sectionName = section?.name?.trim();
+
+    const includesInsensitive = (full?: string, part?: string) =>
+      !!full && !!part && full.toLowerCase().includes(part.toLowerCase());
+
+    if (courseTitle && (!sectionName || !includesInsensitive(sectionName, courseTitle))) {
+      parts.push(courseTitle);
     }
-    
-    return "설문 미리보기";
+
+    if (sectionName) {
+      parts.push(sectionName);
+    } else if (sessionInfo?.session_name) {
+      parts.push(sessionInfo.session_name);
+    }
+
+    if (parts.length === 0) return "설문 미리보기";
+    return parts.join(' - ');
   };
 
   const handleNext = () => {
