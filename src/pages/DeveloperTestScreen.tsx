@@ -167,7 +167,7 @@ const DeveloperTestScreen = () => {
               </p>
               <div className="flex gap-4">
                 <Button
-                  onClick={() => window.open('/course-reports', '_blank')}
+                  onClick={() => window.open('/dashboard/course-reports', '_blank')}
                   variant="outline"
                   className="flex items-center gap-2"
                 >
@@ -175,7 +175,7 @@ const DeveloperTestScreen = () => {
                   강사 페이지 보기 (Course Reports)
                 </Button>
                 <Button
-                  onClick={() => navigate('/course-reports')}
+                  onClick={() => navigate('/dashboard/course-reports')}
                   variant="default"
                   className="flex items-center gap-2"
                 >
