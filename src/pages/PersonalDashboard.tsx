@@ -105,6 +105,13 @@ const PersonalDashboard: FC = () => {
   const fetchData = useCallback(async () => {
     if (!canViewPersonalStats) return;
 
+    console.log('PersonalDashboard fetchData 시작', { 
+      isPreviewingInstructor, 
+      previewInstructorId, 
+      asInstructor, 
+      canViewPersonalStats 
+    });
+
     setLoading(true);
     try {
       let surveyQuery = supabase.from('surveys').select('*');
@@ -137,8 +144,10 @@ const PersonalDashboard: FC = () => {
         
         // 강사는(또는 미리보기) 본인 설문만 조회
         if (instructorId) {
+          console.log('강사 설문 조회 시작', { instructorId });
           surveyQuery = surveyQuery.eq('instructor_id', instructorId);
         } else {
+          console.log('instructor_id 없음, 빈 결과 반환');
           // instructor_id가 없는 경우 빈 결과 반환
           setSurveys([]);
           setResponses([]);
@@ -164,22 +173,13 @@ const PersonalDashboard: FC = () => {
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
 
+      console.log('설문 조회 결과', { surveysData, surveysError });
+
       if (surveysError) throw surveysError;
 
       let filteredSurveys = surveysData || [];
 
-      // 강사에게 설문이 없는 경우에도 데이터 표시를 위해 전체 설문 조회
-      if (asInstructor && (!filteredSurveys || filteredSurveys.length === 0)) {
-        console.log('강사의 설문이 없어 전체 설문을 조회합니다.');
-        const { data: allSurveysData, error: allSurveysError } = await supabase
-          .from('surveys')
-          .select('*')
-          .order('education_year', { ascending: false })
-          .order('education_round', { ascending: false });
-        
-        if (allSurveysError) throw allSurveysError;
-        filteredSurveys = allSurveysData || [];
-      }
+      setSurveys(filteredSurveys);
 
       // 최신 회차 필터링
       if (selectedRound === 'latest' && filteredSurveys.length > 0) {
@@ -193,9 +193,9 @@ const PersonalDashboard: FC = () => {
 
       setSurveys(filteredSurveys);
 
-      // 응답/질문/답변 로드
-      if (surveysData && surveysData.length > 0) {
-        const allSurveyIds = surveysData.map(s => s.id);
+      // 응답/질문/답변 로드 - 원본 surveysData 사용 (필터링 전 데이터)
+      if (filteredSurveys && filteredSurveys.length > 0) {
+        const allSurveyIds = filteredSurveys.map(s => s.id);
 
         const { data: responsesData, error: responsesError } = await supabase
           .from('survey_responses')
