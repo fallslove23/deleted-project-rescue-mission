@@ -233,7 +233,7 @@ export const useCourseReportsData = (
             instructor_id,
             instructors (id, name)
           ),
-          survey_sessions (
+          survey_sessions!survey_sessions_survey_id_fkey (
             id,
             instructor_id
           ),
@@ -280,7 +280,7 @@ export const useCourseReportsData = (
       }
       if (selectedInstructor) { // 강사가 선택되면 OR 조건으로 포함 (단일/다중/세션 강사 모두)
         query = query.or(
-          `instructor_id.eq.${selectedInstructor},survey_instructors.instructor_id.eq.${selectedInstructor},survey_sessions.instructor_id.eq.${selectedInstructor}`
+          `instructor_id.eq.${selectedInstructor},survey_instructors.instructor_id.eq.${selectedInstructor},survey_sessions!survey_sessions_survey_id_fkey.instructor_id.eq.${selectedInstructor}`
         );
       }
 
