@@ -29,6 +29,7 @@ import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagementV2 from "./pages/SurveyManagementV2";
 import SurveyBuilder from "./pages/SurveyBuilder";
 import SurveyParticipate from "./pages/SurveyParticipate";
+import SurveyParticipateSession from "./pages/SurveyParticipateSession";
 import SurveyPreview from "./pages/SurveyPreview";
 import TemplateManagement from "./pages/TemplateManagement";
 import TemplateBuilder from "./pages/TemplateBuilder";
@@ -176,6 +177,7 @@ function AppContent() {
       />
 
       <Route path="/survey/:surveyId" element={<SurveyParticipate />} />
+      <Route path="/survey-session/:surveyId" element={<SurveyParticipateSession />} />
       
       {/* 짧은 URL 리다이렉트 라우트 */}
       <Route path="/s/:shortCode" element={<ShortUrlRedirect />} />

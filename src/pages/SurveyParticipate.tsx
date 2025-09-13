@@ -250,6 +250,21 @@ const SurveyParticipate = () => {
       const isCourseEval = surveyData.survey_templates?.is_course_evaluation;
       setIsCourseEvaluation(!!isCourseEval);
 
+      // 세션 기반 설문이면 세션 전용 참여 화면으로 이동
+      if (surveyData.is_grouped) {
+        navigate(`/survey-session/${surveyId}`, { replace: true });
+        return;
+      }
+      const { data: sess } = await supabase
+        .from('survey_sessions')
+        .select('id')
+        .eq('survey_id', surveyId)
+        .limit(1);
+      if (sess && sess.length > 0) {
+        navigate(`/survey-session/${surveyId}`, { replace: true });
+        return;
+      }
+
       // 강사 정보 가져오기 - 단순하고 확실한 방법
       let instructorData = null;
       
