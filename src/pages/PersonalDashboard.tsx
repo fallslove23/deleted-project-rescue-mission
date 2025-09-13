@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, TrendingUp, Users, Award, BarChart3, Download, ArrowLeft } from 'lucide-react';
+import { CalendarDays, TrendingUp, Users, Award, BarChart3, Download, ArrowLeft, Eye } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
 } from 'recharts';
@@ -568,6 +568,25 @@ const PersonalDashboard: FC = () => {
   /* ─────────────────────────────────── Render ─────────────────────────────────── */
   return (
     <div className="space-y-6">
+      {/* 미리보기 표시 */}
+      {isPreviewingInstructor && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-orange-600" />
+              <span className="text-sm font-medium text-orange-800">
+                강사 페이지 미리보기 모드
+              </span>
+              {previewInstructorId && (
+                <Badge variant="outline" className="text-orange-600 border-orange-300">
+                  강사 ID: {previewInstructorId}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 액션 버튼들 */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -594,7 +613,7 @@ const PersonalDashboard: FC = () => {
               <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">표시할 설문 데이터가 없습니다.</p>
               <p className="text-sm text-muted-foreground mt-2">
-                {isInstructor ? '아직 생성된 설문이 없거나 권한이 없습니다.' : '설문 데이터를 확인해주세요.'}
+                {asInstructor ? '아직 생성된 설문이 없거나 권한이 없습니다.' : '설문 데이터를 확인해주세요.'}
               </p>
             </div>
           </div>
