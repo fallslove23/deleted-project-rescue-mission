@@ -304,20 +304,7 @@ const SurveyParticipate = () => {
 
       const { data: questionsData } = await supabase
         .from('survey_questions')
-        .select(`
-          *,
-          survey_sessions (
-            id,
-            instructor_id,
-            instructors (
-              id,
-              name,
-              email,
-              photo_url,
-              bio
-            )
-          )
-        `)
+        .select('*')
         .eq('survey_id', surveyId)
         .order('order_index');
       
