@@ -13,7 +13,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
 } from 'recharts';
 import { Progress } from '@/components/ui/progress';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
@@ -58,8 +58,16 @@ interface Profile {
 
 const PersonalDashboard: FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
+
+  // Preview parameters for admin/developer to view as instructor
+  const searchParams = new URLSearchParams(location.search);
+  const viewAs = searchParams.get('viewAs');
+  const previewInstructorId = searchParams.get('instructorId');
+  const previewInstructorEmail = searchParams.get('instructorEmail');
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
@@ -72,7 +80,9 @@ const PersonalDashboard: FC = () => {
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
-  const canViewPersonalStats = isInstructor || userRoles.includes('admin');
+  const isPreviewingInstructor = viewAs === 'instructor';
+  const asInstructor = isInstructor || isPreviewingInstructor;
+  const canViewPersonalStats = asInstructor || userRoles.includes('admin');
 
   /* ─────────────────────────────────── Fetchers ─────────────────────────────────── */
   const fetchProfile = useCallback(async () => {
@@ -100,31 +110,36 @@ const PersonalDashboard: FC = () => {
       let surveyQuery = supabase.from('surveys').select('*');
       let instructorId = profile?.instructor_id;
 
-      // 강사인 경우 본인의 instructor_id 확인 및 설정
-      if (isInstructor) {
-        if (!instructorId && user?.email) {
-          // instructor_id가 없는 경우 이메일로 매칭 시도
-          const { data: instructorData } = await supabase
-            .from('instructors')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (instructorData) {
-            instructorId = instructorData.id;
-            // 프로필에 instructor_id 업데이트
-            await supabase
-              .from('profiles')
-              .update({ instructor_id: instructorData.id })
-              .eq('id', user.id);
-            setProfile(prev => prev ? { ...prev, instructor_id: instructorData.id } : null);
+      // 강사(또는 강사로 미리보기)인 경우 대상 instructor_id 확인 및 설정
+      if (asInstructor) {
+        // 미리보기로 특정 강사를 지정한 경우 우선 사용
+        if (isPreviewingInstructor && previewInstructorId) {
+          instructorId = previewInstructorId;
+        } else if (!isPreviewingInstructor) {
+          // 실제 강사 계정인데 instructor_id가 없는 경우 이메일로 매칭 시도
+          if (!instructorId && user?.email) {
+            const { data: instructorData } = await supabase
+              .from('instructors')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (instructorData) {
+              instructorId = instructorData.id;
+              // 프로필에 instructor_id 업데이트
+              await supabase
+                .from('profiles')
+                .update({ instructor_id: instructorData.id })
+                .eq('id', user.id);
+              setProfile(prev => prev ? { ...prev, instructor_id: instructorData.id } : null);
+            }
           }
         }
         
-        // 강사는 본인 설문만 조회
+        // 강사는(또는 미리보기) 본인 설문만 조회
         if (instructorId) {
           surveyQuery = surveyQuery.eq('instructor_id', instructorId);
         } else {
-          // instructor_id가 없는 강사는 빈 결과 반환
+          // instructor_id가 없는 경우 빈 결과 반환
           setSurveys([]);
           setResponses([]);
           setQuestions([]);
@@ -154,7 +169,7 @@ const PersonalDashboard: FC = () => {
       let filteredSurveys = surveysData || [];
 
       // 강사에게 설문이 없는 경우에도 데이터 표시를 위해 전체 설문 조회
-      if (isInstructor && (!filteredSurveys || filteredSurveys.length === 0)) {
+      if (asInstructor && (!filteredSurveys || filteredSurveys.length === 0)) {
         console.log('강사의 설문이 없어 전체 설문을 조회합니다.');
         const { data: allSurveysData, error: allSurveysError } = await supabase
           .from('surveys')
@@ -217,7 +232,7 @@ const PersonalDashboard: FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [canViewPersonalStats, profile?.instructor_id, isInstructor, user?.email, selectedYear, selectedRound, selectedCourse]);
+  }, [canViewPersonalStats, profile?.instructor_id, asInstructor, isPreviewingInstructor, previewInstructorId, user?.email, selectedYear, selectedRound, selectedCourse]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
