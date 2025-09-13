@@ -327,75 +327,72 @@ const SurveyPreview = () => {
     return true;
   };
 
-  // 문항을 타입별로 그룹화하여 페이지 나누기 (만족도 태그별 분리 포함)
+  // 문항을 타입별로 그룹화하여 페이지 나누기 (중복/누락 없이 안전하게 처리)
   const getQuestionGroups = () => {
     const groups: Question[][] = [];
-    let currentObjectiveGroup: Question[] = [];
-    let currentSubjectiveGroup: Question[] = [];
+    let currentObjective: Question[] = [];
+    let currentSubjective: Question[] = [];
     let lastSatisfactionType: string | null = null;
-    
-    const processCurrentGroups = () => {
-      // 객관식 그룹 처리 (5개 이상이면 저장)
-      if (currentObjectiveGroup.length >= 5) {
-        groups.push([...currentObjectiveGroup]);
-        currentObjectiveGroup = [];
-      }
-      // 주관식 그룹 처리 (1개 이상이면 저장)
-      if (currentSubjectiveGroup.length >= 1) {
-        groups.push([...currentSubjectiveGroup]);
-        currentSubjectiveGroup = [];
+
+    const flushObjective = () => {
+      if (currentObjective.length > 0) {
+        // 최대 7개씩 끊어서 모두 추가 (남은 개수도 반드시 추가)
+        while (currentObjective.length > 0) {
+          groups.push(currentObjective.splice(0, Math.min(7, currentObjective.length)));
+        }
       }
     };
-    
-    for (const question of questions) {
-      const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
-      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
-      const currentSatisfactionType = question.satisfaction_type || null;
-      
-      // 만족도 태그가 변경된 경우 현재 그룹들을 먼저 처리
-      if (lastSatisfactionType !== null && lastSatisfactionType !== currentSatisfactionType) {
-        processCurrentGroups();
-        lastSatisfactionType = currentSatisfactionType;
-      } else if (lastSatisfactionType === null) {
-        lastSatisfactionType = currentSatisfactionType;
-      }
-      
-      if (isSubjective) {
-        // 객관식 그룹이 있으면 먼저 처리
-        if (currentObjectiveGroup.length >= 5) {
-          groups.push([...currentObjectiveGroup]);
-          currentObjectiveGroup = [];
+    const flushSubjective = () => {
+      if (currentSubjective.length > 0) {
+        while (currentSubjective.length > 0) {
+          groups.push(currentSubjective.splice(0, Math.min(2, currentSubjective.length)));
         }
-        
-        // 주관식 문항 추가 (1~2개씩)
-        currentSubjectiveGroup.push(question);
-        if (currentSubjectiveGroup.length >= 2) {
-          groups.push([...currentSubjectiveGroup]);
-          currentSubjectiveGroup = [];
+      }
+    };
+    const flushAll = () => {
+      flushObjective();
+      flushSubjective();
+    };
+
+    for (const q of questions) {
+      const isSubjective = q.question_type === 'text' || q.question_type === 'textarea';
+      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(q.question_type);
+      const currentType = q.satisfaction_type || null;
+
+      // 만족도 유형이 바뀌면 현재까지 누적된 그룹을 모두 비우고 넘어감 (누락 금지)
+      if (lastSatisfactionType !== null && lastSatisfactionType !== currentType) {
+        flushAll();
+        lastSatisfactionType = currentType;
+      } else if (lastSatisfactionType === null) {
+        lastSatisfactionType = currentType;
+      }
+
+      if (isSubjective) {
+        // 객관식 묶음 먼저 비우고 주관식 누적 (최대 2개 단위)
+        flushObjective();
+        currentSubjective.push(q);
+        if (currentSubjective.length >= 2) {
+          groups.push([...currentSubjective]);
+          currentSubjective = [];
         }
       } else if (isObjective) {
-        // 주관식 그룹이 있으면 먼저 처리
-        if (currentSubjectiveGroup.length >= 1) {
-          groups.push([...currentSubjectiveGroup]);
-          currentSubjectiveGroup = [];
-        }
-        
-        // 객관식 문항 추가 (5~7개씩)
-        currentObjectiveGroup.push(question);
-        if (currentObjectiveGroup.length >= 7) {
-          groups.push([...currentObjectiveGroup]);
-          currentObjectiveGroup = [];
+        // 주관식 묶음 먼저 비우고 객관식 누적 (최대 7개 단위)
+        flushSubjective();
+        currentObjective.push(q);
+        if (currentObjective.length >= 7) {
+          groups.push([...currentObjective]);
+          currentObjective = [];
         }
       } else {
-        // 기타 문항은 현재 그룹들을 먼저 처리하고 개별 저장
-        processCurrentGroups();
-        groups.push([question]);
+        // 기타 문항은 기존 누적을 모두 비운 뒤 단독 그룹으로 추가
+        flushAll();
+        groups.push([q]);
       }
     }
-    
-    // 마지막 그룹들 처리
-    processCurrentGroups();
-    
+
+    // 남아있는 문항 처리 (절대 버리지 않음)
+    flushAll();
+
     return groups;
   };
 
