@@ -460,7 +460,7 @@ const DashboardCourseReports = () => {
             </Card>
 
             {/* 강사별 만족도 현황 */}
-            {!isInstructor && instructorSatisfactionData.length > 0 && (() => {
+            {instructorSatisfactionData.length > 0 && (() => {
               // 강사 필터가 있을 때는 해당 강사만, 없을 때는 전체 강사 표시
               const filteredData = selectedInstructor 
                 ? instructorSatisfactionData.filter(item => item.name.includes(selectedInstructor) || item.name === selectedInstructor)
