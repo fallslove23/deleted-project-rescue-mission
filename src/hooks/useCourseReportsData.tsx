@@ -169,15 +169,39 @@ export const useCourseReportsData = (
       console.log('Available courses:', uniqueCourses);
       console.log('Available rounds:', rounds);
 
-      // 강사 정보 - 관리자만 가져오기
+      // 강사 정보 - 관리자만 가져오기 (강사 역할이 있고 실제 설문이 있는 사람만)
       if (!isInstructor) {
-        const { data: instructors, error: instructorError } = await supabase
-          .from('instructors')
-          .select('id, name')
-          .order('name');
+        const { data: instructorsWithSurveys, error: instructorError } = await supabase
+          .from('surveys')
+          .select(`
+            instructor_id,
+            instructors!inner (
+              id, 
+              name,
+              profiles!inner (
+                user_roles!inner (role)
+              )
+            )
+          `)
+          .eq('education_year', selectedYear)
+          .eq('instructors.profiles.user_roles.role', 'instructor')
+          .in('status', ['completed', 'active'])
+          .not('instructor_id', 'is', null);
 
-        if (!instructorError && instructors) {
-          setAvailableInstructors(instructors);
+        if (!instructorError && instructorsWithSurveys) {
+          // 중복 제거 및 정렬
+          const uniqueInstructors = instructorsWithSurveys
+            .reduce((acc, survey) => {
+              const instructor = survey.instructors;
+              if (instructor && !acc.find(item => item.id === instructor.id)) {
+                acc.push({ id: instructor.id, name: instructor.name });
+              }
+              return acc;
+            }, [] as {id: string, name: string}[])
+            .sort((a, b) => a.name.localeCompare(b.name));
+          
+          console.log('Available instructors with surveys and instructor role:', uniqueInstructors);
+          setAvailableInstructors(uniqueInstructors);
         }
       } else {
         setAvailableInstructors([]); // 강사는 강사 필터 숨김
@@ -266,6 +290,7 @@ export const useCourseReportsData = (
       console.log('Selected instructor:', selectedInstructor);
       console.log('Selected course (normalized):', selectedCourse);
       console.log('Selected round:', selectedRound);
+      console.log('Total surveys before filtering:', surveys?.length || 0);
 
       // 정규화된 과정명으로 클라이언트 측 필터링 (분반/조 통합)
       const filteredSurveys = (surveys || []).filter((s: any) => {
@@ -275,6 +300,7 @@ export const useCourseReportsData = (
         return true;
       });
 
+      console.log('Surveys after course filtering:', filteredSurveys.length);
       // 데이터 집계
       const instructorStatsMap = new Map();
       let totalSurveys = 0;
