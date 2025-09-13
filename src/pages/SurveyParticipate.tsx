@@ -459,6 +459,8 @@ const SurveyParticipate = () => {
     update();
   }, [currentStep, questions, instructor]);
 
+  const validateCurrentStep = () => {
+    const currentQuestions = getCurrentStepQuestions();
     for (const q of currentQuestions) {
       if (q.is_required) {
         const a = answers.find((x) => x.questionId === q.id);
