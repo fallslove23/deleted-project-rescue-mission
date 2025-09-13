@@ -160,56 +160,9 @@ const SurveyParticipate = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId, session, sessionLoading, searchParams]);
 
-  // 현재 질문의 강사 정보 업데이트
-  useEffect(() => {
-    const updateCurrentQuestionInstructor = async () => {
-      const currentQuestion = questions[currentStep];
-      if (!currentQuestion) {
-        setCurrentQuestionInstructor(null);
-        return;
-      }
+  // 현재 스텝(그룹)의 첫 질문 기준으로 강사 정보 표시
+  // 이 훅은 아래에서 questionGroups/getCurrentStepQuestions 정의 후 다시 선언됩니다.
 
-      // 강사 만족도 질문이고 session_id가 있는 경우
-      if (currentQuestion.satisfaction_type === 'instructor' && currentQuestion.session_id) {
-        // 세션의 강사 정보 가져오기
-        try {
-          const { data: sessionData } = await supabase
-            .from('survey_sessions')
-            .select(`
-              instructor_id,
-              instructors (
-                id,
-                name,
-                email,
-                photo_url,
-                bio
-              )
-            `)
-            .eq('id', currentQuestion.session_id)
-            .maybeSingle();
-
-          if (sessionData?.instructors) {
-            setCurrentQuestionInstructor(sessionData.instructors as Instructor);
-          } else {
-            setCurrentQuestionInstructor(null);
-          }
-        } catch (error) {
-          console.error('Error fetching session instructor:', error);
-          setCurrentQuestionInstructor(null);
-        }
-      } 
-      // 강사 만족도 질문이지만 세션별 강사가 없는 경우 기본 강사 사용
-      else if (currentQuestion.satisfaction_type === 'instructor' && instructor) {
-        setCurrentQuestionInstructor(instructor);
-      } 
-      // 강사 만족도 질문이 아니면 null
-      else {
-        setCurrentQuestionInstructor(null);
-      }
-    };
-
-    updateCurrentQuestionInstructor();
-  }, [currentStep, questions, instructor]);
 
   const handleTokenSubmit = async () => {
     if (!tokenCode.trim() || !surveyId) return;
@@ -461,8 +414,51 @@ const SurveyParticipate = () => {
   const getCurrentStepQuestions = () => questionGroups[currentStep] || [];
   const getTotalSteps = () => questionGroups.length;
 
-  const validateCurrentStep = () => {
-    const currentQuestions = getCurrentStepQuestions();
+  // 현재 스텝의 첫 질문 기준으로 강사 정보 업데이트
+  useEffect(() => {
+    const update = async () => {
+      const cur = getCurrentStepQuestions();
+      const currentQuestion = cur[0];
+      if (!currentQuestion) {
+        setCurrentQuestionInstructor(null);
+        return;
+      }
+
+      if (currentQuestion.satisfaction_type === 'instructor') {
+        if (currentQuestion.session_id) {
+          try {
+            const { data: sessionData } = await supabase
+              .from('survey_sessions')
+              .select(`
+                instructor_id,
+                instructors (
+                  id,
+                  name,
+                  email,
+                  photo_url,
+                  bio
+                )
+              `)
+              .eq('id', currentQuestion.session_id)
+              .maybeSingle();
+
+            if (sessionData?.instructors) {
+              setCurrentQuestionInstructor(sessionData.instructors as Instructor);
+              return;
+            }
+          } catch (e) {
+            console.error('Error fetching session instructor:', e);
+          }
+        }
+        // 세션별 강사 정보가 없으면 기본 강사 사용
+        setCurrentQuestionInstructor(instructor ?? null);
+      } else {
+        setCurrentQuestionInstructor(null);
+      }
+    };
+    update();
+  }, [currentStep, questions, instructor]);
+
     for (const q of currentQuestions) {
       if (q.is_required) {
         const a = answers.find((x) => x.questionId === q.id);
@@ -579,7 +575,8 @@ const SurveyParticipate = () => {
   };
 
   const getStepTitle = () => {
-    const q = questions[currentStep];
+    const cur = getCurrentStepQuestions();
+    const q = cur[0];
     if (!q) return '설문 응답';
     if (q.section_id) {
       const s = sections.find((x) => x.id === q.section_id);
@@ -587,7 +584,6 @@ const SurveyParticipate = () => {
     }
     return '설문 응답';
   };
-
   if (sessionLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1053,9 +1049,10 @@ const SurveyParticipate = () => {
               {currentQuestions.length > 1 ? `페이지 ${currentStep + 1}` : `질문 ${currentStep + 1}`}
             </CardTitle>
             {(() => {
-              const q = questions[currentStep];
-              if (!q || !q.section_id) return null;
-              const s = sections.find((x) => x.id === q.section_id);
+              const cur = getCurrentStepQuestions();
+              const first = cur[0];
+              if (!first || !first.section_id) return null;
+              const s = sections.find((x) => x.id === first.section_id);
               return s?.description ? <p className="text-muted-foreground text-sm break-words">{s.description}</p> : null;
             })()}
           </CardHeader>
