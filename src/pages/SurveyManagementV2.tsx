@@ -899,9 +899,7 @@ export default function SurveyManagementV2() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`, { 
-                        state: { from: 'survey-management' } 
-                      })}
+                      onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
                     >
                       <BarChart className="h-4 w-4 mr-1" />
                       분석
