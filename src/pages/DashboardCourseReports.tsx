@@ -395,11 +395,15 @@ const DashboardCourseReports = () => {
             >
               <CardHeader>
                 <CardTitle>영역별 만족도 비교</CardTitle>
-                <CardDescription>현재 vs 이전 기간 비교 (클릭하여 기간별 데이터 보기)</CardDescription>
+                <CardDescription>
+                  {selectedCourse && selectedRound 
+                    ? `이전 회차 대비 ${selectedRound}차 결과` 
+                    : '전년도 대비 현재 결과'} (클릭하여 상세 데이터 보기)
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={satisfactionData} barCategoryGap="30%">
+                  <BarChart data={satisfactionData} barCategoryGap="20%">
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="name" stroke="hsl(var(--foreground))" />
                     <YAxis domain={[0, 10]} stroke="hsl(var(--foreground))" />
@@ -410,11 +414,39 @@ const DashboardCourseReports = () => {
                         borderRadius: '8px',
                         color: 'hsl(var(--card-foreground))'
                       }}
-                      formatter={(value, name, props) => [
-                        `${value}점`,
-                        name === 'value' ? '현재' : name,
-                        props.payload.previous ? `이전: ${props.payload.previous}점` : ''
-                      ]}
+                      formatter={(value, name, props) => {
+                        const data = props.payload;
+                        const comparisonLabel = selectedCourse && selectedRound 
+                          ? '이전 회차' 
+                          : '전년도';
+                        
+                        if (name === 'value') {
+                          return [
+                            <div key="comparison" className="space-y-1">
+                              <div className="font-semibold">현재: {value}점</div>
+                              {data.previous && (
+                                <div className="text-sm">
+                                  {comparisonLabel}: {data.previous}점
+                                </div>
+                              )}
+                              {data.previous && (
+                                <div className={`text-sm font-medium ${
+                                  Number(value) > Number(data.previous) ? 'text-green-600' : 
+                                  Number(value) < Number(data.previous) ? 'text-red-600' : 'text-gray-600'
+                                }`}>
+                                  {Number(value) > Number(data.previous)
+                                    ? `↗ +${(Number(value) - Number(data.previous)).toFixed(1)}점` 
+                                    : Number(value) < Number(data.previous)
+                                    ? `↘ ${(Number(value) - Number(data.previous)).toFixed(1)}점`
+                                    : '→ 변화없음'}
+                                </div>
+                              )}
+                            </div>,
+                            ''
+                          ];
+                        }
+                        return [`${value}점`, name];
+                      }}
                     />
                     <Bar 
                       dataKey="value" 
@@ -434,40 +466,75 @@ const DashboardCourseReports = () => {
                 ? instructorSatisfactionData.filter(item => item.name.includes(selectedInstructor) || item.name === selectedInstructor)
                 : instructorSatisfactionData;
               
-              // 실제 강사별 만족도 데이터 사용 (랜덤값 제거)
-              const chartData = filteredData.map(item => ({
-                name: item.name,
-                만족도: Math.min(Math.max(Number(item.satisfaction.toFixed(1)), 0), 10), // 0-10 범위로 제한
-                응답수: item.responses,
-                설문수: item.surveys
-              }));
+              // 이전 기간 데이터와 매핑하여 차트 데이터 구성
+              const chartData = filteredData.map(item => {
+                const previousItem = previousInstructorStats.find(prev => 
+                  prev.instructor_name === item.name
+                );
+                
+                return {
+                  name: item.name,
+                  만족도: Math.min(Math.max(Number(item.satisfaction.toFixed(1)), 0), 10),
+                  이전만족도: previousItem ? Math.min(Math.max(Number(previousItem.avg_satisfaction.toFixed(1)), 0), 10) : null,
+                  응답수: item.responses,
+                  설문수: item.surveys,
+                  변화: previousItem ? Number((item.satisfaction - previousItem.avg_satisfaction).toFixed(1)) : null
+                };
+              });
               
-              // 전체 평균 계산 (실제 만족도 기준)
+              // 전체 평균 계산 (현재 기간)
               const totalAverage = chartData.length > 0 
                 ? chartData.reduce((sum, item) => sum + item.만족도, 0) / chartData.length 
                 : 0;
+              
+              // 이전 기간 평균 계산
+              const previousAverage = chartData.filter(item => item.이전만족도 !== null).length > 0
+                ? chartData.filter(item => item.이전만족도 !== null).reduce((sum, item) => sum + (item.이전만족도 || 0), 0) / chartData.filter(item => item.이전만족도 !== null).length
+                : null;
 
               return (
                 <Card className="lg:col-span-2">
                   <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                       <CardTitle>강사별 만족도 현황 (10점 만점)</CardTitle>
-                      <CardDescription>영역별 만족도 평가 결과</CardDescription>
+                      <CardDescription>
+                        {selectedCourse && selectedRound 
+                          ? `이전 회차 대비 ${selectedRound}차 강사별 만족도 평가` 
+                          : '전년도 대비 강사별 만족도 평가'}
+                      </CardDescription>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-primary">
-                        평균 {totalAverage.toFixed(1)}점
+                        현재 평균 {totalAverage.toFixed(1)}점
                       </div>
+                      {previousAverage && (
+                        <div className="text-sm text-muted-foreground">
+                          이전: {previousAverage.toFixed(1)}점 
+                          <span className={`ml-1 font-medium ${
+                            totalAverage > previousAverage ? 'text-green-600' : 
+                            totalAverage < previousAverage ? 'text-red-600' : 'text-gray-600'
+                          }`}>
+                            ({totalAverage > previousAverage ? '+' : ''}{(totalAverage - previousAverage).toFixed(1)})
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="mb-4 flex flex-wrap gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-1))]"></div>
-                        <span>강사별 만족도</span>
+                        <span>현재 만족도</span>
                       </div>
+                      {previousAverage && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-2))]"></div>
+                          <span>이전 만족도</span>
+                        </div>
+                      )}
                       <div className="text-xs text-muted-foreground">
                         {selectedInstructor ? `선택된 강사: ${selectedInstructor}` : '전체 강사 표시'}
+                        {previousAverage && ` | 비교 기준: ${selectedCourse && selectedRound ? '이전 회차' : '전년도'}`}
                       </div>
                     </div>
                     
@@ -500,7 +567,7 @@ const DashboardCourseReports = () => {
                             color: 'hsl(var(--card-foreground))',
                             fontSize: '14px'
                           }}
-                          formatter={(value, name, props) => {
+                           formatter={(value, name, props) => {
                             const data = props.payload;
                             if (!data) return null;
                             
@@ -521,6 +588,20 @@ const DashboardCourseReports = () => {
                                 <div>
                                   <strong>강사 만족도:</strong> {data.만족도}점
                                 </div>
+                                {data.이전만족도 && (
+                                  <div className="pt-2 border-t">
+                                    <div>
+                                      <strong>이전 만족도:</strong> {data.이전만족도}점
+                                    </div>
+                                    <div className={`font-medium ${
+                                      data.변화 > 0 ? 'text-green-600' : 
+                                      data.변화 < 0 ? 'text-red-600' : 'text-gray-600'
+                                    }`}>
+                                      <strong>변화:</strong> {data.변화 > 0 ? '+' : ''}{data.변화}점 
+                                      {data.변화 > 0 ? '↗' : data.변화 < 0 ? '↘' : '→'}
+                                    </div>
+                                  </div>
+                                )}
                                 <div className="text-sm text-muted-foreground pt-1 border-t">
                                   응답수: {data.응답수} / 설문수: {data.설문수}
                                 </div>
@@ -534,8 +615,20 @@ const DashboardCourseReports = () => {
                           dataKey="만족도" 
                           fill="hsl(var(--chart-1))" 
                           radius={[2, 2, 0, 0]}
-                          maxBarSize={40}
+                          maxBarSize={previousAverage ? 30 : 40}
+                          name="현재"
                         />
+                        
+                        {/* 이전 기간 비교 바 추가 */}
+                        {previousAverage && (
+                          <Bar 
+                            dataKey="이전만족도" 
+                            fill="hsl(var(--chart-2))" 
+                            radius={[2, 2, 0, 0]}
+                            maxBarSize={30}
+                            name="이전"
+                          />
+                        )}
                         
                         {/* 추세선 추가 */}
                         <Line 
