@@ -8,12 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, TrendingUp, Users, Award, BarChart3, Download, ArrowLeft } from 'lucide-react';
+import { CalendarDays, TrendingUp, Users, Award, BarChart3, Download, ArrowLeft, Eye } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
 } from 'recharts';
 import { Progress } from '@/components/ui/progress';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 interface Survey {
@@ -58,8 +58,16 @@ interface Profile {
 
 const PersonalDashboard: FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
+
+  // Preview parameters for admin/developer to view as instructor
+  const searchParams = new URLSearchParams(location.search);
+  const viewAs = searchParams.get('viewAs');
+  const previewInstructorId = searchParams.get('instructorId');
+  const previewInstructorEmail = searchParams.get('instructorEmail');
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
@@ -72,7 +80,9 @@ const PersonalDashboard: FC = () => {
   const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
-  const canViewPersonalStats = isInstructor || userRoles.includes('admin');
+  const isPreviewingInstructor = viewAs === 'instructor';
+  const asInstructor = isInstructor || isPreviewingInstructor;
+  const canViewPersonalStats = asInstructor || userRoles.includes('admin');
 
   /* ─────────────────────────────────── Fetchers ─────────────────────────────────── */
   const fetchProfile = useCallback(async () => {
@@ -95,36 +105,50 @@ const PersonalDashboard: FC = () => {
   const fetchData = useCallback(async () => {
     if (!canViewPersonalStats) return;
 
+    console.log('PersonalDashboard fetchData 시작', { 
+      isPreviewingInstructor, 
+      previewInstructorId, 
+      asInstructor, 
+      canViewPersonalStats 
+    });
+
     setLoading(true);
     try {
       let surveyQuery = supabase.from('surveys').select('*');
       let instructorId = profile?.instructor_id;
 
-      // 강사인 경우 본인의 instructor_id 확인 및 설정
-      if (isInstructor) {
-        if (!instructorId && user?.email) {
-          // instructor_id가 없는 경우 이메일로 매칭 시도
-          const { data: instructorData } = await supabase
-            .from('instructors')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          if (instructorData) {
-            instructorId = instructorData.id;
-            // 프로필에 instructor_id 업데이트
-            await supabase
-              .from('profiles')
-              .update({ instructor_id: instructorData.id })
-              .eq('id', user.id);
-            setProfile(prev => prev ? { ...prev, instructor_id: instructorData.id } : null);
+      // 강사(또는 강사로 미리보기)인 경우 대상 instructor_id 확인 및 설정
+      if (asInstructor) {
+        // 미리보기로 특정 강사를 지정한 경우 우선 사용
+        if (isPreviewingInstructor && previewInstructorId) {
+          instructorId = previewInstructorId;
+        } else if (!isPreviewingInstructor) {
+          // 실제 강사 계정인데 instructor_id가 없는 경우 이메일로 매칭 시도
+          if (!instructorId && user?.email) {
+            const { data: instructorData } = await supabase
+              .from('instructors')
+              .select('id')
+              .eq('email', user.email)
+              .maybeSingle();
+            if (instructorData) {
+              instructorId = instructorData.id;
+              // 프로필에 instructor_id 업데이트
+              await supabase
+                .from('profiles')
+                .update({ instructor_id: instructorData.id })
+                .eq('id', user.id);
+              setProfile(prev => prev ? { ...prev, instructor_id: instructorData.id } : null);
+            }
           }
         }
         
-        // 강사는 본인 설문만 조회
+        // 강사는(또는 미리보기) 본인 설문만 조회
         if (instructorId) {
+          console.log('강사 설문 조회 시작', { instructorId });
           surveyQuery = surveyQuery.eq('instructor_id', instructorId);
         } else {
-          // instructor_id가 없는 강사는 빈 결과 반환
+          console.log('instructor_id 없음, 빈 결과 반환');
+          // instructor_id가 없는 경우 빈 결과 반환
           setSurveys([]);
           setResponses([]);
           setQuestions([]);
@@ -149,22 +173,13 @@ const PersonalDashboard: FC = () => {
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
 
+      console.log('설문 조회 결과', { surveysData, surveysError });
+
       if (surveysError) throw surveysError;
 
       let filteredSurveys = surveysData || [];
 
-      // 강사에게 설문이 없는 경우에도 데이터 표시를 위해 전체 설문 조회
-      if (isInstructor && (!filteredSurveys || filteredSurveys.length === 0)) {
-        console.log('강사의 설문이 없어 전체 설문을 조회합니다.');
-        const { data: allSurveysData, error: allSurveysError } = await supabase
-          .from('surveys')
-          .select('*')
-          .order('education_year', { ascending: false })
-          .order('education_round', { ascending: false });
-        
-        if (allSurveysError) throw allSurveysError;
-        filteredSurveys = allSurveysData || [];
-      }
+      setSurveys(filteredSurveys);
 
       // 최신 회차 필터링
       if (selectedRound === 'latest' && filteredSurveys.length > 0) {
@@ -178,9 +193,9 @@ const PersonalDashboard: FC = () => {
 
       setSurveys(filteredSurveys);
 
-      // 응답/질문/답변 로드
-      if (surveysData && surveysData.length > 0) {
-        const allSurveyIds = surveysData.map(s => s.id);
+      // 응답/질문/답변 로드 - 원본 surveysData 사용 (필터링 전 데이터)
+      if (filteredSurveys && filteredSurveys.length > 0) {
+        const allSurveyIds = filteredSurveys.map(s => s.id);
 
         const { data: responsesData, error: responsesError } = await supabase
           .from('survey_responses')
@@ -217,7 +232,7 @@ const PersonalDashboard: FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [canViewPersonalStats, profile?.instructor_id, isInstructor, user?.email, selectedYear, selectedRound, selectedCourse]);
+  }, [canViewPersonalStats, profile?.instructor_id, asInstructor, isPreviewingInstructor, previewInstructorId, user?.email, selectedYear, selectedRound, selectedCourse]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
@@ -553,6 +568,25 @@ const PersonalDashboard: FC = () => {
   /* ─────────────────────────────────── Render ─────────────────────────────────── */
   return (
     <div className="space-y-6">
+      {/* 미리보기 표시 */}
+      {isPreviewingInstructor && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-orange-600" />
+              <span className="text-sm font-medium text-orange-800">
+                강사 페이지 미리보기 모드
+              </span>
+              {previewInstructorId && (
+                <Badge variant="outline" className="text-orange-600 border-orange-300">
+                  강사 ID: {previewInstructorId}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 액션 버튼들 */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -579,7 +613,7 @@ const PersonalDashboard: FC = () => {
               <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">표시할 설문 데이터가 없습니다.</p>
               <p className="text-sm text-muted-foreground mt-2">
-                {isInstructor ? '아직 생성된 설문이 없거나 권한이 없습니다.' : '설문 데이터를 확인해주세요.'}
+                {asInstructor ? '아직 생성된 설문이 없거나 권한이 없습니다.' : '설문 데이터를 확인해주세요.'}
               </p>
             </div>
           </div>

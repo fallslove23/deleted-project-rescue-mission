@@ -578,8 +578,11 @@ const SurveyResults = () => {
   const normalizeCourseName = (courseName: string) => {
     if (!courseName) return '';
     
+    // 원본 과정명을 보존하여 핵심 과정명만 추출
+    let normalized = courseName;
+    
     // 괄호 안의 조별 정보 제거: (홀수조), (짝수조) 등
-    let normalized = courseName.replace(/\((?:홀수조|짝수조|\d+조)\)/g, '');
+    normalized = normalized.replace(/\((?:홀수조|짝수조|\d+조)\)/g, '');
     
     // 일차별, 조별 정보 제거
     normalized = normalized.replace(/-\d+일차\s*\d*조?/g, '');
@@ -589,6 +592,8 @@ const SurveyResults = () => {
     // 중복 공백 및 하이픈 정리
     normalized = normalized.replace(/\s{2,}/g, ' ').replace(/-{2,}/g, '-').trim();
     
+    // 핵심 과정명이 다르면 별도 그룹으로 처리
+    // 예: "영업 BS 집체교육"과 "BS Advanced"는 서로 다른 과정
     return normalized;
   };
 
@@ -649,16 +654,24 @@ const SurveyResults = () => {
       };
     } = {};
 
-    // 과정명과 차수로 그룹핑
+    // 과정명과 차수로 그룹핑 (더 정확한 그룹핑을 위해)
     filtered.forEach(survey => {
       const normalized = normalizeCourseName(survey.course_name);
-      const key = `${survey.education_year}-${survey.education_round}-${normalized}`;
+      // 원본 과정명도 포함하여 더 정확한 키 생성
+      const originalName = survey.course_name || '';
+      const key = `${survey.education_year}-${survey.education_round}-${normalized}-${originalName.substring(0, 20)}`;
       
       if (!grouped[key]) {
+        // 그룹의 첫 번째 설문의 원본 과정명을 기준으로 종합 제목 생성
+        const baseCourseName = survey.course_name || normalized;
+        const summaryTitle = baseCourseName.includes('종합') 
+          ? baseCourseName 
+          : `${survey.education_year}년 ${survey.education_round}차 ${normalized} (종합)`;
+          
         grouped[key] = {
           summary: {
             id: `summary-${key}`,
-            title: `${survey.education_year}년 ${survey.education_round}차 ${normalized} (종합)`,
+            title: summaryTitle,
             education_year: survey.education_year,
             education_round: survey.education_round,
             course_name: normalized,

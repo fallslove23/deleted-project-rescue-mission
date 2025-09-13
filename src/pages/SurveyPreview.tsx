@@ -83,6 +83,7 @@ const SurveyPreview = () => {
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [currentQuestionInstructor, setCurrentQuestionInstructor] = useState<Instructor | null>(null);
   const [sessionInstructorMap, setSessionInstructorMap] = useState<Map<string, Instructor>>(new Map());
+  const [sessionsMap, setSessionsMap] = useState<Map<string, { session_name?: string; course_title?: string }>>(new Map());
   const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
 
   useEffect(() => {
@@ -246,19 +247,20 @@ const SurveyPreview = () => {
         `)
         .eq('survey_id', surveyId);
 
-      // 섹션과 세션 정보를 결합
-      const transformedSections: SectionWithSession[] = (sectionsData || []).map(section => {
-        // 첫 번째 세션의 정보를 사용 (일반적으로 섹션이 세션에 매핑됨)
-        const firstSession = sessionsData?.[0];
-        return {
-          id: section.id,
-          name: section.name,
-          description: section.description,
-          order_index: section.order_index,
-          session_name: firstSession?.session_name,
-          course_title: firstSession?.courses?.title
-        };
+      // 세션 맵 생성: session_id -> { session_name, course_title }
+      const sessionsMapTemp = new Map<string, { session_name?: string; course_title?: string }>();
+      (sessionsData || []).forEach((s: any) => {
+        sessionsMapTemp.set(s.id, { session_name: s.session_name, course_title: s.courses?.title });
       });
+      setSessionsMap(sessionsMapTemp);
+
+      // 섹션과 세션 정보를 결합 (중복 제목 방지를 위해 섹션에는 세션/과목명을 주입하지 않음)
+      const transformedSections: SectionWithSession[] = (sectionsData || []).map(section => ({
+        id: section.id,
+        name: section.name,
+        description: section.description,
+        order_index: section.order_index,
+      }));
       
       setSections(transformedSections);
 
@@ -325,75 +327,45 @@ const SurveyPreview = () => {
     return true;
   };
 
-  // 문항을 타입별로 그룹화하여 페이지 나누기 (만족도 태그별 분리 포함)
+  // 섹션 기준으로 페이징: 섹션별로 모든 문항을 한 번에 표시(누락 방지)
   const getQuestionGroups = () => {
-    const groups: Question[][] = [];
-    let currentObjectiveGroup: Question[] = [];
-    let currentSubjectiveGroup: Question[] = [];
-    let lastSatisfactionType: string | null = null;
-    
-    const processCurrentGroups = () => {
-      // 객관식 그룹 처리 (5개 이상이면 저장)
-      if (currentObjectiveGroup.length >= 5) {
-        groups.push([...currentObjectiveGroup]);
-        currentObjectiveGroup = [];
-      }
-      // 주관식 그룹 처리 (1개 이상이면 저장)
-      if (currentSubjectiveGroup.length >= 1) {
-        groups.push([...currentSubjectiveGroup]);
-        currentSubjectiveGroup = [];
-      }
-    };
-    
-    for (const question of questions) {
-      const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
-      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
-      const currentSatisfactionType = question.satisfaction_type || null;
-      
-      // 만족도 태그가 변경된 경우 현재 그룹들을 먼저 처리
-      if (lastSatisfactionType !== null && lastSatisfactionType !== currentSatisfactionType) {
-        processCurrentGroups();
-        lastSatisfactionType = currentSatisfactionType;
-      } else if (lastSatisfactionType === null) {
-        lastSatisfactionType = currentSatisfactionType;
-      }
-      
-      if (isSubjective) {
-        // 객관식 그룹이 있으면 먼저 처리
-        if (currentObjectiveGroup.length >= 5) {
-          groups.push([...currentObjectiveGroup]);
-          currentObjectiveGroup = [];
-        }
-        
-        // 주관식 문항 추가 (1~2개씩)
-        currentSubjectiveGroup.push(question);
-        if (currentSubjectiveGroup.length >= 2) {
-          groups.push([...currentSubjectiveGroup]);
-          currentSubjectiveGroup = [];
-        }
-      } else if (isObjective) {
-        // 주관식 그룹이 있으면 먼저 처리
-        if (currentSubjectiveGroup.length >= 1) {
-          groups.push([...currentSubjectiveGroup]);
-          currentSubjectiveGroup = [];
-        }
-        
-        // 객관식 문항 추가 (5~7개씩)
-        currentObjectiveGroup.push(question);
-        if (currentObjectiveGroup.length >= 7) {
-          groups.push([...currentObjectiveGroup]);
-          currentObjectiveGroup = [];
-        }
+    if (questions.length === 0) return [] as Question[][];
+
+    // 섹션 정렬 정보를 맵으로 준비
+    const sectionOrder = new Map<string, number>();
+    sections.forEach((s, idx) => sectionOrder.set(s.id, s.order_index ?? idx));
+
+    // 섹션별 버킷과 섹션 미지정 버킷
+    const bySection = new Map<string, Question[]>();
+    const noSection: Question[] = [];
+
+    // 원래 문항 순서(order_index)를 우선 보장하며 섹션으로 묶기
+    const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    for (const q of sorted) {
+      const sid = q.section_id || undefined;
+      if (sid) {
+        if (!bySection.has(sid)) bySection.set(sid, []);
+        bySection.get(sid)!.push(q);
       } else {
-        // 기타 문항은 현재 그룹들을 먼저 처리하고 개별 저장
-        processCurrentGroups();
-        groups.push([question]);
+        noSection.push(q);
       }
     }
-    
-    // 마지막 그룹들 처리
-    processCurrentGroups();
-    
+
+    // 섹션 테이블의 order_index 기준으로 그룹 생성
+    const orderedSectionIds = sections
+      .slice()
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+      .map((s) => s.id);
+
+    const groups: Question[][] = [];
+    for (const sid of orderedSectionIds) {
+      const list = bySection.get(sid);
+      if (list && list.length > 0) groups.push(list);
+    }
+
+    // 섹션이 지정되지 않은 문항은 마지막에 하나의 그룹으로 처리
+    if (noSection.length > 0) groups.push(noSection);
+
     return groups;
   };
 
@@ -411,20 +383,34 @@ const SurveyPreview = () => {
   const getStepTitle = () => {
     const currentQuestion = questions[currentStep];
     if (!currentQuestion) return "설문 미리보기";
-    
-    // 해당 질문이 속한 섹션 찾기
-    if (currentQuestion.section_id) {
-      const section = sections.find(s => s.id === currentQuestion.section_id);
-      if (section) {
-        // 과목명이 있으면 함께 표시
-        if (section.course_title) {
-          return `${section.course_title} - ${section.name}`;
-        }
-        return section.name;
-      }
+
+    const section = currentQuestion.section_id
+      ? sections.find(s => s.id === currentQuestion.section_id)
+      : undefined;
+
+    const sessionInfo = currentQuestion.session_id
+      ? sessionsMap.get(currentQuestion.session_id)
+      : undefined;
+
+    const parts: string[] = [];
+    const courseTitle = sessionInfo?.course_title?.trim();
+    const sectionName = section?.name?.trim();
+
+    const includesInsensitive = (full?: string, part?: string) =>
+      !!full && !!part && full.toLowerCase().includes(part.toLowerCase());
+
+    if (courseTitle && (!sectionName || !includesInsensitive(sectionName, courseTitle))) {
+      parts.push(courseTitle);
     }
-    
-    return "설문 미리보기";
+
+    if (sectionName) {
+      parts.push(sectionName);
+    } else if (sessionInfo?.session_name) {
+      parts.push(sessionInfo.session_name);
+    }
+
+    if (parts.length === 0) return "설문 미리보기";
+    return parts.join(' - ');
   };
 
   const handleNext = () => {
@@ -599,8 +585,26 @@ const SurveyPreview = () => {
   
   console.log('Preview Render - currentStep:', currentStep, 'totalSteps:', totalSteps, 'questions:', questions);
   
-  // 진행률 계산: 현재 문항 위치 기반
-  const progress = totalSteps > 0 ? ((currentStep + 1) / totalSteps) * 100 : 0;
+  // 진행률 계산: 실제 답변 완성도 기반
+  const calculateProgress = () => {
+    if (questions.length === 0) return 0;
+    
+    let answeredCount = 0;
+    questions.forEach(question => {
+      const answer = answers.find(a => a.questionId === question.id);
+      if (answer && answer.answer) {
+        if (Array.isArray(answer.answer) && answer.answer.length > 0) {
+          answeredCount++;
+        } else if (typeof answer.answer === 'string' && answer.answer.trim() !== '') {
+          answeredCount++;
+        }
+      }
+    });
+    
+    return (answeredCount / questions.length) * 100;
+  };
+  
+  const progress = calculateProgress();
   
   const isLastStep = currentStep === totalSteps - 1;
   const currentQuestions = getCurrentStepQuestions();

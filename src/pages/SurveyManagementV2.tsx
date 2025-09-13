@@ -264,6 +264,34 @@ export default function SurveyManagementV2() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSurveyId, setShareSurveyId] = useState<string | null>(null);
 
+  // QR 코드 다운로드 함수
+  const handleDownloadQR = async (surveyId: string) => {
+    try {
+      const url = getSurveyUrl(surveyId);
+      const response = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`);
+      const blob = await response.blob();
+      
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `survey-qr-${surveyId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      
+      toast({
+        title: "QR 코드 다운로드 완료",
+        description: "QR 코드가 성공적으로 다운로드되었습니다.",
+      });
+    } catch (error) {
+      toast({
+        title: "다운로드 실패",
+        description: "QR 코드 다운로드 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // URL 동기화
   useEffect(() => {
     const p = new URLSearchParams();
@@ -346,14 +374,25 @@ export default function SurveyManagementV2() {
   };
 
   const getStatusInfo = (s: SurveyListItem) => {
-    const now = new Date();
-    const start = s.start_date ? new Date(s.start_date) : null;
-    const end = s.end_date ? new Date(s.end_date) : null;
+    // DB의 실제 상태를 우선 사용 - 시간 계산은 보조적으로만 사용
     if (s.status === "draft") return STATUS_CONFIG.draft;
     if (s.status === "completed") return STATUS_CONFIG.completed;
-    if (start && now < start) return STATUS_CONFIG.scheduled;
-    if (end && now > end) return STATUS_CONFIG.expired;
-    if (s.status === "active" || s.status === "public") return STATUS_CONFIG.active;
+    
+    // active/public 상태에서만 시간 기반 세부 상태 체크
+    if (s.status === "active" || s.status === "public") {
+      const now = new Date();
+      const start = s.start_date ? new Date(s.start_date) : null;
+      const end = s.end_date ? new Date(s.end_date) : null;
+      
+      // 시작 전
+      if (start && now < start) return STATUS_CONFIG.scheduled;
+      // 종료 후
+      if (end && now > end) return STATUS_CONFIG.expired;
+      // 진행 중
+      return STATUS_CONFIG.active;
+    }
+    
+    // 기본값
     return STATUS_CONFIG.draft;
   };
 
@@ -703,6 +742,7 @@ export default function SurveyManagementV2() {
                     <SelectItem value="all">모든 상태</SelectItem>
                     <SelectItem value="draft">초안</SelectItem>
                     <SelectItem value="active">진행중</SelectItem>
+                    <SelectItem value="public">공개중</SelectItem>
                     <SelectItem value="completed">완료</SelectItem>
                     <SelectItem value="scheduled">시작예정</SelectItem>
                     <SelectItem value="expired">종료</SelectItem>
@@ -871,7 +911,9 @@ export default function SurveyManagementV2() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`)}
+                      onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`, { 
+                        state: { from: 'survey-management' } 
+                      })}
                     >
                       <BarChart className="h-4 w-4 mr-1" />
                       분석
@@ -1042,13 +1084,23 @@ export default function SurveyManagementV2() {
                   {getSurveyUrl(qrSurveyId!)}
                 </p>
               </div>
-              <Button 
-                onClick={() => handleCopyLink(qrSurveyId!)}
-                className="w-full"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                링크 복사
-              </Button>
+              <div className="flex space-x-2 w-full">
+                <Button 
+                  onClick={() => handleCopyLink(qrSurveyId!)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  링크 복사
+                </Button>
+                <Button 
+                  onClick={() => handleDownloadQR(qrSurveyId!)}
+                  className="flex-1"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  QR 다운로드
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

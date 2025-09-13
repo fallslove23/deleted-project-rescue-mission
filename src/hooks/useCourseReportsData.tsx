@@ -70,6 +70,24 @@ const normalizeCourseName = (name?: string | null) => {
   return n;
 };
 
+// 점수 파싱 유틸: answer_value 또는 answer_text에서 숫자 추출
+const parseScore = (val: any): number | null => {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/"/g, '').trim();
+    const n = Number(cleaned);
+    return isNaN(n) ? null : n;
+  }
+  // JSON 문자열 같은 경우 처리
+  try {
+    const parsed = JSON.parse(val);
+    return typeof parsed === 'number' && isFinite(parsed) ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+};
+
 export const useCourseReportsData = (
   selectedYear: number, 
   selectedCourse: string, 
@@ -169,7 +187,7 @@ export const useCourseReportsData = (
       console.log('Available courses:', uniqueCourses);
       console.log('Available rounds:', rounds);
 
-      // 강사 정보 - 관리자만 가져오기
+      // 강사 정보 - 관리자만 가져오기 (모든 강사)
       if (!isInstructor) {
         const { data: instructors, error: instructorError } = await supabase
           .from('instructors')
@@ -212,15 +230,21 @@ export const useCourseReportsData = (
           courses (title),
           instructors (id, name),
           survey_instructors (
+            instructor_id,
             instructors (id, name)
+          ),
+          survey_sessions!survey_sessions_survey_id_fkey (
+            id,
+            instructor_id
           ),
           survey_responses (
             id,
-            question_answers (
-              id,
-              answer_value,
-              survey_questions (satisfaction_type, question_type)
-            )
+          question_answers (
+            id,
+            answer_value,
+            answer_text,
+            survey_questions (satisfaction_type, question_type, session_id)
+          )
           )
         `)
         .eq('education_year', selectedYear)
@@ -254,9 +278,8 @@ export const useCourseReportsData = (
       if (selectedRound) {
         query = query.eq('education_round', selectedRound);
       }
-      if (selectedInstructor) { // 강사가 선택되면 무조건 필터 적용
-        query = query.eq('instructor_id', selectedInstructor);
-      }
+      // 강사 필터는 조인 경로별 or 조건이 불안정하여 클라이언트에서 처리
+      // (instructor_id, survey_instructors, survey_sessions 모두 고려)
 
       const { data: surveys, error: surveysError } = await query;
 
@@ -266,15 +289,30 @@ export const useCourseReportsData = (
       console.log('Selected instructor:', selectedInstructor);
       console.log('Selected course (normalized):', selectedCourse);
       console.log('Selected round:', selectedRound);
+      console.log('Total surveys before filtering:', surveys?.length || 0);
 
       // 정규화된 과정명으로 클라이언트 측 필터링 (분반/조 통합)
       const filteredSurveys = (surveys || []).filter((s: any) => {
-        if (selectedCourse) {
-          return normalizeCourseName(s.course_name) === selectedCourse;
+        // 과정명 필터
+        if (selectedCourse && normalizeCourseName(s.course_name) !== normalizeCourseName(selectedCourse)) {
+          return false;
         }
+        
+        // 강사 필터 (클라이언트에서 안전하게 처리)
+        if (selectedInstructor) {
+          const hasMainInstructor = s.instructor_id === selectedInstructor;
+          const hasMultiInstructor = s.survey_instructors?.some((si: any) => si.instructor_id === selectedInstructor);
+          const hasSessionInstructor = s.survey_sessions?.some((ss: any) => ss.instructor_id === selectedInstructor);
+          
+          if (!hasMainInstructor && !hasMultiInstructor && !hasSessionInstructor) {
+            return false;
+          }
+        }
+        
         return true;
       });
 
+      console.log('Surveys after all filtering:', filteredSurveys.length);
       // 데이터 집계
       const instructorStatsMap = new Map();
       let totalSurveys = 0;
@@ -322,18 +360,24 @@ export const useCourseReportsData = (
         }
 
         // 만족도 점수 계산
+        const selectedSessionIds = selectedInstructor
+          ? new Set((survey as any).survey_sessions?.filter((ss: any) => ss.instructor_id === selectedInstructor).map((ss: any) => ss.id))
+          : null;
+
         survey.survey_responses?.forEach((response: any) => {
           response.question_answers?.forEach((answer: any) => {
-            if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
-              let score: number;
-              
-              if (typeof answer.answer_value === 'number') {
-                score = answer.answer_value;
-              } else if (typeof answer.answer_value === 'string') {
-                score = Number(answer.answer_value);
-              } else {
-                return; // 유효하지 않은 값은 건너뛰기
-              }
+            // 선택된 강사에 해당하는 세션/설문만 포함
+            if (selectedInstructor) {
+              const sid = answer.survey_questions?.session_id as string | undefined;
+              const isOwner = survey.instructor_id === selectedInstructor;
+              const sessionMatch = sid && selectedSessionIds?.has(sid);
+              if (!isOwner && !sessionMatch) return;
+            }
+
+            if (answer.survey_questions?.question_type === 'scale' && (answer.answer_value != null || answer.answer_text != null)) {
+              let scoreRaw = parseScore((answer as any).answer_value ?? (answer as any).answer_text);
+              if (scoreRaw === null) return;
+              let score = scoreRaw;
 
               // 유효성 검사 - NaN과 무효한 값 필터링
               if (isNaN(score) || score <= 0 || !isFinite(score)) {
@@ -459,11 +503,12 @@ export const useCourseReportsData = (
           ),
           survey_responses (
             id,
-            question_answers (
-              id,
-              answer_value,
-              survey_questions (satisfaction_type, question_type)
-            )
+          question_answers (
+            id,
+            answer_value,
+            answer_text,
+            survey_questions (satisfaction_type, question_type)
+          )
           )
         `)
         .eq('education_year', year)
@@ -493,18 +538,20 @@ export const useCourseReportsData = (
           
           survey.survey_responses?.forEach(response => {
             response.question_answers?.forEach(answer => {
-              if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
-                let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
-                if (score <= 5 && score > 0) score = score * 2;
-                
-                if (answer.survey_questions.satisfaction_type === 'instructor') {
-                  prevInstructorSatisfactions.push(score);
-                } else if (answer.survey_questions.satisfaction_type === 'course') {
-                  prevCourseSatisfactions.push(score);
-                } else if (answer.survey_questions.satisfaction_type === 'operation') {
-                  prevOperationSatisfactions.push(score);
-                }
+            if (answer.survey_questions?.question_type === 'scale' && (answer.answer_value != null || answer.answer_text != null)) {
+              let scoreRaw = parseScore((answer as any).answer_value ?? (answer as any).answer_text);
+              if (scoreRaw === null) return;
+              let score = scoreRaw;
+              if (score <= 5 && score > 0) score = score * 2;
+              
+              if (answer.survey_questions.satisfaction_type === 'instructor') {
+                prevInstructorSatisfactions.push(score);
+              } else if (answer.survey_questions.satisfaction_type === 'course') {
+                prevCourseSatisfactions.push(score);
+              } else if (answer.survey_questions.satisfaction_type === 'operation') {
+                prevOperationSatisfactions.push(score);
               }
+            }
             });
           });
         });
@@ -568,8 +615,10 @@ export const useCourseReportsData = (
               response.question_answers?.forEach(answer => {
                 if (answer.survey_questions?.satisfaction_type === 'instructor' && 
                     answer.survey_questions?.question_type === 'scale' && 
-                    answer.answer_value) {
-                  let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
+                    (answer.answer_value != null || answer.answer_text != null)) {
+                  let scoreRaw = parseScore((answer as any).answer_value ?? (answer as any).answer_text);
+                  if (scoreRaw === null) return;
+                  let score = scoreRaw;
                   if (score <= 5 && score > 0) score = score * 2;
                   existingStat.instructor_satisfactions.push(score);
                 }
@@ -606,12 +655,18 @@ export const useCourseReportsData = (
           education_year,
           education_round,
           course_name,
+          instructor_id,
+          survey_sessions (
+            id,
+            instructor_id
+          ),
           survey_responses (
             id,
-            question_answers (
-              answer_value,
-              survey_questions (satisfaction_type, question_type)
-            )
+          question_answers (
+            answer_value,
+            answer_text,
+            survey_questions (satisfaction_type, question_type, session_id)
+          )
           )
         `)
         .eq('education_year', year)
@@ -649,26 +704,28 @@ export const useCourseReportsData = (
           const roundData = trendMap.get(round);
           
           survey.survey_responses?.forEach((response: any) => {
-            response.question_answers?.forEach((answer: any) => {
-              if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
-                let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
-                
-                // NaN 및 무효한 값 검증
-                if (isNaN(score) || !isFinite(score) || score <= 0) {
-                  return; // 유효하지 않은 값은 건너뛰기
-                }
-                
-                if (score <= 5 && score > 0) score = score * 2;
-                
-                if (answer.survey_questions.satisfaction_type === 'instructor') {
-                  roundData.instructor.push(score);
-                } else if (answer.survey_questions.satisfaction_type === 'course') {
-                  roundData.course.push(score);
-                } else if (answer.survey_questions.satisfaction_type === 'operation') {
-                  roundData.operation.push(score);
-                }
+          response.question_answers?.forEach((answer: any) => {
+            if (answer.survey_questions?.question_type === 'scale' && (answer.answer_value != null || answer.answer_text != null)) {
+              let scoreRaw = parseScore((answer as any).answer_value ?? (answer as any).answer_text);
+              if (scoreRaw === null) return;
+              let score = scoreRaw;
+              
+              // NaN 및 무효한 값 검증
+              if (isNaN(score) || !isFinite(score) || score <= 0) {
+                return; // 유효하지 않은 값은 건너뛰기
               }
-            });
+              
+              if (score <= 5 && score > 0) score = score * 2;
+              
+              if (answer.survey_questions.satisfaction_type === 'instructor') {
+                roundData.instructor.push(score);
+              } else if (answer.survey_questions.satisfaction_type === 'course') {
+                roundData.course.push(score);
+              } else if (answer.survey_questions.satisfaction_type === 'operation') {
+                roundData.operation.push(score);
+              }
+            }
+          });
           });
         });
 
@@ -738,10 +795,11 @@ export const useCourseReportsData = (
           instructors (name),
           survey_responses (
             id,
-            question_answers (
-              answer_value,
-              survey_questions (satisfaction_type, question_type)
-            )
+          question_answers (
+            answer_value,
+            answer_text,
+            survey_questions (satisfaction_type, question_type)
+          )
           )
         `)
         .eq('education_year', year)
