@@ -206,6 +206,26 @@ const DashboardCourseReports = () => {
       loading={loading}
     >
       <div className="space-y-6">
+        {/* 관리자 전용 - 강사 페이지 미리보기 */}
+        {userRoles.includes('admin') && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>관리자 전용</CardTitle>
+              <CardDescription>강사별 페이지를 미리보기 하여 오류사항을 확인할 수 있습니다.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => window.open('/course-reports', '_blank')}
+                variant="outline"
+                className="w-full"
+              >
+                <Star className="h-4 w-4 mr-2" />
+                강사 페이지로 이동 (Course Reports)
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        
         {/* 로딩 상태 표시 */}
         {loading && (
           <div className="text-center py-8">
