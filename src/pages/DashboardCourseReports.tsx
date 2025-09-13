@@ -429,29 +429,23 @@ const DashboardCourseReports = () => {
 
             {/* 강사별 만족도 현황 */}
             {!isInstructor && instructorSatisfactionData.length > 0 && (() => {
-              // 실제 평균 계산을 위한 모든 영역별 데이터 생성
-              const chartData = instructorSatisfactionData.slice(0, 6).map(item => ({
+              // 강사 필터가 있을 때는 해당 강사만, 없을 때는 전체 강사 표시
+              const filteredData = selectedInstructor 
+                ? instructorSatisfactionData.filter(item => item.name.includes(selectedInstructor) || item.name === selectedInstructor)
+                : instructorSatisfactionData;
+              
+              // 실제 강사별 만족도 데이터 사용 (랜덤값 제거)
+              const chartData = filteredData.map(item => ({
                 name: item.name,
-                교육적절성: Number((item.satisfaction + Math.random() * 0.5 - 0.25).toFixed(1)),
-                교육이해도: Number((item.satisfaction + Math.random() * 0.4 - 0.2).toFixed(1)),
-                현업적용성: Number((item.satisfaction + Math.random() * 0.3 - 0.15).toFixed(1)),
-                교육과제공: Number((item.satisfaction + Math.random() * 0.6 - 0.3).toFixed(1)),
-                responses: item.responses
+                만족도: Math.min(Math.max(Number(item.satisfaction.toFixed(1)), 0), 10), // 0-10 범위로 제한
+                응답수: item.responses,
+                설문수: item.surveys
               }));
               
-              // 전체 평균 계산
-              const allValues = chartData.flatMap(item => [
-                item.교육적절성, item.교육이해도, item.현업적용성, item.교육과제공
-              ]);
-              const totalAverage = allValues.reduce((sum, val) => sum + val, 0) / allValues.length;
-              
-              // 영역별 평균 계산
-              const areaAverages = {
-                교육적절성: chartData.reduce((sum, item) => sum + item.교육적절성, 0) / chartData.length,
-                교육이해도: chartData.reduce((sum, item) => sum + item.교육이해도, 0) / chartData.length,
-                현업적용성: chartData.reduce((sum, item) => sum + item.현업적용성, 0) / chartData.length,
-                교육과제공: chartData.reduce((sum, item) => sum + item.교육과제공, 0) / chartData.length,
-              };
+              // 전체 평균 계산 (실제 만족도 기준)
+              const totalAverage = chartData.length > 0 
+                ? chartData.reduce((sum, item) => sum + item.만족도, 0) / chartData.length 
+                : 0;
 
               return (
                 <Card className="lg:col-span-2">
@@ -470,19 +464,10 @@ const DashboardCourseReports = () => {
                     <div className="mb-4 flex flex-wrap gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-1))]"></div>
-                        <span>교육 적절성</span>
+                        <span>강사별 만족도</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-2))]"></div>
-                        <span>교육 이해도</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-3))]"></div>
-                        <span>현업 적용성</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-4))]"></div>
-                        <span>교육과 제공</span>
+                      <div className="text-xs text-muted-foreground">
+                        {selectedInstructor ? `선택된 강사: ${selectedInstructor}` : '전체 강사 표시'}
                       </div>
                     </div>
                     
@@ -502,9 +487,10 @@ const DashboardCourseReports = () => {
                           height={80}
                         />
                         <YAxis 
-                          domain={[0, 10]} 
+                          domain={[6, 10]} 
                           stroke="hsl(var(--foreground))" 
                           fontSize={12}
+                          tickCount={5}
                         />
                         <Tooltip 
                           contentStyle={{
@@ -514,71 +500,30 @@ const DashboardCourseReports = () => {
                             color: 'hsl(var(--card-foreground))',
                             fontSize: '12px'
                           }}
-                          formatter={(value, name) => [`${Number(value).toFixed(1)}점`, name]}
+                          formatter={(value, name) => {
+                            if (name === '만족도') return [`${Number(value).toFixed(1)}점`, '만족도'];
+                            if (name === '응답수') return [`${value}명`, '응답수'];
+                            if (name === '설문수') return [`${value}개`, '설문수'];
+                            return [value, name];
+                          }}
                           labelFormatter={(label) => `${label} 강사`}
                         />
                         
                         <Bar 
-                          dataKey="교육적절성" 
+                          dataKey="만족도" 
                           fill="hsl(var(--chart-1))" 
                           radius={[2, 2, 0, 0]}
-                          maxBarSize={25}
-                        />
-                        <Bar 
-                          dataKey="교육이해도" 
-                          fill="hsl(var(--chart-2))" 
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={25}
-                        />
-                        <Bar 
-                          dataKey="현업적용성" 
-                          fill="hsl(var(--chart-3))" 
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={25}
-                        />
-                        <Bar 
-                          dataKey="교육과제공" 
-                          fill="hsl(var(--chart-4))" 
-                          radius={[2, 2, 0, 0]}
-                          maxBarSize={25}
+                          maxBarSize={40}
                         />
                         
-                        {/* 영역별 추세선 */}
+                        {/* 추세선 추가 */}
                         <Line 
-                          type="linear" 
-                          dataKey="교육적절성" 
-                          stroke="hsl(var(--chart-1))" 
+                          type="monotone"
+                          dataKey="만족도"
+                          stroke="hsl(var(--primary))"
                           strokeWidth={2}
-                          strokeDasharray="4 4"
-                          dot={false}
-                          connectNulls={true}
-                        />
-                        <Line 
-                          type="linear" 
-                          dataKey="교육이해도" 
-                          stroke="hsl(var(--chart-2))" 
-                          strokeWidth={2}
-                          strokeDasharray="4 4"
-                          dot={false}
-                          connectNulls={true}
-                        />
-                        <Line 
-                          type="linear" 
-                          dataKey="현업적용성" 
-                          stroke="hsl(var(--chart-3))" 
-                          strokeWidth={2}
-                          strokeDasharray="4 4"
-                          dot={false}
-                          connectNulls={true}
-                        />
-                        <Line 
-                          type="linear" 
-                          dataKey="교육과제공" 
-                          stroke="hsl(var(--chart-4))" 
-                          strokeWidth={2}
-                          strokeDasharray="4 4"
-                          dot={false}
-                          connectNulls={true}
+                          dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                          connectNulls={false}
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
