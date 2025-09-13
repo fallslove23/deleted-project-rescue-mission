@@ -47,6 +47,8 @@ interface SurveyQuestion {
   is_required: boolean;
   survey_id: string;
   order_index: number;
+  satisfaction_type?: 'course' | 'subject' | 'instructor' | 'operation' | string;
+  session_id?: string | null;
 }
 
 interface CourseSession {
@@ -253,64 +255,42 @@ const SurveyDetailedAnalysis = () => {
     }
   };
 
-  const categorizeQuestions = () => {
-    // 선택된 과목에 따라 필터링
-    let filteredQuestions = questions;
-    if (selectedCourse !== 'all') {
-      // 해당 과목의 설문 ID 찾기
-      const selectedSurvey = courseSessions.find(session => 
-        session.session_name === selectedCourse
-      );
-      if (selectedSurvey) {
-        filteredQuestions = questions.filter(q => q.survey_id === selectedSurvey.id);
-      }
+const categorizeQuestions = () => {
+  // 선택된 과목에 따라 필터링
+  let filteredQuestions = questions;
+  if (selectedCourse !== 'all') {
+    // 해당 과목의 설문 ID 찾기
+    const selected = courseSessions.find((session) => session.session_name === selectedCourse);
+    if (selected) {
+      filteredQuestions = questions.filter((q) => q.survey_id === selected.id);
     }
+  }
 
-    const subjectQuestions: SurveyQuestion[] = [];
-    const instructorQuestions: SurveyQuestion[] = [];
-    const operationQuestions: SurveyQuestion[] = [];
+  const subjectQuestions: SurveyQuestion[] = [];
+  const instructorQuestions: SurveyQuestion[] = [];
+  const operationQuestions: SurveyQuestion[] = [];
 
-    filteredQuestions.forEach(question => {
-      const questionText = question.question_text?.toLowerCase() || '';
-      
-      // 강사 관련 키워드
-      if (questionText.includes('강사') || 
-          questionText.includes('지도') || 
-          questionText.includes('설명') || 
-          questionText.includes('질문응답') ||
-          questionText.includes('교수법') ||
-          questionText.includes('전달력') ||
-          questionText.includes('준비도')) {
-        instructorQuestions.push(question);
-      }
-      // 운영 관련 키워드
-      else if (questionText.includes('환경') ||
-               questionText.includes('시설') ||
-               questionText.includes('운영') ||
-               questionText.includes('서비스') ||
-               questionText.includes('지원') ||
-               questionText.includes('관리') ||
-               questionText.includes('시간') ||
-               questionText.includes('일정')) {
-        operationQuestions.push(question);
-      }
-      // 과목 관련 키워드 또는 rating/scale 타입
-      else if (questionText.includes('과정') || 
-               questionText.includes('과목') ||
-               questionText.includes('교육') || 
-               questionText.includes('내용') || 
-               questionText.includes('커리큘럼') ||
-               questionText.includes('교재') ||
-               (question.question_type === 'rating' || question.question_type === 'scale')) {
+  filteredQuestions.forEach((question) => {
+    const type = (question as any).satisfaction_type as string | undefined;
+
+    if (type === 'instructor') {
+      instructorQuestions.push(question);
+    } else if (type === 'operation') {
+      operationQuestions.push(question);
+    } else if (type === 'course' || type === 'subject') {
+      subjectQuestions.push(question);
+    } else {
+      // 타입 정보가 없을 때의 안전한 기본값: 평점형은 과목으로 분류
+      if (question.question_type === 'rating' || question.question_type === 'scale') {
         subjectQuestions.push(question);
       } else {
-        // 기본적으로 과목 만족도로 분류
         subjectQuestions.push(question);
       }
-    });
+    }
+  });
 
-    return { subjectQuestions, instructorQuestions, operationQuestions };
-  };
+  return { subjectQuestions, instructorQuestions, operationQuestions };
+};
 
   const getQuestionAnalysis = (questionList: SurveyQuestion[]) => {
     // order_index 순서로 정렬
