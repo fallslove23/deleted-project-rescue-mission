@@ -374,14 +374,25 @@ export default function SurveyManagementV2() {
   };
 
   const getStatusInfo = (s: SurveyListItem) => {
-    const now = new Date();
-    const start = s.start_date ? new Date(s.start_date) : null;
-    const end = s.end_date ? new Date(s.end_date) : null;
+    // DB의 실제 상태를 우선 사용 - 시간 계산은 보조적으로만 사용
     if (s.status === "draft") return STATUS_CONFIG.draft;
     if (s.status === "completed") return STATUS_CONFIG.completed;
-    if (start && now < start) return STATUS_CONFIG.scheduled;
-    if (end && now > end) return STATUS_CONFIG.expired;
-    if (s.status === "active" || s.status === "public") return STATUS_CONFIG.active;
+    
+    // active/public 상태에서만 시간 기반 세부 상태 체크
+    if (s.status === "active" || s.status === "public") {
+      const now = new Date();
+      const start = s.start_date ? new Date(s.start_date) : null;
+      const end = s.end_date ? new Date(s.end_date) : null;
+      
+      // 시작 전
+      if (start && now < start) return STATUS_CONFIG.scheduled;
+      // 종료 후
+      if (end && now > end) return STATUS_CONFIG.expired;
+      // 진행 중
+      return STATUS_CONFIG.active;
+    }
+    
+    // 기본값
     return STATUS_CONFIG.draft;
   };
 
@@ -731,6 +742,7 @@ export default function SurveyManagementV2() {
                     <SelectItem value="all">모든 상태</SelectItem>
                     <SelectItem value="draft">초안</SelectItem>
                     <SelectItem value="active">진행중</SelectItem>
+                    <SelectItem value="public">공개중</SelectItem>
                     <SelectItem value="completed">완료</SelectItem>
                     <SelectItem value="scheduled">시작예정</SelectItem>
                     <SelectItem value="expired">종료</SelectItem>
