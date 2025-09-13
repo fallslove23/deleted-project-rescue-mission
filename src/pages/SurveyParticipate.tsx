@@ -353,71 +353,37 @@ const SurveyParticipate = () => {
     setAnswers((prev) => prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)));
   };
 
+  // 섹션 기준으로 페이징: 섹션 1페이지, 추가 분할 없음
   const getQuestionGroups = () => {
     if (questions.length === 0) return [] as Question[][];
 
-    // 섹션별로 묶은 뒤, 객관식은 최대 7개씩 페이지 분할, 주관식은 한 번에 표시
     const groups: Question[][] = [];
 
-    // 섹션 순서 확보
+    // 섹션 순서
     const orderedSections = sections
       .slice()
       .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
 
-    // 섹션별 질문 버킷 구성 (+ 섹션 미지정)
+    // 섹션별 질문 버킷 (+ 섹션 미지정)
     const bySection = new Map<string, Question[]>();
-    const NO_SECTION_KEY = '__no_section__';
+    const NO_SECTION = '__no_section__';
 
     const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
     for (const q of sorted) {
-      const key = q.section_id || NO_SECTION_KEY;
+      const key = (q.section_id as string) || NO_SECTION;
       if (!bySection.has(key)) bySection.set(key, []);
       bySection.get(key)!.push(q);
     }
 
-    const pushGrouped = (list: Question[]) => {
-      if (!list || list.length === 0) return;
-
-      let objectiveBuf: Question[] = [];
-      let subjectiveBuf: Question[] = [];
-
-      const flushObjective = () => {
-        while (objectiveBuf.length > 0) {
-          groups.push(objectiveBuf.splice(0, 7)); // 객관식 최대 7개씩
-        }
-      };
-      const flushSubjective = () => {
-        if (subjectiveBuf.length > 0) {
-          groups.push([...subjectiveBuf]); // 주관식은 한 번에 모두
-          subjectiveBuf = [];
-        }
-      };
-
-      for (const q of list) {
-        const isSubjective = q.question_type === 'text' || q.question_type === 'textarea';
-        if (isSubjective) {
-          flushObjective();
-          subjectiveBuf.push(q);
-        } else {
-          flushSubjective();
-          objectiveBuf.push(q);
-          if (objectiveBuf.length >= 7) flushObjective();
-        }
-      }
-
-      flushObjective();
-      flushSubjective();
-    };
-
-    // 섹션 순서대로 그룹 생성
+    // 섹션 순서대로 섹션 하나 = 한 페이지
     for (const s of orderedSections) {
       const list = bySection.get(s.id) || [];
-      pushGrouped(list);
+      if (list.length > 0) groups.push(list);
     }
 
-    // 섹션이 없는 문항은 마지막에 처리
-    const noSectionList = bySection.get(NO_SECTION_KEY) || [];
-    pushGrouped(noSectionList);
+    // 섹션 미지정 문항은 마지막 페이지로 묶음
+    const noSectionList = bySection.get(NO_SECTION) || [];
+    if (noSectionList.length > 0) groups.push(noSectionList);
 
     return groups;
   };

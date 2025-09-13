@@ -327,7 +327,7 @@ const SurveyPreview = () => {
     return true;
   };
 
-  // 섹션 기준 + UI/UX 통일: 객관식 최대 7개씩, 주관식은 한 번에
+  // 섹션 기준으로 페이징: 섹션 1페이지, 추가 분할 없음
   const getQuestionGroups = () => {
     if (questions.length === 0) return [] as Question[][];
 
@@ -338,7 +338,7 @@ const SurveyPreview = () => {
       .slice()
       .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
 
-    // 섹션별 질문 버킷 (+ 미지정)
+    // 섹션별 질문 버킷 (+ 섹션 미지정)
     const bySection = new Map<string, Question[]>();
     const NO_SECTION = '__no_section__';
 
@@ -349,33 +349,15 @@ const SurveyPreview = () => {
       bySection.get(key)!.push(q);
     }
 
-    const pushGrouped = (list: Question[]) => {
-      if (!list || list.length === 0) return;
-      let obj: Question[] = [];
-      let subj: Question[] = [];
-      const flushObj = () => {
-        while (obj.length > 0) groups.push(obj.splice(0, 7));
-      };
-      const flushSubj = () => {
-        if (subj.length > 0) groups.push([...subj]), (subj = []);
-      };
-      for (const q of list) {
-        const isSubj = q.question_type === 'text' || q.question_type === 'textarea';
-        if (isSubj) {
-          flushObj();
-          subj.push(q);
-        } else {
-          flushSubj();
-          obj.push(q);
-          if (obj.length >= 7) flushObj();
-        }
-      }
-      flushObj();
-      flushSubj();
-    };
+    // 섹션 순서대로 섹션 하나 = 한 페이지
+    for (const s of orderedSections) {
+      const list = bySection.get(s.id) || [];
+      if (list.length > 0) groups.push(list);
+    }
 
-    for (const s of orderedSections) pushGrouped(bySection.get(s.id) || []);
-    pushGrouped(bySection.get(NO_SECTION) || []);
+    // 섹션 미지정 문항은 마지막 페이지로 묶음
+    const noSectionList = bySection.get(NO_SECTION) || [];
+    if (noSectionList.length > 0) groups.push(noSectionList);
 
     return groups;
   };
@@ -669,6 +651,20 @@ const SurveyPreview = () => {
             <InstructorInfoSection instructor={currentQuestionInstructor} />
           </div>
         )}
+
+        {/* 섹션 헤더 */}
+        {currentQuestions.length > 0 && (() => {
+          const first = currentQuestions[0];
+          const sec = first.section_id ? sections.find(s => s.id === first.section_id) : undefined;
+          return sec ? (
+            <div className="mb-4">
+              <div className="text-base font-semibold">{sec.name}</div>
+              {sec.description && (
+                <div className="text-sm text-muted-foreground mt-1">{sec.description}</div>
+              )}
+            </div>
+          ) : null;
+        })()}
 
         {/* 질문 카드 */}
         {currentQuestions.map((question, index) => (

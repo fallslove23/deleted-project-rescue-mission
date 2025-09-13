@@ -64,6 +64,13 @@ interface Answer {
   answer: string | string[];
 }
 
+interface Section {
+  id: string;
+  name: string;
+  description?: string;
+  order_index: number;
+}
+
 const SurveyParticipateSession = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
@@ -75,6 +82,7 @@ const SurveyParticipateSession = () => {
 
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [surveySessions, setSurveySessions] = useState<SurveySession[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,6 +194,14 @@ const SurveyParticipateSession = () => {
       if (sessionsError) throw sessionsError;
       setSurveySessions(sessionsData || []);
 
+      // 섹션 데이터 로드
+      const { data: sectionsData } = await supabase
+        .from('survey_sections')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('order_index');
+      setSections(sectionsData || []);
+
       // 질문 데이터 로드 (세션별 + 운영 공통 포함)
       const { data: questionsData } = await supabase
         .from('survey_questions')
@@ -243,42 +259,35 @@ const SurveyParticipateSession = () => {
     }
     return questions.filter(q => q.session_id === sessionId);
   };
-  // 세션 내 문항을 타입별로 그룹화 (객관식 최대 7개, 주관식은 한 번에, 만족도 타입 경계는 분리)
+  // 세션 내 페이징: 섹션 1페이지, 추가 분할 없음
   const getSessionQuestionGroups = () => {
     const sessionQuestions = getCurrentSessionQuestions();
     const groups: Question[][] = [];
-    let obj: Question[] = [];
-    let subj: Question[] = [];
-    let lastType: string | null = null;
 
-    const flushObj = () => {
-      while (obj.length > 0) groups.push(obj.splice(0, 7));
-    };
-    const flushSubj = () => {
-      if (subj.length > 0) groups.push([...subj]), (subj = []);
-    };
-    const flushAll = () => { flushObj(); flushSubj(); };
+    // 현재 세션에서 사용되는 섹션 순서
+    const orderedSections = sections
+      .slice()
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
 
-    for (const q of sessionQuestions) {
-      const curType = q.satisfaction_type || null;
-      if (lastType !== null && lastType !== curType) {
-        // 강사/과정 등 만족도 타입이 바뀌면 그룹 경계 처리
-        flushAll();
-      }
-      lastType = curType;
+    // 섹션별 질문 버킷 (+ 섹션 미지정)
+    const bySection = new Map<string, Question[]>();
+    const NO_SECTION = '__no_section__';
 
-      const isSubj = q.question_type === 'text' || q.question_type === 'textarea';
-      if (isSubj) {
-        flushObj();
-        subj.push(q);
-      } else {
-        flushSubj();
-        obj.push(q);
-        if (obj.length >= 7) flushObj();
-      }
+    const sorted = [...sessionQuestions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    for (const q of sorted) {
+      const key = (q.section_id as string) || NO_SECTION;
+      if (!bySection.has(key)) bySection.set(key, []);
+      bySection.get(key)!.push(q);
     }
 
-    flushAll();
+    for (const s of orderedSections) {
+      const list = bySection.get(s.id) || [];
+      if (list.length > 0) groups.push(list);
+    }
+
+    const noSection = bySection.get(NO_SECTION) || [];
+    if (noSection.length > 0) groups.push(noSection);
+
     return groups;
   };
   const getCurrentQuestions = () => {
@@ -709,6 +718,20 @@ const SurveyParticipateSession = () => {
             )}
           </CardHeader>
         </Card>
+
+        {/* 섹션 헤더 */}
+        {currentQuestions.length > 0 && (() => {
+          const first = currentQuestions[0];
+          const sec = first.section_id ? sections.find(s => s.id === first.section_id) : undefined;
+          return sec ? (
+            <div className="mt-2 mb-4">
+              <div className="text-base font-semibold">{sec.name}</div>
+              {sec.description && (
+                <div className="text-sm text-muted-foreground mt-1">{sec.description}</div>
+              )}
+            </div>
+          ) : null;
+        })()}
 
         {/* 질문 카드들 */}
         {currentQuestions.map((question, index) => (
