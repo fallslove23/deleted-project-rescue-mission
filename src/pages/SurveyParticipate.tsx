@@ -351,62 +351,45 @@ const SurveyParticipate = () => {
     setAnswers((prev) => prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)));
   };
 
-  // 문항을 타입별로 그룹화하여 페이지 나누기 (누락 없이 안전 처리)
+  // 섹션 기준으로 페이징: 섹션별로 모든 문항 포함(누락 방지)
   const getQuestionGroups = () => {
-    const groups: Question[][] = [];
-    let currentObjective: Question[] = [];
-    let currentSubjective: Question[] = [];
-    let lastSatisfactionType: string | null = null;
+    if (questions.length === 0) return [] as Question[][];
 
-    const flushObjective = () => {
-      if (currentObjective.length > 0) {
-        while (currentObjective.length > 0) {
-          groups.push(currentObjective.splice(0, Math.min(7, currentObjective.length)));
-        }
-      }
-    };
-    const flushSubjective = () => {
-      if (currentSubjective.length > 0) {
-        while (currentSubjective.length > 0) {
-          groups.push(currentSubjective.splice(0, Math.min(2, currentSubjective.length)));
-        }
-      }
-    };
-    const flushAll = () => { flushObjective(); flushSubjective(); };
+    // 섹션 정렬 정보를 맵으로 준비
+    const sectionOrder = new Map<string, number>();
+    sections.forEach((s, idx) => sectionOrder.set(s.id, s.order_index ?? idx));
 
-    for (const q of questions) {
-      const isSubjective = q.question_type === 'text' || q.question_type === 'textarea';
-      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(q.question_type);
-      const curType = q.satisfaction_type || null;
+    // 섹션별 버킷과 섹션 미지정 버킷
+    const bySection = new Map<string, Question[]>();
+    const noSection: Question[] = [];
 
-      if (lastSatisfactionType !== null && lastSatisfactionType !== curType) {
-        flushAll();
-        lastSatisfactionType = curType;
-      } else if (lastSatisfactionType === null) {
-        lastSatisfactionType = curType;
-      }
-
-      if (isSubjective) {
-        flushObjective();
-        currentSubjective.push(q);
-        if (currentSubjective.length >= 2) {
-          groups.push([...currentSubjective]);
-          currentSubjective = [];
-        }
-      } else if (isObjective) {
-        flushSubjective();
-        currentObjective.push(q);
-        if (currentObjective.length >= 7) {
-          groups.push([...currentObjective]);
-          currentObjective = [];
-        }
+    // 원래 문항 순서(order_index)를 우선 보장하며 섹션으로 묶기
+    const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    for (const q of sorted) {
+      const sid = q.section_id || undefined;
+      if (sid) {
+        if (!bySection.has(sid)) bySection.set(sid, []);
+        bySection.get(sid)!.push(q);
       } else {
-        flushAll();
-        groups.push([q]);
+        noSection.push(q);
       }
     }
 
-    flushAll();
+    // 섹션 테이블의 order_index 기준으로 그룹 생성
+    const orderedSectionIds = sections
+      .slice()
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+      .map((s) => s.id);
+
+    const groups: Question[][] = [];
+    for (const sid of orderedSectionIds) {
+      const list = bySection.get(sid);
+      if (list && list.length > 0) groups.push(list);
+    }
+
+    // 섹션이 지정되지 않은 문항은 마지막에 하나의 그룹으로 처리
+    if (noSection.length > 0) groups.push(noSection);
+
     return groups;
   };
 
