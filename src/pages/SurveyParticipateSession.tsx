@@ -186,7 +186,7 @@ const SurveyParticipateSession = () => {
       if (sessionsError) throw sessionsError;
       setSurveySessions(sessionsData || []);
 
-      // 질문 데이터 로드 (세션별로 분류)
+      // 질문 데이터 로드 (세션별 + 운영 공통 포함)
       const { data: questionsData } = await supabase
         .from('survey_questions')
         .select('*')
@@ -199,7 +199,21 @@ const SurveyParticipateSession = () => {
       }));
       setQuestions(typedQuestions);
 
-      const initialAnswers = (questionsData || []).map((q) => ({
+      // 운영/공통(scope=operation 또는 session_id 없음) 문항이 있으면 가상 세션 추가
+      const opQuestions = typedQuestions.filter(q => q.scope === 'operation' || !q.session_id);
+      if (opQuestions.length > 0) {
+        const operationSession = {
+          id: 'operation_common',
+          survey_id: surveyId!,
+          course_id: '',
+          instructor_id: '',
+          session_order: (sessionsData?.length || 0) + 1000,
+          session_name: '운영/공통 문항',
+        } as any;
+        setSurveySessions(prev => [...prev, operationSession]);
+      }
+
+      const initialAnswers = typedQuestions.map((q) => ({
         questionId: q.id,
         answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
       }));
@@ -224,69 +238,49 @@ const SurveyParticipateSession = () => {
   const getCurrentSessionQuestions = () => {
     if (!surveySessions[currentSessionIndex]) return [];
     const sessionId = surveySessions[currentSessionIndex].id;
+    if (sessionId === 'operation_common') {
+      return questions.filter(q => q.scope === 'operation' || !q.session_id);
+    }
     return questions.filter(q => q.session_id === sessionId);
   };
-
-  // 세션 내 문항을 타입별로 그룹화 (누락 방지, 안정적 페이징)
+  // 세션 내 문항을 타입별로 그룹화 (객관식 최대 7개, 주관식은 한 번에, 만족도 타입 경계는 분리)
   const getSessionQuestionGroups = () => {
     const sessionQuestions = getCurrentSessionQuestions();
     const groups: Question[][] = [];
-    let currentObjective: Question[] = [];
-    let currentSubjective: Question[] = [];
-    let lastSatisfactionType: string | null = null;
+    let obj: Question[] = [];
+    let subj: Question[] = [];
+    let lastType: string | null = null;
 
-    const flushObjective = () => {
-      if (currentObjective.length > 0) {
-        while (currentObjective.length > 0) {
-          groups.push(currentObjective.splice(0, Math.min(7, currentObjective.length)));
-        }
-      }
+    const flushObj = () => {
+      while (obj.length > 0) groups.push(obj.splice(0, 7));
     };
-    const flushSubjective = () => {
-      if (currentSubjective.length > 0) {
-        while (currentSubjective.length > 0) {
-          groups.push(currentSubjective.splice(0, Math.min(2, currentSubjective.length)));
-        }
-      }
+    const flushSubj = () => {
+      if (subj.length > 0) groups.push([...subj]), (subj = []);
     };
-    const flushAll = () => { flushObjective(); flushSubjective(); };
+    const flushAll = () => { flushObj(); flushSubj(); };
 
     for (const q of sessionQuestions) {
-      const isSubjective = q.question_type === 'text' || q.question_type === 'textarea';
-      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(q.question_type);
       const curType = q.satisfaction_type || null;
-
-      if (lastSatisfactionType !== null && lastSatisfactionType !== curType) {
+      if (lastType !== null && lastType !== curType) {
+        // 강사/과정 등 만족도 타입이 바뀌면 그룹 경계 처리
         flushAll();
-        lastSatisfactionType = curType;
-      } else if (lastSatisfactionType === null) {
-        lastSatisfactionType = curType;
       }
+      lastType = curType;
 
-      if (isSubjective) {
-        flushObjective();
-        currentSubjective.push(q);
-        if (currentSubjective.length >= 2) {
-          groups.push([...currentSubjective]);
-          currentSubjective = [];
-        }
-      } else if (isObjective) {
-        flushSubjective();
-        currentObjective.push(q);
-        if (currentObjective.length >= 7) {
-          groups.push([...currentObjective]);
-          currentObjective = [];
-        }
+      const isSubj = q.question_type === 'text' || q.question_type === 'textarea';
+      if (isSubj) {
+        flushObj();
+        subj.push(q);
       } else {
-        flushAll();
-        groups.push([q]);
+        flushSubj();
+        obj.push(q);
+        if (obj.length >= 7) flushObj();
       }
     }
 
     flushAll();
     return groups;
   };
-
   const getCurrentQuestions = () => {
     const groups = getSessionQuestionGroups();
     return groups[currentQuestionIndex] || [];
@@ -401,14 +395,14 @@ const SurveyParticipateSession = () => {
           }));
           console.log('💾 답변 데이터 일괄 삽입 중...', answersData.length, '개 항목');
 
-          // RPC 함수를 사용한 서버 측 일괄 처리
+          // RPC 함수를 사용한 서버 측 일괄 처리 + 폴백(insert)
+          let saved = false;
+          let lastError: any = null;
           let attempts = 0;
-          while (attempts < 2) {
-            const { error } = await supabase.rpc('save_answers_bulk', {
-              p_answers: answersData
-            });
-            if (!error) break;
-            
+          while (attempts < 2 && !saved) {
+            const { error } = await supabase.rpc('save_answers_bulk', { p_answers: answersData });
+            if (!error) { saved = true; break; }
+            lastError = error;
             const msg = (error as any)?.message || '';
             const code = (error as any)?.code;
             if (code === '57014' || /statement timeout/i.test(msg)) {
@@ -417,10 +411,21 @@ const SurveyParticipateSession = () => {
               await new Promise((r) => setTimeout(r, 500));
               continue;
             }
-            console.error('❌ 답변 데이터 삽입 실패:', error);
-            throw error;
+            break;
           }
-          console.log('✅ 답변 데이터 삽입 성공');
+          if (!saved) {
+            console.warn('🧯 RPC 실패로 폴백 사용(question_answers 직접 삽입)');
+            const chunkSize = 100;
+            for (let i = 0; i < answersData.length; i += chunkSize) {
+              const chunk = answersData.slice(i, i + chunkSize);
+              const { error } = await supabase.from('question_answers').insert(chunk);
+              if (error) {
+                console.error('❌ 폴백 삽입 실패:', error);
+                throw lastError || error;
+              }
+            }
+          }
+          console.log('✅ 답변 데이터 저장 완료');
         }
 
       if (session) {
@@ -640,10 +645,21 @@ const SurveyParticipateSession = () => {
 
   const currentSession = surveySessions[currentSessionIndex];
   const currentQuestions = getCurrentQuestions();
-  const totalQuestions = getTotalQuestions();
-  const currentQuestionNumber = getCurrentQuestionNumber();
-  const progress = totalQuestions > 0 ? (currentQuestionNumber / totalQuestions) * 100 : 0;
-
+  const totalQuestions = questions.length;
+  const answeredCount = (() => {
+    let count = 0;
+    for (const q of questions) {
+      const a = answers.find(x => x.questionId === q.id);
+      if (!a) continue;
+      if (Array.isArray(a.answer)) {
+        if (a.answer.length > 0) count++;
+      } else if (typeof a.answer === 'string') {
+        if (a.answer.trim() !== '') count++;
+      }
+    }
+    return count;
+  })();
+  const progress = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
   if (!currentQuestions || currentQuestions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -667,7 +683,7 @@ const SurveyParticipateSession = () => {
           </Button>
           <div className="text-right">
             <div className="text-sm text-muted-foreground">
-              {currentQuestionNumber} / {totalQuestions}
+              {answeredCount} / {totalQuestions}
             </div>
             <Progress value={progress} className="w-32" />
           </div>

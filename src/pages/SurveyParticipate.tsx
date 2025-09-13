@@ -353,44 +353,71 @@ const SurveyParticipate = () => {
     setAnswers((prev) => prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)));
   };
 
-  // 섹션 기준으로 페이징: 섹션별로 모든 문항 포함(누락 방지)
   const getQuestionGroups = () => {
     if (questions.length === 0) return [] as Question[][];
 
-    // 섹션 정렬 정보를 맵으로 준비
-    const sectionOrder = new Map<string, number>();
-    sections.forEach((s, idx) => sectionOrder.set(s.id, s.order_index ?? idx));
+    // 섹션별로 묶은 뒤, 객관식은 최대 7개씩 페이지 분할, 주관식은 한 번에 표시
+    const groups: Question[][] = [];
 
-    // 섹션별 버킷과 섹션 미지정 버킷
+    // 섹션 순서 확보
+    const orderedSections = sections
+      .slice()
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+
+    // 섹션별 질문 버킷 구성 (+ 섹션 미지정)
     const bySection = new Map<string, Question[]>();
-    const noSection: Question[] = [];
+    const NO_SECTION_KEY = '__no_section__';
 
-    // 원래 문항 순서(order_index)를 우선 보장하며 섹션으로 묶기
     const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
     for (const q of sorted) {
-      const sid = q.section_id || undefined;
-      if (sid) {
-        if (!bySection.has(sid)) bySection.set(sid, []);
-        bySection.get(sid)!.push(q);
-      } else {
-        noSection.push(q);
+      const key = q.section_id || NO_SECTION_KEY;
+      if (!bySection.has(key)) bySection.set(key, []);
+      bySection.get(key)!.push(q);
+    }
+
+    const pushGrouped = (list: Question[]) => {
+      if (!list || list.length === 0) return;
+
+      let objectiveBuf: Question[] = [];
+      let subjectiveBuf: Question[] = [];
+
+      const flushObjective = () => {
+        while (objectiveBuf.length > 0) {
+          groups.push(objectiveBuf.splice(0, 7)); // 객관식 최대 7개씩
+        }
+      };
+      const flushSubjective = () => {
+        if (subjectiveBuf.length > 0) {
+          groups.push([...subjectiveBuf]); // 주관식은 한 번에 모두
+          subjectiveBuf = [];
+        }
+      };
+
+      for (const q of list) {
+        const isSubjective = q.question_type === 'text' || q.question_type === 'textarea';
+        if (isSubjective) {
+          flushObjective();
+          subjectiveBuf.push(q);
+        } else {
+          flushSubjective();
+          objectiveBuf.push(q);
+          if (objectiveBuf.length >= 7) flushObjective();
+        }
       }
+
+      flushObjective();
+      flushSubjective();
+    };
+
+    // 섹션 순서대로 그룹 생성
+    for (const s of orderedSections) {
+      const list = bySection.get(s.id) || [];
+      pushGrouped(list);
     }
 
-    // 섹션 테이블의 order_index 기준으로 그룹 생성
-    const orderedSectionIds = sections
-      .slice()
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-      .map((s) => s.id);
-
-    const groups: Question[][] = [];
-    for (const sid of orderedSectionIds) {
-      const list = bySection.get(sid);
-      if (list && list.length > 0) groups.push(list);
-    }
-
-    // 섹션이 지정되지 않은 문항은 마지막에 하나의 그룹으로 처리
-    if (noSection.length > 0) groups.push(noSection);
+    // 섹션이 없는 문항은 마지막에 처리
+    const noSectionList = bySection.get(NO_SECTION_KEY) || [];
+    pushGrouped(noSectionList);
 
     return groups;
   };
@@ -503,27 +530,37 @@ const SurveyParticipate = () => {
         }));
         console.log('💾 답변 데이터 일괄 삽입 중...', answersData.length, '개 항목');
 
-        // RPC 함수를 사용한 서버 측 일괄 처리
+        // RPC 함수를 사용한 서버 측 일괄 처리 + 폴백(insert)
+        let saved = false;
+        let lastError: any = null;
         let attempts = 0;
-        while (attempts < 2) {
-          const { error } = await supabase.rpc('save_answers_bulk', {
-            p_answers: answersData
-          });
-          if (!error) break;
-          
+        while (attempts < 2 && !saved) {
+          const { error } = await supabase.rpc('save_answers_bulk', { p_answers: answersData });
+          if (!error) { saved = true; break; }
+          lastError = error;
           const msg = (error as any)?.message || '';
           const code = (error as any)?.code;
-          // statement timeout(57014) 발생 시 한 번 재시도
           if (code === '57014' || /statement timeout/i.test(msg)) {
             attempts++;
             console.warn(`⏳ 타임아웃으로 재시도 (${attempts})...`);
             await new Promise((r) => setTimeout(r, 500));
             continue;
           }
-          console.error('❌ 답변 데이터 삽입 실패:', error);
-          throw error;
+          break;
         }
-        console.log('✅ 답변 데이터 삽입 성공');
+        if (!saved) {
+          console.warn('🧯 RPC 실패로 폴백 사용(question_answers 직접 삽입)');
+          const chunkSize = 100;
+          for (let i = 0; i < answersData.length; i += chunkSize) {
+            const chunk = answersData.slice(i, i + chunkSize);
+            const { error } = await supabase.from('question_answers').insert(chunk);
+            if (error) {
+              console.error('❌ 폴백 삽입 실패:', error);
+              throw lastError || error;
+            }
+          }
+        }
+        console.log('✅ 답변 데이터 저장 완료');
       }
 
       if (session) {

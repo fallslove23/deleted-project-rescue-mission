@@ -327,44 +327,55 @@ const SurveyPreview = () => {
     return true;
   };
 
-  // 섹션 기준으로 페이징: 섹션별로 모든 문항을 한 번에 표시(누락 방지)
+  // 섹션 기준 + UI/UX 통일: 객관식 최대 7개씩, 주관식은 한 번에
   const getQuestionGroups = () => {
     if (questions.length === 0) return [] as Question[][];
 
-    // 섹션 정렬 정보를 맵으로 준비
-    const sectionOrder = new Map<string, number>();
-    sections.forEach((s, idx) => sectionOrder.set(s.id, s.order_index ?? idx));
+    const groups: Question[][] = [];
 
-    // 섹션별 버킷과 섹션 미지정 버킷
+    // 섹션 순서
+    const orderedSections = sections
+      .slice()
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+
+    // 섹션별 질문 버킷 (+ 미지정)
     const bySection = new Map<string, Question[]>();
-    const noSection: Question[] = [];
+    const NO_SECTION = '__no_section__';
 
-    // 원래 문항 순서(order_index)를 우선 보장하며 섹션으로 묶기
     const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
     for (const q of sorted) {
-      const sid = q.section_id || undefined;
-      if (sid) {
-        if (!bySection.has(sid)) bySection.set(sid, []);
-        bySection.get(sid)!.push(q);
-      } else {
-        noSection.push(q);
+      const key = (q.section_id as string) || NO_SECTION;
+      if (!bySection.has(key)) bySection.set(key, []);
+      bySection.get(key)!.push(q);
+    }
+
+    const pushGrouped = (list: Question[]) => {
+      if (!list || list.length === 0) return;
+      let obj: Question[] = [];
+      let subj: Question[] = [];
+      const flushObj = () => {
+        while (obj.length > 0) groups.push(obj.splice(0, 7));
+      };
+      const flushSubj = () => {
+        if (subj.length > 0) groups.push([...subj]), (subj = []);
+      };
+      for (const q of list) {
+        const isSubj = q.question_type === 'text' || q.question_type === 'textarea';
+        if (isSubj) {
+          flushObj();
+          subj.push(q);
+        } else {
+          flushSubj();
+          obj.push(q);
+          if (obj.length >= 7) flushObj();
+        }
       }
-    }
+      flushObj();
+      flushSubj();
+    };
 
-    // 섹션 테이블의 order_index 기준으로 그룹 생성
-    const orderedSectionIds = sections
-      .slice()
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-      .map((s) => s.id);
-
-    const groups: Question[][] = [];
-    for (const sid of orderedSectionIds) {
-      const list = bySection.get(sid);
-      if (list && list.length > 0) groups.push(list);
-    }
-
-    // 섹션이 지정되지 않은 문항은 마지막에 하나의 그룹으로 처리
-    if (noSection.length > 0) groups.push(noSection);
+    for (const s of orderedSections) pushGrouped(bySection.get(s.id) || []);
+    pushGrouped(bySection.get(NO_SECTION) || []);
 
     return groups;
   };
