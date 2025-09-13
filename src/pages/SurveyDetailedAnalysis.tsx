@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,7 @@ interface AnalysisComment {
 
 const SurveyDetailedAnalysis = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { surveyId } = useParams();
   const { user, userRoles } = useAuth();
   const [survey, setSurvey] = useState<Survey | null>(null);
@@ -885,13 +886,22 @@ const SurveyDetailedAnalysis = () => {
       <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center relative">
           <Button
-            onClick={() => navigate('/dashboard/results')}
+            onClick={() => {
+              const from = location.state?.from;
+              if (from === 'survey-management') {
+                navigate('/surveys-v2');
+              } else {
+                navigate('/dashboard/results');
+              }
+            }}
             variant="ghost"
             size="sm"
             className="touch-friendly"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">결과 분석</span>
+            <span className="hidden sm:inline ml-1">
+              {location.state?.from === 'survey-management' ? '설문 관리' : '결과 분석'}
+            </span>
           </Button>
           <div className="absolute left-1/2 transform -translate-x-1/2">
             <h1 className="text-sm sm:text-lg font-semibold text-primary text-center break-words">상세 분석</h1>
