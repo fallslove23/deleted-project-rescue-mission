@@ -822,27 +822,7 @@ const SurveyParticipate = () => {
   }
 
   const totalSteps = getTotalSteps();
-  
-  // 진행률 계산: 실제 답변 완성도 기반
-  const calculateProgress = () => {
-    if (questions.length === 0) return 0;
-    
-    let answeredCount = 0;
-    questions.forEach(question => {
-      const answer = answers.find(a => a.questionId === question.id);
-      if (answer && answer.answer) {
-        if (Array.isArray(answer.answer) && answer.answer.length > 0) {
-          answeredCount++;
-        } else if (typeof answer.answer === 'string' && answer.answer.trim() !== '') {
-          answeredCount++;
-        }
-      }
-    });
-    
-    return (answeredCount / questions.length) * 100;
-  };
-  
-  const progress = calculateProgress();
+  const progress = totalSteps > 0 ? ((currentStep + 1) / totalSteps) * 100 : 0;
   const isLastStep = currentStep === totalSteps - 1;
   const currentQuestions = getCurrentStepQuestions();
 
