@@ -227,63 +227,76 @@ const SurveyParticipateSession = () => {
     return questions.filter(q => q.session_id === sessionId);
   };
 
-  // 세션 내 문항을 타입별로 그룹화 (누락 방지, 안정적 페이징)
+  // 세션 내 문항을 타입별로 그룹화하여 페이지 나누기 (만족도 태그별 분리 포함)
   const getSessionQuestionGroups = () => {
     const sessionQuestions = getCurrentSessionQuestions();
     const groups: Question[][] = [];
-    let currentObjective: Question[] = [];
-    let currentSubjective: Question[] = [];
+    let currentObjectiveGroup: Question[] = [];
+    let currentSubjectiveGroup: Question[] = [];
     let lastSatisfactionType: string | null = null;
-
-    const flushObjective = () => {
-      if (currentObjective.length > 0) {
-        while (currentObjective.length > 0) {
-          groups.push(currentObjective.splice(0, Math.min(7, currentObjective.length)));
-        }
+    
+    const processCurrentGroups = () => {
+      // 객관식 그룹 처리 (5개 이상이면 저장)
+      if (currentObjectiveGroup.length >= 5) {
+        groups.push([...currentObjectiveGroup]);
+        currentObjectiveGroup = [];
+      }
+      // 주관식 그룹 처리 (1개 이상이면 저장)
+      if (currentSubjectiveGroup.length >= 1) {
+        groups.push([...currentSubjectiveGroup]);
+        currentSubjectiveGroup = [];
       }
     };
-    const flushSubjective = () => {
-      if (currentSubjective.length > 0) {
-        while (currentSubjective.length > 0) {
-          groups.push(currentSubjective.splice(0, Math.min(2, currentSubjective.length)));
-        }
-      }
-    };
-    const flushAll = () => { flushObjective(); flushSubjective(); };
-
-    for (const q of sessionQuestions) {
-      const isSubjective = q.question_type === 'text' || q.question_type === 'textarea';
-      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(q.question_type);
-      const curType = q.satisfaction_type || null;
-
-      if (lastSatisfactionType !== null && lastSatisfactionType !== curType) {
-        flushAll();
-        lastSatisfactionType = curType;
+    
+    for (const question of sessionQuestions) {
+      const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
+      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
+      const currentSatisfactionType = question.satisfaction_type || null;
+      
+      // 만족도 태그가 변경된 경우 현재 그룹들을 먼저 처리
+      if (lastSatisfactionType !== null && lastSatisfactionType !== currentSatisfactionType) {
+        processCurrentGroups();
+        lastSatisfactionType = currentSatisfactionType;
       } else if (lastSatisfactionType === null) {
-        lastSatisfactionType = curType;
+        lastSatisfactionType = currentSatisfactionType;
       }
-
+      
       if (isSubjective) {
-        flushObjective();
-        currentSubjective.push(q);
-        if (currentSubjective.length >= 2) {
-          groups.push([...currentSubjective]);
-          currentSubjective = [];
+        // 객관식 그룹이 있으면 먼저 처리
+        if (currentObjectiveGroup.length >= 5) {
+          groups.push([...currentObjectiveGroup]);
+          currentObjectiveGroup = [];
+        }
+        
+        // 주관식 문항 추가 (1~2개씩)
+        currentSubjectiveGroup.push(question);
+        if (currentSubjectiveGroup.length >= 2) {
+          groups.push([...currentSubjectiveGroup]);
+          currentSubjectiveGroup = [];
         }
       } else if (isObjective) {
-        flushSubjective();
-        currentObjective.push(q);
-        if (currentObjective.length >= 7) {
-          groups.push([...currentObjective]);
-          currentObjective = [];
+        // 주관식 그룹이 있으면 먼저 처리
+        if (currentSubjectiveGroup.length >= 1) {
+          groups.push([...currentSubjectiveGroup]);
+          currentSubjectiveGroup = [];
+        }
+        
+        // 객관식 문항 추가 (5~7개씩)
+        currentObjectiveGroup.push(question);
+        if (currentObjectiveGroup.length >= 7) {
+          groups.push([...currentObjectiveGroup]);
+          currentObjectiveGroup = [];
         }
       } else {
-        flushAll();
-        groups.push([q]);
+        // 기타 문항은 현재 그룹들을 먼저 처리하고 개별 저장
+        processCurrentGroups();
+        groups.push([question]);
       }
     }
-
-    flushAll();
+    
+    // 마지막 그룹들 처리
+    processCurrentGroups();
+    
     return groups;
   };
 

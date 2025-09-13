@@ -428,7 +428,7 @@ const categorizeQuestions = () => {
   };
 
   const getSubjectAnalysis = (subjectId: string) => {
-    // 선택된 과목에 따라 질문들을 필터링하고 분석
+    // 선택된 과목에 따라 질문들을 필터링하고 분석    
     let filteredQuestions = questions;
     if (subjectId !== 'all') {
       // 해당 과목의 설문 ID로 필터링
@@ -439,21 +439,42 @@ const categorizeQuestions = () => {
     const instructorQuestions: SurveyQuestion[] = [];
     const operationQuestions: SurveyQuestion[] = [];
 
-    filteredQuestions.forEach((question) => {
-      const type = (question as any).satisfaction_type as string | undefined;
-      if (type === 'instructor') {
+    filteredQuestions.forEach(question => {
+      const questionText = question.question_text?.toLowerCase() || '';
+      
+      // 강사 관련 키워드
+      if (questionText.includes('강사') || 
+          questionText.includes('지도') || 
+          questionText.includes('설명') || 
+          questionText.includes('질문응답') ||
+          questionText.includes('교수법') ||
+          questionText.includes('전달력') ||
+          questionText.includes('준비도')) {
         instructorQuestions.push(question);
-      } else if (type === 'operation') {
+      }
+      // 운영 관련 키워드
+      else if (questionText.includes('환경') ||
+               questionText.includes('시설') ||
+               questionText.includes('운영') ||
+               questionText.includes('서비스') ||
+               questionText.includes('지원') ||
+               questionText.includes('관리') ||
+               questionText.includes('시간') ||
+               questionText.includes('일정')) {
         operationQuestions.push(question);
-      } else if (type === 'course' || type === 'subject') {
+      }
+      // 과목 관련 키워드 또는 rating/scale 타입
+      else if (questionText.includes('과정') || 
+               questionText.includes('과목') ||
+               questionText.includes('교육') || 
+               questionText.includes('내용') || 
+               questionText.includes('커리큘럼') ||
+               questionText.includes('교재') ||
+               (question.question_type === 'rating' || question.question_type === 'scale')) {
         subjectQuestions.push(question);
       } else {
-        // 타입 정보가 없을 때: 평점형은 과목으로, 나머지는 과목 기본
-        if (question.question_type === 'rating' || question.question_type === 'scale') {
-          subjectQuestions.push(question);
-        } else {
-          subjectQuestions.push(question);
-        }
+        // 기본적으로 과목 만족도로 분류
+        subjectQuestions.push(question);
       }
     });
 

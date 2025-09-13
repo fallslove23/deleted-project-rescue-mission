@@ -160,9 +160,56 @@ const SurveyParticipate = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId, session, sessionLoading, searchParams]);
 
-  // 현재 스텝(그룹)의 첫 질문 기준으로 강사 정보 표시
-  // 이 훅은 아래에서 questionGroups/getCurrentStepQuestions 정의 후 다시 선언됩니다.
+  // 현재 질문의 강사 정보 업데이트
+  useEffect(() => {
+    const updateCurrentQuestionInstructor = async () => {
+      const currentQuestion = questions[currentStep];
+      if (!currentQuestion) {
+        setCurrentQuestionInstructor(null);
+        return;
+      }
 
+      // 강사 만족도 질문이고 session_id가 있는 경우
+      if (currentQuestion.satisfaction_type === 'instructor' && currentQuestion.session_id) {
+        // 세션의 강사 정보 가져오기
+        try {
+          const { data: sessionData } = await supabase
+            .from('survey_sessions')
+            .select(`
+              instructor_id,
+              instructors (
+                id,
+                name,
+                email,
+                photo_url,
+                bio
+              )
+            `)
+            .eq('id', currentQuestion.session_id)
+            .maybeSingle();
+
+          if (sessionData?.instructors) {
+            setCurrentQuestionInstructor(sessionData.instructors as Instructor);
+          } else {
+            setCurrentQuestionInstructor(null);
+          }
+        } catch (error) {
+          console.error('Error fetching session instructor:', error);
+          setCurrentQuestionInstructor(null);
+        }
+      } 
+      // 강사 만족도 질문이지만 세션별 강사가 없는 경우 기본 강사 사용
+      else if (currentQuestion.satisfaction_type === 'instructor' && instructor) {
+        setCurrentQuestionInstructor(instructor);
+      } 
+      // 강사 만족도 질문이 아니면 null
+      else {
+        setCurrentQuestionInstructor(null);
+      }
+    };
+
+    updateCurrentQuestionInstructor();
+  }, [currentStep, questions, instructor]);
 
   const handleTokenSubmit = async () => {
     if (!tokenCode.trim() || !surveyId) return;
@@ -304,7 +351,20 @@ const SurveyParticipate = () => {
 
       const { data: questionsData } = await supabase
         .from('survey_questions')
-        .select('*')
+        .select(`
+          *,
+          survey_sessions (
+            id,
+            instructor_id,
+            instructors (
+              id,
+              name,
+              email,
+              photo_url,
+              bio
+            )
+          )
+        `)
         .eq('survey_id', surveyId)
         .order('order_index');
       
@@ -338,96 +398,81 @@ const SurveyParticipate = () => {
     setAnswers((prev) => prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)));
   };
 
-  // 섹션 기준으로 페이징: 섹션별로 모든 문항 포함(누락 방지)
+  // 문항을 타입별로 그룹화하여 페이지 나누기 (만족도 태그별 분리 포함)
   const getQuestionGroups = () => {
-    if (questions.length === 0) return [] as Question[][];
-
-    // 섹션 정렬 정보를 맵으로 준비
-    const sectionOrder = new Map<string, number>();
-    sections.forEach((s, idx) => sectionOrder.set(s.id, s.order_index ?? idx));
-
-    // 섹션별 버킷과 섹션 미지정 버킷
-    const bySection = new Map<string, Question[]>();
-    const noSection: Question[] = [];
-
-    // 원래 문항 순서(order_index)를 우선 보장하며 섹션으로 묶기
-    const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
-    for (const q of sorted) {
-      const sid = q.section_id || undefined;
-      if (sid) {
-        if (!bySection.has(sid)) bySection.set(sid, []);
-        bySection.get(sid)!.push(q);
+    const groups: Question[][] = [];
+    let currentObjectiveGroup: Question[] = [];
+    let currentSubjectiveGroup: Question[] = [];
+    let lastSatisfactionType: string | null = null;
+    
+    const processCurrentGroups = () => {
+      // 객관식 그룹 처리 (5개 이상이면 저장)
+      if (currentObjectiveGroup.length >= 5) {
+        groups.push([...currentObjectiveGroup]);
+        currentObjectiveGroup = [];
+      }
+      // 주관식 그룹 처리 (1개 이상이면 저장)
+      if (currentSubjectiveGroup.length >= 1) {
+        groups.push([...currentSubjectiveGroup]);
+        currentSubjectiveGroup = [];
+      }
+    };
+    
+    for (const question of questions) {
+      const isSubjective = question.question_type === 'text' || question.question_type === 'textarea';
+      const isObjective = ['multiple_choice', 'multiple_choice_multiple', 'rating', 'scale'].includes(question.question_type);
+      const currentSatisfactionType = question.satisfaction_type || null;
+      
+      // 만족도 태그가 변경된 경우 현재 그룹들을 먼저 처리
+      if (lastSatisfactionType !== null && lastSatisfactionType !== currentSatisfactionType) {
+        processCurrentGroups();
+        lastSatisfactionType = currentSatisfactionType;
+      } else if (lastSatisfactionType === null) {
+        lastSatisfactionType = currentSatisfactionType;
+      }
+      
+      if (isSubjective) {
+        // 객관식 그룹이 있으면 먼저 처리
+        if (currentObjectiveGroup.length >= 5) {
+          groups.push([...currentObjectiveGroup]);
+          currentObjectiveGroup = [];
+        }
+        
+        // 주관식 문항 추가 (1~2개씩)
+        currentSubjectiveGroup.push(question);
+        if (currentSubjectiveGroup.length >= 2) {
+          groups.push([...currentSubjectiveGroup]);
+          currentSubjectiveGroup = [];
+        }
+      } else if (isObjective) {
+        // 주관식 그룹이 있으면 먼저 처리
+        if (currentSubjectiveGroup.length >= 1) {
+          groups.push([...currentSubjectiveGroup]);
+          currentSubjectiveGroup = [];
+        }
+        
+        // 객관식 문항 추가 (5~7개씩)
+        currentObjectiveGroup.push(question);
+        if (currentObjectiveGroup.length >= 7) {
+          groups.push([...currentObjectiveGroup]);
+          currentObjectiveGroup = [];
+        }
       } else {
-        noSection.push(q);
+        // 기타 문항은 현재 그룹들을 먼저 처리하고 개별 저장
+        processCurrentGroups();
+        groups.push([question]);
       }
     }
-
-    // 섹션 테이블의 order_index 기준으로 그룹 생성
-    const orderedSectionIds = sections
-      .slice()
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
-      .map((s) => s.id);
-
-    const groups: Question[][] = [];
-    for (const sid of orderedSectionIds) {
-      const list = bySection.get(sid);
-      if (list && list.length > 0) groups.push(list);
-    }
-
-    // 섹션이 지정되지 않은 문항은 마지막에 하나의 그룹으로 처리
-    if (noSection.length > 0) groups.push(noSection);
-
+    
+    // 마지막 그룹들 처리
+    processCurrentGroups();
+    
     return groups;
   };
 
   const questionGroups = getQuestionGroups();
   const getCurrentStepQuestions = () => questionGroups[currentStep] || [];
   const getTotalSteps = () => questionGroups.length;
-
-  // 현재 스텝의 첫 질문 기준으로 강사 정보 업데이트
-  useEffect(() => {
-    const update = async () => {
-      const cur = getCurrentStepQuestions();
-      const currentQuestion = cur[0];
-      if (!currentQuestion) {
-        setCurrentQuestionInstructor(null);
-        return;
-      }
-
-      if (currentQuestion.satisfaction_type === 'instructor') {
-        if (currentQuestion.session_id) {
-          try {
-            const { data: sessionData } = await supabase
-              .from('survey_sessions')
-              .select(`
-                instructor_id,
-                instructors (
-                  id,
-                  name,
-                  email,
-                  photo_url,
-                  bio
-                )
-              `)
-              .eq('id', currentQuestion.session_id)
-              .maybeSingle();
-
-            if (sessionData?.instructors) {
-              setCurrentQuestionInstructor(sessionData.instructors as Instructor);
-              return;
-            }
-          } catch (e) {
-            console.error('Error fetching session instructor:', e);
-          }
-        }
-        // 세션별 강사 정보가 없으면 기본 강사 사용
-        setCurrentQuestionInstructor(instructor ?? null);
-      } else {
-        setCurrentQuestionInstructor(null);
-      }
-    };
-    update();
-  }, [currentStep, questions, instructor]);
 
   const validateCurrentStep = () => {
     const currentQuestions = getCurrentStepQuestions();
@@ -547,8 +592,7 @@ const SurveyParticipate = () => {
   };
 
   const getStepTitle = () => {
-    const cur = getCurrentStepQuestions();
-    const q = cur[0];
+    const q = questions[currentStep];
     if (!q) return '설문 응답';
     if (q.section_id) {
       const s = sections.find((x) => x.id === q.section_id);
@@ -556,6 +600,7 @@ const SurveyParticipate = () => {
     }
     return '설문 응답';
   };
+
   if (sessionLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1021,10 +1066,9 @@ const SurveyParticipate = () => {
               {currentQuestions.length > 1 ? `페이지 ${currentStep + 1}` : `질문 ${currentStep + 1}`}
             </CardTitle>
             {(() => {
-              const cur = getCurrentStepQuestions();
-              const first = cur[0];
-              if (!first || !first.section_id) return null;
-              const s = sections.find((x) => x.id === first.section_id);
+              const q = questions[currentStep];
+              if (!q || !q.section_id) return null;
+              const s = sections.find((x) => x.id === q.section_id);
               return s?.description ? <p className="text-muted-foreground text-sm break-words">{s.description}</p> : null;
             })()}
           </CardHeader>

@@ -10,7 +10,6 @@ import {
 } from 'recharts';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import CourseSelector from '@/components/course-reports/CourseSelector';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
 import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
@@ -23,7 +22,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { ManagerInsightCards } from '@/components/dashboard/ManagerInsightCards';
 
 const DashboardCourseReports = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
@@ -51,29 +49,6 @@ const DashboardCourseReports = () => {
     fetchAvailableCourses,
     fetchReports,
   } = useCourseReportsData(selectedYear, selectedCourse, selectedRound, selectedInstructor);
-
-  // URL 파라미터 -> 상태 초기화
-  useEffect(() => {
-    const spYear = searchParams.get('year');
-    const spCourse = searchParams.get('course');
-    const spRound = searchParams.get('round');
-    const spInstructor = searchParams.get('instructor');
-
-    if (spYear) setSelectedYear(Number(spYear));
-    if (spCourse) setSelectedCourse(decodeURIComponent(spCourse));
-    if (spRound) setSelectedRound(spRound ? Number(spRound) : null);
-    if (spInstructor) setSelectedInstructor(spInstructor);
-  }, []);
-
-  // 상태 -> URL 동기화 (링크 공유/북마크용)
-  useEffect(() => {
-    const next = new URLSearchParams();
-    next.set('year', String(selectedYear));
-    if (selectedCourse) next.set('course', selectedCourse);
-    if (selectedRound) next.set('round', String(selectedRound));
-    if (selectedInstructor) next.set('instructor', selectedInstructor);
-    setSearchParams(next, { replace: true });
-  }, [selectedYear, selectedCourse, selectedRound, selectedInstructor]);
 
   // 초기 데이터 로딩
   useEffect(() => {

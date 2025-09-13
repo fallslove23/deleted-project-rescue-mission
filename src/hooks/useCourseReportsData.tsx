@@ -278,8 +278,11 @@ export const useCourseReportsData = (
       if (selectedRound) {
         query = query.eq('education_round', selectedRound);
       }
-      // 강사 필터는 조인 경로별 or 조건이 불안정하여 클라이언트에서 처리
-      // (instructor_id, survey_instructors, survey_sessions 모두 고려)
+      if (selectedInstructor) { // 강사가 선택되면 OR 조건으로 포함 (단일/다중/세션 강사 모두)
+        query = query.or(
+          `instructor_id.eq.${selectedInstructor},survey_instructors.instructor_id.eq.${selectedInstructor},survey_sessions!survey_sessions_survey_id_fkey.instructor_id.eq.${selectedInstructor}`
+        );
+      }
 
       const { data: surveys, error: surveysError } = await query;
 
@@ -293,26 +296,13 @@ export const useCourseReportsData = (
 
       // 정규화된 과정명으로 클라이언트 측 필터링 (분반/조 통합)
       const filteredSurveys = (surveys || []).filter((s: any) => {
-        // 과정명 필터
-        if (selectedCourse && normalizeCourseName(s.course_name) !== normalizeCourseName(selectedCourse)) {
-          return false;
+        if (selectedCourse) {
+          return normalizeCourseName(s.course_name) === selectedCourse;
         }
-        
-        // 강사 필터 (클라이언트에서 안전하게 처리)
-        if (selectedInstructor) {
-          const hasMainInstructor = s.instructor_id === selectedInstructor;
-          const hasMultiInstructor = s.survey_instructors?.some((si: any) => si.instructor_id === selectedInstructor);
-          const hasSessionInstructor = s.survey_sessions?.some((ss: any) => ss.instructor_id === selectedInstructor);
-          
-          if (!hasMainInstructor && !hasMultiInstructor && !hasSessionInstructor) {
-            return false;
-          }
-        }
-        
         return true;
       });
 
-      console.log('Surveys after all filtering:', filteredSurveys.length);
+      console.log('Surveys after course filtering:', filteredSurveys.length);
       // 데이터 집계
       const instructorStatsMap = new Map();
       let totalSurveys = 0;
