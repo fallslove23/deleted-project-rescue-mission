@@ -155,6 +155,38 @@ const DeveloperTestScreen = () => {
           </CardContent>
         </Card>
 
+        {/* Instructor Page Preview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>강사 페이지 미리보기</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-muted-foreground">
+                강사별 페이지를 미리보기하여 오류사항을 확인할 수 있습니다.
+              </p>
+              <div className="flex gap-4">
+                <Button
+                  onClick={() => window.open('/course-reports', '_blank')}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  강사 페이지 보기 (Course Reports)
+                </Button>
+                <Button
+                  onClick={() => navigate('/course-reports')}
+                  variant="default"
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  현재 탭에서 보기
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Role Test Screens */}
         <Card>
           <CardHeader>

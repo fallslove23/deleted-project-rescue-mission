@@ -20,24 +20,6 @@ const DashboardMyStats = () => {
       subtitle="개인 성과 분석 및 자기 개선 포인트"
       icon={<Award className="h-5 w-5 text-white" />}
     >
-      {isAdmin && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>관리자 전용</CardTitle>
-            <CardDescription>강사별 페이지를 미리보기 하여 오류사항을 확인할 수 있습니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => navigate('/course-reports')}
-              variant="outline"
-              className="w-full"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              강사 페이지로 이동 (Course Reports)
-            </Button>
-          </CardContent>
-        </Card>
-      )}
       <PersonalDashboard />
     </DashboardLayout>
   );
