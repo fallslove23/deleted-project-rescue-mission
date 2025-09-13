@@ -169,39 +169,15 @@ export const useCourseReportsData = (
       console.log('Available courses:', uniqueCourses);
       console.log('Available rounds:', rounds);
 
-      // 강사 정보 - 관리자만 가져오기 (강사 역할이 있고 실제 설문이 있는 사람만)
+      // 강사 정보 - 관리자만 가져오기 (모든 강사)
       if (!isInstructor) {
-        const { data: instructorsWithSurveys, error: instructorError } = await supabase
-          .from('surveys')
-          .select(`
-            instructor_id,
-            instructors!inner (
-              id, 
-              name,
-              profiles!inner (
-                user_roles!inner (role)
-              )
-            )
-          `)
-          .eq('education_year', selectedYear)
-          .eq('instructors.profiles.user_roles.role', 'instructor')
-          .in('status', ['completed', 'active'])
-          .not('instructor_id', 'is', null);
+        const { data: instructors, error: instructorError } = await supabase
+          .from('instructors')
+          .select('id, name')
+          .order('name');
 
-        if (!instructorError && instructorsWithSurveys) {
-          // 중복 제거 및 정렬
-          const uniqueInstructors = instructorsWithSurveys
-            .reduce((acc, survey) => {
-              const instructor = survey.instructors;
-              if (instructor && !acc.find(item => item.id === instructor.id)) {
-                acc.push({ id: instructor.id, name: instructor.name });
-              }
-              return acc;
-            }, [] as {id: string, name: string}[])
-            .sort((a, b) => a.name.localeCompare(b.name));
-          
-          console.log('Available instructors with surveys and instructor role:', uniqueInstructors);
-          setAvailableInstructors(uniqueInstructors);
+        if (!instructorError && instructors) {
+          setAvailableInstructors(instructors);
         }
       } else {
         setAvailableInstructors([]); // 강사는 강사 필터 숨김
@@ -236,14 +212,19 @@ export const useCourseReportsData = (
           courses (title),
           instructors (id, name),
           survey_instructors (
+            instructor_id,
             instructors (id, name)
+          ),
+          survey_sessions (
+            id,
+            instructor_id
           ),
           survey_responses (
             id,
             question_answers (
               id,
               answer_value,
-              survey_questions (satisfaction_type, question_type)
+              survey_questions (satisfaction_type, question_type, session_id)
             )
           )
         `)
@@ -278,8 +259,10 @@ export const useCourseReportsData = (
       if (selectedRound) {
         query = query.eq('education_round', selectedRound);
       }
-      if (selectedInstructor) { // 강사가 선택되면 무조건 필터 적용
-        query = query.eq('instructor_id', selectedInstructor);
+      if (selectedInstructor) { // 강사가 선택되면 OR 조건으로 포함 (단일/다중/세션 강사 모두)
+        query = query.or(
+          `instructor_id.eq.${selectedInstructor},survey_instructors.instructor_id.eq.${selectedInstructor},survey_sessions.instructor_id.eq.${selectedInstructor}`
+        );
       }
 
       const { data: surveys, error: surveysError } = await query;
@@ -348,11 +331,22 @@ export const useCourseReportsData = (
         }
 
         // 만족도 점수 계산
+        const selectedSessionIds = selectedInstructor
+          ? new Set((survey as any).survey_sessions?.filter((ss: any) => ss.instructor_id === selectedInstructor).map((ss: any) => ss.id))
+          : null;
+
         survey.survey_responses?.forEach((response: any) => {
           response.question_answers?.forEach((answer: any) => {
+            // 선택된 강사에 해당하는 세션/설문만 포함
+            if (selectedInstructor) {
+              const sid = answer.survey_questions?.session_id as string | undefined;
+              const isOwner = survey.instructor_id === selectedInstructor;
+              const sessionMatch = sid && selectedSessionIds?.has(sid);
+              if (!isOwner && !sessionMatch) return;
+            }
+
             if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
               let score: number;
-              
               if (typeof answer.answer_value === 'number') {
                 score = answer.answer_value;
               } else if (typeof answer.answer_value === 'string') {
@@ -632,11 +626,16 @@ export const useCourseReportsData = (
           education_year,
           education_round,
           course_name,
+          instructor_id,
+          survey_sessions (
+            id,
+            instructor_id
+          ),
           survey_responses (
             id,
             question_answers (
               answer_value,
-              survey_questions (satisfaction_type, question_type)
+              survey_questions (satisfaction_type, question_type, session_id)
             )
           )
         `)
