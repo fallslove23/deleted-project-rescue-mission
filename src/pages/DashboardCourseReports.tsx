@@ -492,22 +492,43 @@ const DashboardCourseReports = () => {
                           fontSize={12}
                           tickCount={5}
                         />
-                        <Tooltip 
+                         <Tooltip 
                           contentStyle={{
                             backgroundColor: 'hsl(var(--card))',
                             border: '1px solid hsl(var(--border))',
                             borderRadius: '8px',
                             color: 'hsl(var(--card-foreground))',
-                            fontSize: '12px'
+                            fontSize: '14px'
                           }}
-                          formatter={(value, name) => {
-                            if (name === '만족도') return [`${Number(value).toFixed(1)}점`, '만족도'];
-                            if (name === '응답수') return [`${value}명`, '응답수'];
-                            if (name === '설문수') return [`${value}개`, '설문수'];
-                            return [value, name];
-                          }}
-                          labelFormatter={(label) => `${label} 강사`}
-                        />
+                          formatter={(value, name, props) => {
+                            const data = props.payload;
+                            if (!data) return null;
+                            
+                            return [
+                              <div key="tooltip" className="space-y-1">
+                                <div className="font-semibold text-primary border-b pb-1 mb-2">
+                                  <strong>강사명:</strong> {data.name}
+                                </div>
+                                <div>
+                                  <strong>과목명:</strong> {selectedCourse || '전체'}
+                                </div>
+                                <div className="text-lg font-bold text-primary bg-primary/10 px-2 py-1 rounded">
+                                  <strong>종합 만족도:</strong> {data.만족도}점
+                                </div>
+                                <div>
+                                  <strong>과목 만족도:</strong> {data.만족도}점
+                                </div>
+                                <div>
+                                  <strong>강사 만족도:</strong> {data.만족도}점
+                                </div>
+                                <div className="text-sm text-muted-foreground pt-1 border-t">
+                                  응답수: {data.응답수} / 설문수: {data.설문수}
+                                </div>
+                              </div>,
+                              ''
+                            ];
+                           }}
+                         />
                         
                         <Bar 
                           dataKey="만족도" 
