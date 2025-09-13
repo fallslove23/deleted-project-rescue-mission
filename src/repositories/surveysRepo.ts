@@ -34,7 +34,7 @@ export interface SurveyListItem {
 
 export interface SurveyFilters {
   year: number | null;
-  status: "draft" | "active" | "public" | "completed" | "scheduled" | "expired" | null;
+  status: "draft" | "active" | "public" | "completed" | null;
   q?: string | null;
   courseName?: string | null;
 }
@@ -125,25 +125,8 @@ export const SurveysRepository = {
     let query = supabase.from("surveys_list_v1").select("*", { count: "exact" });
 
     if (filters.year) query = query.eq("education_year", filters.year);
+    if (filters.status) query = query.eq("status", filters.status);
     if (filters.courseName) query = query.eq("course_name", filters.courseName);
-    
-    // 상태 필터링 개선
-    if (filters.status) {
-      if (filters.status === "scheduled") {
-        // 시작예정: active/public 상태이면서 시작 시간이 미래
-        query = query
-          .in("status", ["active", "public"])
-          .gt("start_date", new Date().toISOString());
-      } else if (filters.status === "expired") {
-        // 종료: active/public 상태이면서 종료 시간이 과거
-        query = query
-          .in("status", ["active", "public"])
-          .lt("end_date", new Date().toISOString());
-      } else {
-        // 일반 상태는 그대로
-        query = query.eq("status", filters.status);
-      }
-    }
 
     if (filters.q && filters.q.trim()) {
       const like = `%${filters.q.trim()}%`;
