@@ -264,34 +264,6 @@ export default function SurveyManagementV2() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSurveyId, setShareSurveyId] = useState<string | null>(null);
 
-  // QR 코드 다운로드 함수
-  const handleDownloadQR = async (surveyId: string) => {
-    try {
-      const url = getSurveyUrl(surveyId);
-      const response = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`);
-      const blob = await response.blob();
-      
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `survey-qr-${surveyId}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-      
-      toast({
-        title: "QR 코드 다운로드 완료",
-        description: "QR 코드가 성공적으로 다운로드되었습니다.",
-      });
-    } catch (error) {
-      toast({
-        title: "다운로드 실패",
-        description: "QR 코드 다운로드 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    }
-  };
-
   // URL 동기화
   useEffect(() => {
     const p = new URLSearchParams();
@@ -1070,23 +1042,13 @@ export default function SurveyManagementV2() {
                   {getSurveyUrl(qrSurveyId!)}
                 </p>
               </div>
-              <div className="flex space-x-2 w-full">
-                <Button 
-                  onClick={() => handleCopyLink(qrSurveyId!)}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  링크 복사
-                </Button>
-                <Button 
-                  onClick={() => handleDownloadQR(qrSurveyId!)}
-                  className="flex-1"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  QR 다운로드
-                </Button>
-              </div>
+              <Button 
+                onClick={() => handleCopyLink(qrSurveyId!)}
+                className="w-full"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                링크 복사
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

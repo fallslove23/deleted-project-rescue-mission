@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,39 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Eye, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 
 const DeveloperTestScreen = () => {
   const { user, userRoles } = useAuth();
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<string>('');
-  const [instructors, setInstructors] = useState<Array<{id: string, name: string, email: string}>>([]);
-  const [selectedInstructor, setSelectedInstructor] = useState<string>('');
 
   // 개발자 계정인지 확인
   const isDeveloper = user?.email === 'sethetrend87@osstem.com';
-
-  // 강사 목록 로드
-  useEffect(() => {
-    const fetchInstructors = async () => {
-      const { data, error } = await supabase
-        .from('instructors')
-        .select('id, name, email')
-        .order('name');
-      
-      if (error) {
-        console.error('강사 목록 로드 오류:', error);
-        return;
-      }
-      
-      setInstructors(data || []);
-    };
-
-    if (isDeveloper) {
-      fetchInstructors();
-    }
-  }, [isDeveloper]);
 
   if (!isDeveloper) {
     return (
@@ -175,71 +150,6 @@ const DeveloperTestScreen = () => {
                     {role}
                   </Badge>
                 ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Instructor Page Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>강사 페이지 미리보기</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-muted-foreground">
-                강사별 페이지를 미리보기하여 오류사항을 확인할 수 있습니다.
-              </p>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium">강사 선택:</label>
-                  <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="미리보기할 강사를 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {instructors.map((instructor) => (
-                        <SelectItem key={instructor.id} value={instructor.id}>
-                          {instructor.name} ({instructor.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex gap-4">
-                  <Button
-                    onClick={() => {
-                      if (!selectedInstructor) {
-                        alert('강사를 먼저 선택해주세요.');
-                        return;
-                      }
-                      window.open(`/dashboard/my-stats?viewAs=instructor&instructorId=${selectedInstructor}`, '_blank');
-                    }}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    disabled={!selectedInstructor}
-                  >
-                    <Eye className="h-4 w-4" />
-                    강사 페이지 보기 (새 탭)
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (!selectedInstructor) {
-                        alert('강사를 먼저 선택해주세요.');
-                        return;
-                      }
-                      navigate(`/dashboard/my-stats?viewAs=instructor&instructorId=${selectedInstructor}`);
-                    }}
-                    variant="default"
-                    className="flex items-center gap-2"
-                    disabled={!selectedInstructor}
-                  >
-                    <Eye className="h-4 w-4" />
-                    현재 탭에서 보기
-                  </Button>
-                </div>
               </div>
             </div>
           </CardContent>

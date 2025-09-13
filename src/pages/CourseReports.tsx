@@ -607,7 +607,7 @@ const CourseReports = () => {
         )}
 
         {/* 강사 통계 섹션 */}
-        {instructorStats.length > 0 && (
+        {!isInstructor && instructorStats.length > 0 && (
           <InstructorStatsSection
             instructorStats={instructorStats}
             onInstructorClick={handleInstructorClick}
