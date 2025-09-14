@@ -192,6 +192,23 @@ const SurveyParticipate = () => {
         .eq('id', surveyId)
         .maybeSingle();
 
+      // 세션 기반 설문인지 확인하고 자동 리다이렉션
+      if (surveyData) {
+        const { data: sessionsData } = await supabase
+          .from('survey_sessions')
+          .select('id')
+          .eq('survey_id', surveyId)
+          .limit(1);
+        
+        if (sessionsData && sessionsData.length > 0) {
+          console.log('🔄 세션 기반 설문 감지, 자동 리다이렉션');
+          const currentParams = searchParams.toString();
+          const redirectUrl = `/survey-session/${surveyId}${currentParams ? `?${currentParams}` : ''}`;
+          navigate(redirectUrl, { replace: true });
+          return;
+        }
+      }
+
       if (surveyError) {
         console.error('❌ 익명 사용자 설문 접근 실패:', surveyError);
         // 더 구체적인 에러 처리
