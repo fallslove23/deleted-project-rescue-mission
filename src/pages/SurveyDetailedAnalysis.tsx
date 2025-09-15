@@ -205,7 +205,7 @@ const SurveyDetailedAnalysis = () => {
       // 같은 일차의 모든 과목 설문들 가져오기
       const { data: currentSurvey } = await supabase
         .from('surveys')
-        .select('education_year, education_round, education_day, course_name')
+        .select('education_year, education_round, education_day, course_name, instructor_id')
         .eq('id', surveyId)
         .single();
       
@@ -222,7 +222,7 @@ const SurveyDetailedAnalysis = () => {
               id,
               name
             ),
-            survey_sessions (
+            survey_sessions!survey_sessions_survey_id_fkey (
               session_name
             )
           `)
@@ -233,22 +233,26 @@ const SurveyDetailedAnalysis = () => {
         
         if (error) throw error;
         
-        const sessions = sameDaySurveys?.map(survey => {
-          const sessionData = (survey as any).survey_sessions?.[0];
-          const sessionName = sessionData?.session_name || survey.title;
-          
-          return {
-            id: survey.id,
-            title: survey.title,
-            course_name: survey.course_name || '',
-            session_name: sessionName,
-            education_day: survey.education_day,
-            instructor_name: (survey as any).instructors?.name || '',
-            instructor_id: survey.instructor_id
-          };
-        }) || [];
-        
-        setCourseSessions(sessions);
+         const filteredSurveys = (userRoles.includes('instructor') && currentSurvey?.instructor_id)
+           ? sameDaySurveys?.filter((s: any) => s.instructor_id === currentSurvey.instructor_id)
+           : sameDaySurveys;
+
+         const sessions = filteredSurveys?.map((survey: any) => {
+           const sessionData = survey.survey_sessions?.[0];
+           const sessionName = sessionData?.session_name || survey.title;
+           
+           return {
+             id: survey.id,
+             title: survey.title,
+             course_name: survey.course_name || '',
+             session_name: sessionName,
+             education_day: survey.education_day,
+             instructor_name: survey.instructors?.name || '',
+             instructor_id: survey.instructor_id
+           };
+         }) || [];
+         
+         setCourseSessions(sessions);
       }
     } catch (error) {
       console.error('Error fetching course sessions:', error);
@@ -1018,95 +1022,13 @@ const categorizeQuestions = () => {
           </div>
 
 
-          {/* 종합 만족도 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-blue-500" />
-                  과목 만족도
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-500">{subjectAverage}</div>
-                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {subjectQuestions.length}개 질문 기준
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-orange-500" />
-                  강사 만족도
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-500">{instructorAverage}</div>
-                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {instructorQuestions.length}개 질문 기준
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
-                  운영 만족도
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-500">{operationAverage}</div>
-                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {operationQuestions.length}개 질문 기준
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-purple-500" />
-                  과정 만족도 (종합)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-500">{calculateOverallSatisfaction()}</div>
-                  <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    강사+과목+운영 종합
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
 
           {/* 과정 섹션별 및 과목별 분석 탭 */}
           <Tabs defaultValue="template-overview" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 overflow-x-auto">
+            <TabsList className="w-full overflow-x-auto">
               <TabsTrigger value="template-overview" className="text-sm touch-friendly whitespace-nowrap">
                 과정 섹션별 집계
               </TabsTrigger>
-              <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
-                전체 분석
-              </TabsTrigger>
-              {shouldShowSubjectTabs() && getAccessibleSubjects().map(subject => (
-                <TabsTrigger key={subject.id} value={subject.id} className="text-sm touch-friendly whitespace-nowrap">
-                  {subject.displayName}
-                </TabsTrigger>
-              ))}
             </TabsList>
 
             {/* 과정 섹션별 집계 탭 */}
@@ -1194,6 +1116,40 @@ const categorizeQuestions = () => {
                       </Card>
                     ))}
                   </div>
+
+                  <div className="mt-6">
+                    <Tabs defaultValue="course" className="space-y-4">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="course" className="text-sm touch-friendly">과정</TabsTrigger>
+                        <TabsTrigger value="instructor" className="text-sm touch-friendly">과목(강사)</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="course" className="space-y-4">
+                        {subjectAnalyses.length > 0 ? (
+                          subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                        ) : (
+                          <Card>
+                            <CardContent className="text-center py-8">
+                              <p className="text-muted-foreground">과정 관련 질문이 없습니다.</p>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="instructor" className="space-y-4">
+                        {instructorAnalyses.length > 0 ? (
+                          instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
+                        ) : (
+                          <Card>
+                            <CardContent className="text-center py-8">
+                              <p className="text-muted-foreground">과목(강사) 관련 질문이 없습니다.</p>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+
                 </CardContent>
               </Card>
             </TabsContent>
