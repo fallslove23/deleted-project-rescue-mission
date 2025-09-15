@@ -607,9 +607,8 @@ const categorizeQuestions = () => {
     return subjects.length > 1;
   };
 
-  // 강사의 접근 권한 확인 함수
+  // 강사의 접근 권한 확인 함수 
   const getAccessibleSubjects = () => {
-    const { userRoles } = useAuth();
     const subjects = getAvailableSubjects();
     
     // 관리자 권한(admin, operator, director)이면 모든 과목 접근 가능
@@ -617,16 +616,99 @@ const categorizeQuestions = () => {
       return subjects;
     }
     
-    // 강사 권한이면 본인 담당 과목만 접근 가능
-    if (userRoles.includes('instructor') && user) {
+    // 강사 권한이면 본인이 담당하는 과목만 접근 가능 (이메일 기반)
+    if (userRoles.includes('instructor') && user?.email) {
       return subjects.filter(subject => 
         courseSessions.some(session => 
-          session.id === subject.id && session.instructor_id === user.id
+          session.id === subject.id && 
+          instructor && instructor.email === user.email
         )
       );
     }
     
     return subjects;
+  };
+
+  // 섹션별 집계를 위한 템플릿 기반 분석 함수
+  const getTemplateSectionAnalysis = () => {
+    // 동일한 템플릿을 사용하는 설문들을 그룹화
+    const templateGroups = courseSessions.reduce((groups, session) => {
+      // 과목명을 기준으로 그룹화 (같은 과목은 같은 템플릿으로 간주)
+      const key = session.course_name || 'default';
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(session);
+      return groups;
+    }, {} as Record<string, CourseSession[]>);
+
+    return Object.entries(templateGroups).map(([templateName, sessions]) => {
+      // 해당 템플릿의 모든 질문과 답변 수집
+      const templateQuestions = questions.filter(q => 
+        sessions.some(session => session.id === q.survey_id)
+      );
+      
+      const templateAnswers = answers.filter(a => 
+        templateQuestions.some(q => q.id === a.question_id)
+      );
+
+      // 섹션별 분류
+      const sectionData = {
+        templateName,
+        sessions,
+        totalResponses: responses.filter(r => 
+          sessions.some(session => session.id === r.survey_id)
+        ).length,
+        subjectQuestions: templateQuestions.filter(q => 
+          ['course', 'subject'].includes(q.satisfaction_type || '')
+        ),
+        instructorQuestions: templateQuestions.filter(q => 
+          q.satisfaction_type === 'instructor'
+        ),
+        operationQuestions: templateQuestions.filter(q => 
+          q.satisfaction_type === 'operation'
+        ),
+        allAnswers: templateAnswers
+      };
+
+      // 각 섹션별 평균 계산
+      const calculateSectionAverage = (questions: SurveyQuestion[]) => {
+        const ratingQuestions = questions.filter(q => 
+          q.question_type === 'rating' || q.question_type === 'scale'
+        );
+        
+        if (ratingQuestions.length === 0) return 0;
+
+        let totalScore = 0;
+        let totalCount = 0;
+
+        ratingQuestions.forEach(question => {
+          const questionAnswers = templateAnswers.filter(a => a.question_id === question.id);
+          const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+          
+          if (ratings.length > 0) {
+            const maxScore = Math.max(...ratings);
+            let convertedRatings = ratings;
+            
+            if (maxScore <= 5) {
+              convertedRatings = ratings.map(r => r * 2);
+            }
+            
+            totalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
+            totalCount += convertedRatings.length;
+          }
+        });
+
+        return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
+      };
+
+      return {
+        ...sectionData,
+        subjectAverage: calculateSectionAverage(sectionData.subjectQuestions),
+        instructorAverage: calculateSectionAverage(sectionData.instructorQuestions),
+        operationAverage: calculateSectionAverage(sectionData.operationQuestions)
+      };
+    });
   };
 
   const handleSendResults = async () => {
@@ -1011,20 +1093,110 @@ const categorizeQuestions = () => {
             </Card>
           </div>
 
-          {/* 과목별 상세 분석 탭 */}
-          <Tabs defaultValue="all" className="space-y-4">
-            {shouldShowSubjectTabs() && (
-              <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 overflow-x-auto">
-                <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
-                  전체 분석
+          {/* 과정 섹션별 및 과목별 분석 탭 */}
+          <Tabs defaultValue="template-overview" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 overflow-x-auto">
+              <TabsTrigger value="template-overview" className="text-sm touch-friendly whitespace-nowrap">
+                과정 섹션별 집계
+              </TabsTrigger>
+              <TabsTrigger value="all" className="text-sm touch-friendly whitespace-nowrap">
+                전체 분석
+              </TabsTrigger>
+              {shouldShowSubjectTabs() && getAccessibleSubjects().map(subject => (
+                <TabsTrigger key={subject.id} value={subject.id} className="text-sm touch-friendly whitespace-nowrap">
+                  {subject.displayName}
                 </TabsTrigger>
-                {getAccessibleSubjects().map(subject => (
-                  <TabsTrigger key={subject.id} value={subject.id} className="text-sm touch-friendly whitespace-nowrap">
-                    {subject.displayName}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            )}
+              ))}
+            </TabsList>
+
+            {/* 과정 섹션별 집계 탭 */}
+            <TabsContent value="template-overview" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-blue-500" />
+                    과정별 만족도 종합
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    동일한 과정(템플릿)으로 구성된 과목들의 만족도를 종합 분석합니다.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {getTemplateSectionAnalysis().map((template, index) => (
+                      <Card key={index} className="border-l-4 border-l-blue-500">
+                        <CardHeader>
+                          <CardTitle className="text-lg">{template.templateName}</CardTitle>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span>총 {template.sessions.length}개 과목</span>
+                            <span>총 {template.totalResponses}명 응답</span>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {/* 과목 목록 */}
+                          <div className="mb-4">
+                            <h4 className="font-medium mb-2">포함 과목:</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {template.sessions.map(session => (
+                                <Badge key={session.id} variant="secondary" className="text-xs">
+                                  {session.session_name}
+                                  {session.instructor_name && ` (${session.instructor_name})`}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* 섹션별 만족도 */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Card className="border border-blue-200">
+                              <CardContent className="pt-4">
+                                <div className="text-center">
+                                  <div className="text-2xl font-bold text-blue-500">
+                                    {template.subjectAverage}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">과목 만족도</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {template.subjectQuestions.length}개 질문
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border border-orange-200">
+                              <CardContent className="pt-4">
+                                <div className="text-center">
+                                  <div className="text-2xl font-bold text-orange-500">
+                                    {template.instructorAverage}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">강사 만족도</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {template.instructorQuestions.length}개 질문
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            <Card className="border border-green-200">
+                              <CardContent className="pt-4">
+                                <div className="text-center">
+                                  <div className="text-2xl font-bold text-green-500">
+                                    {template.operationAverage}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">운영 만족도</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {template.operationQuestions.length}개 질문
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* 전체 분석 탭 */}
             <TabsContent value="all" className="space-y-4">
