@@ -24,7 +24,7 @@ async function invokeSendResults(surveyId: string) {
       Authorization: `Bearer ${serviceKey}`,
       apikey: serviceKey,
     },
-    body: JSON.stringify({ surveyId, recipients: [] }), // default recipients logic (admin + instructor)
+    body: JSON.stringify({ surveyId, recipients: ["instructor", "admin"] }), // default recipients: instructor + admin
   });
 
   const data = await resp.json().catch(() => ({}));
@@ -42,6 +42,9 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Ensure survey statuses are up-to-date before processing
+    await supabase.rpc('update_survey_statuses').catch(() => {});
 
     // Allow optional payload: { dryRun?: boolean, limit?: number }
     let dryRun = false;
@@ -66,7 +69,8 @@ serve(async (req) => {
       .from("surveys")
       .select("id, title, education_year, education_round, end_date, status")
       .lte("end_date", nowIso)
-      .in("status", ["completed", "active"]) // be tolerant
+      .eq("is_test", false)
+      .in("status", ["completed", "active", "public"]) // be tolerant and include public
       .order("end_date", { ascending: false });
 
     if (surveyErr) throw surveyErr;
@@ -105,11 +109,11 @@ serve(async (req) => {
     // 3) Check which surveys have responses before sending
     const surveyResponseCounts = new Map<string, number>();
     for (const survey of dueSurveys) {
-      const { data: responseCount } = await supabase
+      const { count } = await supabase
         .from("survey_responses")
-        .select("id", { count: "exact" })
+        .select("*", { count: "exact", head: true })
         .eq("survey_id", survey.id);
-      surveyResponseCounts.set(survey.id, responseCount?.length || 0);
+      surveyResponseCounts.set(survey.id, count || 0);
     }
 
     // 4) Filter targets to send (exclude surveys without responses and already sent)
