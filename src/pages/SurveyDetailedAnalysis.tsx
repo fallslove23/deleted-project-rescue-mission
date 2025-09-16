@@ -1023,302 +1023,122 @@ const categorizeQuestions = () => {
 
 
 
-          {/* 과정 섹션별 및 과목별 분석 탭 */}
-          <Tabs defaultValue="template-overview" className="space-y-4">
+          {/* 과목-강사별 탭 */}
+          <Tabs 
+            defaultValue={getAccessibleSubjects().length > 0 ? getAccessibleSubjects()[0].id : 'all'} 
+            className="space-y-4"
+          >
             <TabsList className="w-full overflow-x-auto">
-              <TabsTrigger value="template-overview" className="text-sm touch-friendly whitespace-nowrap">
-                과정 섹션별 집계
-              </TabsTrigger>
+              {getAccessibleSubjects().map((subject) => (
+                <TabsTrigger 
+                  key={subject.id} 
+                  value={subject.id} 
+                  className="text-sm touch-friendly whitespace-nowrap"
+                >
+                  {subject.displayName}
+                </TabsTrigger>
+              ))}
             </TabsList>
 
-            {/* 과정 섹션별 집계 탭 */}
-            <TabsContent value="template-overview" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-blue-500" />
-                    과정별 만족도 종합
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    동일한 과정(템플릿)으로 구성된 과목들의 만족도를 종합 분석합니다.
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {getTemplateSectionAnalysis().map((template, index) => (
-                      <Card key={index} className="border-l-4 border-l-blue-500">
-                        <CardHeader>
-                          <CardTitle className="text-lg">{template.templateName}</CardTitle>
-                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                            <span>총 {template.sessions.length}개 과목</span>
-                            <span>총 {template.totalResponses}명 응답</span>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {/* 과목 목록 */}
-                          <div className="mb-4">
-                            <h4 className="font-medium mb-2">포함 과목:</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {template.sessions.map(session => (
-                                <Badge key={session.id} variant="secondary" className="text-xs">
-                                  {session.session_name}
-                                  {session.instructor_name && ` (${session.instructor_name})`}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* 섹션별 만족도 */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Card className="border border-blue-200">
-                              <CardContent className="pt-4">
-                                <div className="text-center">
-                                  <div className="text-2xl font-bold text-blue-500">
-                                    {template.subjectAverage}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">과목 만족도</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {template.subjectQuestions.length}개 질문
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            <Card className="border border-orange-200">
-                              <CardContent className="pt-4">
-                                <div className="text-center">
-                                  <div className="text-2xl font-bold text-orange-500">
-                                    {template.instructorAverage}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">강사 만족도</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {template.instructorQuestions.length}개 질문
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            <Card className="border border-green-200">
-                              <CardContent className="pt-4">
-                                <div className="text-center">
-                                  <div className="text-2xl font-bold text-green-500">
-                                    {template.operationAverage}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">운영 만족도</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {template.operationQuestions.length}개 질문
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  <div className="mt-6">
-                    <Tabs defaultValue="course" className="space-y-4">
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="course" className="text-sm touch-friendly">과정</TabsTrigger>
-                        <TabsTrigger value="instructor" className="text-sm touch-friendly">과목(강사)</TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="course" className="space-y-4">
-                        {subjectAnalyses.length > 0 ? (
-                          subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                        ) : (
-                          <Card>
-                            <CardContent className="text-center py-8">
-                              <p className="text-muted-foreground">과정 관련 질문이 없습니다.</p>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </TabsContent>
-
-                      <TabsContent value="instructor" className="space-y-4">
-                        {instructorAnalyses.length > 0 ? (
-                          instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                        ) : (
-                          <Card>
-                            <CardContent className="text-center py-8">
-                              <p className="text-muted-foreground">과목(강사) 관련 질문이 없습니다.</p>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </TabsContent>
-                    </Tabs>
-                  </div>
-
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* 전체 분석 탭 */}
-            <TabsContent value="all" className="space-y-4">
-              <Tabs defaultValue="subject" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="subject" className="text-sm touch-friendly">
-                    과목 만족도 ({subjectQuestions.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="instructor" className="text-sm touch-friendly">
-                    강사 만족도 ({instructorQuestions.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="operation" className="text-sm touch-friendly">
-                    운영 만족도 ({operationQuestions.length})
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="subject" className="space-y-4">
-                  {subjectAnalyses.length > 0 ? (
-                    subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                  ) : (
-                    <Card>
-                      <CardContent className="text-center py-8">
-                        <p className="text-muted-foreground">과목 관련 질문이 없습니다.</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="instructor" className="space-y-4">
-                  {instructorAnalyses.length > 0 ? (
-                    instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                  ) : (
-                    <Card>
-                      <CardContent className="text-center py-8">
-                        <p className="text-muted-foreground">강사 관련 질문이 없습니다.</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="operation" className="space-y-4">
-                  {operationAnalyses.length > 0 ? (
-                    operationAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                  ) : (
-                    <Card>
-                      <CardContent className="text-center py-8">
-                        <p className="text-muted-foreground">운영 관련 질문이 없습니다.</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </TabsContent>
-
-            {/* 각 과목별 분석 탭 - 과목이 여러 개일 때만 표시 */}
-            {shouldShowSubjectTabs() && getAccessibleSubjects().map((subject) => {
+            {/* 각 과목-강사별 탭 내용 */}
+            {getAccessibleSubjects().map((subject) => {
               const subjectAnalysis = getSubjectAnalysis(subject.id);
+              const courseSession = courseSessions.find(cs => cs.id === subject.id);
+              
               return (
                 <TabsContent key={subject.id} value={subject.id} className="space-y-4">
-                  {/* 해당 과목의 종합 만족도 카드 */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5 text-blue-500" />
-                          과목 만족도
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-500">{subjectAnalysis.subjectAverage}</div>
-                          <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {subjectAnalysis.subjectQuestions.length}개 질문 기준
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                  {/* 과정별 만족도 종합 */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-blue-500" />
+                        과정별 만족도 종합
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        동일한 과정(템플릿)으로 구성된 과목들의 만족도를 종합 분석합니다.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        <Card className="border-l-4 border-l-blue-500">
+                          <CardHeader>
+                            <CardTitle className="text-lg">
+                              {courseSession?.course_name || survey.course_name || survey.title}
+                            </CardTitle>
+                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                              <span>총 1개 과목</span>
+                              <span>총 {responses.filter(r => r.survey_id === subject.id).length}명 응답</span>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {/* 포함 과목 */}
+                            <div className="mb-4">
+                              <h4 className="font-medium mb-2">포함 과목:</h4>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="secondary" className="text-xs">
+                                  {subject.courseName}
+                                </Badge>
+                              </div>
+                            </div>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Star className="h-5 w-5 text-orange-500" />
-                          강사 만족도
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-orange-500">{subjectAnalysis.instructorAverage}</div>
-                          <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {subjectAnalysis.instructorQuestions.length}개 질문 기준
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                            {/* 섹션별 만족도 */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <Card className="border border-blue-200">
+                                <CardContent className="pt-4">
+                                  <div className="text-center">
+                                    <div className="text-3xl font-bold text-blue-500">
+                                      {subjectAnalysis.subjectAverage}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">과목 만족도</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {subjectAnalysis.subjectQuestions.length}개 질문
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5 text-green-500" />
-                          운영 만족도
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-green-500">{subjectAnalysis.operationAverage}</div>
-                          <div className="text-sm text-muted-foreground">평균 점수 (10점 만점)</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {subjectAnalysis.operationQuestions.length}개 질문 기준
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                              <Card className="border border-orange-200">
+                                <CardContent className="pt-4">
+                                  <div className="text-center">
+                                    <div className="text-3xl font-bold text-orange-500">
+                                      {subjectAnalysis.instructorAverage}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">강사 만족도</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {subjectAnalysis.instructorQuestions.length}개 질문
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+
+                              <Card className="border border-green-200">
+                                <CardContent className="pt-4">
+                                  <div className="text-center">
+                                    <div className="text-3xl font-bold text-green-500">
+                                      {subjectAnalysis.operationAverage}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">운영 만족도</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {subjectAnalysis.operationQuestions.length}개 질문
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* 질문별 상세 분석 */}
+                  <div className="space-y-4">
+                    {[
+                      ...subjectAnalysis.subjectAnalyses,
+                      ...subjectAnalysis.instructorAnalyses,
+                      ...subjectAnalysis.operationAnalyses
+                    ].map((analysis, index) => renderQuestionAnalysis(analysis, index))}
                   </div>
-
-                  {/* 해당 과목의 상세 분석 서브탭 */}
-                  <Tabs defaultValue="subject" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="subject" className="text-sm touch-friendly">
-                        과목 만족도 ({subjectAnalysis.subjectQuestions.length})
-                      </TabsTrigger>
-                      <TabsTrigger value="instructor" className="text-sm touch-friendly">
-                        강사 만족도 ({subjectAnalysis.instructorQuestions.length})
-                      </TabsTrigger>
-                      <TabsTrigger value="operation" className="text-sm touch-friendly">
-                        운영 만족도 ({subjectAnalysis.operationQuestions.length})
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="subject" className="space-y-4">
-                      {subjectAnalysis.subjectAnalyses.length > 0 ? (
-                        subjectAnalysis.subjectAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                      ) : (
-                        <Card>
-                          <CardContent className="text-center py-8">
-                            <p className="text-muted-foreground">과목 관련 질문이 없습니다.</p>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="instructor" className="space-y-4">
-                      {subjectAnalysis.instructorAnalyses.length > 0 ? (
-                        subjectAnalysis.instructorAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                      ) : (
-                        <Card>
-                          <CardContent className="text-center py-8">
-                            <p className="text-muted-foreground">강사 관련 질문이 없습니다.</p>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="operation" className="space-y-4">
-                      {subjectAnalysis.operationAnalyses.length > 0 ? (
-                        subjectAnalysis.operationAnalyses.map((analysis, index) => renderQuestionAnalysis(analysis, index))
-                      ) : (
-                        <Card>
-                          <CardContent className="text-center py-8">
-                            <p className="text-muted-foreground">운영 관련 질문이 없습니다.</p>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-                  </Tabs>
                 </TabsContent>
               );
             })}
