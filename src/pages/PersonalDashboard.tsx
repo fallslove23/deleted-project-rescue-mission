@@ -812,23 +812,6 @@ const PersonalDashboard: FC = () => {
     </Card>
   );
 
-  const getRatingDistribution = () => {
-    const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-    const ratingAnswers = answers.filter(a => ratingQuestions.some(q => q.id === a.question_id));
-    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    ratingAnswers.forEach(answer => {
-      const rating = parseInt(answer.answer_text);
-      if (rating >= 1 && rating <= 5) {
-        distribution[rating] += 1;
-      }
-    });
-    return Object.entries(distribution).map(([rating, count]) => ({
-      name: `${rating}점`,
-      value: count,
-      percentage: ratingAnswers.length > 0 ? Math.round((count / ratingAnswers.length) * 100) : 0,
-    }));
-  };
-
   const generatePersonalStatsCSV = () => {
     let csvContent = '\uFEFF';
     const stats = getSummaryStats();
