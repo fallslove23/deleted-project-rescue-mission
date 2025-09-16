@@ -34,6 +34,7 @@ interface SurveyResponse {
 interface QuestionAnswer {
   id: string;
   question_id: string;
+  response_id: string;
   answer_text: string;
   answer_value: any;
   created_at: string;
@@ -431,12 +432,28 @@ const categorizeQuestions = () => {
     return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
   };
 
-  const getSubjectAnalysis = (subjectId: string) => {
-    // 선택된 과목에 따라 질문들을 필터링하고 분석
+  const getSubjectAnalysis = (sessionId: string) => {
+    // 선택된 세션에 따라 질문들을 필터링하고 분석
     let filteredQuestions = questions;
-    if (subjectId !== 'all') {
-      // 해당 과목의 설문 ID로 필터링
-      filteredQuestions = questions.filter(q => q.survey_id === subjectId);
+    let filteredAnswers = answers;
+    let filteredResponses = responses;
+
+    if (sessionId !== 'all') {
+      // 해당 세션의 질문으로 필터링 (session_id로 필터링)
+      filteredQuestions = questions.filter(q => 
+        q.session_id === sessionId || 
+        (courseSessions.find(cs => cs.id === sessionId) && !q.session_id)
+      );
+      
+      // 해당 질문들에 대한 답변만 필터링
+      const questionIds = filteredQuestions.map(q => q.id);
+      filteredAnswers = answers.filter(a => questionIds.includes(a.question_id));
+      
+      // 해당 세션의 응답만 필터링 (답변 기준으로)
+      filteredResponses = responses.filter(r => {
+        const responseAnswers = answers.filter(a => a.response_id === r.id);
+        return responseAnswers.some(a => questionIds.includes(a.question_id));
+      });
     }
 
     const subjectQuestions: SurveyQuestion[] = [];
@@ -461,16 +478,102 @@ const categorizeQuestions = () => {
       }
     });
 
+    // 필터링된 답변을 사용하여 분석
+    const getFilteredQuestionAnalysis = (questions: SurveyQuestion[]) => {
+      return questions.map(question => {
+        const questionAnswers = filteredAnswers.filter(a => a.question_id === question.id);
+        
+        if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
+          const answerCounts: Record<string, number> = {};
+          questionAnswers.forEach(answer => {
+            const answerText = answer.answer_text;
+            answerCounts[answerText] = (answerCounts[answerText] || 0) + 1;
+          });
+
+          return {
+            question,
+            type: 'chart' as const,
+            totalAnswers: questionAnswers.length,
+            chartData: Object.entries(answerCounts).map(([answer, count]) => ({
+              name: answer,
+              value: count,
+              percentage: Math.round((count / questionAnswers.length) * 100)
+            }))
+          };
+        } else if (question.question_type === 'rating' || question.question_type === 'scale') {
+          const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+          const maxRating = Math.max(...ratings, 5);
+          const ratingCounts: Record<number, number> = {};
+          
+          for (let i = 1; i <= maxRating; i++) {
+            ratingCounts[i] = 0;
+          }
+          
+          ratings.forEach(rating => {
+            ratingCounts[rating] = (ratingCounts[rating] || 0) + 1;
+          });
+
+          return {
+            question,
+            type: 'chart' as const,
+            totalAnswers: questionAnswers.length,
+            chartData: Object.entries(ratingCounts).map(([rating, count]) => ({
+              name: `${rating}점`,
+              value: count,
+              percentage: ratings.length > 0 ? Math.round((count / ratings.length) * 100) : 0
+            })),
+            average: ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1) : '0'
+          };
+        } else {
+          return {
+            question,
+            type: 'text' as const,
+            totalAnswers: questionAnswers.length,
+            textAnswers: questionAnswers.map(a => a.answer_text).filter(Boolean).slice(0, 10)
+          };
+        }
+      });
+    };
+
+    const calculateFilteredCategoryAverage = (questions: SurveyQuestion[]) => {
+      const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
+      
+      if (ratingQuestions.length === 0) return '0';
+
+      let totalScore = 0;
+      let totalCount = 0;
+
+      ratingQuestions.forEach(question => {
+        const questionAnswers = filteredAnswers.filter(a => a.question_id === question.id);
+        const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+        
+        if (ratings.length > 0) {
+          const maxScore = Math.max(...ratings);
+          let convertedRatings = ratings;
+          
+          if (maxScore <= 5) {
+            convertedRatings = ratings.map(r => r * 2);
+          }
+          
+          totalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
+          totalCount += convertedRatings.length;
+        }
+      });
+
+      return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
+    };
+
     return {
       subjectQuestions,
       instructorQuestions,
       operationQuestions,
-      subjectAnalyses: getQuestionAnalysis(subjectQuestions),
-      instructorAnalyses: getQuestionAnalysis(instructorQuestions),
-      operationAnalyses: getQuestionAnalysis(operationQuestions),
-      subjectAverage: calculateCategoryAverage(subjectQuestions),
-      instructorAverage: calculateCategoryAverage(instructorQuestions),
-      operationAverage: calculateCategoryAverage(operationQuestions)
+      subjectAnalyses: getFilteredQuestionAnalysis(subjectQuestions),
+      instructorAnalyses: getFilteredQuestionAnalysis(instructorQuestions),
+      operationAnalyses: getFilteredQuestionAnalysis(operationQuestions),
+      subjectAverage: calculateFilteredCategoryAverage(subjectQuestions),
+      instructorAverage: calculateFilteredCategoryAverage(instructorQuestions),
+      operationAverage: calculateFilteredCategoryAverage(operationQuestions),
+      totalResponses: filteredResponses.length
     };
   };
 
@@ -1052,10 +1155,10 @@ const categorizeQuestions = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <TrendingUp className="h-5 w-5 text-blue-500" />
-                        과정별 만족도 종합
+                        과목별 만족도 종합
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        동일한 과정(템플릿)으로 구성된 과목들의 만족도를 종합 분석합니다.
+                        선택된 과목의 만족도를 상세 분석합니다.
                       </p>
                     </CardHeader>
                     <CardContent>
@@ -1063,11 +1166,19 @@ const categorizeQuestions = () => {
                         <Card className="border-l-4 border-l-blue-500">
                           <CardHeader>
                             <CardTitle className="text-lg">
-                              {courseSession?.course_name || survey.course_name || survey.title}
+                              {subject.courseName}
                             </CardTitle>
+                            {/* 강사 정보 추가 */}
+                            {subject.instructorName && (
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-sm text-muted-foreground">
+                                  담당 강사: {subject.instructorName}
+                                </span>
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                               <span>총 1개 과목</span>
-                              <span>총 {responses.filter(r => r.survey_id === subject.id).length}명 응답</span>
+                              <span>총 {subjectAnalysis.totalResponses}명 응답</span>
                             </div>
                           </CardHeader>
                           <CardContent>
