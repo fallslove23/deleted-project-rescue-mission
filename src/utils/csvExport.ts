@@ -34,14 +34,53 @@ export const generateCSVFilename = (survey: SurveyResultData['survey'], type: 'r
   const round = survey.education_round;
   const title = survey.title.replace(/[^\w\s가-힣]/g, '').trim();
   const timestamp = new Date().toISOString().slice(0, 10);
-  
+
   return `설문결과_${title}_${year}년_${round}차_${type}_${timestamp}.csv`;
+};
+
+// 숫자형 응답 값을 안전하게 파싱
+const extractNumericValue = (value: unknown): number | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const match = value.match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const parsed = Number.parseFloat(match[0]);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const parsed = extractNumericValue(item);
+      if (parsed !== null) return parsed;
+    }
+    return null;
+  }
+
+  try {
+    const serialized = JSON.stringify(value ?? '');
+    const match = serialized.match(/-?\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const parsed = Number.parseFloat(match[0]);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const getNumericAnswer = (answer: SurveyResultData['answers'][number]): number | null => {
+  const fromValue = extractNumericValue(answer.answer_value);
+  if (fromValue !== null) return fromValue;
+  return extractNumericValue(answer.answer_text);
 };
 
 // 문자열을 CSV에 안전하게 사용할 수 있도록 변환
 export const escapeCSVField = (field: any): string => {
   if (field === null || field === undefined) return '';
-  
+
   const str = String(field);
   // 쌍따옴표가 포함된 경우 두 개로 치환하고, 전체를 쌍따옴표로 감싼다
   if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
@@ -138,14 +177,14 @@ export const exportSummaryAsCSV = (data: SurveyResultData): string => {
   sortedQuestions.forEach((question, index) => {
     const questionAnswers = answers.filter(a => a.question_id === question.id);
     const responseCount = questionAnswers.length;
-    
+
     let statistics = '';
-    
+
     if (question.question_type === 'rating') {
       const numericAnswers = questionAnswers
-        .map(a => parseFloat(a.answer_text || '0'))
-        .filter(n => !isNaN(n));
-        
+        .map(getNumericAnswer)
+        .filter((value): value is number => value !== null && !Number.isNaN(value));
+
       if (numericAnswers.length > 0) {
         const average = (numericAnswers.reduce((sum, n) => sum + n, 0) / numericAnswers.length).toFixed(1);
         const min = Math.min(...numericAnswers);
