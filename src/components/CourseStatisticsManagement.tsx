@@ -31,6 +31,65 @@ interface CourseStatistic {
   operation_satisfaction?: number;
 }
 
+const STATUS_OPTIONS = ['완료', '진행 중', '진행 예정', '취소'] as const;
+const STATUS_SET = new Set<string>(STATUS_OPTIONS);
+
+const COLUMN_MAPPINGS = {
+  year: ['연도', 'year'],
+  round: ['차수', 'round'],
+  course_name: ['과정명', 'course_name'],
+  course_start_date: ['과정시작일', 'course_start_date'],
+  course_end_date: ['과정종료일', 'course_end_date'],
+  course_days: ['과정일수', 'course_days'],
+  status: ['상태', 'status'],
+  enrolled_count: ['수강인원', 'enrolled_count'],
+  cumulative_count: ['누적인원', 'cumulative_count'],
+  education_days: ['교육일수', 'education_days'],
+  education_hours: ['교육시간', 'education_hours'],
+  total_satisfaction: ['종합만족도', 'total_satisfaction'],
+  course_satisfaction: ['과정만족도', 'course_satisfaction'],
+  instructor_satisfaction: ['강사만족도', 'instructor_satisfaction'],
+  operation_satisfaction: ['운영만족도', 'operation_satisfaction']
+} as const;
+
+type ColumnMappingKey = keyof typeof COLUMN_MAPPINGS;
+
+const REQUIRED_UPLOAD_FIELDS: ColumnMappingKey[] = [
+  'year',
+  'round',
+  'course_name',
+  'course_start_date',
+  'course_end_date',
+  'course_days',
+  'status',
+  'enrolled_count',
+  'cumulative_count'
+];
+
+const getMappedValue = (row: Record<string, any>, key: ColumnMappingKey) => {
+  for (const header of COLUMN_MAPPINGS[key]) {
+    const value = row[header];
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return undefined;
+};
+
+const normalizeCourseFields = (courseNameRaw: any, statusRaw: any) => {
+  const courseName = (courseNameRaw ?? '').toString().trim();
+  const status = (statusRaw ?? '').toString().trim();
+
+  if (STATUS_SET.has(courseName) && status && !STATUS_SET.has(status)) {
+    return { course_name: status, status: courseName || '완료' };
+  }
+
+  return {
+    course_name: courseName,
+    status: status || '완료'
+  };
+};
+
 const CourseStatisticsManagement = () => {
   const [statistics, setStatistics] = useState<CourseStatistic[]>([]);
   const [allStatistics, setAllStatistics] = useState<CourseStatistic[]>([]);
@@ -45,9 +104,8 @@ const CourseStatisticsManagement = () => {
   const { toast } = useToast();
 
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i + 1);
-  const statusOptions = ['완료', '진행 중', '진행 예정', '취소'];
-  const statusSet = new Set(statusOptions);
-  
+  const statusOptions = STATUS_OPTIONS;
+
   // 필터링된 통계에서 사용 가능한 차수와 과정명 추출
   const availableRounds = [...new Set(allStatistics.filter(stat => stat.year === selectedYear).map(stat => stat.round))].sort((a, b) => a - b);
   const availableCourses = [...new Set(allStatistics.filter(stat => stat.year === selectedYear && (selectedRound === 'all' || stat.round === parseInt(selectedRound))).map(stat => stat.course_name))].sort();
@@ -99,14 +157,19 @@ const CourseStatisticsManagement = () => {
 
   const handleSave = async (formData: FormData) => {
     try {
+      const { course_name: normalizedCourseName, status: normalizedStatus } = normalizeCourseFields(
+        formData.get('course_name'),
+        formData.get('status')
+      );
+
       const statisticData: CourseStatistic = {
         year: parseInt(formData.get('year') as string),
         round: parseInt(formData.get('round') as string),
-        course_name: formData.get('course_name') as string,
+        course_name: normalizedCourseName,
         course_start_date: formData.get('course_start_date') as string,
         course_end_date: formData.get('course_end_date') as string,
         course_days: parseInt(formData.get('course_days') as string),
-        status: formData.get('status') as string,
+        status: normalizedStatus,
         enrolled_count: parseInt(formData.get('enrolled_count') as string),
         cumulative_count: parseInt(formData.get('cumulative_count') as string),
         education_days: formData.get('education_days') ? parseInt(formData.get('education_days') as string) : null,
@@ -116,13 +179,6 @@ const CourseStatisticsManagement = () => {
         instructor_satisfaction: formData.get('instructor_satisfaction') ? parseFloat(formData.get('instructor_satisfaction') as string) : null,
         operation_satisfaction: formData.get('operation_satisfaction') ? parseFloat(formData.get('operation_satisfaction') as string) : null,
       };
-
-      // 안전장치: 과정명에 상태값이 들어온 경우 자동 교정
-      if (statusSet.has(statisticData.course_name) && statisticData.status && !statusSet.has(statisticData.status)) {
-        const wrong = statisticData.course_name;
-        statisticData.course_name = statisticData.status;
-        statisticData.status = typeof wrong === 'string' ? wrong : '완료';
-      }
 
       if (editingItem?.id) {
         const { error } = await supabase
@@ -206,7 +262,24 @@ const CourseStatisticsManagement = () => {
         }
 
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const headerRows = XLSX.utils.sheet_to_json<(string | number | null)[]>(worksheet, { header: 1 });
+        const headers = Array.from(
+          new Set(
+            (headerRows[0] || [])
+              .map(header => (header ?? '').toString().trim())
+              .filter(header => header.length > 0)
+          )
+        );
+
+        const missingHeaders = REQUIRED_UPLOAD_FIELDS.filter(field =>
+          !COLUMN_MAPPINGS[field].some(expected => headers.includes(expected))
+        );
+
+        if (missingHeaders.length > 0) {
+          throw new Error(`Excel 템플릿 형식이 올바르지 않습니다. 다음 컬럼을 확인해주세요: ${missingHeaders.map(field => COLUMN_MAPPINGS[field][0]).join(', ')}`);
+        }
+
+        const jsonData = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet);
 
         if (!jsonData || jsonData.length === 0) {
           throw new Error('Excel 파일에 데이터가 없습니다.');
@@ -220,11 +293,31 @@ const CourseStatisticsManagement = () => {
         jsonData.forEach((row: any, index: number) => {
           try {
             // 필수 필드 검증
-            const year = parseInt(row['연도'] || row['year']) || null;
-            const round = parseInt(row['차수'] || row['round']) || null;
-            const courseName = (row['과정명'] || row['course_name'] || '').toString().trim();
-            
-            if (!year || !round || !courseName) {
+            const yearValue = getMappedValue(row, 'year');
+            const roundValue = getMappedValue(row, 'round');
+            const courseNameValue = getMappedValue(row, 'course_name');
+
+            const year = yearValue ? parseInt(yearValue, 10) : null;
+            const round = roundValue ? parseInt(roundValue, 10) : null;
+            const statusValue = getMappedValue(row, 'status');
+            const courseStartDateValue = getMappedValue(row, 'course_start_date');
+            const courseEndDateValue = getMappedValue(row, 'course_end_date');
+            const courseDaysValue = getMappedValue(row, 'course_days');
+            const enrolledCountValue = getMappedValue(row, 'enrolled_count');
+            const cumulativeCountValue = getMappedValue(row, 'cumulative_count');
+            const educationDaysValue = getMappedValue(row, 'education_days');
+            const educationHoursValue = getMappedValue(row, 'education_hours');
+            const totalSatisfactionValue = getMappedValue(row, 'total_satisfaction');
+            const courseSatisfactionValue = getMappedValue(row, 'course_satisfaction');
+            const instructorSatisfactionValue = getMappedValue(row, 'instructor_satisfaction');
+            const operationSatisfactionValue = getMappedValue(row, 'operation_satisfaction');
+
+            const { course_name, status } = normalizeCourseFields(
+              courseNameValue,
+              statusValue
+            );
+
+            if (!year || !round || !course_name) {
               errors.push(`${index + 2}번째 행: 연도, 차수, 과정명은 필수입니다.`);
               return;
             }
@@ -232,27 +325,20 @@ const CourseStatisticsManagement = () => {
             const statistic: CourseStatistic = {
               year,
               round,
-              course_name: courseName,
-              course_start_date: formatDate(row['과정시작일'] || row['course_start_date']),
-              course_end_date: formatDate(row['과정종료일'] || row['course_end_date']),
-              course_days: parseInt(row['과정일수'] || row['course_days']) || 1,
-              status: (row['상태'] || row['status'] || '완료').toString(),
-              enrolled_count: parseInt(row['수강인원'] || row['enrolled_count']) || 0,
-              cumulative_count: parseInt(row['누적인원'] || row['cumulative_count']) || 0,
-              education_days: row['교육일수'] || row['education_days'] ? parseInt(row['교육일수'] || row['education_days']) : null,
-              education_hours: row['교육시간'] || row['education_hours'] ? parseInt(row['교육시간'] || row['education_hours']) : null,
-              total_satisfaction: row['종합만족도'] || row['total_satisfaction'] ? parseFloat(row['종합만족도'] || row['total_satisfaction']) : null,
-              course_satisfaction: row['과정만족도'] || row['course_satisfaction'] ? parseFloat(row['과정만족도'] || row['course_satisfaction']) : null,
-              instructor_satisfaction: row['강사만족도'] || row['instructor_satisfaction'] ? parseFloat(row['강사만족도'] || row['instructor_satisfaction']) : null,
-              operation_satisfaction: row['운영만족도'] || row['operation_satisfaction'] ? parseFloat(row['운영만족도'] || row['operation_satisfaction']) : null,
+              course_name,
+              course_start_date: formatDate(courseStartDateValue),
+              course_end_date: formatDate(courseEndDateValue),
+              course_days: courseDaysValue ? parseInt(courseDaysValue, 10) || 1 : 1,
+              status,
+              enrolled_count: enrolledCountValue ? parseInt(enrolledCountValue, 10) || 0 : 0,
+              cumulative_count: cumulativeCountValue ? parseInt(cumulativeCountValue, 10) || 0 : 0,
+              education_days: educationDaysValue ? parseInt(educationDaysValue, 10) : null,
+              education_hours: educationHoursValue ? parseInt(educationHoursValue, 10) : null,
+              total_satisfaction: totalSatisfactionValue ? parseFloat(totalSatisfactionValue) : null,
+              course_satisfaction: courseSatisfactionValue ? parseFloat(courseSatisfactionValue) : null,
+              instructor_satisfaction: instructorSatisfactionValue ? parseFloat(instructorSatisfactionValue) : null,
+              operation_satisfaction: operationSatisfactionValue ? parseFloat(operationSatisfactionValue) : null,
             };
-
-            // 안전장치: 과정명에 상태값이 들어온 경우 자동 교정
-            if (statusSet.has(statistic.course_name) && statistic.status && !statusSet.has(statistic.status)) {
-              const wrong = statistic.course_name;
-              statistic.course_name = statistic.status;
-              statistic.status = typeof wrong === 'string' ? wrong : '완료';
-            }
 
             statisticsToUpload.push(statistic);
           } catch (rowError) {
