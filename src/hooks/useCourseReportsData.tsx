@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { loadYearlyComparison } from './yearlyComparisonHelper';
 
 interface CourseStatistics {
   id: string;
@@ -21,6 +22,11 @@ interface CourseStatistics {
   education_days: number | null;
   course_name: string | null;
 }
+
+type YearlyComparisonResult = {
+  current: CourseStatistics[];
+  previous: CourseStatistics[];
+};
 
 interface CourseReport {
   id: string;
@@ -108,10 +114,7 @@ export const useCourseReportsData = (
   const [availableInstructors, setAvailableInstructors] = useState<{id: string, name: string}[]>([]);
   const [textualResponses, setTextualResponses] = useState<string[]>([]);
   const [courseStatistics, setCourseStatistics] = useState<CourseStatistics[]>([]);
-  const [yearlyComparison, setYearlyComparison] = useState<{
-    current: CourseStatistics[];
-    previous: CourseStatistics[];
-  }>({ current: [], previous: [] });
+  const [yearlyComparison, setYearlyComparison] = useState<YearlyComparisonResult>({ current: [], previous: [] });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -467,10 +470,10 @@ export const useCourseReportsData = (
       await fetchTextualResponses(filteredSurveys);
 
       // 과정별 통계 가져오기
-      await fetchCourseStatistics(selectedYear);
+      const currentYearStatistics = await fetchCourseStatistics(selectedYear);
 
       // 전년도 대비 통계 가져오기
-      await fetchYearlyComparison(selectedYear, selectedYear - 1);
+      await fetchYearlyComparison(selectedYear, selectedYear - 1, currentYearStatistics);
 
     } catch (error) {
       console.error('Error fetching reports:', error);
@@ -781,7 +784,11 @@ export const useCourseReportsData = (
     }
   };
 
-  const fetchCourseStatistics = async (year: number) => {
+  const fetchCourseStatistics = async (
+    year: number,
+    options: { updateState?: boolean } = {}
+  ) => {
+    const { updateState = true } = options;
     try {
       // surveys 테이블에서 직접 과정별 통계 계산
       let query = supabase
@@ -910,7 +917,9 @@ export const useCourseReportsData = (
         };
       });
 
-      setCourseStatistics(statistics);
+      if (updateState) {
+        setCourseStatistics(statistics);
+      }
       console.log('Course statistics calculated:', statistics);
       return statistics;
     } catch (error) {
@@ -919,17 +928,20 @@ export const useCourseReportsData = (
     }
   };
 
-  const fetchYearlyComparison = async (currentYear: number, previousYear: number) => {
+  const fetchYearlyComparison = async (
+    currentYear: number,
+    previousYear: number,
+    currentYearStatistics?: CourseStatistics[]
+  ) => {
     try {
-      const [currentStats, previousStats] = await Promise.all([
-        fetchCourseStatistics(currentYear),
-        fetchCourseStatistics(previousYear)
-      ]);
+      const comparison = await loadYearlyComparison({
+        currentYear,
+        previousYear,
+        currentYearStatistics,
+        fetchCourseStatistics,
+      }) as YearlyComparisonResult;
 
-      setYearlyComparison({
-        current: currentStats,
-        previous: previousStats
-      });
+      setYearlyComparison(comparison);
     } catch (error) {
       console.error('Error fetching yearly comparison:', error);
     }
