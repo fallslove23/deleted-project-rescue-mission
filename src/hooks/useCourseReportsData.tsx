@@ -781,7 +781,11 @@ export const useCourseReportsData = (
     }
   };
 
-  const fetchCourseStatistics = async (year: number) => {
+  const fetchCourseStatistics = async (
+    year: number,
+    options?: { updateState?: boolean }
+  ) => {
+    const { updateState = true } = options || {};
     try {
       // surveys 테이블에서 직접 과정별 통계 계산
       let query = supabase
@@ -910,7 +914,9 @@ export const useCourseReportsData = (
         };
       });
 
-      setCourseStatistics(statistics);
+      if (updateState) {
+        setCourseStatistics(statistics);
+      }
       console.log('Course statistics calculated:', statistics);
       return statistics;
     } catch (error) {
@@ -922,8 +928,8 @@ export const useCourseReportsData = (
   const fetchYearlyComparison = async (currentYear: number, previousYear: number) => {
     try {
       const [currentStats, previousStats] = await Promise.all([
-        fetchCourseStatistics(currentYear),
-        fetchCourseStatistics(previousYear)
+        fetchCourseStatistics(currentYear, { updateState: false }),
+        fetchCourseStatistics(previousYear, { updateState: false })
       ]);
 
       setYearlyComparison({
