@@ -48,6 +48,7 @@ interface AvailableCourse {
   round: number;
   course_name: string;
   key: string;
+  rounds: number[];
 }
 
 // 코스명 정규화: '홀수조/짝수조', '숫자조/숫자반' 등 분반 표기를 제거
@@ -169,23 +170,32 @@ export const useCourseReportsData = (
         courseGroups.get(key)!.push(s);
       });
 
-      const uniqueCourses = Array.from(courseGroups.keys()).map((key) => {
-        const any = courseGroups.get(key)![0];
+      const uniqueCourses = Array.from(courseGroups.entries()).map(([key, group]) => {
+        const representative = group[0];
+        const courseRounds = Array.from(new Set(group.map((s: any) => s.education_round))).sort((a, b) => a - b);
         return {
-          year: any.education_year,
-          round: any.education_round,
+          year: representative.education_year,
+          round: representative.education_round,
           course_name: key,
           key,
+          rounds: courseRounds,
         };
       });
 
-      // 사용 가능한 차수 추출
-      const rounds = Array.from(new Set(surveys?.map(s => s.education_round))).sort((a, b) => a - b);
-      setAvailableRounds(rounds);
+      // 사용 가능한 차수는 선택된 과정(또는 첫 과정)에 맞춰 설정
+      const normalizedSelectedCourse = normalizeCourseName(selectedCourse);
+      const matchedCourse = uniqueCourses.find(course => course.key === normalizedSelectedCourse);
+      const roundsToSet = matchedCourse
+        ? matchedCourse.rounds
+        : uniqueCourses.length > 0
+          ? uniqueCourses[0].rounds
+          : [];
+
+      setAvailableRounds([...roundsToSet]);
 
       setAvailableCourses(uniqueCourses);
       console.log('Available courses:', uniqueCourses);
-      console.log('Available rounds:', rounds);
+      console.log('Available rounds:', roundsToSet);
 
       // 강사 정보 - 관리자만 가져오기 (모든 강사)
       if (!isInstructor) {
@@ -934,6 +944,20 @@ export const useCourseReportsData = (
       console.error('Error fetching yearly comparison:', error);
     }
   };
+
+  useEffect(() => {
+    if (!availableCourses || availableCourses.length === 0) {
+      setAvailableRounds([]);
+      return;
+    }
+
+    const normalizedSelectedCourse = normalizeCourseName(selectedCourse);
+    const matchedCourse = availableCourses.find(course => course.key === normalizedSelectedCourse);
+    const fallbackCourse = matchedCourse ?? availableCourses[0];
+    const nextRounds = fallbackCourse?.rounds ?? [];
+
+    setAvailableRounds([...nextRounds]);
+  }, [selectedCourse, availableCourses]);
 
   return {
     reports,

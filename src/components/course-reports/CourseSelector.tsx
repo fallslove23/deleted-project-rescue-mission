@@ -8,7 +8,7 @@ interface CourseSelectorProps {
   selectedCourse: string;
   selectedRound: number | null;                 // null = 전체
   selectedInstructor: string;                   // ''   = 전체
-  availableCourses: {year: number, round: number, course_name: string, key: string}[];
+  availableCourses: {year: number, round: number, course_name: string, key: string, rounds?: number[]}[];
   availableRounds: number[];
   availableInstructors: {id: string, name: string}[];
   years: number[];
