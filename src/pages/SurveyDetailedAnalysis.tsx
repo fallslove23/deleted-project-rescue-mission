@@ -49,6 +49,7 @@ interface SurveyQuestion {
   order_index: number;
   satisfaction_type?: 'course' | 'subject' | 'instructor' | 'operation' | string;
   session_id?: string | null;
+  scope?: 'session' | 'operation' | string;
 }
 
 interface CourseSession {
@@ -302,7 +303,7 @@ const SurveyDetailedAnalysis = () => {
     if (sessionId !== 'all') {
       // 선택된 세션 정보 가져오기
       const selectedSession = courseSessions.find(cs => cs.id === sessionId);
-      
+
       if (selectedSession) {
         // 해당 세션 설문의 질문들만 필터링
         filteredQuestions = questions.filter(q => {
@@ -310,18 +311,21 @@ const SurveyDetailedAnalysis = () => {
           if (q.session_id) {
             return q.session_id === sessionId;
           }
-          // session_id가 없는 경우 survey_id로 매칭 (해당 세션의 설문)
-          return q.survey_id === sessionId;
+          // session_id가 없지만 과목/강사 문항인 경우 설문 ID로 매칭
+          if (surveyId && q.scope !== 'operation') {
+            return q.survey_id === surveyId;
+          }
+
+          return false;
         });
-        
+
         // 해당 질문들에 대한 답변만 필터링
         const questionIds = filteredQuestions.map(q => q.id);
         filteredAnswers = answers.filter(a => questionIds.includes(a.question_id));
-        
-        // 해당 세션의 응답만 필터링 (해당 설문의 응답들)
-        filteredResponses = responses.filter(r => {
-          return r.survey_id === sessionId;
-        });
+
+        // 해당 세션 질문에 응답한 설문 응답만 필터링
+        const responseIds = new Set(filteredAnswers.map(answer => answer.response_id));
+        filteredResponses = responses.filter(response => responseIds.has(response.id));
       } else {
         // 세션을 찾을 수 없는 경우 빈 배열로 설정
         filteredQuestions = [];
