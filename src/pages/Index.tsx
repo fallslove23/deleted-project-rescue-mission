@@ -154,15 +154,32 @@ const Index = () => {
     setSurveys(filtered);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge variant="default" className="font-sans">진행중</Badge>;
-      case 'completed':
-        return <Badge variant="secondary" className="font-sans">완료</Badge>;
-      default:
-        return <Badge variant="outline" className="font-sans">준비중</Badge>;
+  const getStatusBadge = (survey: Survey) => {
+    const now = new Date();
+    const startDate = survey.start_date ? new Date(survey.start_date) : null;
+    const endDate = survey.end_date ? new Date(survey.end_date) : null;
+
+    if (survey.status === 'completed') {
+      return <Badge variant="secondary" className="font-sans">완료</Badge>;
     }
+
+    if (survey.status === 'expired') {
+      return <Badge variant="destructive" className="font-sans">종료</Badge>;
+    }
+
+    if (endDate && endDate < now) {
+      return <Badge variant="destructive" className="font-sans">종료</Badge>;
+    }
+
+    if (survey.status === 'scheduled' || (startDate && startDate > now)) {
+      return <Badge variant="secondary" className="font-sans">시작예정</Badge>;
+    }
+
+    if (survey.status === 'active' || survey.status === 'public') {
+      return <Badge variant="default" className="font-sans">진행중</Badge>;
+    }
+
+    return <Badge variant="outline" className="font-sans">준비중</Badge>;
   };
 
   const formatDate = (dateString: string) => {
@@ -403,7 +420,7 @@ const Index = () => {
                           <CardHeader>
                             <div className="flex items-start justify-between">
                               <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
-                              {getStatusBadge(survey.status)}
+                              {getStatusBadge(survey)}
                             </div>
                             {survey.description && (
                               <CardDescription className="font-sans">{survey.description}</CardDescription>
