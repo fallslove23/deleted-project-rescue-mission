@@ -84,7 +84,7 @@ const DashboardOverview: React.FC = () => {
         surveyCount({ status: 'active' }),
         surveyCount({ status: 'completed' }),
         responsesBase(),
-        supabase.from('instructors').select('*', { count: 'exact' }),
+        supabase.from('user_roles').select('*', { count: 'exact' }).eq('role', 'instructor'),
         supabase.from('courses').select('*', { count: 'exact' }),
         supabase
           .from('survey_responses')

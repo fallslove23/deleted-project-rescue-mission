@@ -491,8 +491,12 @@ const InstructorManagement = React.forwardRef<{
     return courses.filter(course => instructorCourseIds.includes(course.id));
   };
 
-  // Filter instructors based on search query
+  // Filter instructors based on search query and role
   const filteredInstructors = instructors.filter(instructor => {
+    // Only include instructors who have the 'instructor' role
+    const hasInstructorRole = instructorRoles[instructor.id]?.includes('instructor');
+    if (!hasInstructorRole) return false;
+
     const searchLower = searchQuery.toLowerCase();
     const instructorCoursesData = getInstructorCourses(instructor.id);
     const courseTitles = instructorCoursesData.map(course => course.title.toLowerCase()).join(' ');
