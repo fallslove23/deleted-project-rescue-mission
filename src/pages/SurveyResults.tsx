@@ -725,7 +725,7 @@ const SurveyResults = () => {
   };
 
   const getStatistics = () => {
-    const relevantSurveys = getFilteredSurveys();
+    let relevantSurveys = getFilteredSurveys();
     let relevantResponses = allResponses.filter((r) => relevantSurveys.some((s) => s.id === r.survey_id));
     let relevantQuestions = allQuestions.filter((q) => relevantSurveys.some((s) => s.id === q.survey_id));
     let relevantAnswers = allAnswers.filter((a) => relevantResponses.some((r) => r.id === a.response_id));
@@ -755,9 +755,15 @@ const SurveyResults = () => {
       relevantQuestions = instructorQuestions;
     }
 
-    // 선택된 설문이 있으면 해당 설문의 응답만, 아니면 모든 관련 응답 사용
+    // 개별 설문이 선택된 경우 해당 설문 데이터로 통계 재계산
     if (selectedSurvey && selectedSurvey !== 'all') {
-      relevantResponses = responses; // 이미 선택된 설문의 응답으로 필터링됨
+      relevantSurveys = relevantSurveys.filter((s) => s.id === selectedSurvey);
+      relevantQuestions = relevantQuestions.filter((q) => q.survey_id === selectedSurvey);
+
+      // selectedSurvey에 대한 응답/답변만 포함하도록 보정
+      relevantResponses = responses;
+      const responseIds = new Set(relevantResponses.map((r) => r.id));
+      relevantAnswers = relevantAnswers.filter((a) => responseIds.has(a.response_id));
     }
 
     const totalSurveys = relevantSurveys.length;
