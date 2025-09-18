@@ -294,6 +294,20 @@ const PersonalDashboard: FC = () => {
     return courses as string[];
   };
 
+  const normalizeCourseName = (courseName?: string | null) => {
+    if (!courseName) return null;
+    const match = courseName.match(/.*?-\s*(.+)$/);
+    const normalized = match ? match[1] : courseName;
+    return normalized.trim();
+  };
+
+  const matchesSelectedCourse = (courseName: string | undefined, selectedCourseValue: string) => {
+    if (selectedCourseValue === 'all') return true;
+    const normalizedCourse = normalizeCourseName(courseName);
+    if (!normalizedCourse) return false;
+    return normalizedCourse === selectedCourseValue;
+  };
+
   const getTrendData = () => {
     const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
 
@@ -431,7 +445,7 @@ const PersonalDashboard: FC = () => {
       filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
     }
     if (selectedCourse && selectedCourse !== 'all') {
-      filtered = filtered.filter(s => s.course_name === selectedCourse);
+      filtered = filtered.filter(s => matchesSelectedCourse(s.course_name, selectedCourse));
     }
     if (selectedRound === 'latest' && filtered.length > 0) {
       const latestYear = Math.max(...filtered.map(s => s.education_year));
@@ -474,7 +488,7 @@ const PersonalDashboard: FC = () => {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
     }
     if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(s => s.course_name === selectedCourse);
+      filteredSurveys = filteredSurveys.filter(s => matchesSelectedCourse(s.course_name, selectedCourse));
     }
     if (selectedRound === 'latest' && filteredSurveys.length > 0) {
       const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
