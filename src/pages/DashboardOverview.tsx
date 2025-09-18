@@ -26,7 +26,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
-// import { supabase } from "@/integrations/supabase/client"; // ← 실제 연동 시 사용
+import { supabase } from "@/integrations/supabase/client";
 
 /** ---------- Types ---------- */
 type Stats = {
@@ -59,27 +59,54 @@ const DashboardOverview: React.FC = () => {
   const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      // TODO: 실제 데이터 연동 (Supabase 예시)
-      // const { data: ... } = await supabase.rpc('get_dashboard_stats', { scope: isAdmin ? 'all' : 'mine' });
-      // setStats(mappedData);
+      // 공통 헬퍼: 설문 카운트
+      const surveyCount = (extra?: { status?: string }) => {
+        let q = supabase.from('surveys').select('*', { count: 'exact' });
+        if (extra?.status) q = q.eq('status', extra.status);
+        return q;
+      };
 
-      // 데모용 지연 + 더미 데이터
-      await new Promise((r) => setTimeout(r, 300));
+      // 응답 카운트
+      const responsesBase = () => {
+        return supabase.from('survey_responses').select('*', { count: 'exact' });
+      };
+
+      const [
+        totalSurveysRes,
+        activeSurveysRes,
+        completedSurveysRes,
+        totalResponsesRes,
+        instructorsRes,
+        coursesRes,
+        recentResponsesRes,
+      ] = await Promise.all([
+        surveyCount(),
+        surveyCount({ status: 'active' }),
+        surveyCount({ status: 'completed' }),
+        responsesBase(),
+        supabase.from('instructors').select('*', { count: 'exact' }),
+        supabase.from('courses').select('*', { count: 'exact' }),
+        supabase
+          .from('survey_responses')
+          .select('*', { count: 'exact' })
+          .gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+      ]);
+
       setStats({
-        totalSurveys: 42,
-        activeSurveys: 5,
-        totalResponses: 1280,
-        recentResponsesCount: 73,
-        totalInstructors: 18,
-        totalCourses: 27,
-        completedSurveys: 31,
+        totalSurveys: totalSurveysRes.count || 0,
+        activeSurveys: activeSurveysRes.count || 0,
+        completedSurveys: completedSurveysRes.count || 0,
+        totalResponses: totalResponsesRes.count || 0,
+        totalInstructors: instructorsRes.count || 0,
+        totalCourses: coursesRes.count || 0,
+        recentResponsesCount: recentResponsesRes.count || 0,
       });
     } catch (e) {
       console.error("Failed to load dashboard stats:", e);
     } finally {
       setLoading(false);
     }
-  }, []); // isAdmin 의존이 필요하면 여기에 추가
+  }, [isAdmin]);
 
   useEffect(() => {
     fetchStats();
