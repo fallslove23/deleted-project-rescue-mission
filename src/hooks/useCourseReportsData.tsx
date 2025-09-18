@@ -105,6 +105,7 @@ export const useCourseReportsData = (
   const [instructorStats, setInstructorStats] = useState<InstructorStats[]>([]);
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
   const [availableRounds, setAvailableRounds] = useState<number[]>([]);
+  const [courseRoundsMap, setCourseRoundsMap] = useState<Record<string, number[]>>({});
   const [availableInstructors, setAvailableInstructors] = useState<{id: string, name: string}[]>([]);
   const [textualResponses, setTextualResponses] = useState<string[]>([]);
   const [courseStatistics, setCourseStatistics] = useState<CourseStatistics[]>([]);
@@ -163,10 +164,19 @@ export const useCourseReportsData = (
       // 중복 제거 및 과정별 그룹화
       // 코스명 정규화 기준으로 중복 제거 (분반/조 표기 제거 후 그룹화)
       const courseGroups = new Map<string, any[]>();
+      const roundsByCourse = new Map<string, Set<number>>();
+
       (surveys || []).forEach((s: any) => {
         const key = normalizeCourseName(s.course_name);
         if (!courseGroups.has(key)) courseGroups.set(key, []);
         courseGroups.get(key)!.push(s);
+
+        if (!roundsByCourse.has(key)) {
+          roundsByCourse.set(key, new Set());
+        }
+        if (typeof s.education_round === 'number') {
+          roundsByCourse.get(key)!.add(s.education_round);
+        }
       });
 
       const uniqueCourses = Array.from(courseGroups.keys()).map((key) => {
@@ -179,8 +189,23 @@ export const useCourseReportsData = (
         };
       });
 
-      // 사용 가능한 차수 추출
-      const rounds = Array.from(new Set(surveys?.map(s => s.education_round))).sort((a, b) => a - b);
+      const roundsMapObject = Array.from(roundsByCourse.entries()).reduce((acc, [key, value]) => {
+        acc[key] = Array.from(value).sort((a, b) => a - b);
+        return acc;
+      }, {} as Record<string, number[]>);
+
+      setCourseRoundsMap(roundsMapObject);
+
+      const allRoundsSet = new Set<number>();
+      Object.values(roundsMapObject).forEach(rounds => {
+        rounds.forEach(round => allRoundsSet.add(round));
+      });
+
+      const normalizedSelectedCourse = selectedCourse ? normalizeCourseName(selectedCourse) : '';
+      const rounds = normalizedSelectedCourse && roundsMapObject[normalizedSelectedCourse]
+        ? roundsMapObject[normalizedSelectedCourse]
+        : Array.from(allRoundsSet).sort((a, b) => a - b);
+
       setAvailableRounds(rounds);
 
       setAvailableCourses(uniqueCourses);
@@ -483,6 +508,26 @@ export const useCourseReportsData = (
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const normalizedCourse = selectedCourse ? normalizeCourseName(selectedCourse) : '';
+
+    if (normalizedCourse && courseRoundsMap[normalizedCourse]) {
+      setAvailableRounds(courseRoundsMap[normalizedCourse]);
+      return;
+    }
+
+    if (!normalizedCourse) {
+      const allRoundsSet = new Set<number>();
+      Object.values(courseRoundsMap).forEach(rounds => {
+        rounds.forEach(round => allRoundsSet.add(round));
+      });
+      setAvailableRounds(Array.from(allRoundsSet).sort((a, b) => a - b));
+      return;
+    }
+
+    setAvailableRounds([]);
+  }, [selectedCourse, courseRoundsMap]);
 
   const fetchPreviousReports = async (year: number, course: string, round: number | null) => {
     try {
