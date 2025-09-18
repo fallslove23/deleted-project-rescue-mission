@@ -739,7 +739,12 @@ const PersonalDashboard: FC = () => {
                       <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find((d: any) => d.name === name)?.percentage}%)`, name]} />
+                  <Tooltip
+                    formatter={(value: number | string, _name: string, props: any) => {
+                      const percentage = props?.payload?.percentage ?? 0;
+                      return [`${value}개 (${percentage}%)`, props?.payload?.name ?? props?.name ?? ''];
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
