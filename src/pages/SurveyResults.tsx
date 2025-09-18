@@ -1096,24 +1096,24 @@ const SurveyResults = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border/60 p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <BarChart3 className="h-6 w-6" />
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <BarChart3 className="h-6 w-6 text-primary" />
                 설문 결과 분석
               </h1>
-              <p className="text-gray-600 mt-1">
-                {isInstructor && !canViewAll 
-                  ? "본인 담당 설문의 응답을 분석하고 통계를 확인하세요" 
+              <p className="text-muted-foreground mt-1">
+                {isInstructor && !canViewAll
+                  ? "본인 담당 설문의 응답을 분석하고 통계를 확인하세요"
                   : "설문 응답을 분석하고 통계를 확인하세요"}
               </p>
               {isInstructor && !canViewAll && (
-                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm text-blue-700">
+                <div className="mt-2 p-2 bg-primary/10 border border-primary/30 rounded-md text-primary">
+                  <p className="text-sm">
                     💡 강사 권한으로 본인이 담당한 설문 결과만 조회할 수 있습니다.
                   </p>
                 </div>
@@ -1128,10 +1128,10 @@ const SurveyResults = () => {
         </div>
 
         {/* 필터 섹션 */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border/60 p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">교육 연도</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">교육 연도</label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger>
                   <SelectValue placeholder="전체" />
@@ -1148,7 +1148,7 @@ const SurveyResults = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">과정</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">과정</label>
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                 <SelectTrigger>
                   <SelectValue placeholder="전체" />
@@ -1166,7 +1166,7 @@ const SurveyResults = () => {
 
             {canViewAll && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">강사</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">강사</label>
                 <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
                   <SelectTrigger>
                     <SelectValue placeholder="전체" />
@@ -1187,7 +1187,7 @@ const SurveyResults = () => {
         {/* 설문 선택 */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">설문 선택</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">설문 선택</label>
             <Select value={selectedSurvey} onValueChange={setSelectedSurvey}>
               <SelectTrigger>
                 <SelectValue placeholder="전체 설문" />
@@ -1482,7 +1482,7 @@ const SurveyResults = () => {
         {/* 만족도 트렌드 그래프 */}
         {selectedSurvey && selectedSurvey !== 'all' && courseStats.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-xl font-bold mb-4 text-gray-900">만족도 트렌드 분석</h2>
+            <h2 className="text-xl font-bold mb-4 text-foreground">만족도 트렌드 분석</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* 과정별 만족도 트렌드 */}
               <Card className="shadow-sm border border-border">

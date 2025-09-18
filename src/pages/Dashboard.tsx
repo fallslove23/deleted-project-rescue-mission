@@ -176,8 +176,11 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div>로딩중...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+        <div className="space-y-3 text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-b-2 border-primary"></div>
+          <p className="text-sm text-muted-foreground">로딩중...</p>
+        </div>
       </div>
     );
   }

@@ -29,12 +29,20 @@ const NotFound = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 px-4">
-      <Card className="w-full max-w-md mx-auto shadow-lg border-0 bg-white/95 backdrop-blur-sm">
+    <div className="relative min-h-screen flex items-center justify-center bg-background px-4 text-foreground overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-primary/20 opacity-70"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -bottom-40 -right-32 h-[30rem] w-[30rem] rounded-full bg-gradient-primary blur-3xl opacity-20"
+        aria-hidden="true"
+      />
+      <Card className="relative z-10 w-full max-w-md mx-auto shadow-lg border border-border/60 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <CardContent className="p-8 text-center space-y-6">
           {/* 404 아이콘 */}
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8 text-destructive" />
           </div>
 
           {/* 404 메시지 */}
@@ -49,8 +57,8 @@ const NotFound = () => {
           </div>
 
           {/* 요청된 경로 표시 */}
-          <div className="bg-gray-100 rounded-lg p-3">
-            <p className="text-xs text-gray-600 font-mono break-all">
+          <div className="bg-muted rounded-lg p-3">
+            <p className="text-xs text-muted-foreground font-mono break-all">
               경로: {location.pathname}
             </p>
           </div>

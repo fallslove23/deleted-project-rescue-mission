@@ -96,9 +96,17 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="relative min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/10 to-primary/30 opacity-70"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute -top-48 -right-32 h-[32rem] w-[32rem] rounded-full bg-gradient-primary blur-3xl opacity-25"
+        aria-hidden="true"
+      />
       {/* Header with back button */}
-      <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+      <header className="relative z-10 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 shadow-sm">
         <div className="w-full max-w-7xl mx-auto px-4 py-3 flex items-center">
           <Button
             onClick={() => navigate('/')}
@@ -118,9 +126,9 @@ const Auth = () => {
       </header>
 
       {/* Main content - 개선된 반응형 중앙 정렬 */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl mx-auto">
-          <Card className="w-full shadow-xl border-0 bg-white/95 backdrop-blur-sm">
+          <Card className="w-full shadow-xl border border-border/60 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <CardHeader className="text-center pb-6 px-6 sm:px-8 lg:px-10 pt-8">
               <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">
                 {isResetPassword ? '비밀번호 찾기' : '로그인'}
@@ -154,19 +162,19 @@ const Auth = () => {
                     />
                   </div>
                 )}
-                <Button 
-                  type="submit" 
-                  className="w-full h-12 touch-friendly bg-purple-600 hover:bg-purple-700 text-white text-base font-medium" 
+                <Button
+                  type="submit"
+                  className="w-full h-12 touch-friendly text-base font-medium"
                   disabled={loading}
                 >
                   {loading ? '처리중...' : (isResetPassword ? '비밀번호 재설정 이메일 발송' : '로그인')}
                 </Button>
               </form>
-              
+
               <div className="mt-8 text-center">
                 <Button
                   variant="link"
-                  className="touch-friendly text-purple-600 hover:text-purple-800 text-base"
+                  className="touch-friendly text-base"
                   onClick={() => setIsResetPassword(!isResetPassword)}
                 >
                   {isResetPassword ? '로그인으로 돌아가기' : '비밀번호를 잊으셨나요?'}
