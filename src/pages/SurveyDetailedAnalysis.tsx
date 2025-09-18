@@ -892,7 +892,12 @@ const SurveyDetailedAnalysis = () => {
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="name" />
                                 <YAxis />
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
+                                <Tooltip
+                                  formatter={(value: number | string, _name: string, props: any) => {
+                                    const percentage = props?.payload?.percentage ?? 0;
+                                    return [`${value}개 (${percentage}%)`, '응답 수'];
+                                  }}
+                                />
                                 <Bar dataKey="value" fill="hsl(var(--chart-1))" />
                               </RechartsBarChart>
                             </ResponsiveContainer>
@@ -1038,7 +1043,12 @@ const SurveyDetailedAnalysis = () => {
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" />
                                     <YAxis />
-                                    <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
+                                    <Tooltip
+                                      formatter={(value: number | string, _name: string, props: any) => {
+                                        const percentage = props?.payload?.percentage ?? 0;
+                                        return [`${value}개 (${percentage}%)`, '응답 수'];
+                                      }}
+                                    />
                                     <Bar dataKey="value" fill="hsl(var(--chart-1))" />
                                   </RechartsBarChart>
                                 </ResponsiveContainer>
