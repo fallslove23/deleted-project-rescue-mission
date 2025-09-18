@@ -345,13 +345,16 @@ const CourseStatisticsManagement = () => {
         .select(`
           education_year,
           education_round,
+          education_day,
           course_name,
           start_date,
           end_date,
           status,
           expected_participants,
+          is_test,
           survey_responses (
             id,
+            is_test,
             question_answers (
               answer_value,
               survey_questions (satisfaction_type, question_type)
@@ -359,14 +362,15 @@ const CourseStatisticsManagement = () => {
           )
         `)
         .eq('education_year', selectedYear)
-        .eq('status', 'completed');
+        .in('status', ['completed', 'active', 'public'])
+        .or('is_test.is.null,is_test.eq.false');
 
       if (surveyError) throw surveyError;
 
       if (!surveys || surveys.length === 0) {
         toast({
           title: "알림",
-          description: `${selectedYear}년도에 완료된 설문이 없습니다.`,
+          description: `${selectedYear}년도에 생성할 설문 결과가 없습니다.`,
           variant: "destructive"
         });
         return;
@@ -375,37 +379,63 @@ const CourseStatisticsManagement = () => {
       // 설문별로 통계 계산
       const generatedStats = new Map<string, CourseStatistic>();
 
-      surveys.forEach(survey => {
-        const key = `${survey.education_year}-${survey.education_round}-${survey.course_name}`;
-        
-        if (!generatedStats.has(key)) {
-          generatedStats.set(key, {
-            year: survey.education_year,
-            round: survey.education_round,
-            course_name: survey.course_name || '',
-            course_start_date: survey.start_date ? new Date(survey.start_date).toISOString().split('T')[0] : '',
-            course_end_date: survey.end_date ? new Date(survey.end_date).toISOString().split('T')[0] : '',
-            course_days: 1, // 기본값
-            status: '완료',
-            enrolled_count: survey.expected_participants || 0,
-            cumulative_count: survey.expected_participants || 0,
-            education_days: null,
-            education_hours: null,
-            total_satisfaction: null,
-            course_satisfaction: null,
-            instructor_satisfaction: null,
-            operation_satisfaction: null,
-          });
-        }
+      const statusLabelMap: Record<string, string> = {
+        completed: '완료',
+        active: '진행 중',
+        public: '진행 중',
+      };
+
+      surveys
+        ?.filter(survey => !survey.is_test)
+        .forEach(survey => {
+          const key = `${survey.education_year}-${survey.education_round}-${survey.course_name}`;
+          const validResponses = (survey.survey_responses || []).filter(response => !response.is_test);
+          const statusKey = typeof survey.status === 'string' ? survey.status : 'completed';
+          const statusLabel = statusLabelMap[statusKey] || '완료';
+          const round = typeof survey.education_round === 'number'
+            ? survey.education_round
+            : Number(survey.education_round) || 1;
+          const educationDay = typeof survey.education_day === 'number'
+            ? survey.education_day
+            : Number(survey.education_day) || null;
+          const responseCount = validResponses.length;
+          const expectedParticipants = typeof survey.expected_participants === 'number'
+            ? survey.expected_participants
+            : Number(survey.expected_participants) || 0;
+
+          if (!generatedStats.has(key)) {
+            generatedStats.set(key, {
+              year: survey.education_year ?? selectedYear,
+              round,
+              course_name: survey.course_name || '',
+              course_start_date: survey.start_date ? new Date(survey.start_date).toISOString().split('T')[0] : '',
+              course_end_date: survey.end_date ? new Date(survey.end_date).toISOString().split('T')[0] : '',
+              course_days: educationDay || 1,
+              status: statusLabel,
+              enrolled_count: responseCount || expectedParticipants,
+              cumulative_count: responseCount || expectedParticipants,
+              education_days: educationDay,
+              education_hours: null,
+              total_satisfaction: null,
+              course_satisfaction: null,
+              instructor_satisfaction: null,
+              operation_satisfaction: null,
+            });
+          }
 
         const stat = generatedStats.get(key)!;
+        if (educationDay) {
+          stat.course_days = educationDay;
+          stat.education_days = educationDay;
+        }
+        stat.status = statusLabel;
 
         // 만족도 계산
         let instructorScores: number[] = [];
         let courseScores: number[] = [];
         let operationScores: number[] = [];
 
-        survey.survey_responses?.forEach(response => {
+        validResponses.forEach(response => {
           response.question_answers?.forEach(answer => {
             if (answer.survey_questions?.question_type === 'scale' && answer.answer_value) {
               let score = typeof answer.answer_value === 'number' ? answer.answer_value : Number(answer.answer_value);
@@ -422,8 +452,19 @@ const CourseStatisticsManagement = () => {
           });
         });
 
+        if (responseCount > 0) {
+          stat.enrolled_count = responseCount;
+          const currentCumulative = typeof stat.cumulative_count === 'number' ? stat.cumulative_count : 0;
+          stat.cumulative_count = Math.max(currentCumulative, responseCount);
+        } else if (!stat.enrolled_count) {
+          stat.enrolled_count = expectedParticipants;
+          if (!stat.cumulative_count) {
+            stat.cumulative_count = expectedParticipants;
+          }
+        }
+
         // 평균 계산
-        stat.instructor_satisfaction = instructorScores.length > 0 ? 
+        stat.instructor_satisfaction = instructorScores.length > 0 ?
           Number((instructorScores.reduce((a, b) => a + b, 0) / instructorScores.length).toFixed(2)) : null;
         stat.course_satisfaction = courseScores.length > 0 ? 
           Number((courseScores.reduce((a, b) => a + b, 0) / courseScores.length).toFixed(2)) : null;
