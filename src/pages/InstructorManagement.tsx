@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -65,6 +65,7 @@ const InstructorManagement = React.forwardRef<{
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [instructorRoles, setInstructorRoles] = useState<Record<string, string[]>>({});
+  const [linkedInstructorIds, setLinkedInstructorIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,18 +146,25 @@ const InstructorManagement = React.forwardRef<{
       if (profilesError) throw profilesError;
 
       const rolesByInstructor: Record<string, string[]> = {};
+      const linkedInstructorIdsSet = new Set<string>();
+
       profiles?.forEach(profile => {
         if (profile.instructor_id) {
-          const userRolesList = userRoles?.filter(ur => ur.user_id === profile.id);
-          if (userRolesList && userRolesList.length > 0) {
+          linkedInstructorIdsSet.add(profile.instructor_id);
+          const userRolesList = userRoles?.filter(ur => ur.user_id === profile.id) || [];
+          if (userRolesList.length > 0) {
             rolesByInstructor[profile.instructor_id] = userRolesList.map(ur => ur.role);
+          } else {
+            rolesByInstructor[profile.instructor_id] = [];
           }
         }
       });
 
       setInstructorRoles(rolesByInstructor);
+      setLinkedInstructorIds(Array.from(linkedInstructorIdsSet));
     } catch (error) {
       console.error('Error fetching instructor roles:', error);
+      setLinkedInstructorIds([]);
     }
   };
 
@@ -491,6 +499,13 @@ const InstructorManagement = React.forwardRef<{
     return courses.filter(course => instructorCourseIds.includes(course.id));
   };
 
+  const connectedInstructorCount = useMemo(() => {
+    const linkedInstructorIdSet = new Set(linkedInstructorIds);
+    return instructors.reduce((count, instructor) => (
+      linkedInstructorIdSet.has(instructor.id) ? count + 1 : count
+    ), 0);
+  }, [instructors, linkedInstructorIds]);
+
   // Filter instructors based on search query and role
   const filteredInstructors = instructors.filter(instructor => {
     // Only include instructors who have the 'instructor' role
@@ -767,7 +782,7 @@ const InstructorManagement = React.forwardRef<{
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">계정 연결된 강사</p>
                   <p className="text-2xl font-bold">
-                    {Object.keys(instructorRoles).length}
+                    {connectedInstructorCount}
                   </p>
                 </div>
               </div>
