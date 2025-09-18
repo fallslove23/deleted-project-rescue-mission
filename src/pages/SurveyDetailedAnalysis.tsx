@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +28,7 @@ interface SurveyResponse {
   survey_id: string;
   submitted_at: string;
   respondent_email: string;
+  session_id?: string | null;
 }
 
 interface QuestionAnswer {
@@ -96,6 +97,97 @@ const SurveyDetailedAnalysis = () => {
   const [commentText, setCommentText] = useState('');
   const [savingComment, setSavingComment] = useState(false);
   const { toast } = useToast();
+
+  const canViewAll =
+    userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director');
+  const isInstructor = userRoles.includes('instructor');
+  const isRestrictedInstructor = isInstructor && !canViewAll;
+
+  const accessibleSessionIds = useMemo(() => {
+    if (!isRestrictedInstructor) {
+      return null;
+    }
+
+    const allowed = new Set<string>();
+
+    courseSessions.forEach((session) => {
+      if (session.instructor_id && survey?.instructor_id && session.instructor_id === survey.instructor_id) {
+        allowed.add(session.id);
+        return;
+      }
+
+      if (session.instructor_id && instructor?.id && session.instructor_id === instructor.id) {
+        allowed.add(session.id);
+        return;
+      }
+
+      if (session.instructor_email && user?.email && session.instructor_email.toLowerCase() === user.email.toLowerCase()) {
+        allowed.add(session.id);
+        return;
+      }
+    });
+
+    if (allowed.size === 0 && courseSessions.length === 0 && surveyId) {
+      const hasSessionSpecificQuestions = questions.some((question) => question.session_id);
+      if (!hasSessionSpecificQuestions) {
+        allowed.add(surveyId);
+      }
+    }
+
+    return allowed;
+  }, [
+    isRestrictedInstructor,
+    courseSessions,
+    survey?.instructor_id,
+    instructor?.id,
+    user?.email,
+    surveyId,
+    questions,
+  ]);
+
+  const aggregatedData = useMemo(() => {
+    if (!isRestrictedInstructor || !accessibleSessionIds) {
+      return {
+        questions,
+        answers,
+        responses,
+      };
+    }
+
+    if (accessibleSessionIds.size === 0) {
+      return {
+        questions: [] as SurveyQuestion[],
+        answers: [] as QuestionAnswer[],
+        responses: [] as SurveyResponse[],
+      };
+    }
+
+    const filteredQuestions = questions.filter((question) => {
+      if (question.session_id && accessibleSessionIds.has(question.session_id)) {
+        return true;
+      }
+
+      if (!question.session_id) {
+        if (accessibleSessionIds.size === 1) {
+          return true;
+        }
+        return question.satisfaction_type === 'operation';
+      }
+
+      return false;
+    });
+
+    const questionIdSet = new Set(filteredQuestions.map((q) => q.id));
+    const filteredAnswers = answers.filter((answer) => questionIdSet.has(answer.question_id));
+    const responseIdSet = new Set(filteredAnswers.map((answer) => answer.response_id));
+    const filteredResponses = responses.filter((response) => responseIdSet.has(response.id));
+
+    return {
+      questions: filteredQuestions,
+      answers: filteredAnswers,
+      responses: filteredResponses,
+    };
+  }, [isRestrictedInstructor, accessibleSessionIds, questions, answers, responses]);
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
 
@@ -201,71 +293,78 @@ const SurveyDetailedAnalysis = () => {
 
   const fetchCourseSessions = async () => {
     if (!surveyId) return;
-    
+
     try {
-      // 현재 설문 정보 가져오기
       const { data: currentSurvey } = await supabase
         .from('surveys')
-        .select('education_year, education_round, education_day, course_name, instructor_id')
+        .select('education_year, education_round, education_day, course_name, instructor_id, status, title')
         .eq('id', surveyId)
         .single();
-      
-      if (currentSurvey) {
-        // 같은 일차의 모든 과목 설문들 가져오기
-        const { data: sameDaySurveys, error } = await supabase
-          .from('surveys')
-          .select(`
-            id, 
-            title, 
-            course_name, 
-            education_day, 
-            instructor_id,
-            status,
-            instructors (
-              id,
-              name,
-              email
-            )
-          `)
-          .eq('education_year', currentSurvey.education_year)
-          .eq('education_round', currentSurvey.education_round)
-          .eq('education_day', currentSurvey.education_day)
-          .order('course_name');
-        
-        if (error) throw error;
-        
-        // 강사 권한 체크 및 필터링
-        const filteredSurveys = (userRoles.includes('instructor') && currentSurvey?.instructor_id)
-          ? sameDaySurveys?.filter((s: any) => s.instructor_id === currentSurvey.instructor_id)
-          : sameDaySurveys;
 
-        // 세션 정보 구성
-        const sessions = filteredSurveys?.map((survey: any) => {
-          // 과목명에서 실제 과목명 추출 (예: "2024-1차 - 치주학" → "치주학")
-          let extractedCourseName = survey.course_name || survey.title;
-          if (survey.course_name) {
-            const match = survey.course_name.match(/.*?-\s*(.+)$/);
-            if (match) {
-              extractedCourseName = match[1].trim();
-            }
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('survey_sessions')
+        .select(`
+          id,
+          session_name,
+          instructor_id,
+          courses (title),
+          instructors (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('survey_id', surveyId)
+        .order('session_order');
+
+      if (sessionError) throw sessionError;
+
+      let formattedSessions =
+        sessionData?.map((session: any) => ({
+          id: session.id as string,
+          title: session.session_name || session.courses?.title || '세션',
+          course_name: session.courses?.title || session.session_name || currentSurvey?.course_name || '',
+          session_name: session.session_name || session.courses?.title || '세션',
+          education_day: currentSurvey?.education_day ?? 0,
+          instructor_name: session.instructors?.name || '강사 정보 없음',
+          instructor_id: session.instructor_id || '',
+          instructor_email: session.instructors?.email || '',
+          status: currentSurvey?.status,
+        })) ?? [];
+
+      if (isRestrictedInstructor) {
+        const lowerEmail = user?.email?.toLowerCase() ?? '';
+        formattedSessions = formattedSessions.filter((session) => {
+          if (session.instructor_id && currentSurvey?.instructor_id && session.instructor_id === currentSurvey.instructor_id) {
+            return true;
           }
-          
-          return {
-            id: survey.id,
-            title: survey.title,
-            course_name: survey.course_name || '',
-            session_name: extractedCourseName,
-            education_day: survey.education_day,
-            instructor_name: survey.instructors?.name || '강사 정보 없음',
-            instructor_id: survey.instructor_id,
-            instructor_email: survey.instructors?.email || '',
-            status: survey.status
-          };
-        }) || [];
-        
-        console.log('Fetched course sessions:', sessions);
-        setCourseSessions(sessions);
+          if (session.instructor_id && instructor?.id && session.instructor_id === instructor.id) {
+            return true;
+          }
+          if (session.instructor_email && lowerEmail && session.instructor_email.toLowerCase() === lowerEmail) {
+            return true;
+          }
+          return false;
+        });
       }
+
+      if ((!formattedSessions || formattedSessions.length === 0) && currentSurvey) {
+        formattedSessions = [
+          {
+            id: surveyId,
+            title: currentSurvey.title || currentSurvey.course_name || '설문',
+            course_name: currentSurvey.course_name || currentSurvey.title || '설문',
+            session_name: currentSurvey.course_name || currentSurvey.title || '설문',
+            education_day: currentSurvey.education_day,
+            instructor_name: instructor?.name || '강사 정보 없음',
+            instructor_id: currentSurvey.instructor_id || '',
+            instructor_email: instructor?.email || '',
+            status: currentSurvey.status,
+          },
+        ];
+      }
+
+      setCourseSessions(formattedSessions);
     } catch (error) {
       console.error('Error fetching course sessions:', error);
       setCourseSessions([]);
@@ -295,39 +394,25 @@ const SurveyDetailedAnalysis = () => {
   };
 
   const getSubjectAnalysis = (sessionId: string) => {
-    // 선택된 세션에 따라 질문들을 필터링하고 분석
-    let filteredQuestions = questions;
-    let filteredAnswers = answers;
-    let filteredResponses = responses;
+    let filteredQuestions = aggregatedData.questions;
+    let filteredAnswers = aggregatedData.answers;
+    let filteredResponses = aggregatedData.responses;
 
     if (sessionId !== 'all') {
-      // 선택된 세션 정보 가져오기
-      const selectedSession = courseSessions.find(cs => cs.id === sessionId);
-      
-      if (selectedSession) {
-        // 해당 세션 설문의 질문들만 필터링
-        filteredQuestions = questions.filter(q => {
-          // session_id가 있는 경우 직접 매칭
-          if (q.session_id) {
-            return q.session_id === sessionId;
-          }
-          // session_id가 없는 경우 survey_id로 매칭 (해당 세션의 설문)
-          return q.survey_id === sessionId;
-        });
-        
-        // 해당 질문들에 대한 답변만 필터링
-        const questionIds = filteredQuestions.map(q => q.id);
-        filteredAnswers = answers.filter(a => questionIds.includes(a.question_id));
-        
-        // 해당 세션의 응답만 필터링 (해당 설문의 응답들)
-        filteredResponses = responses.filter(r => {
-          return r.survey_id === sessionId;
-        });
-      } else {
-        // 세션을 찾을 수 없는 경우 빈 배열로 설정
+      const selectedSession = courseSessions.find((cs) => cs.id === sessionId);
+      const sessionAllowed =
+        !!selectedSession && (!isRestrictedInstructor || !accessibleSessionIds || accessibleSessionIds.has(sessionId));
+
+      if (!sessionAllowed) {
         filteredQuestions = [];
         filteredAnswers = [];
         filteredResponses = [];
+      } else {
+        filteredQuestions = aggregatedData.questions.filter((q) => q.session_id === sessionId);
+        const questionIds = new Set(filteredQuestions.map((q) => q.id));
+        filteredAnswers = aggregatedData.answers.filter((a) => questionIds.has(a.question_id));
+        const responseIds = new Set(filteredAnswers.map((a) => a.response_id));
+        filteredResponses = aggregatedData.responses.filter((r) => responseIds.has(r.id));
       }
     }
 
@@ -458,7 +543,7 @@ const SurveyDetailedAnalysis = () => {
     const instructorQuestions: SurveyQuestion[] = [];
     const operationQuestions: SurveyQuestion[] = [];
 
-    questions.forEach((question) => {
+    aggregatedData.questions.forEach((question) => {
       const type = (question as any).satisfaction_type as string | undefined;
 
       if (type === 'instructor') {
@@ -480,11 +565,14 @@ const SurveyDetailedAnalysis = () => {
     return { subjectQuestions, instructorQuestions, operationQuestions };
   };
 
-  const getQuestionAnalysis = (questionList: SurveyQuestion[]) => {
+  const getQuestionAnalysis = (
+    questionList: SurveyQuestion[],
+    answerSource: QuestionAnswer[] = aggregatedData.answers
+  ) => {
     // order_index 순서로 정렬
     const sortedQuestions = [...questionList].sort((a, b) => a.order_index - b.order_index);
     return sortedQuestions.map(question => {
-      const questionAnswers = answers.filter(a => a.question_id === question.id);
+      const questionAnswers = answerSource.filter(a => a.question_id === question.id);
       
       if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
         const options = question.options || [];
@@ -564,7 +652,7 @@ const SurveyDetailedAnalysis = () => {
     let totalCount = 0;
 
     ratingQuestions.forEach(question => {
-      const questionAnswers = answers.filter(a => a.question_id === question.id);
+      const questionAnswers = aggregatedData.answers.filter(a => a.question_id === question.id);
       const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
       
       if (ratings.length > 0) {
@@ -596,7 +684,7 @@ const SurveyDetailedAnalysis = () => {
     let totalCount = 0;
 
     allRatingQuestions.forEach(question => {
-      const questionAnswers = answers.filter(a => a.question_id === question.id);
+      const questionAnswers = aggregatedData.answers.filter(a => a.question_id === question.id);
       const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
       
       if (ratings.length > 0) {
@@ -662,7 +750,7 @@ const SurveyDetailedAnalysis = () => {
     csvContent += `설문명: ${survey.title}\n`;
     csvContent += `교육년도: ${survey.education_year}년\n`;
     csvContent += `교육차수: ${survey.education_round}차\n`;
-    csvContent += `총 응답 수: ${responses.length}\n\n`;
+    csvContent += `총 응답 수: ${aggregatedData.responses.length}\n\n`;
     
     // 종합 만족도
     csvContent += `종합 만족도: ${calculateOverallSatisfaction()}/10\n`;
@@ -789,7 +877,7 @@ const SurveyDetailedAnalysis = () => {
                   )}
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-primary">{responses.length}</div>
+                  <div className="text-2xl font-bold text-primary">{aggregatedData.responses.length}</div>
                   <div className="text-sm text-muted-foreground">총 응답</div>
                 </div>
               </div>
@@ -838,109 +926,119 @@ const SurveyDetailedAnalysis = () => {
             </TabsList>
 
             <TabsContent value="all" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-3">
+              {aggregatedData.questions.length === 0 ? (
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">종합 만족도</CardTitle>
-                    <Star className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{calculateOverallSatisfaction()}/10</div>
-                    <Progress value={parseFloat(calculateOverallSatisfaction()) * 10} className="mt-2" />
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    표시할 설문 결과가 없습니다.
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">과목 만족도</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{calculateCategoryAverage(subjectQuestions)}/10</div>
-                    <Progress value={parseFloat(String(calculateCategoryAverage(subjectQuestions))) * 10} className="mt-2" />
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">강사 만족도</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{calculateCategoryAverage(instructorQuestions)}/10</div>
-                    <Progress value={parseFloat(String(calculateCategoryAverage(instructorQuestions))) * 10} className="mt-2" />
-                  </CardContent>
-                </Card>
-              </div>
+              ) : (
+                <>
+                  <div className="grid gap-6 md:grid-cols-3">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">종합 만족도</CardTitle>
+                        <Star className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{calculateOverallSatisfaction()}/10</div>
+                        <Progress value={parseFloat(calculateOverallSatisfaction()) * 10} className="mt-2" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">과목 만족도</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{calculateCategoryAverage(subjectQuestions)}/10</div>
+                        <Progress value={parseFloat(String(calculateCategoryAverage(subjectQuestions))) * 10} className="mt-2" />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">강사 만족도</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{calculateCategoryAverage(instructorQuestions)}/10</div>
+                        <Progress value={parseFloat(String(calculateCategoryAverage(instructorQuestions))) * 10} className="mt-2" />
+                      </CardContent>
+                    </Card>
+                  </div>
 
-              {/* 전체 문항 분석 */}
-              <div className="space-y-6">
-                {subjectAnalysis.map((analysis, index) => (
-                  <Card key={index}>
-                    <CardHeader>
-                      <CardTitle className="text-base">{analysis.question.question_text}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {analysis.type === 'rating' && (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-4">
-                            <div className="text-3xl font-bold text-primary">{analysis.average}/10</div>
-                            <div className="text-sm text-muted-foreground">
-                              총 {analysis.totalAnswers}개 응답
-                            </div>
-                          </div>
-                          <div className="w-full">
-                            <ResponsiveContainer width="100%" height={200}>
-                              <RechartsBarChart data={analysis.chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                <Bar dataKey="value" fill="#3b82f6" />
-                              </RechartsBarChart>
-                            </ResponsiveContainer>
-                          </div>
-                        </div>
-                      )}
-                      {analysis.type === 'chart' && (
-                        <div className="w-full">
-                          <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                              <Pie
-                                data={analysis.chartData}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({ name, percentage }) => `${name} (${percentage}%)`}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                              >
-                                {analysis.chartData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip formatter={(value, name) => [`${value}개`, name]} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                      {analysis.type === 'text' && (
-                        <div className="space-y-2">
-                          <div className="text-sm text-muted-foreground">
-                            총 {analysis.totalAnswers}개 응답 (최대 10개 표시)
-                          </div>
-                          <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {analysis.answers?.map((answer, idx) => (
-                              <div key={idx} className="p-2 bg-muted rounded text-sm">
-                                {answer.answer_text}
+                  {/* 전체 문항 분석 */}
+                  <div className="space-y-6">
+                    {subjectAnalysis.map((analysis, index) => (
+                      <Card key={index}>
+                        <CardHeader>
+                          <CardTitle className="text-base">{analysis.question.question_text}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {analysis.type === 'rating' && (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-4">
+                                <div className="text-3xl font-bold text-primary">{analysis.average}/10</div>
+                                <div className="text-sm text-muted-foreground">
+                                  총 {analysis.totalAnswers}개 응답
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                              <div className="w-full">
+                                <ResponsiveContainer width="100%" height={200}>
+                                  <RechartsBarChart data={analysis.chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis />
+                                    <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
+                                    <Bar dataKey="value" fill="#3b82f6" />
+                                  </RechartsBarChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+                          )}
+                          {analysis.type === 'chart' && (
+                            <div className="w-full">
+                              <ResponsiveContainer width="100%" height={300}>
+                                <PieChart>
+                                  <Pie
+                                    data={analysis.chartData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percentage }) => `${name} (${percentage}%)`}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                  >
+                                    {analysis.chartData.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip formatter={(value, name) => [`${value}개`, name]} />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+                          {analysis.type === 'text' && (
+                            <div className="space-y-2">
+                              <div className="text-sm text-muted-foreground">
+                                총 {analysis.totalAnswers}개 응답 (최대 10개 표시)
+                              </div>
+                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {analysis.answers?.map((answer, idx) => (
+                                  <div key={idx} className="p-2 bg-muted rounded text-sm">
+                                    {answer.answer_text}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              )}
             </TabsContent>
 
             {/* 개별 과목-강사 탭들 */}
