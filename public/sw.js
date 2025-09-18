@@ -23,13 +23,36 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // 캐시된 버전이 있으면 반환, 없으면 네트워크에서 가져오기
-        return response || fetch(event.request);
+    (async () => {
+      try {
+        const networkResponse = await fetch(event.request);
+
+        // 최신 응답으로 캐시 업데이트
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(event.request, networkResponse.clone());
+
+        return networkResponse;
+      } catch (error) {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        if (event.request.mode === 'navigate') {
+          const fallback = await caches.match('/');
+          if (fallback) {
+            return fallback;
+          }
+        }
+
+        throw error;
       }
-    )
+    })()
   );
 });
 
