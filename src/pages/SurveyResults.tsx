@@ -808,7 +808,17 @@ const SurveyResults = () => {
     });
 
     const currentYear = new Date().getFullYear();
-    const recent = relevantSurveys.filter((s) => s.education_year >= currentYear - 1);
+
+    // 최근 1년 데이터를 우선 사용하되, 해당 기간 데이터가 없으면 전체 데이터를 사용
+    // 교육 연도가 입력되지 않은 설문도 통계에 포함될 수 있도록 별도 처리
+    const recent = relevantSurveys.filter((s) => {
+      if (!s.education_year) {
+        return true;
+      }
+      return s.education_year >= currentYear - 1;
+    });
+
+    const surveysForStats = recent.length > 0 ? recent : relevantSurveys;
 
     const courseStats: Record<
       string,
@@ -824,7 +834,7 @@ const SurveyResults = () => {
       }
     > = {};
 
-    recent.forEach((survey) => {
+    surveysForStats.forEach((survey) => {
       const key = `${survey.education_year}-${survey.education_round}-${survey.course_name}`;
       if (!courseStats[key]) {
         courseStats[key] = {
