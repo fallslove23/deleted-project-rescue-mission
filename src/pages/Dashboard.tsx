@@ -120,17 +120,14 @@ const Dashboard = () => {
         instructorSurveyIds = (instructorSurveys || []).map((s: any) => s.id);
       }
 
-      // 공통 헬퍼: 설문 카운트 (매번 새 빌더 생성)
-      const surveyCount = (extra?: { status?: string }) => {
-        let q = supabase.from('surveys').select('*', { count: 'exact' });
-        if (isInstructor && profile.instructor_id) q = q.eq('instructor_id', profile.instructor_id);
-        if (extra?.status) q = q.eq('status', extra.status);
-        return q;
+      const surveyCountQuery = () => {
+        let query = supabase.from('surveys').select('id', { count: 'exact', head: true });
+        if (isInstructor && profile.instructor_id) query = query.eq('instructor_id', profile.instructor_id);
+        return query;
       };
 
-      // 응답 카운트 생성
       const responsesBase = () => {
-        let q = supabase.from('survey_responses').select('*', { count: 'exact' });
+        let q = supabase.from('survey_responses').select('id', { count: 'exact', head: true });
         if (isInstructor) {
           if (instructorSurveyIds.length > 0) q = q.in('survey_id', instructorSurveyIds);
           else return Promise.resolve({ count: 0 } as any);
@@ -138,32 +135,44 @@ const Dashboard = () => {
         return q;
       };
 
+      const nowIso = new Date().toISOString();
+      const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
       const [
         totalSurveysRes,
         activeSurveysRes,
-        completedSurveysRes,
+        completedStatusRes,
+        overdueActiveRes,
         totalResponsesRes,
         instructorsRes,
         coursesRes,
         recentResponsesRes,
       ] = await Promise.all([
-        surveyCount(),
-        surveyCount({ status: 'active' }),
-        surveyCount({ status: 'completed' }),
+        surveyCountQuery(),
+        surveyCountQuery().eq('status', 'active'),
+        surveyCountQuery().eq('status', 'completed'),
+        surveyCountQuery().in('status', ['active', 'public']).lte('end_date', nowIso),
         responsesBase(),
-        isAdmin ? supabase.from('instructors').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
-        isAdmin ? supabase.from('courses').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
+        isAdmin
+          ? supabase.from('instructors').select('id', { count: 'exact', head: true })
+          : Promise.resolve({ count: 0 } as any),
+        isAdmin
+          ? supabase.from('courses').select('id', { count: 'exact', head: true })
+          : Promise.resolve({ count: 0 } as any),
         (async () => {
           const base: any = await responsesBase();
           if ('count' in base && typeof base.count === 'number' && !('data' in base)) return base;
-          return (base as any).gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+          return (base as any).gte('submitted_at', sevenDaysAgoIso);
         })(),
       ]);
+
+      const completedSurveysCount =
+        (completedStatusRes.count || 0) + (overdueActiveRes.count || 0);
 
       setStats({
         totalSurveys: totalSurveysRes.count || 0,
         activeSurveys: activeSurveysRes.count || 0,
-        completedSurveys: completedSurveysRes.count || 0,
+        completedSurveys: completedSurveysCount,
         totalResponses: totalResponsesRes.count || 0,
         totalInstructors: instructorsRes.count || 0,
         totalCourses: coursesRes.count || 0,

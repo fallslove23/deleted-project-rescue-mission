@@ -59,43 +59,45 @@ const DashboardOverview: React.FC = () => {
   const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      // 공통 헬퍼: 설문 카운트
-      const surveyCount = (extra?: { status?: string }) => {
-        let q = supabase.from('surveys').select('*', { count: 'exact' });
-        if (extra?.status) q = q.eq('status', extra.status);
-        return q;
-      };
+      const surveyCountQuery = () =>
+        supabase.from('surveys').select('id', { count: 'exact', head: true });
 
-      // 응답 카운트
-      const responsesBase = () => {
-        return supabase.from('survey_responses').select('*', { count: 'exact' });
-      };
+      const responsesBase = () =>
+        supabase.from('survey_responses').select('id', { count: 'exact', head: true });
+
+      const nowIso = new Date().toISOString();
+      const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
       const [
         totalSurveysRes,
         activeSurveysRes,
-        completedSurveysRes,
+        completedStatusRes,
+        overdueActiveRes,
         totalResponsesRes,
         instructorsRes,
         coursesRes,
         recentResponsesRes,
       ] = await Promise.all([
-        surveyCount(),
-        surveyCount({ status: 'active' }),
-        surveyCount({ status: 'completed' }),
+        surveyCountQuery(),
+        surveyCountQuery().eq('status', 'active'),
+        surveyCountQuery().eq('status', 'completed'),
+        surveyCountQuery().in('status', ['active', 'public']).lte('end_date', nowIso),
         responsesBase(),
-        supabase.from('user_roles').select('*', { count: 'exact' }).eq('role', 'instructor'),
-        supabase.from('courses').select('*', { count: 'exact' }),
+        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', 'instructor'),
+        supabase.from('courses').select('id', { count: 'exact', head: true }),
         supabase
           .from('survey_responses')
-          .select('*', { count: 'exact' })
-          .gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+          .select('id', { count: 'exact', head: true })
+          .gte('submitted_at', sevenDaysAgoIso),
       ]);
+
+      const completedSurveysCount =
+        (completedStatusRes.count || 0) + (overdueActiveRes.count || 0);
 
       setStats({
         totalSurveys: totalSurveysRes.count || 0,
         activeSurveys: activeSurveysRes.count || 0,
-        completedSurveys: completedSurveysRes.count || 0,
+        completedSurveys: completedSurveysCount,
         totalResponses: totalResponsesRes.count || 0,
         totalInstructors: instructorsRes.count || 0,
         totalCourses: coursesRes.count || 0,
