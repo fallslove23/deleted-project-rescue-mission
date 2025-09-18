@@ -60,42 +60,49 @@ const DashboardOverview: React.FC = () => {
     setLoading(true);
     try {
       // 공통 헬퍼: 설문 카운트
-      const surveyCount = (extra?: { status?: string }) => {
-        let q = supabase.from('surveys').select('*', { count: 'exact' });
-        if (extra?.status) q = q.eq('status', extra.status);
-        return q;
+      const surveyCount = (modifier?: (query: any) => any) => {
+        const baseQuery = supabase.from('surveys').select('id', { count: 'exact', head: true });
+        return modifier ? modifier(baseQuery) : baseQuery;
       };
 
       // 응답 카운트
-      const responsesBase = () => {
-        return supabase.from('survey_responses').select('*', { count: 'exact' });
+      const responsesCount = (modifier?: (query: any) => any) => {
+        const baseQuery = supabase.from('survey_responses').select('id', { count: 'exact', head: true });
+        return modifier ? modifier(baseQuery) : baseQuery;
       };
+
+      const nowIso = new Date().toISOString();
 
       const [
         totalSurveysRes,
-        activeSurveysRes,
-        completedSurveysRes,
+        activeStatusRes,
+        endedActiveRes,
+        completedStatusRes,
         totalResponsesRes,
+        recentResponsesRes,
         instructorsRes,
         coursesRes,
-        recentResponsesRes,
       ] = await Promise.all([
         surveyCount(),
-        surveyCount({ status: 'active' }),
-        surveyCount({ status: 'completed' }),
-        responsesBase(),
-        supabase.from('user_roles').select('*', { count: 'exact' }).eq('role', 'instructor'),
-        supabase.from('courses').select('*', { count: 'exact' }),
-        supabase
-          .from('survey_responses')
-          .select('*', { count: 'exact' })
-          .gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        surveyCount((query: any) => query.in('status', ['active', 'public'])),
+        surveyCount((query: any) => query.in('status', ['active', 'public']).lt('end_date', nowIso)),
+        surveyCount((query: any) => query.eq('status', 'completed')),
+        responsesCount(),
+        responsesCount((query: any) =>
+          query.gte('submitted_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        ),
+        supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', 'instructor'),
+        supabase.from('courses').select('id', { count: 'exact', head: true }),
       ]);
+
+      const endedActiveCount = endedActiveRes.count || 0;
+      const activeCount = Math.max(0, (activeStatusRes.count || 0) - endedActiveCount);
+      const completedCount = (completedStatusRes.count || 0) + endedActiveCount;
 
       setStats({
         totalSurveys: totalSurveysRes.count || 0,
-        activeSurveys: activeSurveysRes.count || 0,
-        completedSurveys: completedSurveysRes.count || 0,
+        activeSurveys: activeCount,
+        completedSurveys: completedCount,
         totalResponses: totalResponsesRes.count || 0,
         totalInstructors: instructorsRes.count || 0,
         totalCourses: coursesRes.count || 0,
