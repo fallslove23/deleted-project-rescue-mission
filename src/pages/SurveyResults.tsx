@@ -623,8 +623,8 @@ const SurveyResults = () => {
     if (selectedYear && selectedYear !== 'all') filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
 
     if (selectedCourse && selectedCourse !== 'all') {
-      // 과정명으로 직접 필터링
-      filtered = filtered.filter((s) => s.course_name === selectedCourse);
+      // 정규화된 과정명을 기준으로 필터링 (분반/조 표기 제거)
+      filtered = filtered.filter((s) => normalizeCourseName(s.course_name) === selectedCourse);
     }
 
     if (canViewAll && selectedInstructor !== 'all') {
@@ -807,9 +807,6 @@ const SurveyResults = () => {
       allAnswers: allAnswers.length
     });
 
-    const currentYear = new Date().getFullYear();
-    const recent = relevantSurveys.filter((s) => s.education_year >= currentYear - 1);
-
     const courseStats: Record<
       string,
       {
@@ -824,15 +821,16 @@ const SurveyResults = () => {
       }
     > = {};
 
-    recent.forEach((survey) => {
-      const key = `${survey.education_year}-${survey.education_round}-${survey.course_name}`;
+    relevantSurveys.forEach((survey) => {
+      const normalizedCourseName = normalizeCourseName(survey.course_name);
+      const key = `${survey.education_year}-${survey.education_round}-${normalizedCourseName}`;
       if (!courseStats[key]) {
         courseStats[key] = {
           surveys: [],
           responses: 0,
           year: survey.education_year,
           round: survey.education_round,
-          course_name: survey.course_name || '',
+          course_name: normalizedCourseName || '',
           instructorSatisfaction: 0,
           subjectSatisfaction: 0,
           operationSatisfaction: 0,
