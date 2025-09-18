@@ -1039,7 +1039,7 @@ const SurveyDetailedAnalysis = () => {
                                     <XAxis dataKey="name" />
                                     <YAxis />
                                     <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                    <Bar dataKey="value" fill="#3b82f6" />
+                                    <Bar dataKey="value" fill="hsl(var(--chart-1))" />
                                   </RechartsBarChart>
                                 </ResponsiveContainer>
                               </div>
@@ -1056,7 +1056,7 @@ const SurveyDetailedAnalysis = () => {
                                     labelLine={false}
                                     label={({ name, percentage }) => `${name} (${percentage}%)`}
                                     outerRadius={80}
-                                    fill="#8884d8"
+                                    fill="hsl(var(--chart-1))"
                                     dataKey="value"
                                   >
                                     {analysis.chartData.map((entry, index) => (
