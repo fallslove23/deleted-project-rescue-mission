@@ -154,7 +154,7 @@ const Index = () => {
     setSurveys(filtered);
   };
 
-  const getStatusBadge = (status: string, endDate?: string) => {
+  const getStatusBadge = (status: string, endDate?: string | null): JSX.Element => {
     // 종료 날짜가 있고 현재 시간이 종료 날짜를 지났으면 "완료"로 표시
     if (endDate) {
       const now = new Date();
