@@ -184,11 +184,16 @@ const DashboardCourseReports = () => {
 
   // 강사별 만족도 데이터 (실제 데이터 연동)
   const instructorSatisfactionData = instructorStats.map(stat => ({
+    id: stat.instructor_id,
     name: stat.instructor_name,
     satisfaction: safeToFixed(stat.avg_satisfaction),
     responses: stat.response_count,
     surveys: stat.survey_count
   })).sort((a, b) => b.satisfaction - a.satisfaction);
+
+  const selectedInstructorName = selectedInstructor
+    ? instructorStats.find(stat => stat.instructor_id === selectedInstructor)?.instructor_name || ''
+    : '';
 
   // 만족도 분포 데이터 (실제 데이터 기반)
   const satisfactionDistribution = [
@@ -487,17 +492,18 @@ const DashboardCourseReports = () => {
             {/* 강사별 만족도 현황 */}
             {instructorSatisfactionData.length > 0 && (() => {
               // 강사 필터가 있을 때는 해당 강사만, 없을 때는 전체 강사 표시
-              const filteredData = selectedInstructor 
-                ? instructorSatisfactionData.filter(item => item.name.includes(selectedInstructor) || item.name === selectedInstructor)
+              const filteredData = selectedInstructor
+                ? instructorSatisfactionData.filter(item => item.id === selectedInstructor)
                 : instructorSatisfactionData;
               
               // 이전 기간 데이터와 매핑하여 차트 데이터 구성
               const chartData = filteredData.map(item => {
-                const previousItem = previousInstructorStats.find(prev => 
-                  prev.instructor_name === item.name
+                const previousItem = previousInstructorStats.find(prev =>
+                  prev.instructor_id === item.id || prev.instructor_name === item.name
                 );
-                
+
                 return {
+                  id: item.id,
                   name: item.name,
                   만족도: Math.min(Math.max(Number(item.satisfaction.toFixed(1)), 0), 10),
                   이전만족도: previousItem ? Math.min(Math.max(Number(previousItem.avg_satisfaction.toFixed(1)), 0), 10) : null,
@@ -558,11 +564,11 @@ const DashboardCourseReports = () => {
                         </div>
                       )}
                       <div className="text-xs text-muted-foreground">
-                        {selectedInstructor ? `선택된 강사: ${selectedInstructor}` : '전체 강사 표시'}
+                        {selectedInstructor ? `선택된 강사: ${selectedInstructorName || selectedInstructor}` : '전체 강사 표시'}
                         {previousAverage && ` | 비교 기준: ${selectedCourse && selectedRound ? '이전 회차' : '전년도'}`}
                       </div>
                     </div>
-                    
+
                     <ResponsiveContainer width="100%" height={400}>
                       <ComposedChart 
                         data={chartData}
@@ -584,7 +590,7 @@ const DashboardCourseReports = () => {
                           fontSize={12}
                           tickCount={5}
                         />
-                         <Tooltip 
+                         <Tooltip
                           contentStyle={{
                             backgroundColor: 'hsl(var(--card))',
                             border: '1px solid hsl(var(--border))',
@@ -595,34 +601,25 @@ const DashboardCourseReports = () => {
                            formatter={(value, name, props) => {
                             const data = props.payload;
                             if (!data) return null;
-                            
+
                             return [
                               <div key="tooltip" className="space-y-1">
                                 <div className="font-semibold text-primary border-b pb-1 mb-2">
                                   <strong>강사명:</strong> {data.name}
                                 </div>
-                                <div>
-                                  <strong>과목명:</strong> {selectedCourse || '전체'}
-                                </div>
                                 <div className="text-lg font-bold text-primary bg-primary/10 px-2 py-1 rounded">
-                                  <strong>종합 만족도:</strong> {data.만족도}점
+                                  <strong>평균 만족도:</strong> {data.만족도}점
                                 </div>
-                                <div>
-                                  <strong>과목 만족도:</strong> {data.만족도}점
-                                </div>
-                                <div>
-                                  <strong>강사 만족도:</strong> {data.만족도}점
-                                </div>
-                                {data.이전만족도 && (
+                                {data.이전만족도 != null && (
                                   <div className="pt-2 border-t">
                                     <div>
                                       <strong>이전 만족도:</strong> {data.이전만족도}점
                                     </div>
                                     <div className={`font-medium ${
-                                      data.변화 > 0 ? 'text-green-600' : 
+                                      data.변화 > 0 ? 'text-green-600' :
                                       data.변화 < 0 ? 'text-red-600' : 'text-gray-600'
                                     }`}>
-                                      <strong>변화:</strong> {data.변화 > 0 ? '+' : ''}{data.변화}점 
+                                      <strong>변화:</strong> {data.변화 > 0 ? '+' : ''}{data.변화}점
                                       {data.변화 > 0 ? '↗' : data.변화 < 0 ? '↘' : '→'}
                                     </div>
                                   </div>
