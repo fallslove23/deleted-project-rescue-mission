@@ -97,7 +97,14 @@ const SurveyDetailedAnalysis = () => {
   const [savingComment, setSavingComment] = useState(false);
   const { toast } = useToast();
 
-  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
+  // Design system chart colors
+  const COLORS = [
+    'hsl(var(--chart-1))', // Purple
+    'hsl(var(--chart-2))', // Light purple
+    'hsl(var(--chart-3))', // Violet
+    'hsl(var(--chart-4))', // Blue purple
+    'hsl(var(--chart-5))'  // Pink purple
+  ];
 
   useEffect(() => {
     if (surveyId) {
@@ -203,69 +210,61 @@ const SurveyDetailedAnalysis = () => {
     if (!surveyId) return;
     
     try {
-      // 현재 설문 정보 가져오기
-      const { data: currentSurvey } = await supabase
-        .from('surveys')
-        .select('education_year, education_round, education_day, course_name, instructor_id')
-        .eq('id', surveyId)
-        .single();
+      // 현재 설문에서 세션들을 가져오기
+      const { data: sessions, error } = await supabase
+        .from('survey_sessions')
+        .select(`
+          id,
+          session_name,
+          session_order,
+          survey_id,
+          course_id,
+          instructor_id,
+          courses (
+            id,
+            title
+          ),
+          instructors (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq('survey_id', surveyId)
+        .order('session_order');
       
-      if (currentSurvey) {
-        // 같은 일차의 모든 과목 설문들 가져오기
-        const { data: sameDaySurveys, error } = await supabase
-          .from('surveys')
-          .select(`
-            id, 
-            title, 
-            course_name, 
-            education_day, 
-            instructor_id,
-            status,
-            instructors (
-              id,
-              name,
-              email
-            )
-          `)
-          .eq('education_year', currentSurvey.education_year)
-          .eq('education_round', currentSurvey.education_round)
-          .eq('education_day', currentSurvey.education_day)
-          .order('course_name');
-        
-        if (error) throw error;
-        
-        // 강사 권한 체크 및 필터링
-        const filteredSurveys = (userRoles.includes('instructor') && currentSurvey?.instructor_id)
-          ? sameDaySurveys?.filter((s: any) => s.instructor_id === currentSurvey.instructor_id)
-          : sameDaySurveys;
-
-        // 세션 정보 구성
-        const sessions = filteredSurveys?.map((survey: any) => {
-          // 과목명에서 실제 과목명 추출 (예: "2024-1차 - 치주학" → "치주학")
-          let extractedCourseName = survey.course_name || survey.title;
-          if (survey.course_name) {
-            const match = survey.course_name.match(/.*?-\s*(.+)$/);
-            if (match) {
-              extractedCourseName = match[1].trim();
-            }
-          }
+      if (error) throw error;
+      
+      // 강사 권한 체크 및 필터링
+      let filteredSessions = sessions || [];
+      if (userRoles.includes('instructor')) {
+        // 현재 로그인한 사용자의 강사 ID 찾기
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('instructor_id')
+          .eq('id', user?.id)
+          .single();
           
-          return {
-            id: survey.id,
-            title: survey.title,
-            course_name: survey.course_name || '',
-            session_name: extractedCourseName,
-            education_day: survey.education_day,
-            instructor_name: survey.instructors?.name || '강사 정보 없음',
-            instructor_id: survey.instructor_id,
-            instructor_email: survey.instructors?.email || '',
-            status: survey.status
-          };
-        }) || [];
-        
-        console.log('Fetched course sessions:', sessions);
-        setCourseSessions(sessions);
+        if (profile?.instructor_id) {
+          filteredSessions = sessions?.filter((s: any) => s.instructor_id === profile.instructor_id) || [];
+        }
       }
+
+      // 세션 정보 구성
+      const courseSessions = filteredSessions.map((session: any) => ({
+        id: session.id,
+        title: session.courses?.title || session.session_name || '과목명 없음',
+        course_name: session.courses?.title || session.session_name || '',
+        session_name: session.session_name || session.courses?.title || '과목명 없음',
+        education_day: 1, // survey_sessions 테이블에는 education_day가 없으므로 기본값
+        instructor_name: session.instructors?.name || '강사 정보 없음',
+        instructor_id: session.instructor_id,
+        instructor_email: session.instructors?.email || '',
+        status: 'active' // survey_sessions 테이블에는 status가 없으므로 기본값
+      }));
+      
+      console.log('Fetched course sessions:', courseSessions);
+      setCourseSessions(courseSessions);
     } catch (error) {
       console.error('Error fetching course sessions:', error);
       setCourseSessions([]);
@@ -894,7 +893,7 @@ const SurveyDetailedAnalysis = () => {
                                 <XAxis dataKey="name" />
                                 <YAxis />
                                 <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                <Bar dataKey="value" fill="#3b82f6" />
+                                <Bar dataKey="value" fill="hsl(var(--chart-1))" />
                               </RechartsBarChart>
                             </ResponsiveContainer>
                           </div>
@@ -911,7 +910,7 @@ const SurveyDetailedAnalysis = () => {
                                 labelLine={false}
                                 label={({ name, percentage }) => `${name} (${percentage}%)`}
                                 outerRadius={80}
-                                fill="#8884d8"
+                                fill="hsl(var(--chart-1))"
                                 dataKey="value"
                               >
                                 {analysis.chartData.map((entry, index) => (
