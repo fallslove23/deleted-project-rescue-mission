@@ -57,6 +57,12 @@ interface Profile {
   instructor_id: string;
 }
 
+const normalizeCourseName = (courseName?: string | null) => {
+  if (!courseName) return null;
+  const match = courseName.match(/.*?-\s*(.+)$/);
+  return match ? match[1].trim() : courseName.trim();
+};
+
 const PersonalDashboard: FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,6 +77,7 @@ const PersonalDashboard: FC = () => {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [allSurveys, setAllSurveys] = useState<Survey[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
@@ -166,10 +173,6 @@ const PersonalDashboard: FC = () => {
       if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
         surveyQuery = surveyQuery.eq('education_round', parseInt(selectedRound));
       }
-      if (selectedCourse && selectedCourse !== 'all') {
-        surveyQuery = surveyQuery.ilike('course_name', `%${selectedCourse}%`);
-      }
-
       const { data: surveysData, error: surveysError } = await surveyQuery
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
@@ -178,9 +181,15 @@ const PersonalDashboard: FC = () => {
 
       if (surveysError) throw surveysError;
 
+      setAllSurveys(surveysData || []);
+
       let filteredSurveys = surveysData || [];
 
-      setSurveys(filteredSurveys);
+      if (selectedCourse && selectedCourse !== 'all') {
+        filteredSurveys = filteredSurveys.filter(
+          survey => normalizeCourseName(survey.course_name) === selectedCourse
+        );
+      }
 
       // 최신 회차 필터링
       if (selectedRound === 'latest' && filteredSurveys.length > 0) {
@@ -264,31 +273,44 @@ const PersonalDashboard: FC = () => {
   }, [profile, canViewPersonalStats, fetchData, selectedPeriod, selectedYear, selectedRound, selectedCourse]);
 
   /* ─────────────────────────────────── Derivations ─────────────────────────────────── */
+  const getBaseSurveysForOptions = () => {
+    let baseSurveys = allSurveys;
+
+    if (selectedYear && selectedYear !== 'all') {
+      baseSurveys = baseSurveys.filter(s => s.education_year.toString() === selectedYear);
+    }
+
+    if (selectedRound && selectedRound !== 'all') {
+      if (selectedRound === 'latest' && baseSurveys.length > 0) {
+        const latestYear = Math.max(...baseSurveys.map(s => s.education_year));
+        const latestYearSurveys = baseSurveys.filter(s => s.education_year === latestYear);
+        const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
+        baseSurveys = baseSurveys.filter(
+          s => s.education_year === latestYear && s.education_round === latestRound
+        );
+      } else if (selectedRound !== 'latest') {
+        baseSurveys = baseSurveys.filter(s => s.education_round.toString() === selectedRound);
+      }
+    }
+
+    return baseSurveys;
+  };
+
   const getUniqueYears = () => {
-    const years = [...new Set(surveys.map(s => s.education_year))];
+    const years = [...new Set(allSurveys.map(s => s.education_year))];
     return years.sort((a, b) => b - a);
   };
 
   const getUniqueRounds = () => {
-    let filteredSurveys = surveys;
-    if (selectedYear && selectedYear !== 'all') {
-      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
-    }
-    const rounds = [...new Set(filteredSurveys.map(s => s.education_round))];
+    const baseSurveys = getBaseSurveysForOptions();
+    const rounds = [...new Set(baseSurveys.map(s => s.education_round))];
     return rounds.sort((a, b) => a - b);
   };
 
   const getUniqueCourses = () => {
-    let filtered = surveys;
-    if (selectedYear && selectedYear !== 'all') {
-      filtered = surveys.filter(s => s.education_year.toString() === selectedYear);
-    }
-    const courses = filtered
-      .map(survey => {
-        if (!survey.course_name) return null;
-        const match = survey.course_name.match(/.*?-\s*(.+)$/);
-        return match ? match[1].trim() : survey.course_name;
-      })
+    const baseSurveys = getBaseSurveysForOptions();
+    const courses = baseSurveys
+      .map(survey => normalizeCourseName(survey.course_name))
       .filter((course, index, self) => course && self.indexOf(course) === index)
       .sort();
     return courses as string[];
@@ -305,12 +327,9 @@ const PersonalDashboard: FC = () => {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
     }
     if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(survey => {
-        if (!survey.course_name) return false;
-        const match = survey.course_name.match(/.*?-\s*(.+)$/);
-        const courseType = match ? match[1].trim() : survey.course_name;
-        return courseType === selectedCourse;
-      });
+      filteredSurveys = filteredSurveys.filter(
+        survey => normalizeCourseName(survey.course_name) === selectedCourse
+      );
     }
     if (selectedRound === 'latest' && filteredSurveys.length > 0) {
       const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
@@ -327,9 +346,10 @@ const PersonalDashboard: FC = () => {
         
         // Add course to track course diversity
         if (survey.course_name) {
-          const match = survey.course_name.match(/.*?-\s*(.+)$/);
-          const courseType = match ? match[1].trim() : survey.course_name;
-          roundData[roundKey].courses.add(courseType);
+          const courseType = normalizeCourseName(survey.course_name);
+          if (courseType) {
+            roundData[roundKey].courses.add(courseType);
+          }
         }
         
         const surveyResponses = responses.filter(r => r.survey_id === survey.id);
@@ -384,10 +404,9 @@ const PersonalDashboard: FC = () => {
     const courseData: Record<string, { total: number; count: number; responses: number; surveys: number }> = {};
 
     filteredSurveys.forEach(survey => {
-      if (!survey.course_name) return;
-      const match = survey.course_name.match(/.*?-\s*(.+)$/);
-      const courseType = match ? match[1].trim() : survey.course_name;
-      
+      const courseType = normalizeCourseName(survey.course_name);
+      if (!courseType) return;
+
       if (!courseData[courseType]) {
         courseData[courseType] = { total: 0, count: 0, responses: 0, surveys: 0 };
       }
@@ -431,7 +450,9 @@ const PersonalDashboard: FC = () => {
       filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
     }
     if (selectedCourse && selectedCourse !== 'all') {
-      filtered = filtered.filter(s => s.course_name === selectedCourse);
+      filtered = filtered.filter(
+        s => normalizeCourseName(s.course_name) === selectedCourse
+      );
     }
     if (selectedRound === 'latest' && filtered.length > 0) {
       const latestYear = Math.max(...filtered.map(s => s.education_year));
@@ -474,7 +495,9 @@ const PersonalDashboard: FC = () => {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
     }
     if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(s => s.course_name === selectedCourse);
+      filteredSurveys = filteredSurveys.filter(
+        s => normalizeCourseName(s.course_name) === selectedCourse
+      );
     }
     if (selectedRound === 'latest' && filteredSurveys.length > 0) {
       const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
@@ -521,12 +544,9 @@ const PersonalDashboard: FC = () => {
       filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
     }
     if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(survey => {
-        if (!survey.course_name) return false;
-        const match = survey.course_name.match(/.*?-\s*(.+)$/);
-        const courseType = match ? match[1].trim() : survey.course_name;
-        return courseType === selectedCourse;
-      });
+      filteredSurveys = filteredSurveys.filter(
+        survey => normalizeCourseName(survey.course_name) === selectedCourse
+      );
     }
     if (selectedRound === 'latest' && filteredSurveys.length > 0) {
       const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
@@ -538,10 +558,9 @@ const PersonalDashboard: FC = () => {
     const subjectMap = new Map();
     
     filteredSurveys.forEach(survey => {
-      const courseName = survey.course_name || survey.title;
-      const match = courseName.match(/.*?-\s*(.+)$/);
-      const courseType = match ? match[1].trim() : courseName;
-      
+      const rawCourseName = survey.course_name || survey.title;
+      const courseType = normalizeCourseName(rawCourseName) || rawCourseName;
+
       const key = `${courseType}`;
       if (!subjectMap.has(key)) {
         subjectMap.set(key, {
