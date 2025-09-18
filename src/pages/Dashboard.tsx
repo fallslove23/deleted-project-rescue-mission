@@ -144,7 +144,7 @@ const Dashboard = () => {
         completedSurveysRes,
         totalResponsesRes,
         instructorsRes,
-        coursesRes,
+        programsRes,
         recentResponsesRes,
       ] = await Promise.all([
         surveyCount(),
@@ -152,7 +152,9 @@ const Dashboard = () => {
         surveyCount({ status: 'completed' }),
         responsesBase(),
         isAdmin ? supabase.from('instructors').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
-        isAdmin ? supabase.from('courses').select('*', { count: 'exact' }) : Promise.resolve({ count: 0 } as any),
+        isAdmin
+          ? supabase.from('programs').select('id', { count: 'exact', head: true })
+          : Promise.resolve({ count: 0 } as any),
         (async () => {
           const base: any = await responsesBase();
           if ('count' in base && typeof base.count === 'number' && !('data' in base)) return base;
@@ -166,7 +168,7 @@ const Dashboard = () => {
         completedSurveys: completedSurveysRes.count || 0,
         totalResponses: totalResponsesRes.count || 0,
         totalInstructors: instructorsRes.count || 0,
-        totalCourses: coursesRes.count || 0,
+        totalCourses: programsRes.count || 0,
         recentResponsesCount: recentResponsesRes.count || 0,
       });
     } catch (error) {
