@@ -154,7 +154,16 @@ const Index = () => {
     setSurveys(filtered);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, endDate?: string) => {
+    // 종료 날짜가 있고 현재 시간이 종료 날짜를 지났으면 "완료"로 표시
+    if (endDate) {
+      const now = new Date();
+      const end = new Date(endDate);
+      if (now > end) {
+        return <Badge variant="secondary" className="font-sans">완료됨</Badge>;
+      }
+    }
+    
     switch (status) {
       case 'active':
         return <Badge variant="default" className="font-sans">진행중</Badge>;
@@ -403,7 +412,7 @@ const Index = () => {
                           <CardHeader>
                             <div className="flex items-start justify-between">
                               <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
-                              {getStatusBadge(survey.status)}
+                              {getStatusBadge(survey.status, survey.end_date)}
                             </div>
                             {survey.description && (
                               <CardDescription className="font-sans">{survey.description}</CardDescription>
