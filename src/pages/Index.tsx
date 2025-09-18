@@ -154,12 +154,41 @@ const Index = () => {
     setSurveys(filtered);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getSurveyDisplayStatus = (survey: Survey) => {
+    const now = new Date();
+
+    const parseDate = (value?: string) => {
+      if (!value) return null;
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const startDate = parseDate(survey.start_date);
+    const endDate = parseDate(survey.end_date);
+
+    if (endDate && endDate < now) {
+      return 'completed';
+    }
+
+    if (startDate && startDate > now) {
+      return 'upcoming';
+    }
+
+    if (survey.status === 'public') {
+      return 'active';
+    }
+
+    return survey.status;
+  };
+
+  const getStatusBadge = (survey: Survey) => {
+    switch (getSurveyDisplayStatus(survey)) {
       case 'active':
         return <Badge variant="default" className="font-sans">진행중</Badge>;
       case 'completed':
         return <Badge variant="secondary" className="font-sans">완료</Badge>;
+      case 'upcoming':
+        return <Badge variant="outline" className="font-sans">진행예정</Badge>;
       default:
         return <Badge variant="outline" className="font-sans">준비중</Badge>;
     }
@@ -403,7 +432,7 @@ const Index = () => {
                           <CardHeader>
                             <div className="flex items-start justify-between">
                               <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
-                              {getStatusBadge(survey.status)}
+                              {getStatusBadge(survey)}
                             </div>
                             {survey.description && (
                               <CardDescription className="font-sans">{survey.description}</CardDescription>
