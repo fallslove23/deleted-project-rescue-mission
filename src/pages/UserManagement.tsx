@@ -23,7 +23,7 @@ const UserManagement = () => {
   const { toast } = useToast();
   
   const {
-    users,
+    users: filteredUsers,
     pagination,
     goToPage,
     setPageSize,
@@ -145,8 +145,14 @@ const UserManagement = () => {
               </CardContent>
             </Card>
           ))
+        ) : !loading && filteredUsers.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center text-muted-foreground">
+              표시할 사용자가 없습니다.
+            </CardContent>
+          </Card>
         ) : (
-          users.map((user) => {
+          filteredUsers.map((user) => {
             const instructor = getUserInstructor(user.id);
             const roles = userRoles[user.id] || [];
 
