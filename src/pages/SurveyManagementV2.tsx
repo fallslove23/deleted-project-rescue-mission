@@ -258,16 +258,26 @@ export default function SurveyManagementV2() {
   const searchRef = useRef<HTMLInputElement>(null);
   const debounceTimer = useRef<number | null>(null);
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const allChecked = useMemo(() => surveys.length > 0 && surveys.every((s) => selected.has(s.id)), [surveys, selected]);
-  const selectedSurveys = useMemo(() => surveys.filter((s) => selected.has(s.id)), [surveys, selected]);
+  type SelectedSurveyMeta = {
+    status: SurveyListItem["status"];
+  };
+
+  const isActiveStatus = (status: SurveyListItem["status"] | null | undefined) =>
+    status === "active" || status === "public";
+
+  const [selected, setSelected] = useState<Map<string, SelectedSurveyMeta>>(new Map());
+  const allChecked = useMemo(
+    () => surveys.length > 0 && surveys.every((s) => selected.has(s.id)),
+    [surveys, selected]
+  );
+  const selectedMeta = useMemo(() => Array.from(selected.values()), [selected]);
   const activeSelectedCount = useMemo(
-    () => selectedSurveys.filter((s) => s.status === 'active').length,
-    [selectedSurveys]
+    () => selectedMeta.filter((s) => isActiveStatus(s.status)).length,
+    [selectedMeta]
   );
   const inactiveSelectedCount = useMemo(
-    () => selectedSurveys.length - activeSelectedCount,
-    [selectedSurveys, activeSelectedCount]
+    () => selectedMeta.length - activeSelectedCount,
+    [selectedMeta, activeSelectedCount]
   );
   const bulkStatusIsDeactivate = activeSelectedCount > inactiveSelectedCount;
   const bulkStatusLabel = bulkStatusIsDeactivate ? '일괄 비활성화' : '일괄 활성화';
@@ -392,6 +402,23 @@ export default function SurveyManagementV2() {
     }
   }, [selected, mobileActionsOpen]);
 
+  useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      let changed = false;
+      const next = new Map(prev);
+      surveys.forEach((survey) => {
+        if (!prev.has(survey.id)) return;
+        const prevMeta = prev.get(survey.id);
+        if (prevMeta?.status !== survey.status) {
+          next.set(survey.id, { status: survey.status });
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [surveys]);
+
   const formatSafeDate = (iso: string | null): string => {
     if (!iso) return "미설정";
     try {
@@ -430,26 +457,38 @@ export default function SurveyManagementV2() {
     const v = value === "all" ? null : key === "year" ? (value ? parseInt(value) : null) : (value as any);
     setFilters((prev) => ({ ...prev, [key]: v }));
     setCurrentPage(1);
-    setSelected(new Set());
+    setSelected(new Map());
   };
 
   const toggleAll = () => {
-    if (allChecked) setSelected(new Set());
-    else setSelected(new Set(surveys.map((s) => s.id)));
+    if (allChecked) {
+      setSelected(new Map());
+    } else {
+      setSelected(() => {
+        const next = new Map<string, SelectedSurveyMeta>();
+        surveys.forEach((survey) => {
+          next.set(survey.id, { status: survey.status });
+        });
+        return next;
+      });
+    }
   };
-  const toggleOne = (id: string) => {
-    const s = new Set(selected);
-    s.has(id) ? s.delete(id) : s.add(id);
-    setSelected(s);
+  const toggleOne = (survey: SurveyListItem) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(survey.id)) next.delete(survey.id);
+      else next.set(survey.id, { status: survey.status });
+      return next;
+    });
   };
-  const handleClearSelection = () => setSelected(new Set());
+  const handleClearSelection = () => setSelected(new Map());
   const handleBulkStatusAction = async () => {
     if (!selected.size) return;
     const newStatus = bulkStatusIsDeactivate ? 'draft' : 'active';
-    await handleBulkStatusChange(Array.from(selected), newStatus);
+    await handleBulkStatusChange(Array.from(selected.keys()), newStatus);
   };
   const handleBulkDelete = () => {
-    setDeletingSurveyId(Array.from(selected).join(','));
+    setDeletingSurveyId(Array.from(selected.keys()).join(','));
     setDeleteOpen(true);
   };
 
@@ -458,7 +497,7 @@ export default function SurveyManagementV2() {
     downloadCsv(res.data);
   };
   const exportCsvSelected = async () => {
-    const rows = await SurveysRepository.fetchByIds(Array.from(selected));
+    const rows = await SurveysRepository.fetchByIds(Array.from(selected.keys()));
     downloadCsv(rows);
   };
   const downloadCsv = (rows: SurveyListItem[]) => {
@@ -550,7 +589,7 @@ export default function SurveyManagementV2() {
       
       setDeleteOpen(false);
       setDeletingSurveyId(null);
-      setSelected(new Set()); // 선택 해제
+      setSelected(new Map()); // 선택 해제
       loadData();
     } catch (error) {
       console.error('Error deleting survey:', error);
@@ -613,7 +652,7 @@ export default function SurveyManagementV2() {
         description: `${surveyIds.length}개 설문이 ${newStatus === 'active' ? '활성화' : '비활성화'}되었습니다.`
       });
       
-      setSelected(new Set());
+      setSelected(new Map());
       loadData();
     } catch (error) {
       console.error('Error bulk updating survey status:', error);
@@ -983,7 +1022,7 @@ export default function SurveyManagementV2() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => toggleOne(survey.id)}
+                    onClick={() => toggleOne(survey)}
                     className="h-8 w-8 p-0 flex-shrink-0"
                   >
                     <CheckSquare className={`h-4 w-4 ${selected.has(survey.id) ? 'text-primary' : 'text-muted-foreground'}`} />
