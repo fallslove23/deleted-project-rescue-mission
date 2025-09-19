@@ -89,6 +89,11 @@ const parseScore = (val: any): number | null => {
   }
 };
 
+const normalizeInstructorId = (id: string | number | null | undefined) => {
+  if (id === null || id === undefined) return null;
+  return String(id);
+};
+
 export const useCourseReportsData = (
   selectedYear: number, 
   selectedCourse: string, 
@@ -246,7 +251,8 @@ export const useCourseReportsData = (
           ),
           survey_sessions!survey_sessions_survey_id_fkey (
             id,
-            instructor_id
+            instructor_id,
+            instructors (id, name)
           ),
           survey_responses (
             id,
@@ -304,18 +310,24 @@ export const useCourseReportsData = (
       console.log('Total surveys before filtering:', surveys?.length || 0);
 
       // 정규화된 과정명으로 클라이언트 측 필터링 (분반/조 통합)
+      const selectedInstructorId = normalizeInstructorId(selectedInstructor);
+
       const filteredSurveys = (surveys || []).filter((s: any) => {
         // 과정명 필터
         if (selectedCourse && normalizeCourseName(s.course_name) !== normalizeCourseName(selectedCourse)) {
           return false;
         }
-        
+
         // 강사 필터 (클라이언트에서 안전하게 처리)
-        if (selectedInstructor) {
-          const hasMainInstructor = s.instructor_id === selectedInstructor;
-          const hasMultiInstructor = s.survey_instructors?.some((si: any) => si.instructor_id === selectedInstructor);
-          const hasSessionInstructor = s.survey_sessions?.some((ss: any) => ss.instructor_id === selectedInstructor);
-          
+        if (selectedInstructorId) {
+          const hasMainInstructor = normalizeInstructorId(s.instructor_id) === selectedInstructorId;
+          const hasMultiInstructor = s.survey_instructors?.some((si: any) =>
+            normalizeInstructorId(si.instructor_id ?? si.instructors?.id) === selectedInstructorId
+          );
+          const hasSessionInstructor = s.survey_sessions?.some((ss: any) =>
+            normalizeInstructorId(ss.instructor_id) === selectedInstructorId
+          );
+
           if (!hasMainInstructor && !hasMultiInstructor && !hasSessionInstructor) {
             return false;
           }
@@ -355,21 +367,22 @@ export const useCourseReportsData = (
           return (survey as any).course_name || '강사 정보 없음';
         })();
 
-        const resolveInstructorName = (id?: string | null) => {
+        const resolveInstructorName = (rawId?: string | number | null) => {
+          const id = normalizeInstructorId(rawId);
           if (!id) return null;
           if (instructorNameMap.has(id)) {
             return instructorNameMap.get(id) ?? null;
           }
 
           const fromMulti = (survey as any).survey_instructors?.find(
-            (si: any) => (si.instructor_id ?? si.instructors?.id) === id
+            (si: any) => normalizeInstructorId(si.instructor_id ?? si.instructors?.id) === id
           )?.instructors?.name;
           if (fromMulti) {
             instructorNameMap.set(id, fromMulti);
             return fromMulti;
           }
 
-          if ((survey as any).instructors?.id === id && (survey as any).instructors?.name) {
+          if (normalizeInstructorId((survey as any).instructors?.id) === id && (survey as any).instructors?.name) {
             instructorNameMap.set(id, (survey as any).instructors.name);
             return (survey as any).instructors.name;
           }
@@ -377,10 +390,11 @@ export const useCourseReportsData = (
           return null;
         };
 
-        const ensureInstructorEntry = (id?: string | null, name?: string | null) => {
+        const ensureInstructorEntry = (rawId?: string | number | null, name?: string | null) => {
+          const id = normalizeInstructorId(rawId);
           if (!id) return;
           const existingName = instructorNameMap.get(id);
-          const fallbackName = survey.instructor_id === id ? mainInstructorName : undefined;
+          const fallbackName = normalizeInstructorId(survey.instructor_id) === id ? mainInstructorName : undefined;
           const resolvedName = name ?? existingName ?? resolveInstructorName(id) ?? fallbackName ?? '강사 정보 없음';
 
           if (!existingName || existingName === '강사 정보 없음') {
@@ -406,14 +420,15 @@ export const useCourseReportsData = (
         };
 
         if (survey.instructors?.id) {
-          if (survey.instructors.name) {
-            instructorNameMap.set(survey.instructors.id, survey.instructors.name);
+          const normalized = normalizeInstructorId(survey.instructors.id);
+          if (normalized && survey.instructors.name) {
+            instructorNameMap.set(normalized, survey.instructors.name);
           }
         }
 
         if (survey.survey_instructors && Array.isArray(survey.survey_instructors)) {
           survey.survey_instructors.forEach((si: any) => {
-            const relatedId = si.instructor_id ?? si.instructors?.id;
+            const relatedId = normalizeInstructorId(si.instructor_id ?? si.instructors?.id);
             const relatedName = si.instructors?.name ?? null;
             ensureInstructorEntry(relatedId, relatedName);
           });
@@ -426,15 +441,22 @@ export const useCourseReportsData = (
             if (!session?.id || !session?.instructor_id) return;
 
             const sessionInstructorName =
-              instructorNameMap.get(session.instructor_id) ??
+              session?.instructors?.name ??
+              instructorNameMap.get(normalizeInstructorId(session.instructor_id) ?? '') ??
               resolveInstructorName(session.instructor_id) ??
-              (survey.instructors?.id === session.instructor_id ? survey.instructors?.name : null);
+              (normalizeInstructorId(survey.instructors?.id) === normalizeInstructorId(session.instructor_id)
+                ? survey.instructors?.name
+                : null);
 
             ensureInstructorEntry(session.instructor_id, sessionInstructorName);
 
             sessionInstructorMap.set(session.id, {
-              instructorId: session.instructor_id,
-              instructorName: instructorNameMap.get(session.instructor_id) ?? sessionInstructorName ?? '강사 정보 없음',
+              instructorId: normalizeInstructorId(session.instructor_id)!,
+              instructorName:
+                session?.instructors?.name ??
+                instructorNameMap.get(normalizeInstructorId(session.instructor_id) ?? '') ??
+                sessionInstructorName ??
+                '강사 정보 없음',
             });
           });
         }
@@ -479,20 +501,23 @@ export const useCourseReportsData = (
 
                 const answerInstructorId = (answer as any)?.instructor_id as string | undefined;
                 if (answerInstructorId) {
-                  ensureInstructorEntry(answerInstructorId, instructorNameMap.get(answerInstructorId));
-                  targetInstructorIds.push(answerInstructorId);
+                  const normalizedAnswerInstructorId = normalizeInstructorId(answerInstructorId);
+                  if (normalizedAnswerInstructorId) {
+                    ensureInstructorEntry(normalizedAnswerInstructorId, instructorNameMap.get(normalizedAnswerInstructorId));
+                    targetInstructorIds.push(normalizedAnswerInstructorId);
+                  }
                 }
 
                 const uniqueTargetInstructorIds = Array.from(new Set(targetInstructorIds.filter(Boolean)));
 
-                if (selectedInstructor) {
+                if (selectedInstructorId) {
                   if (uniqueTargetInstructorIds.length === 0) {
-                    if (surveyInstructorIds.has(selectedInstructor)) {
-                      uniqueTargetInstructorIds.push(selectedInstructor);
+                    if (surveyInstructorIds.has(selectedInstructorId)) {
+                      uniqueTargetInstructorIds.push(selectedInstructorId);
                     } else {
                       return;
                     }
-                  } else if (!uniqueTargetInstructorIds.includes(selectedInstructor)) {
+                  } else if (!uniqueTargetInstructorIds.includes(selectedInstructorId)) {
                     return;
                   }
                 } else if (uniqueTargetInstructorIds.length === 0 && surveyInstructorIds.size === 1) {
