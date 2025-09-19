@@ -6,16 +6,24 @@ interface MobileOptimizedContainerProps {
   className?: string
   enableScroll?: boolean
   safeArea?: boolean
+  contentClassName?: string
 }
 
-export function MobileOptimizedContainer({ 
-  children, 
+export function MobileOptimizedContainer({
+  children,
   className,
   enableScroll = true,
-  safeArea = true
+  safeArea = true,
+  contentClassName
 }: MobileOptimizedContainerProps) {
+  const content = contentClassName ? (
+    <div className={contentClassName}>{children}</div>
+  ) : (
+    children
+  )
+
   return (
-    <div 
+    <div
       className={cn(
         "w-full h-full",
         enableScroll && "touch-scroll mobile-scroll",
@@ -23,7 +31,7 @@ export function MobileOptimizedContainer({
         className
       )}
     >
-      {children}
+      {content}
     </div>
   )
 }

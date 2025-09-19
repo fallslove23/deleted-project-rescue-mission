@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Menu, Clock, Calendar, Users, BarChart, TrendingUp, BookOpen, FileText, Filter } from 'lucide-react';
@@ -50,6 +50,7 @@ const Index = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'all'>('today'); // 기본값: 오늘
   const [loading, setLoading] = useState(true);
+  const [isFilterSheetOpen, setFilterSheetOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -197,84 +198,88 @@ const Index = () => {
   }
 
   return (
-    <MobileOptimizedContainer>
+    <MobileOptimizedContainer contentClassName="pt-[calc(5.5rem+env(safe-area-inset-top))] sm:pt-0">
       <div className="min-h-screen bg-background">
-        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-primary font-display">설문조사 시스템</h1>
-              
+        <header className="safe-top fixed inset-x-0 top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:sticky sm:top-0">
+          <div className="container mx-auto px-4 py-3 sm:py-4">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-xl font-bold text-primary font-display sm:text-2xl">설문조사 시스템</h1>
+
               {user ? (
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Menu className="h-4 w-4" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 rounded-full sm:h-10 sm:w-10"
+                    >
+                      <Menu className="h-5 w-5" />
                       <span className="sr-only">메뉴 열기</span>
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-[280px] sm:w-80 p-4 max-w-[90vw]">
-                    <div className="space-y-6 mt-6 overflow-y-auto max-h-[calc(100vh-80px)]">
+                  <SheetContent side="left" className="max-w-[90vw] w-[280px] p-4 pt-6 sm:w-80">
+                    <div className="mt-2 flex max-h-[calc(100vh-100px)] flex-col space-y-6 overflow-y-auto">
                       <div className="border-b pb-4">
-                        <h2 className="text-lg font-semibold text-primary font-display">관리자 메뉴</h2>
-                        <p className="text-sm text-muted-foreground mt-1 break-words font-sans">환영합니다, {user.email}</p>
+                        <h2 className="font-display text-lg font-semibold text-primary">관리자 메뉴</h2>
+                        <p className="mt-1 break-words text-sm text-muted-foreground font-sans">환영합니다, {user.email}</p>
                       </div>
-                      <div className="space-y-3">
-                        <Button onClick={() => navigate('/dashboard')} className="w-full justify-start" variant="default">
-                          <BarChart className="h-4 w-4 mr-2" />
+                      <div className="space-y-4">
+                        <Button onClick={() => navigate('/dashboard')} className="h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="default">
+                          <BarChart className="mr-2 h-4 w-4" />
                           관리 대시보드
                         </Button>
-                        
+
                         {/* 강사 전용 메뉴 추가 */}
                         <div className="border-t pt-3">
-                          <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">📊 내 피드백</h3>
-                          <Button onClick={() => navigate('/dashboard/my-stats')} className="w-full justify-start" variant="outline">
-                            <TrendingUp className="h-4 w-4 mr-2" />
+                          <h3 className="mb-2 text-sm font-medium text-muted-foreground font-sans">📊 내 피드백</h3>
+                          <Button onClick={() => navigate('/dashboard/my-stats')} className="h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="outline">
+                            <TrendingUp className="mr-2 h-4 w-4" />
                             나의 만족도 통계
                           </Button>
-                          <Button onClick={() => navigate('/dashboard/course-reports')} className="w-full justify-start mt-2" variant="outline">
-                            <BookOpen className="h-4 w-4 mr-2" />
+                          <Button onClick={() => navigate('/dashboard/course-reports')} className="mt-2 h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="outline">
+                            <BookOpen className="mr-2 h-4 w-4" />
                             과정별 결과 보고
                           </Button>
                         </div>
 
                         {/* 관리 메뉴 */}
                         <div className="border-t pt-3">
-                          <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">🔧 관리</h3>
-                          <Button onClick={() => navigate('/dashboard/instructors')} className="w-full justify-start" variant="outline">
-                            <Users className="h-4 w-4 mr-2" />
+                          <h3 className="mb-2 text-sm font-medium text-muted-foreground font-sans">🔧 관리</h3>
+                          <Button onClick={() => navigate('/dashboard/instructors')} className="h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="outline">
+                            <Users className="mr-2 h-4 w-4" />
                             강사 관리
                           </Button>
-                          <Button onClick={() => navigate('/dashboard/surveys')} className="w-full justify-start mt-2" variant="outline">
-                            <FileText className="h-4 w-4 mr-2" />
+                          <Button onClick={() => navigate('/dashboard/surveys')} className="mt-2 h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="outline">
+                            <FileText className="mr-2 h-4 w-4" />
                             설문조사 관리
                           </Button>
-                          <Button onClick={() => navigate('/dashboard/results')} className="w-full justify-start mt-2" variant="outline">
-                            <BarChart className="h-4 w-4 mr-2" />
+                          <Button onClick={() => navigate('/dashboard/results')} className="mt-2 h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="outline">
+                            <BarChart className="mr-2 h-4 w-4" />
                             결과 분석
                           </Button>
-                          <Button onClick={() => navigate('/dashboard/templates')} className="w-full justify-start mt-2" variant="outline">
-                            <FileText className="h-4 w-4 mr-2" />
+                          <Button onClick={() => navigate('/dashboard/templates')} className="mt-2 h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="outline">
+                            <FileText className="mr-2 h-4 w-4" />
                             템플릿 관리
                           </Button>
                         </div>
 
                         {/* 기타 메뉴 */}
                         <div className="border-t pt-3">
-                          <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">📋 기타</h3>
-                          <Button onClick={() => navigate('/')} className="w-full justify-start" variant="outline">
-                            <FileText className="h-4 w-4 mr-2" />
+                          <h3 className="mb-2 text-sm font-medium text-muted-foreground font-sans">📋 기타</h3>
+                          <Button onClick={() => navigate('/')} className="h-11 w-full justify-start text-sm font-semibold sm:text-base" variant="outline">
+                            <FileText className="mr-2 h-4 w-4" />
                             설문 리스트
                           </Button>
                         </div>
                       </div>
-                      <Button onClick={() => window.location.href = '/auth'} variant="ghost" className="w-full text-muted-foreground">
+                      <Button onClick={() => window.location.href = '/auth'} variant="ghost" className="h-11 w-full text-sm font-semibold text-muted-foreground">
                         로그아웃
                       </Button>
                     </div>
                   </SheetContent>
                 </Sheet>
               ) : (
-                <Button onClick={() => navigate('/auth')} variant="default" size="sm">
+                <Button onClick={() => navigate('/auth')} variant="default" size="sm" className="h-11 px-5 text-sm font-semibold sm:h-9 sm:px-4 sm:text-xs">
                   로그인
                 </Button>
               )}
@@ -282,69 +287,136 @@ const Index = () => {
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-8">
-          <div className="mb-8 flex items-start justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-foreground mb-2 font-display">설문조사 시스템</h2>
-              <p className="text-muted-foreground font-sans">
+        <main className="container mx-auto px-4 pb-24 pt-6 sm:pb-12 sm:pt-10">
+          <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">설문조사 시스템</h2>
+              <p className="text-sm text-muted-foreground font-sans sm:text-base">
                 참여 가능한 설문조사 목록입니다. 설문조사를 클릭하여 참여해주세요.
               </p>
             </div>
-            
-            {/* 오늘/전체 선택 버튼 - 우측 상단으로 이동 */}
-            <div className="flex items-center gap-2 p-1 bg-muted rounded-lg">
+
+            {/* 오늘/전체 선택 버튼 - 데스크톱 전용 */}
+            <div className="hidden items-center gap-2 rounded-full bg-muted/70 p-1 sm:flex">
               <Button
                 variant={timeFilter === 'today' ? 'default' : 'ghost'}
-                size="sm"
+                size="default"
                 onClick={() => setTimeFilter('today')}
-                className="px-4 py-2"
+                className="h-11 px-4 text-sm font-semibold sm:h-10"
               >
-                <Calendar className="h-4 w-4 mr-2" />
+                <Calendar className="mr-2 h-4 w-4" />
                 오늘 설문
               </Button>
               <Button
                 variant={timeFilter === 'all' ? 'default' : 'ghost'}
-                size="sm"
+                size="default"
                 onClick={() => setTimeFilter('all')}
-                className="px-4 py-2"
+                className="h-11 px-4 text-sm font-semibold sm:h-10"
               >
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="mr-2 h-4 w-4" />
                 전체 설문
               </Button>
             </div>
           </div>
 
-          {/* 과정별 필터 */}
-          {courses.length > 0 && (
-            <Card className="mb-6 shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg font-display">
-                  <Filter className="h-5 w-5 text-primary" />
-                  과정별 필터
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <label className="text-sm font-medium font-sans">과정 선택:</label>
-                  <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                    <SelectTrigger className="w-[200px] font-sans">
-                      <SelectValue placeholder="과정을 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all" className="font-sans">전체 과정</SelectItem>
-                      {courses.map((course) => (
-                        <SelectItem key={course.id} value={course.id} className="font-sans">
-                          {course.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-sm text-muted-foreground font-sans">
-                    ({surveys.length}개 설문)
-                  </span>
+          <Sheet open={isFilterSheetOpen} onOpenChange={setFilterSheetOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="default"
+                size="icon"
+                className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-4 z-50 h-14 w-14 rounded-full shadow-lg sm:hidden"
+                aria-label="필터 열기"
+              >
+                <Filter className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="sm:hidden pb-[calc(2.5rem+env(safe-area-inset-bottom))]">
+              <SheetHeader>
+                <SheetTitle className="font-display text-lg">필터 설정</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6 space-y-6">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground font-sans">기간 선택</h3>
+                  <div className="mt-3 grid gap-2">
+                    <Button
+                      variant={timeFilter === 'today' ? 'default' : 'outline'}
+                      className="h-11 justify-start px-4 text-sm font-semibold"
+                      onClick={() => setTimeFilter('today')}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      오늘 설문
+                    </Button>
+                    <Button
+                      variant={timeFilter === 'all' ? 'default' : 'outline'}
+                      className="h-11 justify-start px-4 text-sm font-semibold"
+                      onClick={() => setTimeFilter('all')}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      전체 설문
+                    </Button>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+                {courses.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-muted-foreground font-sans">과정 선택</h3>
+                    <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                      <SelectTrigger className="h-11 w-full font-sans text-sm">
+                        <SelectValue placeholder="과정을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all" className="font-sans">전체 과정</SelectItem>
+                        {courses.map((course) => (
+                          <SelectItem key={course.id} value={course.id} className="font-sans">
+                            {course.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground font-sans">현재 {surveys.length}개 설문</span>
+                  </div>
+                )}
+              </div>
+              <SheetFooter className="mt-6">
+                <SheetClose asChild>
+                  <Button className="h-11 w-full text-base font-semibold">필터 닫기</Button>
+                </SheetClose>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+
+          {/* 과정별 필터 - 데스크톱 */}
+          {courses.length > 0 && (
+            <div className="hidden sm:block">
+              <Card className="mb-6 shadow-sm">
+                <CardHeader className="px-6 pb-3 pt-4">
+                  <CardTitle className="flex items-center gap-2 text-lg font-display">
+                    <Filter className="h-5 w-5 text-primary" />
+                    과정별 필터
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-6 pb-5 pt-0">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="text-sm font-medium font-sans">과정 선택:</label>
+                    <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                      <SelectTrigger className="h-11 min-w-[200px] font-sans text-sm">
+                        <SelectValue placeholder="과정을 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all" className="font-sans">전체 과정</SelectItem>
+                        {courses.map((course) => (
+                          <SelectItem key={course.id} value={course.id} className="font-sans">
+                            {course.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-muted-foreground font-sans">
+                      ({surveys.length}개 설문)
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {surveys.length === 0 ? (
@@ -364,18 +436,19 @@ const Index = () => {
               {!loading && (
                 <div className="mt-4 space-y-2">
                   {timeFilter === 'today' && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setTimeFilter('all')}
-                      className="mr-2"
+                      className="mr-2 h-11"
                     >
                       전체 설문 보기
                     </Button>
                   )}
                   {selectedCourse !== 'all' && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setSelectedCourse('all')}
+                      className="h-11"
                     >
                       모든 과정 보기
                     </Button>
@@ -385,10 +458,10 @@ const Index = () => {
               {!loading && surveys.length === 0 && allSurveys.length === 0 && (
                 <div className="mt-4 text-sm text-muted-foreground">
                   <p>설문 데이터를 불러올 수 없습니다.</p>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => window.location.reload()}
-                    className="mt-2"
+                    className="mt-2 h-11"
                   >
                     페이지 새로고침
                   </Button>
@@ -420,7 +493,7 @@ const Index = () => {
                         </Badge>
                       </h3>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {courseSurveys.map((survey) => (
                         <Card
                           key={survey.id}
@@ -429,23 +502,25 @@ const Index = () => {
                           aria-label={`${survey.title} 설문 참여하기`}
                           onClick={() => handleSurveyNavigation(survey.id)}
                           onKeyDown={(event) => handleCardKeyDown(event, survey.id)}
-                          className="cursor-pointer hover:shadow-lg transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                          className="group cursor-pointer transition-shadow hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                         >
-                          <CardHeader>
-                            <div className="flex items-start justify-between">
-                              <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
+                          <CardHeader className="space-y-2 px-4 py-3 sm:px-5 sm:py-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <CardTitle className="text-base font-semibold font-display sm:text-lg">{survey.title}</CardTitle>
                               {getStatusBadge(survey.status, survey.end_date)}
                             </div>
                             {survey.description && (
-                              <CardDescription className="font-sans">{survey.description}</CardDescription>
+                              <CardDescription className="text-sm text-muted-foreground font-sans">
+                                {survey.description}
+                              </CardDescription>
                             )}
                           </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2 text-sm font-sans">
+                          <CardContent className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
+                            <div className="space-y-1.5 text-sm font-sans">
                               {(() => {
                                 // 강사 정보 표시 로직 - 일반화된 방식
                                 let instructorName = '';
-                                
+
                                 // survey_instructors에서 먼저 확인
                                 if (survey.survey_instructors && survey.survey_instructors.length > 0) {
                                   const names = survey.survey_instructors
@@ -464,22 +539,22 @@ const Index = () => {
                                 // 강사 정보가 있으면 항상 표시
                                 if (instructorName) {
                                   return (
-                                    <div className="flex items-center gap-2">
-                                      <Users className="h-4 w-4 text-muted-foreground" />
-                                      <span>강사: {instructorName}</span>
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                      <Users className="h-3.5 w-3.5" />
+                                      <span className="text-sm">강사: {instructorName}</span>
                                     </div>
                                   );
                                 }
                                 return null;
                               })()}
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>생성일: {formatDate(survey.created_at)}</span>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span className="text-sm">생성일: {formatDate(survey.created_at)}</span>
                               </div>
                               {(survey.start_date || survey.end_date) && (
-                                <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
-                                  <span>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  <span className="text-sm">
                                     {survey.start_date && `시작: ${formatDate(survey.start_date)}`}
                                     {survey.start_date && survey.end_date && ' | '}
                                     {survey.end_date && `종료: ${formatDate(survey.end_date)}`}
@@ -487,9 +562,9 @@ const Index = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="mt-4 flex items-center justify-between text-primary font-medium font-sans">
+                            <div className="mt-3 flex min-h-[44px] items-center justify-between text-sm font-semibold text-primary font-sans sm:text-base">
                               <span>설문 참여하기</span>
-                              <span aria-hidden="true">→</span>
+                              <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
                             </div>
                           </CardContent>
                         </Card>
