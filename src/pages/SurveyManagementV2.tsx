@@ -1,6 +1,6 @@
 // src/pages/SurveyManagementV2.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { formatInTimeZone } from "date-fns-tz";
 import {
   ChevronLeft,
@@ -13,6 +13,8 @@ import {
   Settings,
   Eye,
   Share2,
+  Save,
+  Bookmark,
   Trash2,
   BarChart,
   Plus,
@@ -47,6 +49,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
+import { useAuth } from "@/hooks/useAuth";
 
 import {
   SurveysRepository,
@@ -95,6 +98,14 @@ const STATUS_CONFIG = {
 };
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+type FilterPresetRecord = {
+  id: string;
+  preset_name: string;
+  filter_data: SurveyFilters;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
 function Highlight({ text, query }: { text?: string | null; query: string }) {
   const t = text ?? "";
   if (!query.trim()) return <>{t}</>;
@@ -218,7 +229,9 @@ function QuickCreateDialog(props: {
 
 export default function SurveyManagementV2() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const [params, setParams] = useSearchParams();
 
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
@@ -247,6 +260,13 @@ export default function SurveyManagementV2() {
   const searchRef = useRef<HTMLInputElement>(null);
   const debounceTimer = useRef<number | null>(null);
 
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [presetName, setPresetName] = useState("");
+  const [filterPresets, setFilterPresets] = useState<FilterPresetRecord[]>([]);
+  const [presetLoading, setPresetLoading] = useState(false);
+  const [presetSaving, setPresetSaving] = useState(false);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const allChecked = useMemo(() => surveys.length > 0 && surveys.every((s) => selected.has(s.id)), [surveys, selected]);
 
@@ -263,6 +283,219 @@ export default function SurveyManagementV2() {
   const [qrSurveyId, setQrSurveyId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSurveyId, setShareSurveyId] = useState<string | null>(null);
+
+  const normalizeFilters = useCallback((input: Partial<SurveyFilters> | null | undefined): SurveyFilters => {
+    return {
+      year: typeof input?.year === "number" ? input.year : input?.year ? parseInt(String(input.year), 10) : null,
+      status: (input?.status as SurveyFilters["status"]) ?? null,
+      courseName: (input?.courseName as string) ?? null,
+      q: input?.q ? String(input.q).trim() || null : null,
+    };
+  }, []);
+
+  const filtersAreEqual = useCallback(
+    (a: Partial<SurveyFilters> | null | undefined, b: Partial<SurveyFilters> | null | undefined) => {
+      const na = normalizeFilters(a);
+      const nb = normalizeFilters(b);
+      return (
+        (na.year ?? null) === (nb.year ?? null) &&
+        (na.status ?? null) === (nb.status ?? null) &&
+        (na.courseName ?? null) === (nb.courseName ?? null) &&
+        (na.q ?? null) === (nb.q ?? null)
+      );
+    },
+    [normalizeFilters]
+  );
+
+  const getSummaryItems = useCallback(
+    (target: Partial<SurveyFilters> | null | undefined) => {
+      const normalized = normalizeFilters(target);
+      const items: { label: string; value: string }[] = [];
+      if (normalized.year) items.push({ label: "교육 연도", value: `${normalized.year}년` });
+      if (normalized.courseName) items.push({ label: "과정명", value: normalized.courseName });
+      if (normalized.status) {
+        const statusInfo = STATUS_CONFIG[normalized.status];
+        items.push({ label: "상태", value: statusInfo?.label ?? normalized.status });
+      }
+      if (normalized.q) items.push({ label: "검색어", value: normalized.q });
+      return items;
+    },
+    [normalizeFilters]
+  );
+
+  const fetchFilterPresets = useCallback(async () => {
+    if (!user) {
+      setFilterPresets([]);
+      setActivePresetId(null);
+      return;
+    }
+
+    try {
+      setPresetLoading(true);
+      const { data, error } = await supabase
+        .from("user_filter_presets")
+        .select("id,preset_name,filter_data,created_at,updated_at")
+        .eq("user_id", user.id)
+        .eq("filter_type", "survey_management")
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      const normalized = (data || []).map((item: any) => ({
+        id: item.id,
+        preset_name: item.preset_name,
+        filter_data: normalizeFilters(item.filter_data as Partial<SurveyFilters>),
+        created_at: item.created_at ?? null,
+        updated_at: item.updated_at ?? null,
+      }));
+      setFilterPresets(normalized);
+    } catch (error) {
+      console.error("Error fetching filter presets:", error);
+      toast({
+        title: "프리셋 불러오기 실패",
+        description: "필터 프리셋을 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setPresetLoading(false);
+    }
+  }, [normalizeFilters, toast, user]);
+
+  const handleApplyPreset = useCallback(
+    (preset: FilterPresetRecord) => {
+      const normalized = normalizeFilters(preset.filter_data);
+      setFilters(normalized);
+      setSearchText(normalized.q ?? "");
+      setCurrentPage(1);
+      setSelected(new Set());
+      setPresetModalOpen(false);
+      setActivePresetId(preset.id);
+      toast({
+        title: "프리셋 적용됨",
+        description: `"${preset.preset_name}" 필터 조합이 적용되었습니다.`,
+      });
+    },
+    [normalizeFilters, toast]
+  );
+
+  const handleCopyPresetLink = useCallback(
+    async (preset: FilterPresetRecord) => {
+      try {
+        const normalized = normalizeFilters(preset.filter_data);
+        const params = new URLSearchParams();
+        if (normalized.year) params.set("year", String(normalized.year));
+        if (normalized.status) params.set("status", normalized.status);
+        if (normalized.courseName) params.set("course", normalized.courseName);
+        if (normalized.q) params.set("q", normalized.q);
+        if (sortBy) params.set("sortBy", sortBy);
+        if (sortDir) params.set("sortDir", sortDir);
+        const baseUrl = typeof window !== "undefined"
+          ? `${window.location.origin}${routerLocation.pathname}`
+          : routerLocation.pathname;
+        const shareUrl = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+        await navigator.clipboard.writeText(shareUrl);
+        toast({
+          title: "링크 복사 완료",
+          description: `"${preset.preset_name}" 필터 링크가 복사되었습니다.`,
+        });
+      } catch (error) {
+        console.error("Error copying preset link:", error);
+        toast({
+          title: "링크 복사 실패",
+          description: "필터 링크를 복사하는 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      }
+    },
+    [normalizeFilters, routerLocation.pathname, sortBy, sortDir, toast]
+  );
+
+  const handleSavePreset = useCallback(async () => {
+    if (!user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "필터 프리셋을 저장하려면 로그인이 필요합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const name = presetName.trim();
+    if (!name) return;
+
+    const filterPayload = normalizeFilters({ ...filters, q: searchText.trim() || null });
+
+    try {
+      setPresetSaving(true);
+      const { error } = await supabase.from("user_filter_presets").insert({
+        user_id: user.id,
+        preset_name: name,
+        filter_type: "survey_management",
+        filter_data: filterPayload,
+      });
+      if (error) throw error;
+      toast({
+        title: "필터 저장 완료",
+        description: `"${name}" 프리셋이 저장되었습니다.`,
+      });
+      setPresetName("");
+      await fetchFilterPresets();
+    } catch (error: any) {
+      console.error("Error saving filter preset:", error);
+      const message = typeof error?.message === "string" ? error.message : "";
+      toast({
+        title: "필터 저장 실패",
+        description: message.includes("duplicate")
+          ? "같은 이름의 프리셋이 이미 존재합니다."
+          : "필터 프리셋을 저장하는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setPresetSaving(false);
+    }
+  }, [fetchFilterPresets, filters, normalizeFilters, presetName, searchText, toast, user]);
+
+  const handleDeletePreset = useCallback(
+    async (presetId: string) => {
+      const target = filterPresets.find((p) => p.id === presetId);
+      if (!target) return;
+
+      const confirmDelete = window.confirm(`"${target.preset_name}" 프리셋을 삭제하시겠습니까?`);
+      if (!confirmDelete) return;
+
+      try {
+        const { error } = await supabase.from("user_filter_presets").delete().eq("id", presetId);
+        if (error) throw error;
+        toast({
+          title: "프리셋 삭제 완료",
+          description: `"${target.preset_name}" 프리셋이 삭제되었습니다.`,
+        });
+        if (activePresetId === presetId) {
+          setActivePresetId(null);
+        }
+        await fetchFilterPresets();
+      } catch (error) {
+        console.error("Error deleting filter preset:", error);
+        toast({
+          title: "프리셋 삭제 실패",
+          description: "필터 프리셋을 삭제하는 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      }
+    },
+    [activePresetId, fetchFilterPresets, filterPresets, toast]
+  );
+
+  const recentPresets = useMemo(() => filterPresets.slice(0, 3), [filterPresets]);
+
+  const activePreset = useMemo(
+    () => filterPresets.find((preset) => preset.id === activePresetId) ?? null,
+    [filterPresets, activePresetId]
+  );
+
+  const filterSummaryItems = useMemo(
+    () => getSummaryItems(filters),
+    [filters, getSummaryItems]
+  );
 
   // QR 코드 다운로드 함수
   const handleDownloadQR = async (surveyId: string) => {
@@ -337,6 +570,15 @@ export default function SurveyManagementV2() {
   useEffect(() => { loadData(); }, [currentPage, filters.year, filters.status, filters.q, filters.courseName, sortBy, sortDir]);
   useEffect(() => { loadCourseNames(filters.year); }, [filters.year]);
   useEffect(() => { (async () => setTemplates(await SurveysRepository.listTemplates()))(); }, []);
+  useEffect(() => { fetchFilterPresets(); }, [fetchFilterPresets]);
+  useEffect(() => {
+    if (!filterPresets.length) {
+      setActivePresetId(null);
+      return;
+    }
+    const matched = filterPresets.find((preset) => filtersAreEqual(preset.filter_data, filters));
+    setActivePresetId(matched ? matched.id : null);
+  }, [filterPresets, filters, filtersAreEqual]);
 
   // 단축키
   useEffect(() => {
@@ -691,6 +933,47 @@ export default function SurveyManagementV2() {
       ]}
     >
       <div className="space-y-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">최근 저장된 필터</span>
+            {presetLoading ? (
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            ) : recentPresets.length ? (
+              recentPresets.map((preset) => (
+                <div key={preset.id} className="flex items-center gap-1">
+                  <Button
+                    variant={activePresetId === preset.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleApplyPreset(preset)}
+                    className="whitespace-nowrap"
+                  >
+                    <Bookmark className="h-4 w-4 mr-1" />
+                    {preset.preset_name}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleCopyPresetLink(preset)}
+                    aria-label={`"${preset.preset_name}" 필터 링크 복사`}
+                    className="h-8 w-8"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <span className="text-sm text-muted-foreground">저장된 프리셋이 없습니다.</span>
+            )}
+          </div>
+          <Button size="sm" onClick={() => setPresetModalOpen(true)} disabled={presetSaving}>
+            <Save className="h-4 w-4 mr-2" />
+            필터 저장
+          </Button>
+        </div>
+
         {/* 검색 및 필터 */}
         <Card>
           <CardHeader>
@@ -766,8 +1049,138 @@ export default function SurveyManagementV2() {
                 </Select>
               </div>
             </div>
+
+            <div className="rounded-md border border-dashed bg-muted/40 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">필터 요약</span>
+                {filterSummaryItems.length ? (
+                  filterSummaryItems.map((item) => (
+                    <Badge key={`${item.label}-${item.value}`} variant="secondary" className="text-xs">
+                      {item.label}: {item.value}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground">모든 설문이 표시됩니다.</span>
+                )}
+                {activePreset && (
+                  <span className="ml-auto text-xs font-medium text-primary whitespace-nowrap">
+                    "{activePreset.preset_name}" 프리셋 적용 중
+                  </span>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
+
+        <Dialog open={presetModalOpen} onOpenChange={setPresetModalOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>필터 프리셋 관리</DialogTitle>
+              <DialogDescription>
+                자주 사용하는 필터 조합을 저장하고 빠르게 불러올 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="filter-preset-name">프리셋 이름</label>
+                <Input
+                  id="filter-preset-name"
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  placeholder="예: 2024년 1차 진행중 설문"
+                />
+                <p className="text-xs text-muted-foreground">
+                  현재 화면에 적용된 필터 조건이 그대로 저장됩니다.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setPresetModalOpen(false)}>
+                  닫기
+                </Button>
+                <Button onClick={handleSavePreset} disabled={!presetName.trim() || presetSaving}>
+                  {presetSaving ? "저장 중..." : "현재 필터 저장"}
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">저장된 프리셋</h4>
+                {presetLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                  </div>
+                ) : filterPresets.length ? (
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {filterPresets.map((preset) => {
+                      const summary = getSummaryItems(preset.filter_data);
+                      return (
+                        <div
+                          key={preset.id}
+                          className={`rounded-lg border p-4 transition-colors ${
+                            activePresetId === preset.id ? "border-primary bg-primary/5" : ""
+                          }`}
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium">{preset.preset_name}</p>
+                              {preset.updated_at && (
+                                <p className="text-xs text-muted-foreground">
+                                  최근 수정: {formatSafeDate(preset.updated_at)}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyPresetLink(preset)}
+                                className="flex items-center gap-1"
+                              >
+                                <Share2 className="h-4 w-4" />
+                                링크 복사
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleApplyPreset(preset)}>
+                                불러오기
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeletePreset(preset.id)}
+                                aria-label={`"${preset.preset_name}" 프리셋 삭제`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {summary.length ? (
+                              summary.map((item) => (
+                                <Badge
+                                  key={`${preset.id}-${item.label}-${item.value}`}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {item.label}: {item.value}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">모든 설문 표시</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    저장된 프리셋이 없습니다. 현재 필터를 저장해보세요.
+                  </p>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* 오류 표시 */}
         {error && (
