@@ -1,15 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef, KeyboardEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Menu, Clock, Calendar, Users, BarChart, TrendingUp, BookOpen, FileText, Filter, Search, Hourglass } from 'lucide-react';
+import { Clock, Calendar, Users, BookOpen, FileText, Filter, Search, Hourglass, ArrowRight } from 'lucide-react';
 import { MobileOptimizedContainer } from '@/components/MobileOptimizedContainer';
 import LoadingScreen from '@/components/LoadingScreen';
 
@@ -49,10 +47,22 @@ interface Instructor {
   name: string;
 }
 
-interface SurveyParticipation {
-  survey: Survey;
-  submitted_at: string;
-}
+const SURVEY_SELECT_FIELDS = `
+  id,
+  title,
+  description,
+  status,
+  created_at,
+  start_date,
+  end_date,
+  instructor_id,
+  course_id,
+  course_name,
+  survey_instructors (
+    instructors (id, name)
+  ),
+  instructors (id, name)
+`;
 
 const Index = () => {
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -63,12 +73,11 @@ const Index = () => {
   const [instructorFilter, setInstructorFilter] = useState<string>('all');
   const [courseFilter, setCourseFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<'today' | 'all'>('today');
-  const [recentParticipations, setRecentParticipations] = useState<SurveyParticipation[]>([]);
+  const [recentSurveys, setRecentSurveys] = useState<Survey[]>([]);
   const [closingSoonSurveys, setClosingSoonSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const skipUrlSyncRef = useRef(false);
@@ -132,47 +141,51 @@ const Index = () => {
     }
   }, [searchTerm, statusFilter, instructorFilter, courseFilter, timeFilter, searchParams, setSearchParams]);
 
+  useEffect(() => {
+    if (timeFilter === 'today') {
+      if (searchTerm) {
+        setSearchTerm('');
+      }
+      if (statusFilter !== 'all') {
+        setStatusFilter('all');
+      }
+      if (instructorFilter !== 'all') {
+        setInstructorFilter('all');
+      }
+      if (courseFilter !== 'all') {
+        setCourseFilter('all');
+      }
+    }
+  }, [timeFilter, searchTerm, statusFilter, instructorFilter, courseFilter]);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setFetchError(null);
 
-      let query = supabase
-        .from('surveys')
-        .select(`
-          id,
-          title,
-          description,
-          status,
-          created_at,
-          start_date,
-          end_date,
-          instructor_id,
-          course_id,
-          course_name,
-          survey_instructors (
-            instructors (id, name)
-          ),
-          instructors (id, name)
-        `);
+      let query = supabase.from('surveys').select(SURVEY_SELECT_FIELDS);
 
-      if (statusFilter === 'all') {
-        query = query.in('status', ['active', 'public']);
+      if (timeFilter === 'all') {
+        if (statusFilter === 'all') {
+          query = query.in('status', ['active', 'public']);
+        } else {
+          query = query.eq('status', statusFilter);
+        }
+
+        if (courseFilter !== 'all') {
+          query = query.eq('course_id', courseFilter);
+        }
+
+        if (instructorFilter !== 'all') {
+          query = query.or(`instructor_id.eq.${instructorFilter},survey_instructors.instructor_id.eq.${instructorFilter}`);
+        }
+
+        const sanitizedSearchTerm = searchTerm.replace(/,/g, '\\,').trim();
+        if (sanitizedSearchTerm) {
+          query = query.or(`title.ilike.%${sanitizedSearchTerm}%,description.ilike.%${sanitizedSearchTerm}%`);
+        }
       } else {
-        query = query.eq('status', statusFilter);
-      }
-
-      if (courseFilter !== 'all') {
-        query = query.eq('course_id', courseFilter);
-      }
-
-      if (instructorFilter !== 'all') {
-        query = query.or(`instructor_id.eq.${instructorFilter},survey_instructors.instructor_id.eq.${instructorFilter}`);
-      }
-
-      const sanitizedSearchTerm = searchTerm.replace(/,/g, '\\,').trim();
-      if (sanitizedSearchTerm) {
-        query = query.or(`title.ilike.%${sanitizedSearchTerm}%,description.ilike.%${sanitizedSearchTerm}%`);
+        query = query.in('status', ['active', 'public']);
       }
 
       if (timeFilter === 'today') {
@@ -253,51 +266,18 @@ const Index = () => {
     try {
       setRecommendationsLoading(true);
 
-      if (!user?.email) {
-        setRecentParticipations([]);
-        setClosingSoonSurveys([]);
-        return;
-      }
-
-      const { data: participationData, error: participationError } = await supabase
-        .from('survey_responses')
-        .select(`
-          id,
-          submitted_at,
-          survey_id,
-          surveys (
-            id,
-            title,
-            description,
-            status,
-            created_at,
-            start_date,
-            end_date,
-            instructor_id,
-            course_id,
-            course_name,
-            survey_instructors (
-              instructors (id, name)
-            ),
-            instructors (id, name)
-          )
-        `)
-        .eq('respondent_email', user.email)
-        .order('submitted_at', { ascending: false })
+      const { data: recentData, error: recentError } = await supabase
+        .from('surveys')
+        .select(SURVEY_SELECT_FIELDS)
+        .in('status', ['active', 'public'])
+        .order('created_at', { ascending: false })
         .limit(4);
 
-      if (participationError) {
-        throw participationError;
+      if (recentError) {
+        throw recentError;
       }
 
-      const recentItems: SurveyParticipation[] = (participationData || [])
-        .filter((item): item is typeof item & { surveys: Survey } => Boolean(item.surveys))
-        .map((item) => ({
-          survey: item.surveys,
-          submitted_at: item.submitted_at,
-        }));
-
-      setRecentParticipations(recentItems);
+      setRecentSurveys(recentData || []);
 
       const now = new Date();
       const upcomingLimit = new Date(now);
@@ -307,22 +287,7 @@ const Index = () => {
 
       const { data: closingSoonData, error: closingSoonError } = await supabase
         .from('surveys')
-        .select(`
-          id,
-          title,
-          description,
-          status,
-          created_at,
-          start_date,
-          end_date,
-          instructor_id,
-          course_id,
-          course_name,
-          survey_instructors (
-            instructors (id, name)
-          ),
-          instructors (id, name)
-        `)
+        .select(SURVEY_SELECT_FIELDS)
         .in('status', ['active', 'public'])
         .not('end_date', 'is', null)
         .gte('end_date', nowIso)
@@ -337,21 +302,23 @@ const Index = () => {
       setClosingSoonSurveys(closingSoonData || []);
     } catch (error) {
       console.error('Error fetching recommendations:', error);
-      setRecentParticipations([]);
+      setRecentSurveys([]);
       setClosingSoonSurveys([]);
     } finally {
       setRecommendationsLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     fetchRecommendations();
   }, [fetchRecommendations]);
 
   const filterSummaryBadges = useMemo(() => {
-    const badges: string[] = [];
+    if (timeFilter === 'today') {
+      return [] as string[];
+    }
 
-    badges.push(timeFilter === 'today' ? '오늘 설문' : '전체 기간');
+    const badges: string[] = ['전체 설문'];
 
     const statusLabel = statusOptions.find((option) => option.value === statusFilter)?.label ?? '전체 상태';
     badges.push(`상태: ${statusLabel}`);
@@ -382,24 +349,12 @@ const Index = () => {
       return fetchError;
     }
 
-    if (searchTerm) {
-      return '검색 조건에 맞는 설문조사가 없습니다.';
+    if (timeFilter === 'today') {
+      return '오늘 진행중인 설문이 없습니다.';
     }
 
-    if (timeFilter === 'today') {
-      if (courseFilter !== 'all' && instructorFilter !== 'all') {
-        return '선택한 과정과 강사에 오늘 진행중인 설문이 없습니다.';
-      }
-      if (courseFilter !== 'all') {
-        return '선택한 과정에 오늘 진행중인 설문조사가 없습니다.';
-      }
-      if (instructorFilter !== 'all') {
-        return '선택한 강사의 오늘 설문이 없습니다.';
-      }
-      if (statusFilter !== 'all') {
-        return '선택한 상태의 오늘 설문조사가 없습니다.';
-      }
-      return '오늘 진행중인 설문조사가 없습니다.';
+    if (searchTerm) {
+      return '검색 조건에 맞는 설문조사가 없습니다.';
     }
 
     if (courseFilter !== 'all' && instructorFilter !== 'all') {
@@ -416,7 +371,7 @@ const Index = () => {
     }
 
     return '현재 진행중인 설문조사가 없습니다.';
-  }, [loading, fetchError, searchTerm, timeFilter, courseFilter, instructorFilter, statusFilter]);
+  }, [loading, fetchError, timeFilter, searchTerm, courseFilter, instructorFilter, statusFilter]);
 
   const getInstructorNames = (survey: Survey): string | null => {
     let instructorName = '';
@@ -442,7 +397,6 @@ const Index = () => {
     setStatusFilter('all');
     setInstructorFilter('all');
     setCourseFilter('all');
-    setTimeFilter('today');
   };
 
   const getStatusBadge = (status: string, endDate?: string | null): JSX.Element => {
@@ -494,89 +448,16 @@ const Index = () => {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold text-primary font-display">설문조사 시스템</h1>
-
-              {user ? (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Menu className="h-4 w-4" />
-                      <span className="sr-only">메뉴 열기</span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-[280px] sm:w-80 p-4 max-w-[90vw]">
-                    <div className="space-y-6 mt-6 overflow-y-auto max-h-[calc(100vh-80px)]">
-                      <div className="border-b pb-4">
-                        <h2 className="text-lg font-semibold text-primary font-display">관리자 메뉴</h2>
-                        <p className="text-sm text-muted-foreground mt-1 break-words font-sans">환영합니다, {user.email}</p>
-                      </div>
-                      <div className="space-y-3">
-                        <Button onClick={() => navigate('/dashboard')} className="w-full justify-start" variant="default">
-                          <BarChart className="h-4 w-4 mr-2" />
-                          관리 대시보드
-                        </Button>
-                        
-                        {/* 강사 전용 메뉴 추가 */}
-                        <div className="border-t pt-3">
-                          <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">📊 내 피드백</h3>
-                          <Button onClick={() => navigate('/dashboard/my-stats')} className="w-full justify-start" variant="outline">
-                            <TrendingUp className="h-4 w-4 mr-2" />
-                            나의 만족도 통계
-                          </Button>
-                          <Button onClick={() => navigate('/dashboard/course-reports')} className="w-full justify-start mt-2" variant="outline">
-                            <BookOpen className="h-4 w-4 mr-2" />
-                            과정별 결과 보고
-                          </Button>
-                        </div>
-
-                        {/* 관리 메뉴 */}
-                        <div className="border-t pt-3">
-                          <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">🔧 관리</h3>
-                          <Button onClick={() => navigate('/dashboard/instructors')} className="w-full justify-start" variant="outline">
-                            <Users className="h-4 w-4 mr-2" />
-                            강사 관리
-                          </Button>
-                          <Button onClick={() => navigate('/dashboard/surveys')} className="w-full justify-start mt-2" variant="outline">
-                            <FileText className="h-4 w-4 mr-2" />
-                            설문조사 관리
-                          </Button>
-                          <Button onClick={() => navigate('/dashboard/results')} className="w-full justify-start mt-2" variant="outline">
-                            <BarChart className="h-4 w-4 mr-2" />
-                            결과 분석
-                          </Button>
-                          <Button onClick={() => navigate('/dashboard/templates')} className="w-full justify-start mt-2" variant="outline">
-                            <FileText className="h-4 w-4 mr-2" />
-                            템플릿 관리
-                          </Button>
-                        </div>
-
-                        {/* 기타 메뉴 */}
-                        <div className="border-t pt-3">
-                          <h3 className="text-sm font-medium text-muted-foreground mb-2 font-sans">📋 기타</h3>
-                          <Button onClick={() => navigate('/')} className="w-full justify-start" variant="outline">
-                            <FileText className="h-4 w-4 mr-2" />
-                            설문 리스트
-                          </Button>
-                        </div>
-                      </div>
-                      <Button onClick={() => window.location.href = '/auth'} variant="ghost" className="w-full text-muted-foreground">
-                        로그아웃
-                      </Button>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              ) : (
-                <Button onClick={() => navigate('/auth')} variant="default" size="sm">
-                  로그인
-                </Button>
-              )}
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {filterSummaryBadges.map((badgeLabel, index) => (
-                <Badge key={`${badgeLabel}-${index}`} variant="outline" className="font-sans">
-                  {badgeLabel}
-                </Badge>
-              ))}
-            </div>
+            {filterSummaryBadges.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {filterSummaryBadges.map((badgeLabel, index) => (
+                  <Badge key={`${badgeLabel}-${index}`} variant="outline" className="font-sans">
+                    {badgeLabel}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </header>
 
@@ -612,42 +493,42 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="shadow-sm h-full">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-lg font-display">
-                    <Clock className="h-5 w-5 text-primary" />
-                    최근 참여 설문
-                  </CardTitle>
-                  <CardDescription className="font-sans">
-                    최근에 응답한 설문을 다시 확인해보세요.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {recommendationsLoading ? (
-                    <p className="text-sm text-muted-foreground text-center font-sans">
-                      추천 설문을 불러오는 중입니다.
-                    </p>
-                  ) : user?.email ? (
-                    recentParticipations.length > 0 ? (
+            {timeFilter === 'all' && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="shadow-sm h-full">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg font-display">
+                      <Clock className="h-5 w-5 text-primary" />
+                      최근 생성 설문
+                    </CardTitle>
+                    <CardDescription className="font-sans">
+                      막 등록된 설문을 빠르게 찾아보세요.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {recommendationsLoading ? (
+                      <p className="text-sm text-muted-foreground text-center font-sans">
+                        추천 설문을 불러오는 중입니다.
+                      </p>
+                    ) : recentSurveys.length > 0 ? (
                       <div className="space-y-3">
-                        {recentParticipations.map((item) => {
-                          const instructorName = getInstructorNames(item.survey);
+                        {recentSurveys.map((survey) => {
+                          const instructorName = getInstructorNames(survey);
                           return (
                             <div
-                              key={`${item.survey.id}-${item.submitted_at}`}
+                              key={survey.id}
                               role="button"
                               tabIndex={0}
-                              onClick={() => handleSurveyNavigation(item.survey.id)}
-                              onKeyDown={(event) => handleCardKeyDown(event, item.survey.id)}
+                              onClick={() => handleSurveyNavigation(survey.id)}
+                              onKeyDown={(event) => handleCardKeyDown(event, survey.id)}
                               className="rounded-lg border bg-muted/40 p-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                             >
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm text-foreground flex-1 truncate" title={item.survey.title}>
-                                  {item.survey.title}
+                                <span className="font-medium text-sm text-foreground flex-1 truncate" title={survey.title}>
+                                  {survey.title}
                                 </span>
                                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {formatDate(item.submitted_at)}
+                                  생성일 {formatDate(survey.created_at)}
                                 </span>
                               </div>
                               {instructorName && (
@@ -661,92 +542,89 @@ const Index = () => {
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground text-center font-sans">
-                        최근에 참여한 설문이 없습니다.
+                        최근에 생성된 설문이 없습니다.
                       </p>
-                    )
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center font-sans">
-                      로그인하면 최근 참여 설문을 확인할 수 있습니다.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                    )}
+                  </CardContent>
+                </Card>
 
-              <Card className="shadow-sm h-full">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-lg font-display">
-                    <Hourglass className="h-5 w-5 text-primary" />
-                    마감 임박
-                  </CardTitle>
-                  <CardDescription className="font-sans">
-                    마감이 가까운 설문을 놓치지 마세요.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {recommendationsLoading ? (
-                    <p className="text-sm text-muted-foreground text-center font-sans">
-                      추천 설문을 불러오는 중입니다.
-                    </p>
-                  ) : closingSoonSurveys.length > 0 ? (
-                    <div className="space-y-3">
-                      {closingSoonSurveys.map((survey) => {
-                        const instructorName = getInstructorNames(survey);
-                        return (
-                          <div
-                            key={survey.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => handleSurveyNavigation(survey.id)}
-                            onKeyDown={(event) => handleCardKeyDown(event, survey.id)}
-                            className="rounded-lg border bg-muted/40 p-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm text-foreground flex-1 truncate" title={survey.title}>
-                                {survey.title}
-                              </span>
-                              {survey.end_date && (
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  마감 {formatDate(survey.end_date)}
+                <Card className="shadow-sm h-full">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg font-display">
+                      <Hourglass className="h-5 w-5 text-primary" />
+                      마감 임박
+                    </CardTitle>
+                    <CardDescription className="font-sans">
+                      마감이 가까운 설문을 놓치지 마세요.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {recommendationsLoading ? (
+                      <p className="text-sm text-muted-foreground text-center font-sans">
+                        추천 설문을 불러오는 중입니다.
+                      </p>
+                    ) : closingSoonSurveys.length > 0 ? (
+                      <div className="space-y-3">
+                        {closingSoonSurveys.map((survey) => {
+                          const instructorName = getInstructorNames(survey);
+                          return (
+                            <div
+                              key={survey.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => handleSurveyNavigation(survey.id)}
+                              onKeyDown={(event) => handleCardKeyDown(event, survey.id)}
+                              className="rounded-lg border bg-muted/40 p-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm text-foreground flex-1 truncate" title={survey.title}>
+                                  {survey.title}
                                 </span>
+                                {survey.end_date && (
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                    마감 {formatDate(survey.end_date)}
+                                  </span>
+                                )}
+                              </div>
+                              {instructorName && (
+                                <p className="mt-1 text-xs text-muted-foreground truncate" title={instructorName}>
+                                  강사: {instructorName}
+                                </p>
                               )}
-                            </div>
-                            {instructorName && (
-                              <p className="mt-1 text-xs text-muted-foreground truncate" title={instructorName}>
-                                강사: {instructorName}
-                              </p>
-                            )}
-                            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                              <span className="truncate" title={survey.course_name || '기타 과정'}>
-                                {survey.course_name || '기타 과정'}
-                              </span>
-                              <div className="shrink-0">
-                                {getStatusBadge(survey.status, survey.end_date)}
+                              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="truncate" title={survey.course_name || '기타 과정'}>
+                                  {survey.course_name || '기타 과정'}
+                                </span>
+                                <div className="shrink-0">
+                                  {getStatusBadge(survey.status, survey.end_date)}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center font-sans">
-                      마감이 임박한 설문이 없습니다.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center font-sans">
+                        마감이 임박한 설문이 없습니다.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
-          <Card className="shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg font-display">
-                <Filter className="h-5 w-5 text-primary" />
-                설문 필터
-              </CardTitle>
-              <CardDescription className="font-sans">
-                검색어나 조건을 선택해 원하는 설문을 찾아보세요.
-              </CardDescription>
-            </CardHeader>
+          {timeFilter === 'all' && (
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg font-display">
+                  <Filter className="h-5 w-5 text-primary" />
+                  설문 필터
+                </CardTitle>
+                <CardDescription className="font-sans">
+                  검색어나 조건을 선택해 원하는 설문을 찾아보세요.
+                </CardDescription>
+              </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div className="md:col-span-2">
@@ -830,6 +708,7 @@ const Index = () => {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {surveys.length === 0 ? (
             <div className="text-center py-12 border border-dashed rounded-lg bg-muted/30">
@@ -932,10 +811,18 @@ const Index = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="mt-4 flex items-center justify-between text-primary font-medium font-sans">
-                              <span>설문 참여하기</span>
-                              <span aria-hidden="true">→</span>
-                            </div>
+                            <Button
+                              type="button"
+                              size="lg"
+                              className="mt-4 w-full justify-between font-sans"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleSurveyNavigation(survey.id);
+                              }}
+                            >
+                              설문 참여하기
+                              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                            </Button>
                           </CardContent>
                         </Card>
                       ))}
