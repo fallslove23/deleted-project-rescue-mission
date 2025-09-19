@@ -2160,6 +2160,42 @@ export type Database = {
         }
         Relationships: []
       }
+      survey_cumulative_stats: {
+        Row: {
+          avg_course_satisfaction_real: number | null
+          avg_course_satisfaction_test: number | null
+          avg_course_satisfaction_total: number | null
+          avg_instructor_satisfaction_real: number | null
+          avg_instructor_satisfaction_test: number | null
+          avg_instructor_satisfaction_total: number | null
+          avg_operation_satisfaction_real: number | null
+          avg_operation_satisfaction_test: number | null
+          avg_operation_satisfaction_total: number | null
+          avg_satisfaction_real: number | null
+          avg_satisfaction_test: number | null
+          avg_satisfaction_total: number | null
+          course_name: string | null
+          created_at: string | null
+          education_round: number | null
+          education_year: number | null
+          expected_participants: number | null
+          instructor_count: number | null
+          instructor_names: string[] | null
+          instructor_names_text: string | null
+          last_response_at: string | null
+          real_response_count: number | null
+          status: string | null
+          survey_id: string | null
+          survey_is_test: boolean | null
+          test_response_count: number | null
+          title: string | null
+          total_response_count: number | null
+          weighted_satisfaction_real: number | null
+          weighted_satisfaction_test: number | null
+          weighted_satisfaction_total: number | null
+        }
+        Relationships: []
+      }
       surveys_list_v1: {
         Row: {
           combined_round_end: number | null
@@ -2380,6 +2416,21 @@ export type Database = {
           table_name: string
           using_expression: string
           with_check: string
+        }[]
+      }
+      get_survey_cumulative_summary: {
+        Args: {
+          search_term?: string | null
+          education_year?: number | null
+          course_name?: string | null
+          include_test_data?: boolean | null
+        }
+        Returns: {
+          average_satisfaction: number | null
+          courses_in_progress: number
+          participating_instructors: number
+          total_responses: number
+          total_surveys: number
         }[]
       }
       get_session_statistics: {
