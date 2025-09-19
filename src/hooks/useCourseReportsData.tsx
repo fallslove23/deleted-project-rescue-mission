@@ -324,7 +324,7 @@ export const useCourseReportsData = (
 
       console.log('Surveys after all filtering:', filteredSurveys.length);
       // 데이터 집계
-      const instructorStatsMap = new Map();
+      const instructorStatsMap = new Map<string, any>();
       let totalSurveys = 0;
       let totalResponses = 0;
       let allInstructorSatisfactions: number[] = [];
@@ -333,57 +333,96 @@ export const useCourseReportsData = (
 
       filteredSurveys.forEach(survey => {
         console.log('Processing survey:', survey.id, 'instructor_id:', survey.instructor_id, 'responses:', survey.survey_responses?.length);
-        
+
         totalSurveys += 1;
         totalResponses += survey.survey_responses?.length || 0;
 
-        // 강사 정보 처리 개선
-        const instructorId = survey.instructor_id;
-        const instructorName = (() => {
-          // survey_instructors 확인
+        // 강사 정보 처리 개선 - 설문 내 모든 강사 식별
+        const surveyInstructorIds = new Set<string>();
+        const instructorNameMap = new Map<string, string>();
+        const sessionInstructorMap = new Map<string, string>();
+
+        const mainInstructorName = (() => {
           if ((survey as any).survey_instructors && (survey as any).survey_instructors.length > 0) {
             const names = (survey as any).survey_instructors
               .map((si: any) => si.instructors?.name)
               .filter(Boolean);
             if (names.length > 0) return names.join(', ');
           }
-          // 개별 instructor 확인
           if ((survey as any).instructors?.name) return (survey as any).instructors.name;
-          // 과정명 사용
           return (survey as any).course_name || '강사 정보 없음';
         })();
-        
-        if (instructorId) {
-          if (!instructorStatsMap.has(instructorId)) {
-            instructorStatsMap.set(instructorId, {
-              instructor_id: instructorId,
-              instructor_name: instructorName,
+
+        const ensureInstructorEntry = (id?: string | null, name?: string | null) => {
+          if (!id) return;
+          const existingName = instructorNameMap.get(id);
+          const fallbackName = survey.instructor_id === id ? mainInstructorName : undefined;
+          const resolvedName = name ?? existingName ?? fallbackName ?? '강사 정보 없음';
+
+          if (!existingName || existingName === '강사 정보 없음') {
+            instructorNameMap.set(id, resolvedName);
+          }
+
+          if (!instructorStatsMap.has(id)) {
+            instructorStatsMap.set(id, {
+              instructor_id: id,
+              instructor_name: resolvedName,
               survey_count: 0,
               response_count: 0,
-              satisfactions: []
+              satisfactions: [] as number[],
             });
+          } else {
+            const stat = instructorStatsMap.get(id);
+            if ((!stat.instructor_name || stat.instructor_name === '강사 정보 없음') && resolvedName) {
+              stat.instructor_name = resolvedName;
+            }
           }
-          
-          const instructorStat = instructorStatsMap.get(instructorId);
-          instructorStat.survey_count += 1;
-          instructorStat.response_count += survey.survey_responses?.length || 0;
+
+          surveyInstructorIds.add(id);
+        };
+
+        if (survey.instructors?.id) {
+          if (survey.instructors.name) {
+            instructorNameMap.set(survey.instructors.id, survey.instructors.name);
+          }
         }
 
-        // 만족도 점수 계산
-        const selectedSessionIds = selectedInstructor
-          ? new Set((survey as any).survey_sessions?.filter((ss: any) => ss.instructor_id === selectedInstructor).map((ss: any) => ss.id))
-          : null;
+        if (survey.survey_instructors && Array.isArray(survey.survey_instructors)) {
+          survey.survey_instructors.forEach((si: any) => {
+            const relatedId = si.instructor_id ?? si.instructors?.id;
+            const relatedName = si.instructors?.name ?? null;
+            if (relatedId && relatedName) {
+              instructorNameMap.set(relatedId, relatedName);
+            }
+            ensureInstructorEntry(relatedId, relatedName);
+          });
+        }
+
+        ensureInstructorEntry(survey.instructor_id, mainInstructorName);
+
+        if (survey.survey_sessions && Array.isArray(survey.survey_sessions)) {
+          survey.survey_sessions.forEach((session: any) => {
+            if (!session?.id || !session?.instructor_id) return;
+            sessionInstructorMap.set(session.id, session.instructor_id);
+
+            const sessionInstructorName = instructorNameMap.get(session.instructor_id)
+              ?? survey.survey_instructors?.find((si: any) => (si.instructor_id ?? si.instructors?.id) === session.instructor_id)?.instructors?.name
+              ?? (survey.instructors?.id === session.instructor_id ? survey.instructors?.name : undefined)
+              ?? null;
+
+            ensureInstructorEntry(session.instructor_id, sessionInstructorName);
+          });
+        }
+
+        surveyInstructorIds.forEach(id => {
+          const stat = instructorStatsMap.get(id);
+          if (stat) {
+            stat.survey_count += 1;
+          }
+        });
 
         survey.survey_responses?.forEach((response: any) => {
           response.question_answers?.forEach((answer: any) => {
-            // 선택된 강사에 해당하는 세션/설문만 포함
-            if (selectedInstructor) {
-              const sid = answer.survey_questions?.session_id as string | undefined;
-              const isOwner = survey.instructor_id === selectedInstructor;
-              const sessionMatch = sid && selectedSessionIds?.has(sid);
-              if (!isOwner && !sessionMatch) return;
-            }
-
             if (answer.survey_questions?.question_type === 'scale' && (answer.answer_value != null || answer.answer_text != null)) {
               let scoreRaw = parseScore((answer as any).answer_value ?? (answer as any).answer_text);
               if (scoreRaw === null) return;
@@ -398,12 +437,49 @@ export const useCourseReportsData = (
               if (score <= 5 && score > 0) {
                 score = score * 2;
               }
-              
+
               if (answer.survey_questions.satisfaction_type === 'instructor') {
-                allInstructorSatisfactions.push(score);
-                if (instructorId && instructorStatsMap.has(instructorId)) {
-                  instructorStatsMap.get(instructorId).satisfactions.push(score);
+                const targetInstructorIds: string[] = [];
+
+                const sessionId = answer.survey_questions?.session_id as string | undefined;
+                if (sessionId) {
+                  const sessionInstructorId = sessionInstructorMap.get(sessionId);
+                  if (sessionInstructorId) {
+                    targetInstructorIds.push(sessionInstructorId);
+                  }
                 }
+
+                const uniqueTargetInstructorIds = Array.from(new Set(targetInstructorIds.filter(Boolean)));
+
+                if (selectedInstructor) {
+                  if (uniqueTargetInstructorIds.length === 0) {
+                    if (surveyInstructorIds.has(selectedInstructor)) {
+                      uniqueTargetInstructorIds.push(selectedInstructor);
+                    } else {
+                      return;
+                    }
+                  } else if (!uniqueTargetInstructorIds.includes(selectedInstructor)) {
+                    return;
+                  }
+                } else if (uniqueTargetInstructorIds.length === 0 && surveyInstructorIds.size === 1) {
+                  const [onlyInstructorId] = Array.from(surveyInstructorIds);
+                  if (onlyInstructorId) {
+                    uniqueTargetInstructorIds.push(onlyInstructorId);
+                  }
+                }
+
+                allInstructorSatisfactions.push(score);
+
+                uniqueTargetInstructorIds.forEach((id) => {
+                  const stat = instructorStatsMap.get(id);
+                  if (stat) {
+                    stat.satisfactions.push(score);
+                    stat.response_count += 1;
+                    if ((!stat.instructor_name || stat.instructor_name === '강사 정보 없음') && instructorNameMap.get(id)) {
+                      stat.instructor_name = instructorNameMap.get(id);
+                    }
+                  }
+                });
               } else if (answer.survey_questions.satisfaction_type === 'course') {
                 allCourseSatisfactions.push(score);
               } else if (answer.survey_questions.satisfaction_type === 'operation') {
