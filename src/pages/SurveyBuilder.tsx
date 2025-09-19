@@ -80,6 +80,8 @@ const buildTitle = (year: number | null, round: number | null, day: number | nul
 };
 
 /* ───────────────────────────────── types ───────────────────────────────── */
+type SurveyWorkflowStatus = "draft" | "review_requested" | "deployed";
+
 type Survey = {
   id: string; title: string | null; description: string | null;
   start_date: string | null; end_date: string | null;
@@ -87,6 +89,7 @@ type Survey = {
   course_name: string | null; expected_participants: number | null; is_test: boolean | null;
   status: "draft" | "active" | "public" | "completed" | "review_requested" | "deployed" | null;
   created_at: string | null; updated_at: string | null; created_by?: string | null;
+  workflow_status?: SurveyWorkflowStatus | null;
   is_final_survey?: boolean | null;
 
   // 분반 관련 필드
@@ -103,8 +106,6 @@ type Section = { id: string; name: string; description?: string };
 type Course = { id: string; title: string };
 type Instructor = { id: string; name: string };
 
-type SurveyWorkflowStatus = "draft" | "review_requested" | "deployed";
-
 const STATUS_FLOW: SurveyWorkflowStatus[] = ["draft", "review_requested", "deployed"];
 
 const STATUS_META: Record<SurveyWorkflowStatus, { label: string; description: string }> = {
@@ -120,6 +121,31 @@ const STATUS_META: Record<SurveyWorkflowStatus, { label: string; description: st
     label: "배포",
     description: "설문이 배포되어 응답 수집을 시작했습니다. 후속 조치를 진행하세요.",
   },
+};
+
+const LEGACY_STATUS_TO_WORKFLOW: Record<string, SurveyWorkflowStatus> = {
+  draft: "draft",
+  review_requested: "review_requested",
+  deployed: "deployed",
+  public: "deployed",
+  active: "deployed",
+  completed: "deployed",
+};
+
+const isSurveyWorkflowStatus = (value: string | null | undefined): value is SurveyWorkflowStatus =>
+  !!value && STATUS_FLOW.includes(value as SurveyWorkflowStatus);
+
+const normalizeWorkflowStatus = (
+  workflowStatus: string | null | undefined,
+  legacyStatus: string | null | undefined
+): SurveyWorkflowStatus => {
+  if (isSurveyWorkflowStatus(workflowStatus)) {
+    return workflowStatus as SurveyWorkflowStatus;
+  }
+  if (legacyStatus && legacyStatus in LEGACY_STATUS_TO_WORKFLOW) {
+    return LEGACY_STATUS_TO_WORKFLOW[legacyStatus];
+  }
+  return "draft";
 };
 
 const REVIEW_CHECKLIST = [
@@ -228,13 +254,10 @@ export default function SurveyBuilder() {
     [educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber, isFinalSurvey]
   );
 
-  const currentWorkflowStatus: SurveyWorkflowStatus = useMemo(() => {
-    const raw = survey?.status;
-    if (raw === "review_requested") return "review_requested";
-    if (raw === "deployed") return "deployed";
-    if (raw === "public" || raw === "active") return "deployed";
-    return "draft";
-  }, [survey?.status]);
+  const currentWorkflowStatus: SurveyWorkflowStatus = useMemo(
+    () => normalizeWorkflowStatus(survey?.workflow_status, survey?.status),
+    [survey?.workflow_status, survey?.status]
+  );
 
   const statusStepIndex = STATUS_FLOW.indexOf(currentWorkflowStatus);
   const activeChecklist = checklistContext === "review" ? REVIEW_CHECKLIST : DEPLOY_CHECKLIST;
@@ -250,18 +273,20 @@ export default function SurveyBuilder() {
       console.log('Survey data loaded:', data);
       console.log('Survey error:', error);
       if (error) throw error;
-      const s = data as Survey;
-      setSurvey(s);
-      setEducationYear(s.education_year ?? new Date().getFullYear());
-      setEducationRound(s.education_round ?? 1);
-      setEducationDay(s.education_day ?? 1);
-      setCourseName(s.course_name ?? "");
+      const rawSurvey = data as Survey;
+      const resolvedWorkflowStatus = normalizeWorkflowStatus(rawSurvey.workflow_status, rawSurvey.status);
+      const surveyWithWorkflow: Survey = { ...rawSurvey, workflow_status: resolvedWorkflowStatus };
+      setSurvey(surveyWithWorkflow);
+      setEducationYear(rawSurvey.education_year ?? new Date().getFullYear());
+      setEducationRound(rawSurvey.education_round ?? 1);
+      setEducationDay(rawSurvey.education_day ?? 1);
+      setCourseName(rawSurvey.course_name ?? "");
       setCreatorEmail(null);
-      if (s.created_by) {
+      if (rawSurvey.created_by) {
         const { data: ownerProfile, error: ownerError } = await supabase
           .from('profiles')
           .select('email')
-          .eq('id', s.created_by)
+          .eq('id', rawSurvey.created_by)
           .single();
         if (!ownerError && ownerProfile?.email) {
           setCreatorEmail(ownerProfile.email);
@@ -269,24 +294,26 @@ export default function SurveyBuilder() {
       }
 
       // 분반 정보 로드
-      setIsGrouped(s.is_grouped ?? false);
-      setGroupType(s.group_type ?? "");
-      setGroupNumber(s.group_number ?? null);
-      setIsFinalSurvey(s.is_final_survey ?? false);
+      setIsGrouped(rawSurvey.is_grouped ?? false);
+      setGroupType(rawSurvey.group_type ?? "");
+      setGroupNumber(rawSurvey.group_number ?? null);
+      setIsFinalSurvey(rawSurvey.is_final_survey ?? false);
       const { startLocal, endLocal } = getDefaultStartEndLocal();
-      setStartAt(toLocalDateTime(s.start_date) || startLocal);
-      setEndAt(toLocalDateTime(s.end_date) || endLocal);
+      setStartAt(toLocalDateTime(rawSurvey.start_date) || startLocal);
+      setEndAt(toLocalDateTime(rawSurvey.end_date) || endLocal);
       setDescription(
-        s.description ??
+        rawSurvey.description ??
           "본 설문은 과목과 강사 만족도를 평가하기 위한 것입니다. 교육 품질 향상을 위해 모든 교육생께서 반드시 참여해 주시길 부탁드립니다."
       );
       console.log('Survey state updated with:', {
-        educationYear: s.education_year,
-        educationRound: s.education_round,
-        educationDay: s.education_day,
-        courseName: s.course_name,
-        title: s.title,
-        description: s.description
+        educationYear: rawSurvey.education_year,
+        educationRound: rawSurvey.education_round,
+        educationDay: rawSurvey.education_day,
+        courseName: rawSurvey.course_name,
+        title: rawSurvey.title,
+        description: rawSurvey.description,
+        workflow_status: resolvedWorkflowStatus,
+        status: rawSurvey.status,
       });
     } catch (e: any) {
       console.error('Survey load error:', e);
@@ -465,11 +492,29 @@ export default function SurveyBuilder() {
     async (next: SurveyWorkflowStatus) => {
       if (!surveyId) return;
       setStatusUpdating(true);
-      const dbStatus = next === "deployed" ? "public" : next;
+
+      const updates: { workflow_status: SurveyWorkflowStatus; status?: Survey["status"] } = {
+        workflow_status: next,
+      };
+
+      if (next === "deployed") {
+        updates.status = "public";
+      } else if (!survey?.status || survey.status !== "draft") {
+        updates.status = "draft";
+      }
+
       try {
-        const { error } = await supabase.from("surveys").update({ status: dbStatus }).eq("id", surveyId);
+        const { error } = await supabase.from("surveys").update(updates).eq("id", surveyId);
         if (error) throw error;
-        setSurvey((prev) => (prev ? { ...prev, status: dbStatus } : prev));
+        setSurvey((prev) =>
+          prev
+            ? {
+                ...prev,
+                workflow_status: next,
+                status: updates.status ?? prev.status,
+              }
+            : prev
+        );
         await loadSurvey();
 
         if (next === "review_requested") {
@@ -492,7 +537,7 @@ export default function SurveyBuilder() {
         setStatusUpdating(false);
       }
     },
-    [surveyId, loadSurvey, toast]
+    [surveyId, survey?.status, loadSurvey, toast]
   );
 
   const handleOpenReviewChecklist = useCallback(() => {
@@ -1373,7 +1418,8 @@ export default function SurveyBuilder() {
                     {STATUS_META[currentWorkflowStatus].label}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {survey?.status ? `DB: ${survey.status}` : "초안 상태"}
+                    워크플로: {survey?.workflow_status ?? currentWorkflowStatus}
+                    {survey?.status ? ` • DB: ${survey.status}` : ""}
                   </span>
                 </div>
                 <h2 className="text-xl font-semibold">설문 상태 진행 현황</h2>

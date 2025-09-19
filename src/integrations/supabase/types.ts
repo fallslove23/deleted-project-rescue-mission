@@ -1313,6 +1313,7 @@ export type Database = {
           session_id: string | null
           start_date: string | null
           status: string
+          workflow_status: string
           template_id: string | null
           title: string
           updated_at: string
@@ -1343,6 +1344,7 @@ export type Database = {
           session_id?: string | null
           start_date?: string | null
           status?: string
+          workflow_status?: string
           template_id?: string | null
           title: string
           updated_at?: string
@@ -1373,6 +1375,7 @@ export type Database = {
           session_id?: string | null
           start_date?: string | null
           status?: string
+          workflow_status?: string
           template_id?: string | null
           title?: string
           updated_at?: string
