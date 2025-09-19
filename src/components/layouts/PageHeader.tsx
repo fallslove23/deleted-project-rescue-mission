@@ -15,12 +15,12 @@ export function PageHeader({ title, subtitle, icon }: PageHeaderProps) {
   const { user, signOut } = useAuth();
 
   return (
-    <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+    <header className="border-b border-surface-border bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-sm sticky top-0 z-40 shadow-sm transition-colors">
       <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <SidebarTrigger />
+          <SidebarTrigger className="h-9 w-9" />
           <div className="h-10 w-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
-            {icon || <BarChart3 className="h-5 w-5 text-white" />}
+            {icon || <BarChart3 className="h-5 w-5 text-primary-foreground" />}
           </div>
           <div>
             <h1 className="text-base md:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
