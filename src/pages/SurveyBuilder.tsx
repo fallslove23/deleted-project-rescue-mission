@@ -37,11 +37,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /* ───────────────────────────────── helpers ───────────────────────────────── */
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -82,30 +82,6 @@ const buildTitle = (year: number | null, round: number | null, day: number | nul
 /* ───────────────────────────────── types ───────────────────────────────── */
 type SurveyWorkflowStatus = "draft" | "review_requested" | "deployed";
 
-type Survey = {
-  id: string; title: string | null; description: string | null;
-  start_date: string | null; end_date: string | null;
-  education_year: number | null; education_round: number | null; education_day: number | null;
-  course_name: string | null; expected_participants: number | null; is_test: boolean | null;
-  status: "draft" | "active" | "public" | "completed" | "review_requested" | "deployed" | null;
-  created_at: string | null; updated_at: string | null; created_by?: string | null;
-  workflow_status?: SurveyWorkflowStatus | null;
-  is_final_survey?: boolean | null;
-
-  // 분반 관련 필드
-  is_grouped?: boolean | null;
-  group_type?: string | null;
-  group_number?: number | null;
-};
-type SurveyQuestion = {
-  id: string; question_text: string; question_type: string; options: any; is_required: boolean;
-  order_index: number; section_id?: string | null; session_id?: string | null;
-  scope: 'session' | 'operation'; satisfaction_type?: string | null;
-};
-type Section = { id: string; name: string; description?: string };
-type Course = { id: string; title: string };
-type Instructor = { id: string; name: string };
-
 const STATUS_FLOW: SurveyWorkflowStatus[] = ["draft", "review_requested", "deployed"];
 
 const STATUS_META: Record<SurveyWorkflowStatus, { label: string; description: string }> = {
@@ -119,7 +95,7 @@ const STATUS_META: Record<SurveyWorkflowStatus, { label: string; description: st
   },
   deployed: {
     label: "배포",
-    description: "설문이 배포되어 응답 수집을 시작했습니다. 후속 조치를 진행하세요.",
+    description: "설문이 배포되어 응답 수집을 시작했습니다.",
   },
 };
 
@@ -140,7 +116,7 @@ const normalizeWorkflowStatus = (
   legacyStatus: string | null | undefined
 ): SurveyWorkflowStatus => {
   if (isSurveyWorkflowStatus(workflowStatus)) {
-    return workflowStatus as SurveyWorkflowStatus;
+    return workflowStatus;
   }
   if (legacyStatus && legacyStatus in LEGACY_STATUS_TO_WORKFLOW) {
     return LEGACY_STATUS_TO_WORKFLOW[legacyStatus];
@@ -151,38 +127,60 @@ const normalizeWorkflowStatus = (
 const REVIEW_CHECKLIST = [
   {
     id: "content",
-    label: "질문, 응답 옵션, 안내문을 최신 교육 내용과 비교하여 검토했습니다.",
-    description: "복수 선택 문항과 필수 여부까지 다시 한 번 확인해주세요.",
+    label: "질문과 안내 문구가 최신 교육 내용과 일치하는지 검토했습니다.",
+    description: "복수 선택 문항과 필수 여부까지 다시 한 번 확인하세요.",
   },
   {
     id: "schedule",
-    label: "시작/종료 일시와 교육 일정이 일치합니다.",
-    description: "배포 전 일정이 확정되었는지 담당자와 공유했는지 확인합니다.",
+    label: "시작/종료 일시가 교육 일정과 일치합니다.",
+    description: "배포 전에 일정이 확정되었는지 담당자와 공유했는지 확인합니다.",
   },
   {
     id: "preview",
-    label: "미리보기로 설문 흐름을 검토했습니다.",
-    description: "모든 섹션과 분기 로직이 의도대로 노출되는지 확인합니다.",
+    label: "미리보기로 설문 흐름을 점검했습니다.",
+    description: "섹션과 분기 로직이 의도대로 노출되는지 확인합니다.",
   },
 ];
 
 const DEPLOY_CHECKLIST = [
   {
-    id: "required-fields",
-    label: "필수 입력 항목(과정명, 일정, 질문 등)이 모두 채워져 있습니다.",
-    description: "세션별 최소 한 개의 질문이 있는지 다시 한 번 확인하세요.",
+    id: "required",
+    label: "필수 입력 항목이 모두 채워져 있습니다.",
+    description: "과정명, 일정, 질문, 설명 등을 다시 확인하세요.",
   },
   {
     id: "communication",
     label: "배포 대상과 수집 기간을 담당자와 공유했습니다.",
-    description: "메일, 메신저 등으로 공지 초안과 함께 전달했는지 점검합니다.",
   },
   {
-    id: "backup",
-    label: "배포 후 모니터링 계획과 응답 수집 마감 일정이 준비되었습니다.",
-    description: "필요 시 취소/수정 프로세스도 마련되어 있는지 확인하세요.",
+    id: "monitoring",
+    label: "배포 후 모니터링 계획과 응답 마감 일정을 준비했습니다.",
   },
 ];
+
+type Survey = {
+  id: string; title: string | null; description: string | null;
+  start_date: string | null; end_date: string | null;
+  education_year: number | null; education_round: number | null; education_day: number | null;
+  course_name: string | null; expected_participants: number | null; is_test: boolean | null;
+  status: "draft" | "active" | "public" | "completed" | "review_requested" | "deployed" | null;
+  created_at: string | null; updated_at: string | null; created_by?: string | null;
+  workflow_status?: SurveyWorkflowStatus | null;
+  is_final_survey?: boolean | null;
+  
+  // 분반 관련 필드
+  is_grouped?: boolean | null;
+  group_type?: string | null;
+  group_number?: number | null;
+};
+type SurveyQuestion = {
+  id: string; question_text: string; question_type: string; options: any; is_required: boolean;
+  order_index: number; section_id?: string | null; session_id?: string | null;
+  scope: 'session' | 'operation'; satisfaction_type?: string | null;
+};
+type Section = { id: string; name: string; description?: string };
+type Course = { id: string; title: string };
+type Instructor = { id: string; name: string };
 
 /* ─────────────────────────────── component ─────────────────────────────── */
 export default function SurveyBuilder() {
@@ -255,13 +253,15 @@ export default function SurveyBuilder() {
   );
 
   const currentWorkflowStatus: SurveyWorkflowStatus = useMemo(
-    () => normalizeWorkflowStatus(survey?.workflow_status, survey?.status),
+    () => normalizeWorkflowStatus(survey?.workflow_status ?? null, survey?.status ?? null),
     [survey?.workflow_status, survey?.status]
   );
 
   const statusStepIndex = STATUS_FLOW.indexOf(currentWorkflowStatus);
   const activeChecklist = checklistContext === "review" ? REVIEW_CHECKLIST : DEPLOY_CHECKLIST;
-  const allChecklistChecked = activeChecklist.every((item) => checklistState[item.id]);
+  const allChecklistChecked = checklistContext
+    ? activeChecklist.every((item) => checklistState[item.id])
+    : false;
 
   /* ───────────────────────────── data loaders ───────────────────────────── */
   const loadSurvey = useCallback(async () => {
@@ -274,13 +274,13 @@ export default function SurveyBuilder() {
       console.log('Survey error:', error);
       if (error) throw error;
       const rawSurvey = data as Survey;
-      const resolvedWorkflowStatus = normalizeWorkflowStatus(rawSurvey.workflow_status, rawSurvey.status);
-      const surveyWithWorkflow: Survey = { ...rawSurvey, workflow_status: resolvedWorkflowStatus };
-      setSurvey(surveyWithWorkflow);
+      const resolvedWorkflowStatus = normalizeWorkflowStatus(rawSurvey.workflow_status ?? null, rawSurvey.status ?? null);
+      setSurvey({ ...rawSurvey, workflow_status: resolvedWorkflowStatus });
       setEducationYear(rawSurvey.education_year ?? new Date().getFullYear());
       setEducationRound(rawSurvey.education_round ?? 1);
       setEducationDay(rawSurvey.education_day ?? 1);
       setCourseName(rawSurvey.course_name ?? "");
+
       setCreatorEmail(null);
       if (rawSurvey.created_by) {
         const { data: ownerProfile, error: ownerError } = await supabase
@@ -289,7 +289,7 @@ export default function SurveyBuilder() {
           .eq('id', rawSurvey.created_by)
           .single();
         if (!ownerError && ownerProfile?.email) {
-          setCreatorEmail(ownerProfile.email);
+          setCreatorEmail(ownerProfile.email as string);
         }
       }
 
@@ -405,7 +405,6 @@ export default function SurveyBuilder() {
     setNotificationEmail(creatorEmail ?? "");
   }, [creatorEmail]);
 
-  /* ─────────────────────────────── save/basic ────────────────────────────── */
   const validateBeforeDeploy = useCallback(() => {
     const errors: string[] = [];
     const trimmedCourseName = courseName.trim();
@@ -416,15 +415,15 @@ export default function SurveyBuilder() {
       errors.push("과정명이 입력되지 않았습니다.");
     }
     if (!trimmedTitle) {
-      errors.push("설문 제목을 생성할 수 없습니다. 기본 정보를 다시 저장해 주세요.");
+      errors.push("설문 제목을 생성할 수 없습니다. 기본 정보를 저장해 주세요.");
     }
 
     const startDate = startAt ? new Date(startAt) : null;
     const endDate = endAt ? new Date(endAt) : null;
-    if (!startDate || isNaN(startDate.getTime())) {
+    if (!startDate || Number.isNaN(startDate.getTime())) {
       errors.push("시작 일시가 올바르지 않습니다.");
     }
-    if (!endDate || isNaN(endDate.getTime())) {
+    if (!endDate || Number.isNaN(endDate.getTime())) {
       errors.push("종료 일시가 올바르지 않습니다.");
     }
     if (startDate && endDate && startDate >= endDate) {
@@ -444,7 +443,7 @@ export default function SurveyBuilder() {
     }
 
     const sessionsWithoutQuestions = sessions.filter((session) =>
-      !questions.some((q: any) => q.scope === 'session' && q.session_id === session.id)
+      !questions.some((q) => q.scope === 'session' && q.session_id === session.id)
     );
     if (sessionsWithoutQuestions.length > 0) {
       const names = sessionsWithoutQuestions
@@ -456,6 +455,99 @@ export default function SurveyBuilder() {
 
     return { valid: errors.length === 0, errors };
   }, [courseName, title, startAt, endAt, description, sessions, questions]);
+
+  /* ─────────────────────────────── save/basic ────────────────────────────── */
+  const saveBasic = async () => {
+    if (!surveyId) return;
+    if (!educationYear || !educationRound || !educationDay || !courseName) {
+      toast({ title: "필수값 누락", description: "교육연도, 차수, 일차, 과정명은 필수입니다.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { startLocal, endLocal } = getDefaultStartEndLocal();
+      const payload = {
+        education_year: educationYear, education_round: educationRound, education_day: educationDay,
+        course_name: courseName, title,
+        start_date: toSafeISOString(startAt || startLocal),
+        end_date: toSafeISOString(endAt || endLocal),
+        description,
+        
+        // 분반 관련 필드
+        is_grouped: isGrouped,
+        group_type: isGrouped ? (groupType || null) : null,
+        group_number: isGrouped ? (groupNumber ?? null) : null,
+        is_final_survey: isFinalSurvey,
+      };
+      const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
+      if (error) throw error;
+      toast({ title: "기본 정보 저장", description: "저장되었습니다." });
+      await loadSurvey();
+    } catch (e: any) {
+      toast({ title: "저장 실패", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* ───────────────────────────── questions CRUD ──────────────────────────── */
+  const handleAddQuestion = () => { setEditingQuestion(null); setQuestionDialogOpen(true); };
+  const handleEditQuestion = (q: SurveyQuestion) => { setEditingQuestion(q); setQuestionDialogOpen(true); };
+  const handleDeleteQuestion = async (id: string) => {
+    if (!confirm('이 질문을 삭제하시겠습니까?')) return;
+    const { error } = await supabase.from('survey_questions').delete().eq('id', id);
+    if (error) { toast({ title: "삭제 실패", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "성공", description: "질문이 삭제되었습니다." });
+    loadQuestions();
+  };
+  
+  // 멀티 셀렉션 핸들러들
+  const handleToggleMultiSelect = () => {
+    setIsMultiSelectMode(!isMultiSelectMode);
+    setSelectedQuestions(new Set());
+  };
+  
+  const handleSelectQuestion = (questionId: string) => {
+    const newSelected = new Set(selectedQuestions);
+    if (newSelected.has(questionId)) {
+      newSelected.delete(questionId);
+    } else {
+      newSelected.add(questionId);
+    }
+    setSelectedQuestions(newSelected);
+  };
+  
+  const handleSelectAllQuestions = () => {
+    if (selectedQuestions.size === questions.length) {
+      setSelectedQuestions(new Set());
+    } else {
+      setSelectedQuestions(new Set(questions.map(q => q.id)));
+    }
+  };
+  
+  const handleBulkDeleteQuestions = async () => {
+    if (selectedQuestions.size === 0) return;
+
+    if (!confirm(`선택한 ${selectedQuestions.size}개의 질문을 삭제하시겠습니까?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('survey_questions')
+        .delete()
+        .in('id', Array.from(selectedQuestions));
+        
+      if (error) throw error;
+      
+      toast({ title: "성공", description: `${selectedQuestions.size}개의 질문이 삭제되었습니다.` });
+      setSelectedQuestions(new Set());
+      setIsMultiSelectMode(false);
+      loadQuestions();
+    } catch (e: any) {
+      toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleQuestionSave = () => { setQuestionDialogOpen(false); loadQuestions(); };
 
   const resetChecklistState = useCallback((context: "review" | "deploy") => {
     const source = context === "review" ? REVIEW_CHECKLIST : DEPLOY_CHECKLIST;
@@ -529,7 +621,7 @@ export default function SurveyBuilder() {
         }
         succeeded = true;
       } catch (e: any) {
-        console.error("Status update error:", e);
+        console.error('Status update error:', e);
         toast({
           title: "상태 변경 실패",
           description: e?.message ?? "상태 변경 중 오류가 발생했습니다.",
@@ -649,98 +741,6 @@ export default function SurveyBuilder() {
   const handleDismissWarnings = useCallback(() => {
     setDeploymentWarnings([]);
   }, []);
-
-  const saveBasic = async () => {
-    if (!surveyId) return;
-    if (!educationYear || !educationRound || !educationDay || !courseName) {
-      toast({ title: "필수값 누락", description: "교육연도, 차수, 일차, 과정명은 필수입니다.", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    try {
-      const { startLocal, endLocal } = getDefaultStartEndLocal();
-      const payload = {
-        education_year: educationYear, education_round: educationRound, education_day: educationDay,
-        course_name: courseName, title,
-        start_date: toSafeISOString(startAt || startLocal),
-        end_date: toSafeISOString(endAt || endLocal),
-        description,
-        
-        // 분반 관련 필드
-        is_grouped: isGrouped,
-        group_type: isGrouped ? (groupType || null) : null,
-        group_number: isGrouped ? (groupNumber ?? null) : null,
-        is_final_survey: isFinalSurvey,
-      };
-      const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
-      if (error) throw error;
-      toast({ title: "기본 정보 저장", description: "저장되었습니다." });
-      await loadSurvey();
-    } catch (e: any) {
-      toast({ title: "저장 실패", description: e.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  /* ───────────────────────────── questions CRUD ──────────────────────────── */
-  const handleAddQuestion = () => { setEditingQuestion(null); setQuestionDialogOpen(true); };
-  const handleEditQuestion = (q: SurveyQuestion) => { setEditingQuestion(q); setQuestionDialogOpen(true); };
-  const handleDeleteQuestion = async (id: string) => {
-    if (!confirm('이 질문을 삭제하시겠습니까?')) return;
-    const { error } = await supabase.from('survey_questions').delete().eq('id', id);
-    if (error) { toast({ title: "삭제 실패", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "성공", description: "질문이 삭제되었습니다." });
-    loadQuestions();
-  };
-  
-  // 멀티 셀렉션 핸들러들
-  const handleToggleMultiSelect = () => {
-    setIsMultiSelectMode(!isMultiSelectMode);
-    setSelectedQuestions(new Set());
-  };
-  
-  const handleSelectQuestion = (questionId: string) => {
-    const newSelected = new Set(selectedQuestions);
-    if (newSelected.has(questionId)) {
-      newSelected.delete(questionId);
-    } else {
-      newSelected.add(questionId);
-    }
-    setSelectedQuestions(newSelected);
-  };
-  
-  const handleSelectAllQuestions = () => {
-    if (selectedQuestions.size === questions.length) {
-      setSelectedQuestions(new Set());
-    } else {
-      setSelectedQuestions(new Set(questions.map(q => q.id)));
-    }
-  };
-  
-  const handleBulkDeleteQuestions = async () => {
-    if (selectedQuestions.size === 0) return;
-    
-    if (!confirm(`선택한 ${selectedQuestions.size}개의 질문을 삭제하시겠습니까?`)) return;
-    
-    try {
-      const { error } = await supabase
-        .from('survey_questions')
-        .delete()
-        .in('id', Array.from(selectedQuestions));
-        
-      if (error) throw error;
-      
-      toast({ title: "성공", description: `${selectedQuestions.size}개의 질문이 삭제되었습니다.` });
-      setSelectedQuestions(new Set());
-      setIsMultiSelectMode(false);
-      loadQuestions();
-    } catch (e: any) {
-      toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
-    }
-  };
-  
-  const handleQuestionSave = () => { setQuestionDialogOpen(false); loadQuestions(); };
 
   // 새로운 템플릿 적용 함수
   const handleApplySelectedTemplates = async () => {
@@ -1404,98 +1404,113 @@ export default function SurveyBuilder() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-bold">설문 편집</h1>
-        <div className="flex gap-2">
+        <div className="hidden md:flex gap-2">
           {desktopActions.map((action, index) => (
             <div key={index}>{action}</div>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2 md:hidden">
+          {mobileActions.map((action, index) => (
+            <div key={index}>{action}</div>
+          ))}
+        </div>
       </div>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="rounded-full px-3 py-1 text-sm">
+                {STATUS_META[currentWorkflowStatus].label}
+              </Badge>
+              {survey?.updated_at && (
+                <span className="text-xs text-muted-foreground">
+                  마지막 저장: {new Date(survey.updated_at).toLocaleString("ko-KR")}
+                </span>
+              )}
+            </div>
+            <CardTitle className="text-xl">설문 진행 단계</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {STATUS_META[currentWorkflowStatus].description}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">{statusActionButtons}</div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {STATUS_FLOW.map((status, index) => {
+              const isActive = status === currentWorkflowStatus;
+              const isCompleted = index < statusStepIndex;
+              const indicatorClass = isActive
+                ? "bg-primary text-primary-foreground"
+                : isCompleted
+                  ? "bg-emerald-500 text-white"
+                  : "bg-muted text-muted-foreground";
+              return (
+                <div
+                  key={status}
+                  className={`rounded-lg border p-3 transition-colors ${
+                    isActive ? "border-primary/60 bg-primary/10" : "border-muted"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${indicatorClass}`}>
+                      {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">{STATUS_META[status].label}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {STATUS_META[status].description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <span className="inline-flex h-3 w-3 rounded-full bg-primary" /> 현재 단계
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-flex h-3 w-3 rounded-full bg-emerald-500" /> 완료됨
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-flex h-3 w-3 rounded-full bg-muted" /> 대기 중
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {deploymentWarnings.length > 0 && (
+        <Alert variant="destructive" className="border-destructive/40 bg-destructive/10">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>배포 전 확인이 필요한 항목이 있습니다.</AlertTitle>
+          <AlertDescription>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {deploymentWarnings.map((warning, index) => (
+                <li key={index}>{warning}</li>
+              ))}
+            </ul>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={handleRunValidation} className="rounded-full">
+                <RefreshCcw className="mr-1.5 h-4 w-4" /> 다시 점검
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleDismissWarnings} className="rounded-full">
+                경고 숨기기
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ✅ AdminLayout이 padding/컨테이너를 제공하므로 내부는 바로 내용 */}
       {!survey && !loading ? (
         <div className="py-10 text-sm text-muted-foreground">해당 설문을 찾을 수 없습니다.</div>
       ) : (
         <div className="space-y-6">
-          <div className="rounded-2xl border bg-muted/40 p-4 md:p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="uppercase tracking-wide text-xs">
-                    {STATUS_META[currentWorkflowStatus].label}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    워크플로: {survey?.workflow_status ?? currentWorkflowStatus}
-                    {survey?.status ? ` • DB: ${survey.status}` : ""}
-                  </span>
-                </div>
-                <h2 className="text-xl font-semibold">설문 상태 진행 현황</h2>
-                <p className="text-sm text-muted-foreground max-w-2xl">
-                  {STATUS_META[currentWorkflowStatus].description}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {statusActionButtons}
-              </div>
-            </div>
-            <Separator className="my-4" />
-            <div className="grid gap-4 sm:grid-cols-3">
-              {STATUS_FLOW.map((step, index) => {
-                const meta = STATUS_META[step];
-                const isCompleted = index < statusStepIndex;
-                const isActive = index === statusStepIndex;
-                return (
-                  <div
-                    key={step}
-                    className={`flex items-start gap-3 rounded-xl border bg-background/80 p-3 ${
-                      isActive ? 'border-primary/60 shadow-sm' : 'border-border'
-                    }`}
-                  >
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${
-                        isActive || isCompleted
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'text-muted-foreground'
-                      }`}
-                    >
-                      {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : index + 1}
-                    </div>
-                    <div className="space-y-1">
-                      <div className={`text-sm font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {meta.label}
-                      </div>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        {meta.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {deploymentWarnings.length > 0 && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>배포 전 확인이 필요한 항목이 있습니다.</AlertTitle>
-              <AlertDescription>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {deploymentWarnings.map((warning, index) => (
-                    <li key={index}>{warning}</li>
-                  ))}
-                </ul>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={handleRunValidation} className="rounded-full">
-                    <RefreshCcw className="mr-1.5 h-4 w-4" /> 다시 점검
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={handleDismissWarnings} className="rounded-full">
-                    경고 숨기기
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* 기본 정보 */}
           <Card>
             <CardHeader><CardTitle className="text-2xl">기본 정보</CardTitle></CardHeader>
