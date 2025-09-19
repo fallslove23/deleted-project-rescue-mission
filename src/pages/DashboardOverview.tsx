@@ -1,6 +1,6 @@
 // src/pages/DashboardOverview.tsx
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { DashboardLayout } from "@/components/layouts";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -115,12 +115,18 @@ const DashboardOverview: React.FC = () => {
   }, [fetchStats]);
 
   const busy = loading || authLoading;
+  const filtersSummary = useMemo(() => {
+    const courseScope = isAdmin ? "전체 과정" : "담당 과정";
+    const instructorScope = isAdmin ? "전체 강사" : "담당 강사";
+    return `기간: 전체 기간 · 과정: ${courseScope} · 강사: ${instructorScope}`;
+  }, [isAdmin]);
 
   return (
     <DashboardLayout
       title="관리자 대시보드"
       description={isAdmin ? "시스템 관리자" : "강사"}
       loading={busy}
+      filtersSummary={filtersSummary}
     >
       <div className="space-y-6">
         {/* 주요 통계 카드 */}

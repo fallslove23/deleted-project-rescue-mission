@@ -13,6 +13,7 @@ export interface DashboardLayoutProps {
   loading?: boolean;
   icon?: React.ReactNode;
   hideHeader?: boolean;
+  filtersSummary?: string;
 }
 
 function toArray<T>(v: T | T[] | undefined | null): T[] {
@@ -31,6 +32,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     loading = false,
     icon,
     hideHeader = false,
+    filtersSummary,
   } = props;
 
   const actionItems = toArray(actions);
@@ -55,6 +57,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
           title={title}
           subtitle={subtitle || description}
           icon={icon}
+          filtersSummary={filtersSummary}
         />
       )}
       

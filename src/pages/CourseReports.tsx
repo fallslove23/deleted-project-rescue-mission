@@ -1,5 +1,5 @@
 // src/pages/CourseReports.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layouts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -227,11 +227,33 @@ const CourseReports = () => {
   const openDrillDown = (type: 'instructor' | 'course' | 'operation') => {
     const titles = {
       instructor: '강사 만족도',
-      course: '과목 만족도', 
+      course: '과목 만족도',
       operation: '운영 만족도'
     };
     setDrillDownModal({ isOpen: true, type, title: titles[type] });
   };
+
+  const filtersSummary = useMemo(() => {
+    const courseLabel = selectedCourse
+      ? availableCourses.find((course) => course.key === selectedCourse)?.course_name ?? selectedCourse
+      : '전체 과정';
+    const roundLabel = selectedRound != null ? `${selectedRound}차` : '전체 차수';
+    const instructorLabel = isInstructor
+      ? '담당 강사'
+      : selectedInstructor
+        ? availableInstructors.find((instructor) => String(instructor.id) === String(selectedInstructor))?.name ?? '선택된 강사'
+        : '전체 강사';
+
+    return `기간: ${selectedYear}년 · 과정: ${courseLabel} · 차수: ${roundLabel} · 강사: ${instructorLabel}`;
+  }, [
+    selectedYear,
+    selectedCourse,
+    selectedRound,
+    selectedInstructor,
+    availableCourses,
+    availableInstructors,
+    isInstructor,
+  ]);
 
   const actions = currentReport ? (
     <div className="flex items-center gap-2">
@@ -253,6 +275,7 @@ const CourseReports = () => {
       icon={<BarChart3 className="h-5 w-5 text-white" />}
       actions={actions}
       loading={loading}
+      filtersSummary={filtersSummary}
     >
       <div className="space-y-6">
         {/* 권한별 알림 섹션 */}

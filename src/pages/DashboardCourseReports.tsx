@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layouts';
 import { TrendingUp, Download, Star, Target, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import {
   LineChart, Line, PieChart, Pie, Cell, ComposedChart
 } from 'recharts';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
-import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import CourseSelector from '@/components/course-reports/CourseSelector';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
@@ -215,6 +214,28 @@ const DashboardCourseReports = () => {
     return <Minus className="h-4 w-4 text-gray-400" />;
   };
 
+  const filtersSummary = useMemo(() => {
+    const courseLabel = selectedCourse
+      ? availableCourses.find((course) => course.key === selectedCourse)?.course_name ?? selectedCourse
+      : '전체 과정';
+    const roundLabel = selectedRound != null ? `${selectedRound}차` : '전체 차수';
+    const instructorLabel = isInstructor
+      ? '담당 강사'
+      : selectedInstructor
+        ? availableInstructors.find((instructor) => String(instructor.id) === String(selectedInstructor))?.name ?? '선택된 강사'
+        : '전체 강사';
+
+    return `기간: ${selectedYear}년 · 과정: ${courseLabel} · 차수: ${roundLabel} · 강사: ${instructorLabel}`;
+  }, [
+    selectedYear,
+    selectedCourse,
+    selectedRound,
+    selectedInstructor,
+    availableCourses,
+    availableInstructors,
+    isInstructor,
+  ]);
+
   const actions = currentReport ? (
     <Button onClick={handlePDFExport} variant="outline" size="sm">
       <Download className="h-4 w-4 mr-2" />
@@ -229,6 +250,7 @@ const DashboardCourseReports = () => {
       icon={<TrendingUp className="h-5 w-5 text-white" />}
       actions={actions}
       loading={loading}
+      filtersSummary={filtersSummary}
     >
       <div className="space-y-6">
         {/* 로딩 상태 표시 */}

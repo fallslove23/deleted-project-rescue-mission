@@ -452,6 +452,27 @@ const SurveyAnalysis = () => {
   };
 
   /* ========================= Render ========================= */
+  const filtersSummary = useMemo(() => {
+    const yearLabel = selectedYear === 'all' ? '전체 연도' : `${selectedYear}년`;
+    const roundLabel = selectedRound === 'all' ? '전체 차수' : `${selectedRound}차`;
+    const instructorLabel = selectedInstructor === 'all'
+      ? canViewAll ? '전체 강사' : '담당 강사'
+      : allInstructors.find((instructor) => instructor.id === selectedInstructor)?.name ?? '선택된 강사';
+    const surveyLabel = selectedSurvey === 'none'
+      ? '전체 설문'
+      : surveys.find((survey) => survey.id === selectedSurvey)?.title ?? '선택된 설문';
+
+    return `연도: ${yearLabel} · 차수: ${roundLabel} · 강사: ${instructorLabel} · 설문: ${surveyLabel}`;
+  }, [
+    selectedYear,
+    selectedRound,
+    selectedInstructor,
+    selectedSurvey,
+    allInstructors,
+    surveys,
+    canViewAll,
+  ]);
+
   return (
     <DashboardLayout
       title="설문 결과 분석"
@@ -459,6 +480,7 @@ const SurveyAnalysis = () => {
       totalCount={filteredSurveys.length}
       actions={desktopActions}
       loading={loading}
+      filtersSummary={filtersSummary}
     >
       <div className="space-y-6">
         {/* 필터 */}
@@ -815,3 +837,4 @@ const SurveyAnalysis = () => {
 };
 
 export default SurveyAnalysis;
+
