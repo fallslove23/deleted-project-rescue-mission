@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAnonymousSession } from '@/hooks/useAnonymousSession';
@@ -11,9 +11,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Send, User, KeyRound, AlertCircle, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Send, KeyRound, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, ClipboardCheck, Loader2, RotateCcw } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { toZonedTime } from 'date-fns-tz';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 
 interface Survey {
@@ -71,6 +73,84 @@ interface Section {
   order_index: number;
 }
 
+const NO_SECTION_KEY = '__no_section__';
+
+const groupQuestionsBySection = (questionsList: Question[], sectionsList: Section[]): Question[][] => {
+  if (!questionsList || questionsList.length === 0) {
+    return [];
+  }
+
+  const groups: Question[][] = [];
+  const orderedSections = [...sectionsList].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const bySection = new Map<string, Question[]>();
+  const sortedQuestions = [...questionsList].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+
+  for (const question of sortedQuestions) {
+    const key = (question.section_id as string | null) ?? NO_SECTION_KEY;
+    if (!bySection.has(key)) {
+      bySection.set(key, []);
+    }
+    bySection.get(key)!.push(question);
+  }
+
+  for (const section of orderedSections) {
+    const list = bySection.get(section.id);
+    if (list && list.length > 0) {
+      groups.push(list);
+    }
+  }
+
+  const noSectionList = bySection.get(NO_SECTION_KEY);
+  if (noSectionList && noSectionList.length > 0) {
+    groups.push(noSectionList);
+  }
+
+  return groups;
+};
+
+const clampIndex = (index: number, total: number) => {
+  if (total <= 0) return 0;
+  if (index < 0) return 0;
+  if (index > total - 1) return total - 1;
+  return index;
+};
+
+const isAnswerProvided = (answer?: Answer) => {
+  if (!answer) return false;
+  if (Array.isArray(answer.answer)) {
+    return answer.answer.length > 0;
+  }
+  if (typeof answer.answer === 'string') {
+    return answer.answer.trim() !== '';
+  }
+  return false;
+};
+
+const countAnsweredForQuestions = (answers: Answer[], questionList: Question[]) => {
+  let count = 0;
+  for (const question of questionList) {
+    const answer = answers.find((a) => a.questionId === question.id);
+    if (isAnswerProvided(answer)) {
+      count++;
+    }
+  }
+  return count;
+};
+
+const getQuestionsForSessionId = (sessionId: string, allQuestions: Question[]) => {
+  if (sessionId === 'operation_common') {
+    return allQuestions.filter((question) => question.scope === 'operation' || !question.session_id);
+  }
+  return allQuestions.filter((question) => question.session_id === sessionId);
+};
+
+interface SessionAutosaveData {
+  answers: Record<string, string | string[]>;
+  currentSessionIndex: number;
+  currentQuestionIndex: number;
+  updatedAt: number;
+}
+
 const SurveyParticipateSession = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
@@ -95,6 +175,12 @@ const SurveyParticipateSession = () => {
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
 
   const completedKey = surveyId ? `survey_completed_${surveyId}` : '';
+  const autosaveKey = useMemo(() => (surveyId ? `survey_session_autosave_${surveyId}` : null), [surveyId]);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [hasSavedProgress, setHasSavedProgress] = useState(false);
+  const saveTimeoutRef = useRef<number | null>(null);
+  const restoredOnceRef = useRef(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -192,7 +278,7 @@ const SurveyParticipateSession = () => {
         .order('session_order');
 
       if (sessionsError) throw sessionsError;
-      setSurveySessions(sessionsData || []);
+      let sessionList = sessionsData || [];
 
       // 섹션 데이터 로드
       const { data: sectionsData } = await supabase
@@ -200,7 +286,8 @@ const SurveyParticipateSession = () => {
         .select('*')
         .eq('survey_id', surveyId)
         .order('order_index');
-      setSections(sectionsData || []);
+      const sectionsList = sectionsData || [];
+      setSections(sectionsList);
 
       // 질문 데이터 로드 (세션별 + 운영 공통 포함)
       const { data: questionsData } = await supabase
@@ -208,32 +295,92 @@ const SurveyParticipateSession = () => {
         .select('*')
         .eq('survey_id', surveyId)
         .order('order_index');
-      
-      const typedQuestions = (questionsData || []).map(q => ({
+
+      const typedQuestions = (questionsData || []).map((q) => ({
         ...q,
-        scope: (q.scope as 'session' | 'operation') || 'session'
+        scope: (q.scope as 'session' | 'operation') || 'session',
       }));
       setQuestions(typedQuestions);
 
-      // 운영/공통(scope=operation 또는 session_id 없음) 문항이 있으면 가상 세션 추가
-      const opQuestions = typedQuestions.filter(q => q.scope === 'operation' || !q.session_id);
+      const opQuestions = typedQuestions.filter((q) => q.scope === 'operation' || !q.session_id);
       if (opQuestions.length > 0) {
         const operationSession = {
           id: 'operation_common',
           survey_id: surveyId!,
           course_id: '',
           instructor_id: '',
-          session_order: (sessionsData?.length || 0) + 1000,
+          session_order: (sessionList.length || 0) + 1000,
           session_name: '운영/공통 문항',
-        } as any;
-        setSurveySessions(prev => [...prev, operationSession]);
+        } as SurveySession;
+        sessionList = [...sessionList, operationSession];
       }
 
-      const initialAnswers = typedQuestions.map((q) => ({
+      let initialAnswers = typedQuestions.map((q) => ({
         questionId: q.id,
         answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
       }));
+      let restoredSessionIndex = 0;
+      let restoredQuestionIndex = 0;
+      let restoredUpdatedAt: number | null = null;
+      let restored = false;
+
+      if (autosaveKey && typeof window !== 'undefined') {
+        const rawSaved = localStorage.getItem(autosaveKey);
+        if (rawSaved) {
+          try {
+            const parsed = JSON.parse(rawSaved) as SessionAutosaveData;
+            restored = true;
+            if (parsed.answers) {
+              initialAnswers = initialAnswers.map((answer) => {
+                const savedValue = parsed.answers[answer.questionId];
+                return savedValue !== undefined ? { ...answer, answer: savedValue } : answer;
+              });
+            }
+            if (typeof parsed.currentSessionIndex === 'number') {
+              restoredSessionIndex = clampIndex(parsed.currentSessionIndex, sessionList.length);
+            }
+            if (typeof parsed.currentQuestionIndex === 'number') {
+              const targetSession = sessionList[restoredSessionIndex];
+              if (targetSession) {
+                const targetGroups = groupQuestionsBySection(
+                  getQuestionsForSessionId(targetSession.id, typedQuestions),
+                  sectionsList
+                );
+                restoredQuestionIndex = clampIndex(parsed.currentQuestionIndex, targetGroups.length);
+              }
+            }
+            if (typeof parsed.updatedAt === 'number') {
+              restoredUpdatedAt = parsed.updatedAt;
+            }
+          } catch (parseError) {
+            console.error('임시 저장 데이터 복원 실패:', parseError);
+          }
+        }
+      }
+
+      if (restoredUpdatedAt) {
+        setLastSavedAt(restoredUpdatedAt);
+      } else {
+        setLastSavedAt(null);
+      }
+
+      setSurveySessions(sessionList);
       setAnswers(initialAnswers);
+      setCurrentSessionIndex(restoredSessionIndex);
+      setCurrentQuestionIndex(restoredQuestionIndex);
+      setHasSavedProgress(restored);
+      setAutoSaveStatus(restored ? 'saved' : 'idle');
+      if (restored) {
+        if (!restoredOnceRef.current) {
+          toast({
+            title: '임시 저장된 응답을 복원했습니다',
+            description: '이전에 작성하던 세션에서 이어집니다.',
+          });
+          restoredOnceRef.current = true;
+        }
+      } else {
+        restoredOnceRef.current = false;
+      }
     } catch (error) {
       console.error('Error fetching survey data:', error);
       toast({
@@ -251,62 +398,136 @@ const SurveyParticipateSession = () => {
     setAnswers((prev) => prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)));
   };
 
-  const getCurrentSessionQuestions = () => {
-    if (!surveySessions[currentSessionIndex]) return [];
-    const sessionId = surveySessions[currentSessionIndex].id;
-    if (sessionId === 'operation_common') {
-      return questions.filter(q => q.scope === 'operation' || !q.session_id);
+  const createEmptyAnswers = useCallback(() => {
+    return questions.map((q) => ({
+      questionId: q.id,
+      answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
+    }));
+  }, [questions]);
+
+  const saveProgressToStorage = useCallback(
+    (options?: { notify?: boolean }) => {
+      if (!autosaveKey || typeof window === 'undefined') return;
+      const payload: SessionAutosaveData = {
+        answers: answers.reduce<Record<string, string | string[]>>((acc, current) => {
+          acc[current.questionId] = current.answer;
+          return acc;
+        }, {}),
+        currentSessionIndex,
+        currentQuestionIndex,
+        updatedAt: Date.now(),
+      };
+
+      try {
+        localStorage.setItem(autosaveKey, JSON.stringify(payload));
+        setLastSavedAt(payload.updatedAt);
+        setAutoSaveStatus('saved');
+        setHasSavedProgress(true);
+        if (options?.notify) {
+          toast({ title: '임시 저장 완료', description: '진행 상황이 안전하게 저장되었습니다.' });
+        }
+      } catch (storageError) {
+        console.error('임시 저장 실패:', storageError);
+        setAutoSaveStatus('error');
+        if (options?.notify) {
+          toast({
+            title: '임시 저장 실패',
+            description: '브라우저 저장소에 접근할 수 없습니다.',
+            variant: 'destructive',
+          });
+        }
+      }
+    },
+    [answers, autosaveKey, currentQuestionIndex, currentSessionIndex, toast]
+  );
+
+  const clearProgress = useCallback(
+    (options?: { notify?: boolean }) => {
+      if (typeof window !== 'undefined') {
+        if (autosaveKey) {
+          localStorage.removeItem(autosaveKey);
+        }
+        if (saveTimeoutRef.current) {
+          window.clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+      }
+
+      setAnswers(createEmptyAnswers());
+      setCurrentSessionIndex(0);
+      setCurrentQuestionIndex(0);
+      setAutoSaveStatus('idle');
+      setLastSavedAt(null);
+      setHasSavedProgress(false);
+      restoredOnceRef.current = false;
+      if (options?.notify) {
+        toast({ title: '임시 저장을 초기화했습니다', description: '처음부터 설문을 다시 진행할 수 있습니다.' });
+      }
+    },
+    [autosaveKey, createEmptyAnswers, toast]
+  );
+
+  const sectionMap = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
+  const getQuestionsForSession = useCallback((sessionId: string) => getQuestionsForSessionId(sessionId, questions), [questions]);
+  const getGroupsForSession = useCallback(
+    (sessionId: string) => groupQuestionsBySection(getQuestionsForSession(sessionId), sections),
+    [getQuestionsForSession, sections]
+  );
+
+  useEffect(() => {
+    if (surveySessions.length === 0) {
+      setCurrentSessionIndex(0);
+      return;
     }
-    return questions.filter(q => q.session_id === sessionId);
-  };
-  // 세션 내 페이징: 섹션 1페이지, 추가 분할 없음
-  const getSessionQuestionGroups = () => {
-    const sessionQuestions = getCurrentSessionQuestions();
-    const groups: Question[][] = [];
-
-    // 현재 세션에서 사용되는 섹션 순서
-    const orderedSections = sections
-      .slice()
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
-
-    // 섹션별 질문 버킷 (+ 섹션 미지정)
-    const bySection = new Map<string, Question[]>();
-    const NO_SECTION = '__no_section__';
-
-    const sorted = [...sessionQuestions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
-    for (const q of sorted) {
-      const key = (q.section_id as string) || NO_SECTION;
-      if (!bySection.has(key)) bySection.set(key, []);
-      bySection.get(key)!.push(q);
+    if (currentSessionIndex >= surveySessions.length) {
+      setCurrentSessionIndex(surveySessions.length - 1);
     }
+  }, [currentSessionIndex, surveySessions.length]);
 
-    for (const s of orderedSections) {
-      const list = bySection.get(s.id) || [];
-      if (list.length > 0) groups.push(list);
+  const currentSession = surveySessions[currentSessionIndex];
+  const currentGroups = useMemo(
+    () => (currentSession ? getGroupsForSession(currentSession.id) : []),
+    [currentSession, getGroupsForSession]
+  );
+
+  useEffect(() => {
+    if (currentGroups.length === 0) {
+      if (currentQuestionIndex !== 0) {
+        setCurrentQuestionIndex(0);
+      }
+      return;
     }
+    if (currentQuestionIndex >= currentGroups.length) {
+      setCurrentQuestionIndex(currentGroups.length - 1);
+    }
+  }, [currentGroups.length, currentQuestionIndex]);
 
-    const noSection = bySection.get(NO_SECTION) || [];
-    if (noSection.length > 0) groups.push(noSection);
-
-    return groups;
-  };
-  const getCurrentQuestions = () => {
-    const groups = getSessionQuestionGroups();
-    return groups[currentQuestionIndex] || [];
-  };
+  const currentQuestions = currentGroups[currentQuestionIndex] || [];
+  const totalGroups = currentGroups.length;
+  const totalQuestions = questions.length;
+  const totalSessions = surveySessions.length;
+  const answeredCount = useMemo(() => countAnsweredForQuestions(answers, questions), [answers, questions]);
+  const progress = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
+  const currentSection = useMemo(() => {
+    const first = currentQuestions[0];
+    if (!first || !first.section_id) return null;
+    return sectionMap.get(first.section_id) ?? null;
+  }, [currentQuestions, sectionMap]);
 
   const validateCurrentQuestions = () => {
-    const currentQuestions = getCurrentQuestions();
     for (const question of currentQuestions) {
       if (!question.is_required) continue;
-      
-      const answer = answers.find(a => a.questionId === question.id);
-      if (!answer || !answer.answer) return false;
-      if (Array.isArray(answer.answer) && answer.answer.length === 0) return false;
-      if (typeof answer.answer === 'string' && answer.answer.trim() === '') return false;
+      const answer = answers.find((a) => a.questionId === question.id);
+      if (!isAnswerProvided(answer)) return false;
     }
-    
+
     return true;
+  };
+
+  const scrollToTop = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleNext = () => {
@@ -314,58 +535,153 @@ const SurveyParticipateSession = () => {
       toast({ title: '필수 항목을 완성해 주세요', description: '모든 필수 답변을 입력해 주세요.', variant: 'destructive' });
       return;
     }
-    
-    const sessionGroups = getSessionQuestionGroups();
-    
-    if (currentQuestionIndex < sessionGroups.length - 1) {
-      // 현재 세션의 다음 그룹으로
-      setCurrentQuestionIndex(prev => prev + 1);
-    } else if (currentSessionIndex < surveySessions.length - 1) {
-      // 다음 세션의 첫 번째 그룹으로
-      setCurrentSessionIndex(prev => prev + 1);
-      setCurrentQuestionIndex(0);
+
+    if (currentQuestionIndex < currentGroups.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+      scrollToTop();
+      return;
+    }
+
+    for (let nextIndex = currentSessionIndex + 1; nextIndex < surveySessions.length; nextIndex++) {
+      const nextSession = surveySessions[nextIndex];
+      const nextGroups = getGroupsForSession(nextSession.id);
+      if (nextGroups.length > 0) {
+        setCurrentSessionIndex(nextIndex);
+        setCurrentQuestionIndex(0);
+        scrollToTop();
+        return;
+      }
     }
   };
 
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
-      // 현재 세션의 이전 그룹으로
-      setCurrentQuestionIndex(prev => prev - 1);
-    } else if (currentSessionIndex > 0) {
-      // 이전 세션으로 이동
-      setCurrentSessionIndex(prev => prev - 1);
-      // 이전 세션의 마지막 그룹으로
-      const prevSessionQuestions = questions.filter(q => q.session_id === surveySessions[currentSessionIndex - 1].id);
-      const prevGroups = getSessionQuestionGroups();
-      setCurrentQuestionIndex(prevGroups.length - 1);
+      setCurrentQuestionIndex((prev) => prev - 1);
+      scrollToTop();
+      return;
     }
-  };
 
-  const getTotalQuestions = () => {
-    return questions.filter(q => surveySessions.some(s => s.id === q.session_id)).length;
-  };
-
-  const getCurrentQuestionNumber = () => {
-    let count = 0;
-    for (let i = 0; i < currentSessionIndex; i++) {
-      const sessionQuestions = questions.filter(q => q.session_id === surveySessions[i].id);
-      count += sessionQuestions.length;
+    for (let prevIndex = currentSessionIndex - 1; prevIndex >= 0; prevIndex--) {
+      const prevSession = surveySessions[prevIndex];
+      const prevGroups = getGroupsForSession(prevSession.id);
+      if (prevGroups.length > 0) {
+        setCurrentSessionIndex(prevIndex);
+        setCurrentQuestionIndex(Math.max(prevGroups.length - 1, 0));
+        scrollToTop();
+        return;
+      }
     }
-    
-    // 현재 세션의 현재 그룹까지의 문항 수 추가
-    const currentGroups = getSessionQuestionGroups();
-    for (let i = 0; i < currentQuestionIndex; i++) {
-      count += currentGroups[i]?.length || 0;
-    }
-    count += getCurrentQuestions().length;
-    
-    return count;
   };
 
   const isLastQuestion = () => {
-    const sessionGroups = getSessionQuestionGroups();
-    return currentSessionIndex === surveySessions.length - 1 && 
-           currentQuestionIndex === sessionGroups.length - 1;
+    if (currentSessionIndex !== surveySessions.length - 1) return false;
+    return currentQuestionIndex === Math.max(currentGroups.length - 1, 0);
+  };
+
+  const lastSavedRelative = useMemo(() => {
+    if (!lastSavedAt) return null;
+    return formatDistanceToNow(new Date(lastSavedAt), { addSuffix: true, locale: ko });
+  }, [lastSavedAt]);
+
+  useEffect(() => {
+    if (!autosaveKey || typeof window === 'undefined') return;
+    if (loading) return;
+    if (surveySessions.length === 0 || questions.length === 0) return;
+
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    setAutoSaveStatus('saving');
+    const timeoutId = window.setTimeout(() => {
+      saveProgressToStorage();
+      saveTimeoutRef.current = null;
+    }, 1000);
+    saveTimeoutRef.current = timeoutId;
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, [answers, autosaveKey, loading, questions.length, saveProgressToStorage, surveySessions.length]);
+
+  const autosaveStatusMessage = useMemo(() => {
+    if (autoSaveStatus === 'saving') return '자동 저장 중...';
+    if (autoSaveStatus === 'error') return '임시 저장 실패';
+    if (lastSavedRelative) return `임시 저장 ${lastSavedRelative}`;
+    if (autoSaveStatus === 'saved') return '임시 저장 완료';
+    return '자동 저장 대기 중';
+  }, [autoSaveStatus, lastSavedRelative]);
+
+  const sessionNavItems = useMemo(
+    () =>
+      surveySessions.map((session, index) => {
+        const sessionQuestions = getQuestionsForSession(session.id);
+        const total = sessionQuestions.length;
+        const answered = countAnsweredForQuestions(answers, sessionQuestions);
+        const completion = total > 0 ? Math.round((answered / total) * 100) : 0;
+        const groups = groupQuestionsBySection(sessionQuestions, sections).map((group, groupIndex) => {
+          const first = group[0];
+          const section = first?.section_id ? sectionMap.get(first.section_id) : undefined;
+          const label = section?.name ?? '기타 문항';
+          const groupAnswered = countAnsweredForQuestions(answers, group);
+          const groupCompletion = group.length > 0 ? Math.round((groupAnswered / group.length) * 100) : 0;
+          return {
+            index: groupIndex,
+            label,
+            answeredCount: groupAnswered,
+            total: group.length,
+            completion: groupCompletion,
+          };
+        });
+        return {
+          session,
+          index,
+          total,
+          answered,
+          completion,
+          isCurrent: index === currentSessionIndex,
+          groups,
+        };
+      }),
+    [answers, currentSessionIndex, getQuestionsForSession, sections, sectionMap, surveySessions]
+  );
+
+  const currentSessionMeta = sessionNavItems[currentSessionIndex];
+  const stepItems = useMemo(
+    () =>
+      (currentSessionMeta?.groups || []).map((group) => ({
+        ...group,
+        isCurrent: group.index === currentQuestionIndex,
+        isCompleted: group.total > 0 && group.answeredCount === group.total,
+      })),
+    [currentQuestionIndex, currentSessionMeta]
+  );
+  const currentGroupMeta = useMemo(
+    () => stepItems.find((item) => item.index === currentQuestionIndex),
+    [currentQuestionIndex, stepItems]
+  );
+
+  const handleManualSave = () => {
+    saveProgressToStorage({ notify: true });
+  };
+
+  const handleResetProgress = () => {
+    clearProgress({ notify: true });
+  };
+
+  const handleSessionSelect = (index: number, groupIndex = 0) => {
+    setCurrentSessionIndex(index);
+    setCurrentQuestionIndex(groupIndex);
+    scrollToTop();
+  };
+
+  const handleGroupSelect = (groupIndex: number) => {
+    setCurrentQuestionIndex(groupIndex);
+    scrollToTop();
   };
 
   const handleSubmit = async () => {
@@ -452,6 +768,7 @@ const SurveyParticipateSession = () => {
       }
 
       console.log('🎉 세션 설문 제출 완료!');
+      clearProgress({ notify: false });
       toast({ title: '설문 참여 완료!', description: '소중한 의견을 주셔서 감사합니다.' });
       navigate('/');
     } catch (error) {
@@ -653,147 +970,355 @@ const SurveyParticipateSession = () => {
   }
 
   const currentSession = surveySessions[currentSessionIndex];
-  const currentQuestions = getCurrentQuestions();
-  const totalQuestions = questions.length;
-  const answeredCount = (() => {
-    let count = 0;
-    for (const q of questions) {
-      const a = answers.find(x => x.questionId === q.id);
-      if (!a) continue;
-      if (Array.isArray(a.answer)) {
-        if (a.answer.length > 0) count++;
-      } else if (typeof a.answer === 'string') {
-        if (a.answer.trim() !== '') count++;
-      }
-    }
-    return count;
-  })();
-  const progress = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
-  if (!currentQuestions || currentQuestions.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">질문이 없습니다</h1>
-          <p className="text-muted-foreground mb-4">이 설문에는 아직 질문이 추가되지 않았습니다.</p>
-          <Button onClick={() => navigate('/')}>홈으로 돌아가기</Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-blue-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+      <main className="mx-auto max-w-6xl px-4 py-6 lg:py-12">
+        <div className="mb-6 flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate('/')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             나가기
           </Button>
-          <div className="text-right">
-            <div className="text-sm text-muted-foreground">
-              {answeredCount} / {totalQuestions}
-            </div>
-            <Progress value={progress} className="w-32" />
+          <div className="text-xs text-muted-foreground sm:text-sm">
+            전체 진행 {answeredCount} / {totalQuestions}
           </div>
         </div>
 
-        {/* 현재 세션 정보 */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-sm font-medium">
-                {currentSession.session_name}
-              </div>
-              {currentSession.course?.title && (
-                <span className="text-sm text-muted-foreground">
-                  과목: {currentSession.course.title}
-                </span>
-              )}
-            </div>
-            {currentSession.instructor && (
-              <div className="mt-3">
-                <InstructorInfoSection instructor={currentSession.instructor} />
-              </div>
-            )}
-          </CardHeader>
-        </Card>
+        <div className="flex flex-col gap-6 lg:flex-row lg:gap-10">
+          {sessionNavItems.length > 0 && (
+            <aside className="lg:w-72 xl:w-80">
+              <div className="sticky top-24 space-y-6">
+                <div>
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    세션 목록
+                  </div>
+                  <div className="space-y-3">
+                    {sessionNavItems.map((item) => (
+                      <div
+                        key={item.session.id}
+                        className={cn(
+                          'rounded-xl border transition',
+                          item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background'
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSessionSelect(item.index)}
+                          className="w-full space-y-2 px-3 py-3 text-left"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-semibold">{item.session.session_name}</div>
+                              {item.session.course?.title && (
+                                <div className="truncate text-xs text-muted-foreground">{item.session.course.title}</div>
+                              )}
+                            </div>
+                            <span className="text-xs font-medium text-muted-foreground">{item.completion}%</span>
+                          </div>
+                          <Progress value={item.completion} className="h-1.5" />
+                        </button>
+                        {item.groups.length > 0 && (
+                          <div className="space-y-1.5 px-3 pb-3">
+                            {item.groups.map((group) => (
+                              <button
+                                key={`${item.session.id}-${group.index}`}
+                                type="button"
+                                onClick={() =>
+                                  item.index === currentSessionIndex
+                                    ? handleGroupSelect(group.index)
+                                    : handleSessionSelect(item.index, group.index)
+                                }
+                                className={cn(
+                                  'w-full rounded-lg border px-2.5 py-1.5 text-left text-xs transition',
+                                  item.index === currentSessionIndex && group.index === currentQuestionIndex
+                                    ? 'border-primary bg-primary/10 text-primary-600 dark:text-primary-200'
+                                    : 'border-transparent hover:bg-muted'
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="truncate">{group.label}</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {group.answeredCount}/{group.total}
+                                  </span>
+                                </div>
+                                <Progress value={group.completion} className="mt-1 h-1" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-        {/* 섹션 헤더 */}
-        {currentQuestions.length > 0 && (() => {
-          const first = currentQuestions[0];
-          const sec = first.section_id ? sections.find(s => s.id === first.section_id) : undefined;
-          return sec ? (
-            <div className="mt-2 mb-4">
-              <div className="text-base font-semibold">{sec.name}</div>
-              {sec.description && (
-                <div className="text-sm text-muted-foreground mt-1">{sec.description}</div>
-              )}
-            </div>
-          ) : null;
-        })()}
-
-        {/* 질문 카드들 */}
-        {currentQuestions.map((question, index) => (
-          <Card key={question.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg leading-relaxed">
-                    {currentQuestions.length > 1 && (
-                      <span className="text-sm text-muted-foreground mr-2">
-                        {index + 1}.
-                      </span>
-                    )}
-                    {question.question_text}
-                    {question.is_required && (
-                      <span className="text-red-500 ml-1">*</span>
-                    )}
-                  </CardTitle>
+                <div className="flex flex-col gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={handleManualSave} className="justify-start">
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    임시 저장
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleResetProgress()}
+                    className="justify-start text-muted-foreground hover:text-destructive"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    진행 초기화
+                  </Button>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {renderQuestion(question)}
-            </CardContent>
-          </Card>
-        ))}
-
-        {/* 네비게이션 버튼 */}
-        <div className="flex justify-between items-center">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentSessionIndex === 0 && currentQuestionIndex === 0}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            이전
-          </Button>
-
-          <div className="text-sm text-muted-foreground">
-            세션 {currentSessionIndex + 1} / {surveySessions.length}
-          </div>
-
-          {isLastQuestion() ? (
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-            >
-              {submitting ? '제출 중...' : (
-                <>
-                  <Send className="w-4 h-4 mr-1" />
-                  완료
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button onClick={handleNext}>
-              다음
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
+            </aside>
           )}
+
+          <div className="flex-1 lg:max-w-3xl">
+            {sessionNavItems.length > 0 && (
+              <div className="mb-6 space-y-4 lg:hidden">
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">세션 이동</span>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={handleManualSave}>
+                        <ClipboardCheck className="mr-1 h-4 w-4" />
+                        임시 저장
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleResetProgress()}
+                        className="text-muted-foreground"
+                        aria-label="진행 초기화"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+                    {sessionNavItems.map((item) => (
+                      <button
+                        key={item.session.id}
+                        type="button"
+                        onClick={() => handleSessionSelect(item.index)}
+                        className={cn(
+                          'flex-shrink-0 min-w-[180px] rounded-lg border px-3 py-2 text-left transition',
+                          item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background'
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-semibold">{item.session.session_name}</span>
+                          <span className="text-xs text-muted-foreground">{item.completion}%</span>
+                        </div>
+                        {item.session.course?.title && (
+                          <div className="mt-1 truncate text-[11px] text-muted-foreground">
+                            {item.session.course.title}
+                          </div>
+                        )}
+                        <Progress value={item.completion} className="mt-2 h-1" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {stepItems.length > 0 && (
+                  <div>
+                    <div className="mb-2 text-sm font-medium text-muted-foreground">섹션 이동</div>
+                    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+                      {stepItems.map((item) => (
+                        <button
+                          key={item.index}
+                          type="button"
+                          onClick={() => handleGroupSelect(item.index)}
+                          className={cn(
+                            'flex-shrink-0 min-w-[150px] rounded-lg border px-3 py-2 text-left transition',
+                            item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background'
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
+                                item.isCompleted
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-muted text-muted-foreground'
+                              )}
+                            >
+                              {item.index + 1}
+                            </span>
+                            <span className="truncate text-sm font-medium">{item.label}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">{item.completion}% 완료</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mb-6 space-y-2">
+              <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>
+                    세션 {currentSessionIndex + 1} / {totalSessions}
+                  </span>
+                  <span className="hidden text-muted-foreground sm:inline">•</span>
+                  <span>{Math.round(progress)}% 전체 진행</span>
+                  {currentSessionMeta && (
+                    <>
+                      <span className="hidden text-muted-foreground sm:inline">•</span>
+                      <span>
+                        현재 세션 {currentSessionMeta.answered} / {currentSessionMeta.total}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    'flex items-center gap-2',
+                    autoSaveStatus === 'error' ? 'text-destructive' : 'text-muted-foreground'
+                  )}
+                >
+                  {autoSaveStatus === 'saving' ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : autoSaveStatus === 'error' ? (
+                    <AlertCircle className="h-3.5 w-3.5" />
+                  ) : (
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                  )}
+                  <span className="truncate">{autosaveStatusMessage}</span>
+                </div>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+
+            {hasSavedProgress && (
+              <Alert className="mb-6 border-primary/30 bg-primary/5">
+                <ClipboardCheck className="h-4 w-4 text-primary" />
+                <AlertDescription>
+                  <div className="space-y-1 text-left">
+                    <div className="font-medium text-primary">이전에 저장된 응답을 이어서 작성 중입니다.</div>
+                    <p className="text-xs text-muted-foreground sm:text-sm">
+                      {lastSavedRelative ? `마지막 저장: ${lastSavedRelative}` : '진행 상황이 자동으로 저장됩니다.'}
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Card className="mb-6 border border-primary/20 bg-primary/5">
+              <CardHeader className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2">
+                      <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                        {currentSession.session_name}
+                      </span>
+                      {currentSessionMeta && (
+                        <span className="text-xs font-medium text-primary/80">
+                          {currentSessionMeta.completion}% 완료
+                        </span>
+                      )}
+                    </div>
+                    {currentSession.course?.title && (
+                      <div className="text-sm text-muted-foreground">과목: {currentSession.course.title}</div>
+                    )}
+                  </div>
+                  {currentSessionMeta && (
+                    <div className="text-right text-xs text-muted-foreground sm:text-sm">
+                      {currentSessionMeta.answered} / {currentSessionMeta.total} 문항 완료
+                    </div>
+                  )}
+                </div>
+                {currentSessionMeta && <Progress value={currentSessionMeta.completion} className="h-1.5" />}
+              </CardHeader>
+              {currentSession.instructor && (
+                <CardContent className="pt-0">
+                  <InstructorInfoSection instructor={currentSession.instructor} />
+                </CardContent>
+              )}
+            </Card>
+
+            <Card className="max-w-full">
+              <CardHeader className="space-y-2 px-4 sm:px-6">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
+                  {totalGroups > 0 ? (
+                    <>
+                      <span>
+                        섹션 {Math.min(currentQuestionIndex + 1, totalGroups)} / {totalGroups}
+                      </span>
+                      <span className="hidden text-muted-foreground sm:inline">•</span>
+                      <span>{currentGroupMeta?.completion ?? 0}% 완료</span>
+                    </>
+                  ) : (
+                    <span>등록된 섹션이 없습니다</span>
+                  )}
+                </div>
+                <CardTitle className="break-words text-base sm:text-lg">
+                  {currentGroupMeta?.label ?? '문항 그룹'}
+                </CardTitle>
+                {currentSection?.description && (
+                  <p className="break-words text-sm text-muted-foreground">{currentSection.description}</p>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-6 px-4 pb-4 sm:px-6 sm:pb-6">
+                {currentQuestions.length === 0 ? (
+                  <div className="py-10 text-center text-muted-foreground">이 세션에는 질문이 없습니다.</div>
+                ) : (
+                  currentQuestions.map((question, index) => (
+                    <div key={question.id} className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                      <Label className="block break-words text-sm leading-relaxed sm:text-base">
+                        {currentQuestions.length > 1 && (
+                          <span className="mr-2 text-sm text-muted-foreground">{index + 1}.</span>
+                        )}
+                        {question.question_text}
+                        {question.is_required && <span className="ml-1 text-destructive">*</span>}
+                      </Label>
+                      <div className="max-w-full overflow-x-auto">{renderQuestion(question)}</div>
+                    </div>
+                  ))
+                )}
+
+                <div className="flex flex-col-reverse gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={currentSessionIndex === 0 && currentQuestionIndex === 0}
+                    className="touch-friendly flex-1 sm:flex-none sm:min-w-[110px]"
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    이전
+                  </Button>
+
+                  <div className="text-center text-xs text-muted-foreground sm:flex-1">
+                    세션 {currentSessionIndex + 1} / {totalSessions}
+                  </div>
+
+                  {isLastQuestion() ? (
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="touch-friendly flex-1 sm:flex-none sm:min-w-[120px]"
+                    >
+                      {submitting ? (
+                        '제출 중...'
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          제출하기
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button onClick={handleNext} className="touch-friendly flex-1 sm:flex-none sm:min-w-[110px]">
+                      다음
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAnonymousSession } from '@/hooks/useAnonymousSession';
@@ -11,12 +11,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Send, User, KeyRound, AlertCircle, CheckCircle, FileText, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Send, KeyRound, AlertCircle, CheckCircle, FileText, ClipboardCheck, Loader2, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { toZonedTime } from 'date-fns-tz';
+import { formatDistanceToNow } from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import LoadingScreen from '@/components/LoadingScreen';
+import { cn } from '@/lib/utils';
 
 interface Survey {
   id: string;
@@ -85,6 +87,77 @@ interface Answer {
   answer: string | string[];
 }
 
+const NO_SECTION_KEY = '__no_section__';
+
+const groupQuestionsBySection = (questionsList: Question[], sectionsList: Section[]): Question[][] => {
+  if (!questionsList || questionsList.length === 0) {
+    return [];
+  }
+
+  const groups: Question[][] = [];
+  const orderedSections = [...sectionsList].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  const bySection = new Map<string, Question[]>();
+  const sortedQuestions = [...questionsList].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+
+  for (const question of sortedQuestions) {
+    const key = (question.section_id as string | null) ?? NO_SECTION_KEY;
+    if (!bySection.has(key)) {
+      bySection.set(key, []);
+    }
+    bySection.get(key)!.push(question);
+  }
+
+  for (const section of orderedSections) {
+    const list = bySection.get(section.id);
+    if (list && list.length > 0) {
+      groups.push(list);
+    }
+  }
+
+  const noSectionList = bySection.get(NO_SECTION_KEY);
+  if (noSectionList && noSectionList.length > 0) {
+    groups.push(noSectionList);
+  }
+
+  return groups;
+};
+
+const clampIndex = (index: number, total: number) => {
+  if (total <= 0) return 0;
+  if (index < 0) return 0;
+  if (index > total - 1) return total - 1;
+  return index;
+};
+
+const isAnswerProvided = (answer?: Answer) => {
+  if (!answer) return false;
+  if (Array.isArray(answer.answer)) {
+    return answer.answer.length > 0;
+  }
+  if (typeof answer.answer === 'string') {
+    return answer.answer.trim() !== '';
+  }
+  return false;
+};
+
+const countAnsweredForQuestions = (answers: Answer[], questionList: Question[]) => {
+  let count = 0;
+  for (const question of questionList) {
+    const answer = answers.find((a) => a.questionId === question.id);
+    if (isAnswerProvided(answer)) {
+      count++;
+    }
+  }
+  return count;
+};
+
+interface SurveyAutosaveData {
+  answers: Record<string, string | string[]>;
+  currentStep: number;
+  updatedAt: number;
+  phase?: 'intro' | 'survey';
+}
+
 const SurveyParticipate = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
@@ -114,6 +187,12 @@ const SurveyParticipate = () => {
   const [surveyPhase, setSurveyPhase] = useState<'intro' | 'survey' | 'completed'>('intro');
 
   const completedKey = surveyId ? `survey_completed_${surveyId}` : '';
+  const autosaveKey = useMemo(() => (surveyId ? `survey_autosave_${surveyId}` : null), [surveyId]);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [hasSavedProgress, setHasSavedProgress] = useState(false);
+  const saveTimeoutRef = useRef<number | null>(null);
+  const restoredOnceRef = useRef(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -161,7 +240,6 @@ const SurveyParticipate = () => {
   }, [surveyId, session, sessionLoading, searchParams]);
 
   // 현재 스텝(그룹)의 첫 질문 기준으로 강사 정보 표시
-  // 이 훅은 아래에서 questionGroups/getCurrentStepQuestions 정의 후 다시 선언됩니다.
 
 
   const handleTokenSubmit = async () => {
@@ -332,27 +410,84 @@ const SurveyParticipate = () => {
         .select('*')
         .eq('survey_id', surveyId)
         .order('order_index');
-      setSections(sectionsData || []);
+      const sectionsList = sectionsData || [];
+      setSections(sectionsList);
 
       const { data: questionsData } = await supabase
         .from('survey_questions')
         .select('*')
         .eq('survey_id', surveyId)
         .order('order_index');
-      
-      // Cast the questions data to match our interface
-      const typedQuestions = (questionsData || []).map(q => ({
+
+      const typedQuestions = (questionsData || []).map((q) => ({
         ...q,
-        scope: (q.scope as 'session' | 'operation') || 'session'
+        scope: (q.scope as 'session' | 'operation') || 'session',
       }));
       setQuestions(typedQuestions);
 
-      const initialAnswers =
-        (questionsData || []).map((q) => ({
-          questionId: q.id,
-          answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
-        })) ?? [];
+      const groupsForSaved = groupQuestionsBySection(typedQuestions, sectionsList);
+      let initialAnswers = typedQuestions.map((q) => ({
+        questionId: q.id,
+        answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
+      }));
+      let restoredStep = 0;
+      let restoredPhase: 'intro' | 'survey' | null = null;
+      let restoredUpdatedAt: number | null = null;
+      let restored = false;
+
+      if (autosaveKey && typeof window !== 'undefined') {
+        const rawSaved = localStorage.getItem(autosaveKey);
+        if (rawSaved) {
+          try {
+            const parsed = JSON.parse(rawSaved) as SurveyAutosaveData;
+            restored = true;
+            if (parsed.answers) {
+              initialAnswers = initialAnswers.map((answer) => {
+                const savedValue = parsed.answers[answer.questionId];
+                return savedValue !== undefined ? { ...answer, answer: savedValue } : answer;
+              });
+            }
+            if (typeof parsed.currentStep === 'number') {
+              restoredStep = clampIndex(parsed.currentStep, groupsForSaved.length);
+            }
+            if (typeof parsed.updatedAt === 'number') {
+              restoredUpdatedAt = parsed.updatedAt;
+            }
+            if (parsed.phase === 'survey') {
+              restoredPhase = 'survey';
+            }
+          } catch (parseError) {
+            console.error('임시 저장 데이터 복원 실패:', parseError);
+          }
+        }
+      }
+
+      if (restoredUpdatedAt) {
+        setLastSavedAt(restoredUpdatedAt);
+      } else {
+        setLastSavedAt(null);
+      }
+
+      if (restoredPhase === 'survey') {
+        setSurveyPhase('survey');
+      }
+
+      setHasSavedProgress(restored);
+      setAutoSaveStatus(restored ? 'saved' : 'idle');
+      if (restored) {
+        if (!restoredOnceRef.current) {
+          toast({
+            title: '임시 저장된 응답을 복원했습니다',
+            description: '이전에 작성하던 위치에서 이어집니다.',
+          });
+          restoredOnceRef.current = true;
+        }
+      } else {
+        restoredOnceRef.current = false;
+      }
+
       setAnswers(initialAnswers);
+      setCurrentStep(restoredStep);
     } catch (error) {
       console.error('Error fetching survey data:', error);
       toast({
@@ -370,50 +505,174 @@ const SurveyParticipate = () => {
     setAnswers((prev) => prev.map((a) => (a.questionId === questionId ? { ...a, answer: value } : a)));
   };
 
-  // 섹션 기준으로 페이징: 섹션 1페이지, 추가 분할 없음
-  const getQuestionGroups = () => {
-    if (questions.length === 0) return [] as Question[][];
+  const createEmptyAnswers = useCallback(() => {
+    return questions.map((q) => ({
+      questionId: q.id,
+      answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
+    }));
+  }, [questions]);
 
-    const groups: Question[][] = [];
+  const saveProgressToStorage = useCallback(
+    (options?: { notify?: boolean }) => {
+      if (!autosaveKey || typeof window === 'undefined') return;
+      const payload: SurveyAutosaveData = {
+        answers: answers.reduce<Record<string, string | string[]>>((acc, current) => {
+          acc[current.questionId] = current.answer;
+          return acc;
+        }, {}),
+        currentStep,
+        updatedAt: Date.now(),
+        phase: surveyPhase,
+      };
 
-    // 섹션 순서
-    const orderedSections = sections
-      .slice()
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+      try {
+        localStorage.setItem(autosaveKey, JSON.stringify(payload));
+        setLastSavedAt(payload.updatedAt);
+        setAutoSaveStatus('saved');
+        setHasSavedProgress(true);
+        if (options?.notify) {
+          toast({ title: '임시 저장 완료', description: '진행 상황이 안전하게 저장되었습니다.' });
+        }
+      } catch (storageError) {
+        console.error('임시 저장 실패:', storageError);
+        setAutoSaveStatus('error');
+        if (options?.notify) {
+          toast({
+            title: '임시 저장 실패',
+            description: '브라우저 저장소에 접근할 수 없습니다.',
+            variant: 'destructive',
+          });
+        }
+      }
+    },
+    [answers, autosaveKey, currentStep, surveyPhase, toast]
+  );
 
-    // 섹션별 질문 버킷 (+ 섹션 미지정)
-    const bySection = new Map<string, Question[]>();
-    const NO_SECTION = '__no_section__';
+  const clearProgress = useCallback(
+    (options?: { goToIntro?: boolean; notify?: boolean }) => {
+      if (typeof window !== 'undefined') {
+        if (autosaveKey) {
+          localStorage.removeItem(autosaveKey);
+        }
+        if (saveTimeoutRef.current) {
+          window.clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+      }
 
-    const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
-    for (const q of sorted) {
-      const key = (q.section_id as string) || NO_SECTION;
-      if (!bySection.has(key)) bySection.set(key, []);
-      bySection.get(key)!.push(q);
+      setAnswers(createEmptyAnswers());
+      setCurrentStep(0);
+      setAutoSaveStatus('idle');
+      setLastSavedAt(null);
+      setHasSavedProgress(false);
+      restoredOnceRef.current = false;
+      if (options?.goToIntro) {
+        setSurveyPhase('intro');
+      }
+      if (options?.notify) {
+        toast({ title: '임시 저장을 초기화했습니다', description: '처음부터 설문을 다시 진행할 수 있습니다.' });
+      }
+    },
+    [autosaveKey, createEmptyAnswers, toast]
+  );
+
+  const questionGroups = useMemo(() => groupQuestionsBySection(questions, sections), [questions, sections]);
+  const sectionMap = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
+  useEffect(() => {
+    if (questionGroups.length === 0) return;
+    if (currentStep >= questionGroups.length) {
+      setCurrentStep(questionGroups.length - 1);
+    }
+  }, [currentStep, questionGroups.length]);
+  const currentQuestions = useMemo(() => questionGroups[currentStep] || [], [questionGroups, currentStep]);
+  const totalSteps = questionGroups.length;
+
+  useEffect(() => {
+    if (!autosaveKey || typeof window === 'undefined') return;
+    if (loading || surveyPhase !== 'survey') return;
+
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
     }
 
-    // 섹션 순서대로 섹션 하나 = 한 페이지
-    for (const s of orderedSections) {
-      const list = bySection.get(s.id) || [];
-      if (list.length > 0) groups.push(list);
+    setAutoSaveStatus('saving');
+    const timeoutId = window.setTimeout(() => {
+      saveProgressToStorage();
+      saveTimeoutRef.current = null;
+    }, 1000);
+    saveTimeoutRef.current = timeoutId;
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, [answers, autosaveKey, loading, saveProgressToStorage, surveyPhase]);
+
+  const lastSavedRelative = useMemo(() => {
+    if (!lastSavedAt) return null;
+    return formatDistanceToNow(new Date(lastSavedAt), { addSuffix: true, locale: ko });
+  }, [lastSavedAt]);
+
+  const autosaveStatusMessage = useMemo(() => {
+    if (autoSaveStatus === 'saving') return '자동 저장 중...';
+    if (autoSaveStatus === 'error') return '임시 저장 실패';
+    if (lastSavedRelative) {
+      return `임시 저장 ${lastSavedRelative}`;
     }
+    if (autoSaveStatus === 'saved') return '임시 저장 완료';
+    return '자동 저장 대기 중';
+  }, [autoSaveStatus, lastSavedRelative]);
 
-    // 섹션 미지정 문항은 마지막 페이지로 묶음
-    const noSectionList = bySection.get(NO_SECTION) || [];
-    if (noSectionList.length > 0) groups.push(noSectionList);
+  const stepItems = useMemo(
+    () =>
+      questionGroups.map((group, index) => {
+        const firstQuestion = group[0];
+        const section = firstQuestion?.section_id ? sectionMap.get(firstQuestion.section_id) : undefined;
+        const label = section?.name ?? '기타 문항';
+        const answeredCount = countAnsweredForQuestions(answers, group);
+        const completion = group.length > 0 ? Math.round((answeredCount / group.length) * 100) : 0;
+        return {
+          index,
+          label,
+          answeredCount,
+          total: group.length,
+          completion,
+          isCurrent: index === currentStep,
+          isCompleted: group.length > 0 && answeredCount === group.length,
+        };
+      }),
+    [answers, currentStep, questionGroups, sectionMap]
+  );
 
-    return groups;
+  const handleStepSelect = (index: number) => {
+    setCurrentStep(index);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
-  const questionGroups = getQuestionGroups();
-  const getCurrentStepQuestions = () => questionGroups[currentStep] || [];
-  const getTotalSteps = () => questionGroups.length;
+  const handleManualSave = () => {
+    saveProgressToStorage({ notify: true });
+  };
+
+  const handleResetProgress = (goToIntro = false) => {
+    clearProgress({ goToIntro, notify: true });
+  };
+
+  const handleResumeProgress = () => {
+    setSurveyPhase('survey');
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // 현재 스텝의 첫 질문 기준으로 강사 정보 업데이트
   useEffect(() => {
     const update = async () => {
-      const cur = getCurrentStepQuestions();
-      const currentQuestion = cur[0];
+      const currentQuestion = currentQuestions[0];
       if (!currentQuestion) {
         setCurrentQuestionInstructor(null);
         return;
@@ -452,13 +711,12 @@ const SurveyParticipate = () => {
       }
     };
     update();
-  }, [currentStep, questions, instructor]);
+  }, [currentQuestions, instructor]);
 
   const validateCurrentStep = () => {
-    const currentQuestions = getCurrentStepQuestions();
-    for (const q of currentQuestions) {
-      if (q.is_required) {
-        const a = answers.find((x) => x.questionId === q.id);
+    for (const question of currentQuestions) {
+      if (question.is_required) {
+        const a = answers.find((x) => x.questionId === question.id);
         if (!a || !a.answer) return false;
         if (Array.isArray(a.answer) && a.answer.length === 0) return false;
         if (typeof a.answer === 'string' && a.answer.trim() === '') return false;
@@ -561,6 +819,7 @@ const SurveyParticipate = () => {
       }
 
       console.log('🎉 설문 제출 완료!');
+      clearProgress({ notify: false });
       setSurveyPhase('completed');
       // navigate('/'); // 바로 이동하지 않고 완료 화면 표시
     } catch (error) {
@@ -582,12 +841,11 @@ const SurveyParticipate = () => {
   };
 
   const getStepTitle = () => {
-    const cur = getCurrentStepQuestions();
-    const q = cur[0];
-    if (!q) return '설문 응답';
-    if (q.section_id) {
-      const s = sections.find((x) => x.id === q.section_id);
-      return s?.name || '설문 응답';
+    const firstQuestion = currentQuestions[0];
+    if (!firstQuestion) return '설문 응답';
+    if (firstQuestion.section_id) {
+      const section = sectionMap.get(firstQuestion.section_id);
+      return section?.name || '설문 응답';
     }
     return '설문 응답';
   };
@@ -710,17 +968,39 @@ const SurveyParticipate = () => {
                   <ul className="text-sm space-y-1 list-disc list-inside">
                     <li>모든 응답은 익명으로 처리되며 개인정보는 수집되지 않습니다</li>
                     <li>진솔하고 건설적인 의견을 작성해 주세요</li>
-                    <li>중간에 나가시면 응답이 저장되지 않습니다</li>
+                    <li>응답은 자동으로 임시 저장되어 언제든 이어서 작성할 수 있습니다</li>
                     <li>모든 필수 문항에 응답해 주셔야 제출이 가능합니다</li>
                   </ul>
                 </div>
               </AlertDescription>
             </Alert>
 
+            {hasSavedProgress && (
+              <Alert className="border-primary/30 bg-primary/5">
+                <ClipboardCheck className="h-4 w-4 text-primary" />
+                <AlertDescription>
+                  <div className="space-y-3 text-left">
+                    <div className="font-medium text-primary">이전에 저장된 응답이 있습니다.</div>
+                    <p className="text-sm text-muted-foreground">
+                      {lastSavedRelative ? `마지막 저장: ${lastSavedRelative}` : '이어서 설문을 진행할 수 있습니다.'}
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <Button onClick={handleResumeProgress} className="sm:flex-1">
+                        이어서 진행하기
+                      </Button>
+                      <Button variant="outline" onClick={() => handleResetProgress(true)} className="sm:flex-1">
+                        새로 시작하기
+                      </Button>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* 시작 버튼 */}
             <div className="text-center space-y-4">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="w-full sm:w-auto px-8 py-3 text-lg"
                 onClick={() => setSurveyPhase('survey')}
               >
@@ -811,30 +1091,13 @@ const SurveyParticipate = () => {
     );
   }
 
-  const totalSteps = getTotalSteps();
-  
   // 진행률 계산: 실제 답변 완성도 기반
-  const calculateProgress = () => {
+  const progress = useMemo(() => {
     if (questions.length === 0) return 0;
-    
-    let answeredCount = 0;
-    questions.forEach(question => {
-      const answer = answers.find(a => a.questionId === question.id);
-      if (answer && answer.answer) {
-        if (Array.isArray(answer.answer) && answer.answer.length > 0) {
-          answeredCount++;
-        } else if (typeof answer.answer === 'string' && answer.answer.trim() !== '') {
-          answeredCount++;
-        }
-      }
-    });
-    
+    const answeredCount = countAnsweredForQuestions(answers, questions);
     return (answeredCount / questions.length) * 100;
-  };
-  
-  const progress = calculateProgress();
+  }, [answers, questions]);
   const isLastStep = currentStep === totalSteps - 1;
-  const currentQuestions = getCurrentStepQuestions();
 
   const renderQuestion = (question: Question) => {
     const answer = answers.find((a) => a.questionId === question.id);
@@ -1032,80 +1295,208 @@ const SurveyParticipate = () => {
         </div>
       </header>
 
-      {/* ⬇️ 스크롤 허용 */}
-      <main className="container mx-auto px-3 sm:px-4 py-6 max-w-2xl overflow-x-hidden overflow-y-auto">
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs sm:text-sm text-muted-foreground">{currentStep + 1} / {totalSteps}</span>
-            <span className="text-xs sm:text-sm text-muted-foreground">{Math.round(progress)}% 완료</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-
-        {/* 강사 정보 섹션 - 강사 정보가 있을 때 항상 표시 */}
-        {currentQuestionInstructor && (
-          <div className="mb-6">
-            <InstructorInfoSection instructor={currentQuestionInstructor} />
-          </div>
-        )}
-
-        {/* overflow-hidden 제거 */}
-        <Card className="max-w-full">
-          <CardHeader className="px-4 sm:px-6">
-            <CardTitle className="text-base sm:text-lg break-words">
-              {currentQuestions.length > 1 ? `페이지 ${currentStep + 1}` : `질문 ${currentStep + 1}`}
-            </CardTitle>
-            {(() => {
-              const cur = getCurrentStepQuestions();
-              const first = cur[0];
-              if (!first || !first.section_id) return null;
-              const s = sections.find((x) => x.id === first.section_id);
-              return s?.description ? <p className="text-muted-foreground text-sm break-words">{s.description}</p> : null;
-            })()}
-          </CardHeader>
-
-          <CardContent className="space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
-            {currentQuestions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">이 섹션에는 질문이 없습니다.</div>
-            ) : (
-              currentQuestions.map((q, index) => (
-                <div key={q.id} className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                  <Label className="text-sm sm:text-base break-words hyphens-auto leading-relaxed block">
-                    {currentQuestions.length > 1 && (
-                      <span className="text-sm text-muted-foreground mr-2">
-                        {index + 1}.
-                      </span>
-                    )}
-                    {q.question_text}
-                    {q.is_required && <span className="text-destructive ml-1">*</span>}
-                  </Label>
-                  <div className="max-w-full overflow-x-auto">{renderQuestion(q)}</div>
+      <main className="container mx-auto px-3 sm:px-4 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {stepItems.length > 0 && (
+            <aside className="lg:w-72">
+              <div className="hidden lg:block sticky top-28 space-y-4">
+                <div>
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">섹션</h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    진행 상황을 확인하고 원하는 섹션으로 이동하세요.
+                  </p>
                 </div>
-              ))
+                <div className="space-y-2">
+                  {stepItems.map((item) => (
+                    <button
+                      key={item.index}
+                      type="button"
+                      onClick={() => handleStepSelect(item.index)}
+                      className={cn(
+                        'w-full rounded-lg border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                        item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border hover:bg-muted/60'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
+                            item.isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {item.index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{item.label}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {item.answeredCount} / {item.total} 완료
+                          </div>
+                          <Progress value={item.completion} className="h-1 mt-2" />
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={handleManualSave} className="justify-start">
+                    <ClipboardCheck className="h-4 w-4 mr-2" />
+                    임시 저장
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleResetProgress()}
+                    className="justify-start text-muted-foreground hover:text-destructive"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    진행 초기화
+                  </Button>
+                </div>
+              </div>
+            </aside>
+          )}
+
+          <div className="flex-1 lg:max-w-3xl">
+            {stepItems.length > 0 && (
+              <div className="lg:hidden mb-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">섹션 이동</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleManualSave}>
+                      <ClipboardCheck className="h-4 w-4 mr-1" />
+                      임시 저장
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleResetProgress()}
+                      className="text-muted-foreground"
+                      aria-label="진행 초기화"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                  {stepItems.map((item) => (
+                    <button
+                      key={item.index}
+                      type="button"
+                      onClick={() => handleStepSelect(item.index)}
+                      className={cn(
+                        'flex-shrink-0 min-w-[160px] rounded-lg border px-3 py-2 text-left transition',
+                        item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
+                            item.isCompleted ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {item.index + 1}
+                        </span>
+                        <span className="text-sm font-medium truncate">{item.label}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">{item.completion}% 완료</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
-            <div className="flex justify-between pt-6 gap-3 flex-wrap sm:flex-nowrap">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentStep === 0}
-                className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-1"
-              >
-                이전
-              </Button>
-
-              {isLastStep ? (
-                <Button onClick={handleSubmit} disabled={submitting} className="touch-friendly flex-1 sm:flex-none sm:min-w-[120px] order-2">
-                  {submitting ? '제출 중...' : (<><Send className="h-4 w-4 mr-2" />제출하기</>)}
-                </Button>
-              ) : (
-                <Button onClick={handleNext} className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-2">
-                  다음
-                </Button>
-              )}
+            <div className="mb-6 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                  <span>{totalSteps > 0 ? `${currentStep + 1} / ${totalSteps}` : '0 / 0'}</span>
+                  <span className="hidden sm:inline text-muted-foreground">•</span>
+                  <span>{Math.round(progress)}% 완료</span>
+                </div>
+                <div
+                  className={cn(
+                    'flex items-center gap-2 text-xs sm:text-sm',
+                    autoSaveStatus === 'error' ? 'text-destructive' : 'text-muted-foreground'
+                  )}
+                >
+                  {autoSaveStatus === 'saving' ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : autoSaveStatus === 'error' ? (
+                    <AlertCircle className="h-3.5 w-3.5" />
+                  ) : (
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                  )}
+                  <span className="truncate">{autosaveStatusMessage}</span>
+                </div>
+              </div>
+              <Progress value={progress} className="h-2" />
             </div>
-          </CardContent>
-        </Card>
+
+            {currentQuestionInstructor && (
+              <div className="mb-6">
+                <InstructorInfoSection instructor={currentQuestionInstructor} />
+              </div>
+            )}
+
+            <Card className="max-w-full">
+              <CardHeader className="px-4 sm:px-6">
+                <CardTitle className="text-base sm:text-lg break-words">
+                  {currentQuestions.length > 1 ? `페이지 ${currentStep + 1}` : `질문 ${currentStep + 1}`}
+                </CardTitle>
+                {(() => {
+                  const first = currentQuestions[0];
+                  if (!first || !first.section_id) return null;
+                  const section = sectionMap.get(first.section_id);
+                  return section?.description ? (
+                    <p className="text-muted-foreground text-sm break-words">{section.description}</p>
+                  ) : null;
+                })()}
+              </CardHeader>
+
+              <CardContent className="space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
+                {currentQuestions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">이 섹션에는 질문이 없습니다.</div>
+                ) : (
+                  currentQuestions.map((q, index) => (
+                    <div key={q.id} className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <Label className="text-sm sm:text-base break-words hyphens-auto leading-relaxed block">
+                        {currentQuestions.length > 1 && (
+                          <span className="text-sm text-muted-foreground mr-2">
+                            {index + 1}.
+                          </span>
+                        )}
+                        {q.question_text}
+                        {q.is_required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                      <div className="max-w-full overflow-x-auto">{renderQuestion(q)}</div>
+                    </div>
+                  ))
+                )}
+
+                <div className="flex justify-between pt-6 gap-3 flex-wrap sm:flex-nowrap">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={currentStep === 0}
+                    className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-1"
+                  >
+                    이전
+                  </Button>
+
+                  {isLastStep ? (
+                    <Button onClick={handleSubmit} disabled={submitting} className="touch-friendly flex-1 sm:flex-none sm:min-w-[120px] order-2">
+                      {submitting ? '제출 중...' : (<><Send className="h-4 w-4 mr-2" />제출하기</>)}
+                    </Button>
+                  ) : (
+                    <Button onClick={handleNext} className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-2">
+                      다음
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
     </div>
   );
