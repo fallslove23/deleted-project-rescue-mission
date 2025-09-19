@@ -44,7 +44,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Ensure survey statuses are up-to-date before processing
-    await supabase.rpc('update_survey_statuses').catch(() => {});
+    try {
+      await supabase.rpc('update_survey_statuses');
+    } catch (error) {
+      console.warn('Failed to update survey statuses:', error);
+    }
 
     // Allow optional payload: { dryRun?: boolean, limit?: number }
     let dryRun = false;

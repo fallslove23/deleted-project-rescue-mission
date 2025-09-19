@@ -368,9 +368,8 @@ const DashboardEmailLogs = () => {
                           </TableCell>
                         </TableRow>
                       );
-                    })
-                    )}
-                  )}
+                     })
+                   )}
                 </TableBody>
               </Table>
             </div>
