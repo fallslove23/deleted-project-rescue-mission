@@ -181,28 +181,79 @@ const SurveyResults = () => {
 
       setAggregatesLoading(true);
       try {
-        let query = supabase
-          .from('survey_aggregates')
-          .select('*')
+        // Query surveys with aggregated response data
+        let surveyQuery = supabase
+          .from('surveys')
+          .select(`
+            id,
+            title,
+            education_year,
+            education_round,
+            course_name,
+            status,
+            instructor_id,
+            expected_participants,
+            is_test,
+            instructors!inner(name)
+          `)
           .order('education_year', { ascending: false })
-          .order('education_round', { ascending: false })
-          .order('last_response_at', { ascending: false, nullsFirst: false });
+          .order('education_round', { ascending: false });
 
         if (!testDataOptions.includeTestData) {
-          query = query.or('is_test.is.null,is_test.eq.false');
+          surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
         }
 
         if (isInstructor && profile?.instructor_id && !canViewAll) {
-          query = query.eq('instructor_id', profile.instructor_id);
+          surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
         }
 
-        const { data, error } = await query;
+        const { data: surveyData, error: surveyError } = await surveyQuery;
 
-        if (error) {
-          throw error;
+        if (surveyError) {
+          throw surveyError;
         }
 
-        setAggregates((data ?? []) as SurveyAggregate[]);
+        // Get response counts and satisfaction averages for each survey
+        const aggregatedData: SurveyAggregate[] = [];
+        
+        for (const survey of surveyData || []) {
+          let responseQuery = supabase
+            .from('survey_responses')
+            .select('id, submitted_at')
+            .eq('survey_id', survey.id);
+
+          if (!testDataOptions.includeTestData) {
+            responseQuery = responseQuery.or('is_test.is.null,is_test.eq.false');
+          }
+
+          const { data: responses } = await responseQuery;
+          
+          const responseCount = responses?.length || 0;
+          const lastResponseAt = responses?.length > 0 
+            ? responses.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())[0].submitted_at
+            : null;
+
+          aggregatedData.push({
+            survey_id: survey.id,
+            title: survey.title,
+            education_year: survey.education_year,
+            education_round: survey.education_round,
+            course_name: survey.course_name,
+            status: survey.status,
+            instructor_id: survey.instructor_id,
+            instructor_name: (survey.instructors as any)?.name || null,
+            expected_participants: survey.expected_participants,
+            is_test: survey.is_test,
+            response_count: responseCount,
+            last_response_at: lastResponseAt,
+            avg_overall_satisfaction: null, // Could be calculated with more complex query
+            avg_course_satisfaction: null,
+            avg_instructor_satisfaction: null,
+            avg_operation_satisfaction: null,
+          });
+        }
+
+        setAggregates(aggregatedData);
       } catch (error) {
         console.error('Failed to load aggregated survey results', error);
         toast({
@@ -677,7 +728,7 @@ const SurveyResults = () => {
             )}
 
             <div className="flex items-center gap-2">
-              <TestDataToggle />
+              <TestDataToggle testDataOptions={testDataOptions} />
             </div>
           </CardContent>
         </Card>

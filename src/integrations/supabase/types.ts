@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          content: string
+          course_id: string | null
+          created_at: string | null
+          id: string
+          log_date: string
+          trainee_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          log_date: string
+          trainee_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          log_date?: string
+          trainee_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_trainee_id_fkey"
+            columns: ["trainee_id"]
+            isOneToOne: false
+            referencedRelation: "trainees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anon_sessions: {
         Row: {
           anon_id: string
@@ -37,6 +82,51 @@ export type Database = {
           user_agent_hash?: string | null
         }
         Relationships: []
+      }
+      attendance: {
+        Row: {
+          attendance_date: string
+          course_id: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          trainee_id: string | null
+        }
+        Insert: {
+          attendance_date: string
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          trainee_id?: string | null
+        }
+        Update: {
+          attendance_date?: string
+          course_id?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          trainee_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_trainee_id_fkey"
+            columns: ["trainee_id"]
+            isOneToOne: false
+            referencedRelation: "trainees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -76,6 +166,48 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      course_enrollments: {
+        Row: {
+          course_id: string | null
+          created_at: string | null
+          enrollment_date: string | null
+          id: string
+          status: string | null
+          trainee_id: string | null
+        }
+        Insert: {
+          course_id?: string | null
+          created_at?: string | null
+          enrollment_date?: string | null
+          id?: string
+          status?: string | null
+          trainee_id?: string | null
+        }
+        Update: {
+          course_id?: string | null
+          created_at?: string | null
+          enrollment_date?: string | null
+          id?: string
+          status?: string | null
+          trainee_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_enrollments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_trainee_id_fkey"
+            columns: ["trainee_id"]
+            isOneToOne: false
+            referencedRelation: "trainees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       course_name_to_session_map: {
         Row: {
@@ -373,30 +505,45 @@ export type Database = {
       }
       instructors: {
         Row: {
+          active: boolean | null
           bio: string | null
           created_at: string
+          department: string | null
           email: string | null
+          expertise: string[] | null
           id: string
           name: string
+          phone: string | null
           photo_url: string | null
+          position: string | null
           updated_at: string
         }
         Insert: {
+          active?: boolean | null
           bio?: string | null
           created_at?: string
+          department?: string | null
           email?: string | null
+          expertise?: string[] | null
           id?: string
           name: string
+          phone?: string | null
           photo_url?: string | null
+          position?: string | null
           updated_at?: string
         }
         Update: {
+          active?: boolean | null
           bio?: string | null
           created_at?: string
+          department?: string | null
           email?: string | null
+          expertise?: string[] | null
           id?: string
           name?: string
+          phone?: string | null
           photo_url?: string | null
+          position?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1496,6 +1643,54 @@ export type Database = {
           order_index?: number
           template_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      trainees: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          department: string | null
+          email: string | null
+          hq: string | null
+          id: string
+          name: string
+          phone: string | null
+          position: string | null
+          remark: string | null
+          resign: boolean | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          hq?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          position?: string | null
+          remark?: string | null
+          resign?: boolean | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          hq?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          position?: string | null
+          remark?: string | null
+          resign?: boolean | null
+          title?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
