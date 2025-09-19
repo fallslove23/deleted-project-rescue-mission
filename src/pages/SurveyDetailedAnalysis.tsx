@@ -26,6 +26,7 @@ interface Survey {
 interface SurveyResponse {
   id: string;
   survey_id: string;
+  session_id?: string | null;
   submitted_at: string;
   respondent_email: string;
 }
@@ -153,7 +154,7 @@ const SurveyDetailedAnalysis = () => {
     try {
       const { data, error } = await supabase
         .from('survey_responses')
-        .select('*')
+        .select('id, survey_id, session_id, submitted_at, respondent_email')
         .eq('survey_id', surveyId)
         .order('submitted_at', { ascending: false });
       
@@ -302,26 +303,50 @@ const SurveyDetailedAnalysis = () => {
     if (sessionId !== 'all') {
       // 선택된 세션 정보 가져오기
       const selectedSession = courseSessions.find(cs => cs.id === sessionId);
-      
+
       if (selectedSession) {
-        // 해당 세션 설문의 질문들만 필터링
-        filteredQuestions = questions.filter(q => {
-          // session_id가 있는 경우 직접 매칭
-          if (q.session_id) {
-            return q.session_id === sessionId;
+        const sessionQuestions = questions.filter(q => q.session_id === sessionId);
+        const sessionQuestionIdSet = new Set(sessionQuestions.map(q => q.id));
+
+        // 세션 문항에 답변한 응답 ID만 추출
+        const sessionResponseIdSet = new Set(
+          answers
+            .filter(a => sessionQuestionIdSet.has(a.question_id))
+            .map(a => a.response_id)
+        );
+
+        // 응답 자체에 세션 정보가 있는 경우 함께 포함
+        responses.forEach(response => {
+          if (response.session_id === sessionId) {
+            sessionResponseIdSet.add(response.id);
           }
-          // session_id가 없는 경우 survey_id로 매칭 (해당 세션의 설문)
-          return q.survey_id === sessionId;
         });
-        
-        // 해당 질문들에 대한 답변만 필터링
-        const questionIds = filteredQuestions.map(q => q.id);
-        filteredAnswers = answers.filter(a => questionIds.includes(a.question_id));
-        
-        // 해당 세션의 응답만 필터링 (해당 설문의 응답들)
-        filteredResponses = responses.filter(r => {
-          return r.survey_id === sessionId;
+
+        // 공통 문항은 해당 세션에 응답이 존재할 때만 포함
+        const sharedQuestions = sessionResponseIdSet.size > 0
+          ? questions.filter(q => !q.session_id)
+          : [];
+
+        const uniqueQuestionMap = new Map<string, SurveyQuestion>();
+        [...sessionQuestions, ...sharedQuestions].forEach(q => {
+          uniqueQuestionMap.set(q.id, q);
         });
+
+        filteredQuestions = Array.from(uniqueQuestionMap.values());
+
+        const allowedQuestionIds = new Set(filteredQuestions.map(q => q.id));
+
+        filteredAnswers = answers.filter(a => {
+          if (!allowedQuestionIds.has(a.question_id)) {
+            return false;
+          }
+          if (sessionResponseIdSet.size > 0) {
+            return sessionResponseIdSet.has(a.response_id);
+          }
+          return true;
+        });
+
+        filteredResponses = responses.filter(r => sessionResponseIdSet.has(r.id));
       } else {
         // 세션을 찾을 수 없는 경우 빈 배열로 설정
         filteredQuestions = [];
