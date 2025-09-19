@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ArrowLeft, Plus, Edit, Trash2, Copy, FileText, CheckCircle2, AlertTriangle, RotateCcw, Terminal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -69,6 +70,9 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
     is_course_evaluation: false
   });
 
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [duplicatingTemplateId, setDuplicatingTemplateId] = useState<string | null>(null);
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
@@ -166,13 +170,21 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (templateId: string) => {
-    if (!window.confirm('이 템플릿을 삭제하시겠습니까? 템플릿에 포함된 모든 질문도 함께 삭제됩니다.')) {
+  const handleDeleteClick = (template: Template) => {
+    setTemplateToDelete(template);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!templateToDelete) {
       return;
     }
 
+    const templateId = templateToDelete.id;
+
     try {
-      // 먼저 템플릿 질문들을 삭제
+      setIsDeleting(true);
+
       const { error: questionsError } = await supabase
         .from('template_questions')
         .delete()
@@ -180,7 +192,6 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
 
       if (questionsError) throw questionsError;
 
-      // 템플릿 섹션들도 삭제
       const { error: sectionsError } = await supabase
         .from('template_sections')
         .delete()
@@ -188,7 +199,6 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
 
       if (sectionsError) throw sectionsError;
 
-      // 마지막으로 템플릿 삭제
       const { error } = await supabase
         .from('survey_templates')
         .delete()
@@ -209,6 +219,10 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
         description: "템플릿 삭제 중 오류가 발생했습니다.",
         variant: "destructive"
       });
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+      setTemplateToDelete(null);
     }
   };
 
@@ -540,7 +554,8 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
                        <Button
                          variant="outline"
                          size="sm"
-                         onClick={() => handleDelete(template.id)}
+                         onClick={() => handleDeleteClick(template)}
+                         disabled={isDeleting}
                          className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
                        >
                          <Trash2 className="h-3 w-3 sm:mr-1 flex-shrink-0" />
@@ -570,6 +585,36 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
           )}
         </div>
       </main>
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setTemplateToDelete(null);
+            setIsDeleting(false);
+          }
+        }}
+        title="템플릿 삭제"
+        description={
+          <>
+            <p>선택한 템플릿과 연결된 모든 질문과 섹션이 삭제됩니다.</p>
+            {templateToDelete && (
+              <p className="rounded-md bg-muted px-3 py-2 font-medium text-foreground">
+                {templateToDelete.name}
+              </p>
+            )}
+            <p className="font-semibold text-destructive">이 작업은 되돌릴 수 없습니다.</p>
+          </>
+        }
+        primaryAction={{
+          label: isDeleting ? '삭제 중...' : '삭제',
+          variant: 'destructive',
+          disabled: isDeleting,
+          onClick: () => {
+            void handleDelete();
+          },
+        }}
+      />
       <Dialog
         open={duplicateModalOpen}
         onOpenChange={(open) => {
