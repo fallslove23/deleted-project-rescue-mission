@@ -1,5 +1,5 @@
 // src/pages/SurveyResults.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +25,10 @@ import {
 } from 'recharts';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import LoadingScreen from '@/components/LoadingScreen';
+import { CardSkeleton, ChartSkeleton, ListSkeleton } from '@/components/loading/LoadingSkeletons';
+import { ErrorState } from '@/components/ErrorState';
+import { useLastUpdated } from '@/hooks/useLastUpdated';
 import {
   exportResponsesAsCSV,
   exportSummaryAsCSV,
@@ -113,9 +117,16 @@ const SurveyResults = () => {
     { year: number; round: number; course_name: string; key: string }[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sendingResults, setSendingResults] = useState(false);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false); // 향후 다이얼로그 적용 대비
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const { lastUpdatedAt, markSuccess } = useLastUpdated();
+  const dataInitializedRef = useRef(false);
+
+  useEffect(() => {
+    dataInitializedRef.current = false;
+  }, [user?.id]);
 
   const isAdmin = userRoles.includes('admin');
   const isOperator = userRoles.includes('operator');
@@ -123,45 +134,48 @@ const SurveyResults = () => {
   const isInstructor = userRoles.includes('instructor');
   const canViewAll = isAdmin || isOperator || isDirector;
 
-  // test data 토글 변경 시 리프레시
   useEffect(() => {
-    if (profile) {
-      fetchAllResponses();
-      fetchAllQuestionsAndAnswers();
-      fetchSurveys();
-      fetchAvailableCourses();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [testDataOptions.includeTestData]);
+    if (!user) return;
 
-  useEffect(() => {
-    fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    const initialize = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const profileData = await fetchProfile();
+        if (!profileData) {
+          throw new Error('프로필 정보를 불러올 수 없습니다.');
+        }
+        await loadSurveyData(profileData);
+        setProfile(profileData);
+      } catch (err) {
+        console.error('Error initializing survey results view:', err);
+        setError('설문 결과 데이터를 불러오는 중 오류가 발생했습니다.');
+        setLoading(false);
+      }
+    };
+
+    initialize();
+  }, [fetchProfile, loadSurveyData, user]);
 
   useEffect(() => {
     if (!profile) return;
-
-    fetchInstructorInfo();
-    fetchAllInstructors();
-    fetchAvailableCourses();
-    fetchSurveys();
-    fetchAllResponses();
-    fetchAllQuestionsAndAnswers();
-
-    const surveyIdFromUrl = searchParams.get('surveyId');
-    if (surveyIdFromUrl) setSelectedSurvey(surveyIdFromUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, searchParams]);
-
-  // 선택된 설문이 바뀌면 해당 설문 응답/질문/답변 로드
-  useEffect(() => {
-    if (selectedSurvey && selectedSurvey !== 'all') {
-      // 기존: fetchReports();  // ❌ 존재하지 않는 함수 호출 제거
-      fetchQuestionsAndAnswers();
+    if (!dataInitializedRef.current) {
+      dataInitializedRef.current = true;
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSurvey]);
+    loadSurveyData(profile);
+  }, [loadSurveyData, profile, testDataOptions.includeTestData]);
+
+  useEffect(() => {
+    fetchQuestionsAndAnswers();
+  }, [fetchQuestionsAndAnswers]);
+
+  useEffect(() => {
+    const surveyIdFromUrl = searchParams.get('surveyId');
+    if (surveyIdFromUrl) {
+      setSelectedSurvey(surveyIdFromUrl);
+    }
+  }, [searchParams]);
 
   // allResponses 또는 selectedSurvey가 바뀌면 responses를 계산해서 세팅
   useEffect(() => {
@@ -174,32 +188,28 @@ const SurveyResults = () => {
   }, [selectedSurvey, allResponses]);
 
   // ======= Data fetchers =======
-  const fetchAllResponses = async () => {
-    try {
+  const fetchAllResponses = useCallback(
+    async (profileData: Profile | null) => {
       let query = supabase.from('survey_responses').select('*');
 
-      // 테스트 데이터 필터링
       if (!testDataOptions.includeTestData) {
-        // 테스트 응답 자체 제외
         query = query.or('is_test.is.null,is_test.eq.false');
 
-        // 테스트 설문의 응답 제외
-        const { data: nonTestSurveys } = await supabase
+        const { data: nonTestSurveys, error: surveyFilterError } = await supabase
           .from('surveys')
           .select('id')
           .or('is_test.is.null,is_test.eq.false');
+        if (surveyFilterError) throw surveyFilterError;
 
         if (nonTestSurveys && nonTestSurveys.length > 0) {
-          const surveyIds = nonTestSurveys.map(s => s.id);
+          const surveyIds = nonTestSurveys.map((s) => s.id);
           query = query.in('survey_id', surveyIds);
         }
       }
 
-      // 강사인 경우 본인 설문 우선 표시하되, 없으면 전체 설문 표시
       if (isInstructor && !canViewAll) {
-        let instructorId = profile?.instructor_id;
-        
-        // instructor_id가 없는 경우 이메일로 매칭 시도
+        let instructorId = profileData?.instructor_id;
+
         if (!instructorId && user?.email) {
           const { data: instructorData } = await supabase
             .from('instructors')
@@ -210,52 +220,45 @@ const SurveyResults = () => {
             instructorId = instructorData.id;
           }
         }
-        
+
         if (instructorId) {
-          // 먼저 본인 설문이 있는지 확인
           let surveyQuery = supabase
             .from('surveys')
             .select('id')
             .eq('instructor_id', instructorId);
-          
-          // 테스트 데이터 필터링
+
           if (!testDataOptions.includeTestData) {
             surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
           }
-          
-          const { data: instructorSurveys } = await surveyQuery;
+
+          const { data: instructorSurveys, error: instructorSurveyError } = await surveyQuery;
+          if (instructorSurveyError) throw instructorSurveyError;
 
           if (instructorSurveys && instructorSurveys.length > 0) {
             const ids = instructorSurveys.map((s: any) => s.id);
             query = query.in('survey_id', ids);
           }
-          // 본인 설문이 없어도 전체 설문을 보여줌 (필터링하지 않음)
         }
-        // instructor_id를 찾을 수 없어도 전체 설문을 보여줌
       }
 
       const { data, error } = await query.order('submitted_at', { ascending: false });
       if (error) throw error;
       setAllResponses((data ?? []) as SurveyResponse[]);
-    } catch (e) {
-      console.error('Error fetching all responses:', e);
-    }
-  };
+    },
+    [canViewAll, isInstructor, testDataOptions.includeTestData, user?.email],
+  );
 
-  const fetchAllQuestionsAndAnswers = async () => {
-    try {
+  const fetchAllQuestionsAndAnswers = useCallback(
+    async (profileData: Profile | null) => {
       let surveyQuery = supabase.from('surveys').select('id');
 
-      // 테스트 데이터 필터링
       if (!testDataOptions.includeTestData) {
         surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
       }
 
-      // 강사인 경우 본인 설문 우선 표시하되, 없으면 전체 설문 표시
       if (isInstructor && !canViewAll) {
-        let instructorId = profile?.instructor_id;
-        
-        // instructor_id가 없는 경우 이메일로 매칭 시도
+        let instructorId = profileData?.instructor_id;
+
         if (!instructorId && user?.email) {
           const { data: instructorData } = await supabase
             .from('instructors')
@@ -266,20 +269,18 @@ const SurveyResults = () => {
             instructorId = instructorData.id;
           }
         }
-        
+
         if (instructorId) {
-          // 먼저 본인 설문이 있는지 확인
-          const { data: instructorSurveys } = await supabase
+          const { data: instructorSurveys, error: instructorSurveyError } = await supabase
             .from('surveys')
             .select('id')
             .eq('instructor_id', instructorId);
-          
+          if (instructorSurveyError) throw instructorSurveyError;
+
           if (instructorSurveys && instructorSurveys.length > 0) {
             surveyQuery = surveyQuery.eq('instructor_id', instructorId);
           }
-          // 본인 설문이 없어도 전체 설문을 보여줌 (필터링하지 않음)
         }
-        // instructor_id를 찾을 수 없어도 전체 설문을 보여줌
       }
 
       const { data: surveyData, error: surveyError } = await surveyQuery;
@@ -324,12 +325,11 @@ const SurveyResults = () => {
       } else {
         setAllAnswers([]);
       }
-    } catch (e) {
-      console.error('Error fetching all questions/answers:', e);
-    }
-  };
+    },
+    [canViewAll, isInstructor, testDataOptions.includeTestData, user?.email],
+  );
 
-  const fetchQuestionsAndAnswers = async () => {
+  const fetchQuestionsAndAnswers = useCallback(async () => {
     if (!selectedSurvey || selectedSurvey === 'all') return;
     try {
       const { data: qData, error: qErr } = await supabase
@@ -368,11 +368,12 @@ const SurveyResults = () => {
       }
     } catch (e) {
       console.error('Error fetching questions/answers:', e);
+      setError('질문 및 응답 데이터를 불러오는 중 오류가 발생했습니다.');
     }
-  };
+  }, [selectedSurvey, testDataOptions.includeTestData]);
 
-  const fetchProfile = async () => {
-    if (!user) return;
+  const fetchProfile = useCallback(async (): Promise<Profile | null> => {
+    if (!user) return null;
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -381,7 +382,7 @@ const SurveyResults = () => {
         .maybeSingle();
 
       if (error && (error as any).code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        throw error;
       }
 
       if (!data) {
@@ -390,90 +391,78 @@ const SurveyResults = () => {
           .insert({ id: user.id, email: user.email, role: 'user' })
           .select()
           .single();
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-        } else {
-          setProfile(newProfile as unknown as Profile);
-        }
-      } else {
-        setProfile(data as unknown as Profile);
+        if (insertError) throw insertError;
+        return newProfile as unknown as Profile;
       }
+
+      return data as unknown as Profile;
     } catch (e) {
       console.error('Error in fetchProfile:', e);
-    } finally {
-      setLoading(false);
+      throw e;
     }
-  };
+  }, [user?.email, user?.id]);
 
-  const fetchInstructorInfo = async () => {
-    if (!profile?.instructor_id) return;
-    try {
-      const { data, error } = await supabase
-        .from('instructors')
-        .select('id, name, email, photo_url')
-        .eq('id', profile.instructor_id)
-        .single();
-      if (error) throw error;
-      setInstructor(data as Instructor);
-    } catch (e) {
-      console.error('Error fetching instructor info:', e);
+  const fetchInstructorInfo = useCallback(async (profileData: Profile | null) => {
+    if (!profileData?.instructor_id) {
+      setInstructor(null);
+      return;
     }
-  };
+    const { data, error } = await supabase
+      .from('instructors')
+      .select('id, name, email, photo_url')
+      .eq('id', profileData.instructor_id)
+      .single();
+    if (error) throw error;
+    setInstructor(data as Instructor);
+  }, []);
 
-  const fetchAllInstructors = async () => {
-    try {
-      const { data: instructorUsers, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'instructor');
-      if (rolesError) throw rolesError;
+  const fetchAllInstructors = useCallback(async () => {
+    const { data: instructorUsers, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'instructor');
+    if (rolesError) throw rolesError;
 
-      const instructorUserIds = (instructorUsers ?? []).map((ur: any) => ur.user_id);
-      if (!instructorUserIds.length) {
-        setAllInstructors([]);
-        return;
-      }
-
-      const { data: instructorProfiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('instructor_id')
-        .in('id', instructorUserIds)
-        .not('instructor_id', 'is', null);
-      if (profileError) throw profileError;
-
-      const instructorIds = (instructorProfiles ?? []).map((p: any) => p.instructor_id).filter(Boolean);
-      if (!instructorIds.length) {
-        setAllInstructors([]);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('instructors')
-        .select('id, name, email, photo_url')
-        .in('id', instructorIds)
-        .order('name');
-      if (error) throw error;
-
-      setAllInstructors((data ?? []) as Instructor[]);
-    } catch (e) {
-      console.error('Error fetching all instructors:', e);
+    const instructorUserIds = (instructorUsers ?? []).map((ur: any) => ur.user_id);
+    if (!instructorUserIds.length) {
+      setAllInstructors([]);
+      return;
     }
-  };
 
-  const fetchSurveys = async () => {
-    try {
+    const { data: instructorProfiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('instructor_id')
+      .in('id', instructorUserIds)
+      .not('instructor_id', 'is', null);
+    if (profileError) throw profileError;
+
+    const instructorIds = (instructorProfiles ?? []).map((p: any) => p.instructor_id).filter(Boolean);
+    if (!instructorIds.length) {
+      setAllInstructors([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('instructors')
+      .select('id, name, email, photo_url')
+      .in('id', instructorIds)
+      .order('name');
+    if (error) throw error;
+
+    setAllInstructors((data ?? []) as Instructor[]);
+  }, []);
+
+  const fetchSurveys = useCallback(
+    async (profileData: Profile | null) => {
       let query = supabase.from('surveys').select('*');
-      
-      // 테스트 데이터 필터링
+
       if (!testDataOptions.includeTestData) {
         query = query.or('is_test.is.null,is_test.eq.false');
       }
-      
-      // 강사인 경우 본인 설문 조회 (관리자/운영자/임원은 전체 조회)
+
       if (isInstructor && !canViewAll) {
-        let instructorId = profile?.instructor_id;
-        
-        // instructor_id가 없는 경우 이메일로 매칭 시도
+        let instructorId = profileData?.instructor_id;
+
         if (!instructorId && user?.email) {
           const { data: instructorData } = await supabase
             .from('instructors')
@@ -484,32 +473,24 @@ const SurveyResults = () => {
             instructorId = instructorData.id;
           }
         }
-        
+
         if (instructorId) {
           query = query.eq('instructor_id', instructorId);
-          console.log('🔍 강사 설문 필터링:', { instructorId, userEmail: user?.email });
         } else {
-          // instructor_id를 찾을 수 없는 경우 빈 결과 반환 (보안상 중요)
-          console.warn('⚠️ 강사 권한이지만 instructor_id를 찾을 수 없습니다.');
           setSurveys([]);
-          return;
+          throw new Error('강사 계정에 연결된 설문 정보를 찾을 수 없습니다.');
         }
       }
-      
+
       const { data, error } = await query
         .order('education_year', { ascending: false })
         .order('education_round', { ascending: false });
       if (error) throw error;
-      
-      console.log('📋 조회된 설문 수:', (data ?? []).length);
+
       setSurveys((data ?? []) as Survey[]);
-    } catch (e) {
-      console.error('Error fetching surveys:', e);
-      setSurveys([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [canViewAll, isInstructor, testDataOptions.includeTestData, user?.email],
+  );
 
   // ======= Selectors / stats =======
   const getUniqueYears = () => {
@@ -517,24 +498,21 @@ const SurveyResults = () => {
     return years.sort((a, b) => b - a);
   };
 
-  const fetchAvailableCourses = async () => {
-    try {
+  const fetchAvailableCourses = useCallback(
+    async (profileData: Profile | null) => {
       let query = supabase
         .from('surveys')
         .select('education_year, education_round, course_name, instructor_id, status')
         .not('course_name', 'is', null)
         .in('status', ['completed', 'active']);
 
-      // 테스트 데이터 필터링
       if (!testDataOptions.includeTestData) {
         query = query.or('is_test.is.null,is_test.eq.false');
       }
 
-      // 강사인 경우 본인 설문 우선 표시하되, 없으면 전체 설문 표시
       if (isInstructor && !canViewAll) {
-        let instructorId = profile?.instructor_id;
-        
-        // instructor_id가 없는 경우 이메일로 매칭 시도
+        let instructorId = profileData?.instructor_id;
+
         if (!instructorId && user?.email) {
           const { data: instructorData } = await supabase
             .from('instructors')
@@ -545,43 +523,37 @@ const SurveyResults = () => {
             instructorId = instructorData.id;
           }
         }
-        
+
         if (instructorId) {
-          // 먼저 본인 설문이 있는지 확인
-          const { data: instructorSurveys } = await supabase
+          const { data: instructorSurveys, error: instructorSurveyError } = await supabase
             .from('surveys')
             .select('id')
             .eq('instructor_id', instructorId);
-          
+          if (instructorSurveyError) throw instructorSurveyError;
+
           if (instructorSurveys && instructorSurveys.length > 0) {
             query = query.eq('instructor_id', instructorId);
           }
-          // 본인 설문이 없어도 전체 설문을 보여줌 (필터링하지 않음)
         }
-        // instructor_id를 찾을 수 없어도 전체 설문을 보여줌
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      // 차수 정보를 제거하고 과정명만 사용
       const unique = Array.from(
-        new Map(
-          (data ?? []).map((s: any) => [s.course_name, s])
-        ).values()
+        new Map((data ?? []).map((s: any) => [s.course_name, s])).values(),
       ).map((s: any) => ({
         year: s.education_year,
         round: s.education_round,
         course_name: s.course_name,
-        key: s.course_name, // 과정명만 키로 사용
+        key: s.course_name,
       }));
 
       unique.sort((a, b) => a.course_name.localeCompare(b.course_name));
       setAvailableCourses(unique);
-    } catch (e) {
-      console.error('Error fetching courses:', e);
-    }
-  };
+    },
+    [canViewAll, isInstructor, testDataOptions.includeTestData, user?.email],
+  );
 
   const getUniqueRounds = () => {
     const filtered = selectedYear && selectedYear !== 'all' ? surveys.filter((s) => String(s.education_year) === selectedYear) : surveys;
@@ -592,7 +564,7 @@ const SurveyResults = () => {
   // 코스명 정규화 함수 (분반/조 정보 제거)
   const normalizeCourseName = (courseName: string) => {
     if (!courseName) return '';
-    
+
     // 원본 과정명을 보존하여 핵심 과정명만 추출
     let normalized = courseName;
     
@@ -611,6 +583,54 @@ const SurveyResults = () => {
     // 예: "영업 BS 집체교육"과 "BS Advanced"는 서로 다른 과정
     return normalized;
   };
+
+  const loadSurveyData = useCallback(
+    async (profileData: Profile | null) => {
+      if (!profileData) {
+        throw new Error('프로필 정보를 찾을 수 없습니다.');
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        await Promise.all([
+          fetchInstructorInfo(profileData),
+          fetchAllInstructors(),
+          fetchAvailableCourses(profileData),
+          fetchSurveys(profileData),
+          fetchAllResponses(profileData),
+          fetchAllQuestionsAndAnswers(profileData),
+        ]);
+        markSuccess();
+      } catch (err) {
+        console.error('Error loading survey results data:', err);
+        setError('설문 결과 데이터를 불러오는 중 오류가 발생했습니다.');
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      fetchAllInstructors,
+      fetchAllQuestionsAndAnswers,
+      fetchAllResponses,
+      fetchAvailableCourses,
+      fetchInstructorInfo,
+      fetchSurveys,
+      markSuccess,
+    ],
+  );
+
+  const handleRetry = useCallback(async () => {
+    const currentProfile = profile ?? (await fetchProfile());
+    if (!currentProfile) {
+      throw new Error('프로필 정보를 불러올 수 없습니다.');
+    }
+    if (!profile) {
+      setProfile(currentProfile);
+    }
+    await loadSurveyData(currentProfile);
+  }, [fetchProfile, loadSurveyData, profile]);
 
   // 제목에서 'n일차' 숫자를 추출하여 정렬에 사용
   const extractDayFromTitle = (title: string): number | null => {
@@ -1102,15 +1122,22 @@ const SurveyResults = () => {
   }, [getFilteredSurveys(), allResponses, allQuestions, allAnswers, profile?.instructor_id]);
 
   const questionAnalyses = getQuestionAnalyses();
+  const lastUpdatedLabel = lastUpdatedAt
+    ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(lastUpdatedAt)
+    : null;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">설문 결과를 불러오는 중...</p>
+      <LoadingScreen
+        title="설문 결과 분석 데이터를 준비하고 있습니다"
+        description="최신 설문 응답과 통계를 불러오는 중입니다."
+      >
+        <div className="space-y-6">
+          <CardSkeleton cards={1} />
+          <ChartSkeleton />
+          <ListSkeleton items={4} showAction={false} />
         </div>
-      </div>
+      </LoadingScreen>
     );
   }
 
@@ -1139,12 +1166,28 @@ const SurveyResults = () => {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <TestDataToggle 
+              <TestDataToggle
                 testDataOptions={testDataOptions}
               />
             </div>
           </div>
         </div>
+
+        {error && (
+          <ErrorState
+            title="설문 결과 데이터를 불러오는 중 문제가 발생했습니다."
+            description={error}
+            onRetry={handleRetry}
+            lastUpdatedAt={lastUpdatedAt}
+            className="mb-6"
+          />
+        )}
+
+        {!error && lastUpdatedLabel && (
+          <div className="mb-4 text-right text-xs text-muted-foreground">
+            마지막 갱신: {lastUpdatedLabel} (KST)
+          </div>
+        )}
 
         {/* 필터 섹션 */}
         <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border/60 p-6 mb-6">

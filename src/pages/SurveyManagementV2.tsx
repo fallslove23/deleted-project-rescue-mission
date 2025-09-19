@@ -9,7 +9,6 @@ import {
   Users,
   BookOpen,
   User,
-  AlertCircle,
   Settings,
   Eye,
   Share2,
@@ -42,9 +41,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ListSkeleton, CardSkeleton } from "@/components/loading/LoadingSkeletons";
+import { ErrorState } from "@/components/ErrorState";
 import { useToast } from "@/hooks/use-toast";
+import { useLastUpdated } from "@/hooks/useLastUpdated";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
 
@@ -224,6 +224,7 @@ export default function SurveyManagementV2() {
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { lastUpdatedAt, markSuccess } = useLastUpdated();
 
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [availableCourseNames, setAvailableCourseNames] = useState<string[]>([]);
@@ -319,6 +320,7 @@ export default function SurveyManagementV2() {
       setTotalPages(result.totalPages);
       setTotalCount(result.count);
       setAvailableYears(years);
+      markSuccess();
     } catch (e: any) {
       setError(e?.message || "데이터를 불러오는데 실패했습니다.");
     } finally {
@@ -630,29 +632,32 @@ export default function SurveyManagementV2() {
 
   if (loading) {
     return (
-      <DashboardLayout 
+      <DashboardLayout
         title="설문 관리"
         description="전체 설문 생성 및 관리 그리고 통계 확인할 수 있습니다"
-        loading={true}
       >
-        <div className="space-y-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-6 w-3/4 mb-4" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-6">
+          <CardSkeleton
+            cards={1}
+            title="필터를 준비하고 있습니다"
+            description="설문 필터 옵션을 불러오는 중입니다."
+            showSpinner={false}
+          />
+          <ListSkeleton
+            items={5}
+            title="설문 목록을 불러오는 중입니다"
+            description="최신 설문 데이터를 준비하고 있습니다."
+            showSpinner={false}
+          />
         </div>
       </DashboardLayout>
     );
   }
 
   const q = filters.q ?? "";
+  const lastUpdatedLabel = lastUpdatedAt
+    ? formatInTimeZone(lastUpdatedAt, TIMEZONE, "yyyy-MM-dd HH:mm")
+    : null;
 
   return (
     <DashboardLayout 
@@ -769,12 +774,20 @@ export default function SurveyManagementV2() {
           </CardContent>
         </Card>
 
+        {lastUpdatedLabel && !error && (
+          <div className="flex justify-end text-xs text-muted-foreground">
+            마지막 갱신: {lastUpdatedLabel} (KST)
+          </div>
+        )}
+
         {/* 오류 표시 */}
         {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <ErrorState
+            title="설문 목록을 불러오는 중 문제가 발생했습니다."
+            description={error}
+            onRetry={loadData}
+            lastUpdatedAt={lastUpdatedAt}
+          />
         )}
 
         {/* 멀티 선택 플로팅 액션바 */}
