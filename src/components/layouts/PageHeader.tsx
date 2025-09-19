@@ -24,7 +24,7 @@ export function PageHeader({ title, subtitle, icon, filtersSummary }: PageHeader
 
   return (
     <header className="border-b border-surface-border bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-sm sticky top-0 z-40 shadow-sm transition-colors">
-      <div className="container mx-auto px-4 py-3 md:py-4 flex flex-col gap-3">
+      <div className="container mx-auto px-4 py-3 md:py-4 space-y-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <SidebarTrigger className="h-9 w-9" />
@@ -53,7 +53,6 @@ export function PageHeader({ title, subtitle, icon, filtersSummary }: PageHeader
             </Button>
           </div>
         </div>
-
         {hasFiltersSummary && (
           <>
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
