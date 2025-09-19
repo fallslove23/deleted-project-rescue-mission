@@ -31,24 +31,27 @@ export default {
 		},
 		extend: {
 			// 한글 폰트 패밀리 추가
-			fontFamily: {
-				sans: [
-					'"Noto Sans KR"',
-					'"Malgun Gothic"',
-					'"Apple SD Gothic Neo"',
-					'"Helvetica Neue"',
-					'Helvetica',
-					'Arial',
-					'sans-serif'
-				],
-				display: [
-					'"Noto Sans KR"',
-					'"Malgun Gothic"',
-					'"Apple SD Gothic Neo"',
-					'system-ui',
-					'sans-serif'
-				]
-			},
+                        fontFamily: {
+                                sans: [
+                                        'Pretendard',
+                                        'Noto Sans KR',
+                                        'Malgun Gothic',
+                                        'Apple SD Gothic Neo',
+                                        'Helvetica Neue',
+                                        'Helvetica',
+                                        'Arial',
+                                        'system-ui',
+                                        'sans-serif'
+                                ],
+                                display: [
+                                        'Pretendard',
+                                        'Noto Sans KR',
+                                        'Malgun Gothic',
+                                        'Apple SD Gothic Neo',
+                                        'system-ui',
+                                        'sans-serif'
+                                ]
+                        },
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
