@@ -280,13 +280,15 @@ export default function SurveyManagementV2() {
     [selectedMeta, activeSelectedCount]
   );
   const bulkStatusIsDeactivate = activeSelectedCount > inactiveSelectedCount;
-  const bulkStatusLabel = bulkStatusIsDeactivate ? '일괄 비활성화' : '일괄 활성화';
+  const bulkStatusLabel = bulkStatusIsDeactivate ? "일괄 비활성화" : "일괄 활성화";
 
   // 상세 시트
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetSurvey, setSheetSurvey] = useState<SurveyListItem | null>(null);
 
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const hasManuallyClosedMobileActions = useRef(false);
 
   // 다이얼로그들
   const [quickOpen, setQuickOpen] = useState(false);
@@ -397,10 +399,30 @@ export default function SurveyManagementV2() {
   }, [searchText]);
 
   useEffect(() => {
-    if (selected.size === 0 && mobileActionsOpen) {
+    if (typeof window === "undefined") return;
+    const updateIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    updateIsMobile();
+    window.addEventListener("resize", updateIsMobile);
+    return () => window.removeEventListener("resize", updateIsMobile);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      hasManuallyClosedMobileActions.current = false;
       setMobileActionsOpen(false);
+      return;
     }
-  }, [selected, mobileActionsOpen]);
+    if (selected.size === 0) {
+      hasManuallyClosedMobileActions.current = false;
+      setMobileActionsOpen(false);
+      return;
+    }
+    if (!hasManuallyClosedMobileActions.current) {
+      setMobileActionsOpen(true);
+    }
+  }, [isMobile, selected.size]);
 
   useEffect(() => {
     setSelected((prev) => {
@@ -461,17 +483,18 @@ export default function SurveyManagementV2() {
   };
 
   const toggleAll = () => {
-    if (allChecked) {
-      setSelected(new Map());
-    } else {
-      setSelected(() => {
-        const next = new Map<string, SelectedSurveyMeta>();
+    setSelected((prev) => {
+      const next = new Map(prev);
+      const pageAllSelected = surveys.every((survey) => next.has(survey.id));
+      if (pageAllSelected) {
+        surveys.forEach((survey) => next.delete(survey.id));
+      } else {
         surveys.forEach((survey) => {
           next.set(survey.id, { status: survey.status });
         });
-        return next;
-      });
-    }
+      }
+      return next;
+    });
   };
   const toggleOne = (survey: SurveyListItem) => {
     setSelected((prev) => {
@@ -482,6 +505,18 @@ export default function SurveyManagementV2() {
     });
   };
   const handleClearSelection = () => setSelected(new Map());
+  const handleMobileActionsOpenChange = (open: boolean) => {
+    if (!isMobile) {
+      setMobileActionsOpen(open);
+      return;
+    }
+    if (!open && selected.size > 0) {
+      hasManuallyClosedMobileActions.current = true;
+    } else {
+      hasManuallyClosedMobileActions.current = false;
+    }
+    setMobileActionsOpen(open);
+  };
   const handleBulkStatusAction = async () => {
     if (!selected.size) return;
     const newStatus = bulkStatusIsDeactivate ? 'draft' : 'active';
@@ -771,7 +806,7 @@ export default function SurveyManagementV2() {
     >
       <div className="space-y-6">
         {selected.size > 0 && (
-          <div className="sticky top-[5.75rem] z-30">
+          <div className="sticky top-[calc(4rem+3.5rem)] z-30">
             <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/10 bg-background/95 px-4 py-2 shadow-lg backdrop-blur supports-[backdrop-filter]:backdrop-blur-md">
               <div className="flex items-center gap-3">
                 <Badge variant="secondary" className="flex items-center gap-2 rounded-full px-3 py-1 text-sm">
@@ -781,6 +816,16 @@ export default function SurveyManagementV2() {
                 <span className="hidden text-xs font-medium text-muted-foreground md:block">
                   원하는 작업을 선택하세요
                 </span>
+                <div className="hidden items-center gap-3 text-xs text-muted-foreground md:flex">
+                  <span className="flex items-center gap-1">
+                    <Play className="h-3.5 w-3.5 text-emerald-500" />
+                    활성 {activeSelectedCount}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Pause className="h-3.5 w-3.5 text-amber-500" />
+                    비활성 {inactiveSelectedCount}
+                  </span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -826,7 +871,7 @@ export default function SurveyManagementV2() {
                     <span className="sr-only">선택 항목 삭제</span>
                   </Button>
                 </div>
-                <Drawer open={mobileActionsOpen} onOpenChange={setMobileActionsOpen}>
+                <Drawer open={isMobile && mobileActionsOpen} onOpenChange={handleMobileActionsOpenChange}>
                   <DrawerTrigger asChild>
                     <Button
                       variant="outline"
@@ -844,15 +889,22 @@ export default function SurveyManagementV2() {
                       <DrawerDescription>
                         {selected.size}개 항목에 대해 실행할 작업을 선택하세요.
                       </DrawerDescription>
+                      <div className="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Play className="h-3.5 w-3.5 text-emerald-500" />
+                          활성 {activeSelectedCount}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Pause className="h-3.5 w-3.5 text-amber-500" />
+                          비활성 {inactiveSelectedCount}
+                        </span>
+                      </div>
                     </DrawerHeader>
                     <div className="grid gap-3 px-4">
                       <Button
                         variant="outline"
                         className="justify-start gap-3"
-                        onClick={async () => {
-                          await exportCsvSelected();
-                          setMobileActionsOpen(false);
-                        }}
+                        onClick={exportCsvSelected}
                       >
                         <Download className="h-4 w-4" />
                         내보내기
@@ -860,10 +912,7 @@ export default function SurveyManagementV2() {
                       <Button
                         variant="outline"
                         className="justify-start gap-3"
-                        onClick={async () => {
-                          await handleBulkStatusAction();
-                          setMobileActionsOpen(false);
-                        }}
+                        onClick={handleBulkStatusAction}
                       >
                         {bulkStatusIsDeactivate ? (
                           <Pause className="h-4 w-4" />
@@ -875,10 +924,7 @@ export default function SurveyManagementV2() {
                       <Button
                         variant="destructive"
                         className="justify-start gap-3"
-                        onClick={() => {
-                          handleBulkDelete();
-                          setMobileActionsOpen(false);
-                        }}
+                        onClick={handleBulkDelete}
                       >
                         <Trash2 className="h-4 w-4" />
                         삭제
@@ -886,10 +932,7 @@ export default function SurveyManagementV2() {
                       <Button
                         variant="ghost"
                         className="justify-start gap-3"
-                        onClick={() => {
-                          handleClearSelection();
-                          setMobileActionsOpen(false);
-                        }}
+                        onClick={handleClearSelection}
                       >
                         <XCircle className="h-4 w-4" />
                         선택 해제
