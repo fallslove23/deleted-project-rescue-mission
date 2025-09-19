@@ -765,7 +765,9 @@ const TemplateBuilder = () => {
                           <Label htmlFor="question_type">질문 유형</Label>
                           <Select
                             value={questionForm.question_type}
-                            onValueChange={(value: any) => setQuestionForm(prev => ({ ...prev, question_type: value }))}
+                            onValueChange={(value: string) =>
+                              setQuestionForm((prev) => ({ ...prev, question_type: value }))
+                            }
                           >
                             <SelectTrigger>
                               <SelectValue />
@@ -782,7 +784,9 @@ const TemplateBuilder = () => {
                           <Label htmlFor="section">섹션</Label>
                           <Select
                             value={questionForm.section_id}
-                            onValueChange={(value) => setQuestionForm(prev => ({ ...prev, section_id: value }))}
+                            onValueChange={(value: string) =>
+                              setQuestionForm((prev) => ({ ...prev, section_id: value }))
+                            }
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="섹션 선택 (선택사항)" />
@@ -843,7 +847,9 @@ const TemplateBuilder = () => {
                         <Label htmlFor="satisfaction_type">만족도 태그</Label>
                         <Select
                           value={questionForm.satisfaction_type}
-                          onValueChange={(value) => setQuestionForm(prev => ({ ...prev, satisfaction_type: value }))}
+                          onValueChange={(value: string) =>
+                            setQuestionForm((prev) => ({ ...prev, satisfaction_type: value }))
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="만족도 태그 선택 (선택사항)" />

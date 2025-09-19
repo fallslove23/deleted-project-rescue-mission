@@ -1,33 +1,33 @@
-import { ReactNode } from 'react'
+import { ReactNode } from 'react';
 
-import { Button, type ButtonProps } from '@/components/ui/button'
+import { Button, type ButtonProps } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 type ConfirmDialogAction = {
-  label: ReactNode
-  onClick?: () => void | Promise<void>
-  variant?: ButtonProps['variant']
-  disabled?: boolean
-  className?: string
-  closeOnClick?: boolean
-}
+  label: ReactNode;
+  onClick?: () => void | Promise<void>;
+  variant?: ButtonProps['variant'];
+  disabled?: boolean;
+  className?: string;
+  closeOnClick?: boolean;
+};
 
 interface ConfirmDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: ReactNode
-  description?: ReactNode
-  primaryAction: ConfirmDialogAction
-  secondaryAction?: ConfirmDialogAction
-  contentClassName?: string
-  footerClassName?: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: ReactNode;
+  description?: ReactNode;
+  primaryAction: ConfirmDialogAction;
+  secondaryAction?: ConfirmDialogAction;
+  contentClassName?: string;
+  footerClassName?: string;
 }
 
 export const ConfirmDialog = ({
@@ -40,19 +40,23 @@ export const ConfirmDialog = ({
   contentClassName,
   footerClassName,
 }: ConfirmDialogProps) => {
-  const handlePrimaryClick = () => {
-    primaryAction.onClick?.()
-    if (primaryAction.closeOnClick) {
-      onOpenChange(false)
+  const handlePrimaryClick = async () => {
+    try {
+      await primaryAction.onClick?.();
+      if (primaryAction.closeOnClick) {
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error('ConfirmDialog primaryAction failed', error);
     }
-  }
+  };
 
   const handleSecondaryClick = () => {
-    secondaryAction?.onClick?.()
+    secondaryAction?.onClick?.();
     if (secondaryAction?.closeOnClick ?? true) {
-      onOpenChange(false)
+      onOpenChange(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -87,7 +91,7 @@ export const ConfirmDialog = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};
 
-export default ConfirmDialog
+export default ConfirmDialog;
