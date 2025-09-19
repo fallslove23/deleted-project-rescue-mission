@@ -115,11 +115,32 @@ const DashboardOverview: React.FC = () => {
   }, [fetchStats]);
 
   const busy = loading || authLoading;
+  const hasSurveyData =
+    stats.totalSurveys > 0 ||
+    stats.activeSurveys > 0 ||
+    stats.completedSurveys > 0;
   const filtersSummary = useMemo(() => {
     const courseScope = isAdmin ? "전체 과정" : "담당 과정";
     const instructorScope = isAdmin ? "전체 강사" : "담당 강사";
     return `기간: 전체 기간 · 과정: ${courseScope} · 강사: ${instructorScope}`;
   }, [isAdmin]);
+  const surveyStatusData = useMemo(() => {
+    const baseData = [
+      { name: "활성", value: stats.activeSurveys, fill: "hsl(var(--chart-2))" },
+      { name: "완료", value: stats.completedSurveys, fill: "hsl(var(--chart-1))" },
+      {
+        name: "대기",
+        value: Math.max(0, stats.totalSurveys - stats.activeSurveys - stats.completedSurveys),
+        fill: "hsl(var(--chart-3))",
+      },
+    ];
+
+    if (hasSurveyData) {
+      return baseData;
+    }
+
+    return baseData.map((item) => ({ ...item, value: 0 }));
+  }, [hasSurveyData, stats.activeSurveys, stats.completedSurveys, stats.totalSurveys]);
 
   return (
     <DashboardLayout
@@ -360,15 +381,11 @@ const DashboardOverview: React.FC = () => {
               <p className="text-sm text-muted-foreground">설문별 진행 상황</p>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="relative h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={[
-                        { name: '활성', value: stats.activeSurveys, fill: 'hsl(var(--chart-2))' },
-                        { name: '완료', value: stats.completedSurveys, fill: 'hsl(var(--chart-1))' },
-                        { name: '대기', value: Math.max(0, stats.totalSurveys - stats.activeSurveys - stats.completedSurveys), fill: 'hsl(var(--chart-3))' }
-                      ]}
+                      data={surveyStatusData}
                       cx="50%"
                       cy="50%"
                       innerRadius={50}
@@ -376,11 +393,7 @@ const DashboardOverview: React.FC = () => {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {[
-                        { name: '활성', value: stats.activeSurveys, fill: 'hsl(var(--chart-2))' },
-                        { name: '완료', value: stats.completedSurveys, fill: 'hsl(var(--chart-1))' },
-                        { name: '대기', value: Math.max(0, stats.totalSurveys - stats.activeSurveys - stats.completedSurveys), fill: 'hsl(var(--chart-3))' }
-                      ].map((entry, index) => (
+                      {surveyStatusData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Pie>
@@ -393,13 +406,18 @@ const DashboardOverview: React.FC = () => {
                         color: 'hsl(var(--card-foreground))'
                       }}
                     />
-                    <Legend 
+                    <Legend
                       verticalAlign="bottom"
                       height={36}
                       formatter={(value) => <span style={{ color: 'hsl(var(--foreground))' }}>{value}</span>}
                     />
                   </PieChart>
                 </ResponsiveContainer>
+                {!busy && !hasSurveyData && (
+                  <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                    표시할 설문 데이터가 없습니다.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -10,7 +10,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { BarChart3, ChevronDown, LogOut, SlidersHorizontal } from "lucide-react";
 
-
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
@@ -21,15 +20,16 @@ interface PageHeaderProps {
 export function PageHeader({ title, subtitle, icon, filtersSummary }: PageHeaderProps) {
   const { user, signOut } = useAuth();
   const [isMobileSummaryOpen, setIsMobileSummaryOpen] = React.useState(false);
+  const hasFiltersSummary = Boolean(filtersSummary?.trim());
 
   return (
-    <header className="border-b bg-white/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+    <header className="border-b border-surface-border bg-surface/90 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-sm sticky top-0 z-40 shadow-sm transition-colors">
       <div className="container mx-auto px-4 py-3 md:py-4 flex flex-col gap-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <SidebarTrigger />
+            <SidebarTrigger className="h-9 w-9" />
             <div className="h-10 w-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
-              {icon || <BarChart3 className="h-5 w-5 text-white" />}
+              {icon || <BarChart3 className="h-5 w-5 text-primary-foreground" />}
             </div>
             <div>
               <h1 className="text-base md:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
@@ -54,7 +54,7 @@ export function PageHeader({ title, subtitle, icon, filtersSummary }: PageHeader
           </div>
         </div>
 
-        {filtersSummary && (
+        {hasFiltersSummary && (
           <>
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
               <SlidersHorizontal className="h-4 w-4 text-primary" />
