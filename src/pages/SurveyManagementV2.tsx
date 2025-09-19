@@ -1,5 +1,5 @@
 // src/pages/SurveyManagementV2.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { formatInTimeZone } from "date-fns-tz";
 import {
@@ -28,6 +28,7 @@ import {
   Play,
   Pause,
   MoreHorizontal,
+  Loader2,
 } from "lucide-react";
 import { getSurveyUrl } from '@/lib/utils';
 
@@ -47,6 +48,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
+import { ToastAction } from "@/components/ui/toast";
 
 import {
   SurveysRepository,
@@ -94,7 +96,35 @@ const STATUS_CONFIG = {
   expired: { label: "종료", variant: "destructive" as const },
 };
 
+const CSV_URL_TTL = 60_000;
+
+type CsvDownloadHandle = {
+  url: string;
+  fileName: string;
+  timeoutId: number | null;
+};
+
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const formatFileSize = (bytes: number) => {
+  if (!bytes) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const size = bytes / Math.pow(1024, exponent);
+  return `${size >= 10 || exponent === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[exponent]}`;
+};
+
+const errorToString = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch {
+    return String(error);
+  }
+};
 function Highlight({ text, query }: { text?: string | null; query: string }) {
   const t = text ?? "";
   if (!query.trim()) return <>{t}</>;
@@ -264,6 +294,156 @@ export default function SurveyManagementV2() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSurveyId, setShareSurveyId] = useState<string | null>(null);
 
+  const [csvExporting, setCsvExporting] = useState(false);
+  const [duplicateInProgressId, setDuplicateInProgressId] = useState<string | null>(null);
+  const [logDialogData, setLogDialogData] = useState<{ title: string; message: string } | null>(null);
+  const csvDownloadRef = useRef<CsvDownloadHandle | null>(null);
+
+  const releaseCsvUrl = useCallback(() => {
+    if (!csvDownloadRef.current) return;
+    URL.revokeObjectURL(csvDownloadRef.current.url);
+    if (csvDownloadRef.current.timeoutId) {
+      window.clearTimeout(csvDownloadRef.current.timeoutId);
+    }
+    csvDownloadRef.current = null;
+  }, []);
+
+  const createRevokeTimer = useCallback((url: string) => {
+    return window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+      if (csvDownloadRef.current?.url === url) {
+        csvDownloadRef.current = null;
+      }
+    }, CSV_URL_TTL);
+  }, []);
+
+  const registerCsvDownload = useCallback(
+    (url: string, fileName: string) => {
+      releaseCsvUrl();
+      const timeoutId = createRevokeTimer(url);
+      csvDownloadRef.current = { url, fileName, timeoutId };
+    },
+    [createRevokeTimer, releaseCsvUrl]
+  );
+
+  const extendCsvUrlLifetime = useCallback(
+    (url: string) => {
+      if (csvDownloadRef.current?.url !== url) return;
+      if (csvDownloadRef.current.timeoutId) {
+        window.clearTimeout(csvDownloadRef.current.timeoutId);
+      }
+      csvDownloadRef.current.timeoutId = createRevokeTimer(url);
+    },
+    [createRevokeTimer]
+  );
+
+  const triggerCsvDownload = useCallback(
+    (url: string, fileName: string) => {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      extendCsvUrlLifetime(url);
+    },
+    [extendCsvUrlLifetime]
+  );
+
+  useEffect(() => {
+    return () => {
+      releaseCsvUrl();
+    };
+  }, [releaseCsvUrl]);
+
+  const handleCsvExportSuccess = useCallback(
+    (rows: SurveyListItem[], info: { url: string; blob: Blob; fileName: string }) => {
+      toast({
+        title: "CSV 내보내기 완료",
+        description: (
+          <div className="space-y-1">
+            <p>총 {rows.length}개의 응답을 내보냈습니다.</p>
+            <p>파일 크기: {formatFileSize(info.blob.size)}</p>
+          </div>
+        ),
+        action: (
+          <ToastAction altText="CSV 다시 다운로드" onClick={() => triggerCsvDownload(info.url, info.fileName)}>
+            다시 다운로드
+          </ToastAction>
+        ),
+      });
+    },
+    [toast, triggerCsvDownload]
+  );
+
+  const showCsvErrorToast = useCallback(
+    (message: string, errorDetails: string, retry: () => void) => {
+      toast({
+        variant: "destructive",
+        title: "CSV 내보내기 실패",
+        description: (
+          <div className="space-y-3">
+            <p>{message}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" type="button" onClick={retry} className="h-8">
+                재시도
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setLogDialogData({
+                    title: "CSV 내보내기 실패 로그",
+                    message: errorDetails,
+                  })
+                }
+                className="h-8"
+              >
+                로그 보기
+              </Button>
+            </div>
+          </div>
+        ),
+      });
+    },
+    [setLogDialogData, toast]
+  );
+
+  const showDuplicateErrorToast = useCallback(
+    (errorDetails: string, retry: () => void) => {
+      toast({
+        variant: "destructive",
+        title: "복제 실패",
+        description: (
+          <div className="space-y-3">
+            <p>설문 복제 중 오류가 발생했습니다.</p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" type="button" onClick={retry} className="h-8">
+                재시도
+              </Button>
+              <Button
+                size="sm"
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setLogDialogData({
+                    title: "복제 실패 로그",
+                    message: errorDetails,
+                  })
+                }
+                className="h-8"
+              >
+                로그 보기
+              </Button>
+            </div>
+          </div>
+        ),
+      });
+    },
+    [setLogDialogData, toast]
+  );
+
   // QR 코드 다운로드 함수
   const handleDownloadQR = async (surveyId: string) => {
     try {
@@ -414,12 +594,34 @@ export default function SurveyManagementV2() {
   };
 
   const exportCsvAll = async () => {
-    const res = await SurveysRepository.fetchSurveyList(1, 1000, filters, sortBy, sortDir);
-    downloadCsv(res.data);
+    if (csvExporting) return;
+    setCsvExporting(true);
+    try {
+      const res = await SurveysRepository.fetchSurveyList(1, 1000, filters, sortBy, sortDir);
+      const info = downloadCsv(res.data);
+      handleCsvExportSuccess(res.data, info);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      const details = errorToString(error);
+      showCsvErrorToast('설문 데이터를 내보내는 중 오류가 발생했습니다.', details, exportCsvAll);
+    } finally {
+      setCsvExporting(false);
+    }
   };
   const exportCsvSelected = async () => {
-    const rows = await SurveysRepository.fetchByIds(Array.from(selected));
-    downloadCsv(rows);
+    if (csvExporting || selected.size === 0) return;
+    setCsvExporting(true);
+    try {
+      const rows = await SurveysRepository.fetchByIds(Array.from(selected));
+      const info = downloadCsv(rows);
+      handleCsvExportSuccess(rows, info);
+    } catch (error) {
+      console.error('Error exporting selected CSV:', error);
+      const details = errorToString(error);
+      showCsvErrorToast('선택한 설문을 내보내는 중 오류가 발생했습니다.', details, exportCsvSelected);
+    } finally {
+      setCsvExporting(false);
+    }
   };
   const downloadCsv = (rows: SurveyListItem[]) => {
     const header = [
@@ -464,13 +666,10 @@ export default function SurveyManagementV2() {
         .join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `surveys_${Date.now()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const fileName = `surveys_${Date.now()}.csv`;
+    registerCsvDownload(url, fileName);
+    triggerCsvDownload(url, fileName);
+    return { url, blob, fileName };
   };
 
   const handleQuickCreate = async (p: {
@@ -586,6 +785,8 @@ export default function SurveyManagementV2() {
   };
 
   const handleDuplicateSurvey = async (surveyId: string) => {
+    if (duplicateInProgressId) return;
+    setDuplicateInProgressId(surveyId);
     try {
       // 원본 설문 정보 가져오기
       const { data: originalSurvey, error: surveyError } = await supabase
@@ -593,9 +794,9 @@ export default function SurveyManagementV2() {
         .select('*')
         .eq('id', surveyId)
         .single();
-      
+
       if (surveyError) throw surveyError;
-      
+
       // 새 설문 생성
       const { data: newSurvey, error: createError } = await supabase
         .from('surveys')
@@ -609,22 +810,21 @@ export default function SurveyManagementV2() {
         })
         .select()
         .single();
-      
+
       if (createError) throw createError;
-      
+
       toast({
         title: "복제 완료",
         description: "설문이 성공적으로 복제되었습니다."
       });
-      
+
       navigate(`/survey-builder/${newSurvey.id}`);
     } catch (error) {
       console.error('Error duplicating survey:', error);
-      toast({
-        title: "복제 실패",
-        description: "설문 복제 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
+      const details = errorToString(error);
+      showDuplicateErrorToast(details, () => handleDuplicateSurvey(surveyId));
+    } finally {
+      setDuplicateInProgressId(null);
     }
   };
 
@@ -666,9 +866,14 @@ export default function SurveyManagementV2() {
           variant="outline"
           size="sm"
           onClick={exportCsvAll}
+          disabled={csvExporting}
         >
-          <Download className="h-4 w-4 mr-2" />
-          CSV
+          {csvExporting ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4 mr-2" />
+          )}
+          {csvExporting ? "내보내는 중..." : "CSV"}
         </Button>,
         <Button
           key="quick"
@@ -793,10 +998,14 @@ export default function SurveyManagementV2() {
                       variant="outline"
                       size="sm"
                       onClick={exportCsvSelected}
-                      disabled={selected.size === 0}
+                      disabled={selected.size === 0 || csvExporting}
                     >
-                      <Download className="h-4 w-4 mr-1" />
-                      내보내기
+                      {csvExporting ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-1" />
+                      )}
+                      {csvExporting ? "내보내는 중..." : "내보내기"}
                     </Button>
                     <Button
                       variant="outline"
@@ -949,9 +1158,21 @@ export default function SurveyManagementV2() {
                           <Link className="h-4 w-4 mr-2" />
                           링크 복사
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicateSurvey(survey.id)}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          복제
+                        <DropdownMenuItem
+                          onClick={() => handleDuplicateSurvey(survey.id)}
+                          disabled={!!duplicateInProgressId}
+                        >
+                          {duplicateInProgressId === survey.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              복제 중...
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-4 w-4 mr-2" />
+                              복제
+                            </>
+                          )}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleStatusToggle(survey.id, survey.status)}>
                           {survey.status === 'active' ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
@@ -1102,6 +1323,27 @@ export default function SurveyManagementV2() {
                 </Button>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!logDialogData} onOpenChange={(open) => !open && setLogDialogData(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{logDialogData?.title ?? '상세 로그'}</DialogTitle>
+              <DialogDescription>
+                문제 해결을 위해 아래 로그를 확인하세요.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto rounded border bg-muted/50 p-4">
+              <pre className="whitespace-pre-wrap break-words text-sm">
+                {logDialogData?.message}
+              </pre>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLogDialogData(null)}>
+                닫기
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
