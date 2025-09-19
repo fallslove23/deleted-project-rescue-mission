@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -201,16 +201,13 @@ const TemplateBuilder = () => {
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!pendingFocusQuestionId) return;
     if (typeof document === 'undefined') return;
 
     const element = document.getElementById(`question-${pendingFocusQuestionId}`);
 
-    if (!(element instanceof HTMLElement)) {
-      setPendingFocusQuestionId(null);
-      return;
-    }
+    if (!(element instanceof HTMLElement)) return;
 
     const focusElement = () => {
       element.focus({ preventScroll: true });
@@ -219,22 +216,20 @@ const TemplateBuilder = () => {
     };
 
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(() => focusElement());
+      const frame = window.requestAnimationFrame(() => focusElement());
+      return () => window.cancelAnimationFrame(frame);
     } else {
       focusElement();
     }
   }, [pendingFocusQuestionId, questions]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!pendingFocusSectionId) return;
     if (typeof document === 'undefined') return;
 
     const element = document.getElementById(`section-${pendingFocusSectionId}`);
 
-    if (!(element instanceof HTMLElement)) {
-      setPendingFocusSectionId(null);
-      return;
-    }
+    if (!(element instanceof HTMLElement)) return;
 
     const focusElement = () => {
       element.focus({ preventScroll: true });
@@ -243,7 +238,8 @@ const TemplateBuilder = () => {
     };
 
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(() => focusElement());
+      const frame = window.requestAnimationFrame(() => focusElement());
+      return () => window.cancelAnimationFrame(frame);
     } else {
       focusElement();
     }
