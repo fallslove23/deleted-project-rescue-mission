@@ -1,6 +1,25 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit, RefreshCcw, CheckSquare, Square } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Pencil,
+  Trash2,
+  Plus,
+  Settings,
+  Edit,
+  RefreshCcw,
+  CheckSquare,
+  Square,
+  AlertTriangle,
+  ClipboardCheck,
+  CheckCircle2,
+  BellRing,
+  Mail,
+  ExternalLink,
+  LayoutDashboard,
+  AlertCircle,
+} from "lucide-react";
 
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +37,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -63,9 +85,10 @@ type Survey = {
   start_date: string | null; end_date: string | null;
   education_year: number | null; education_round: number | null; education_day: number | null;
   course_name: string | null; expected_participants: number | null; is_test: boolean | null;
-  status: "draft" | "active" | "public" | "completed" | null; created_at: string | null; updated_at: string | null;
+  status: "draft" | "active" | "public" | "completed" | "review_requested" | "deployed" | null;
+  created_at: string | null; updated_at: string | null; created_by?: string | null;
   is_final_survey?: boolean | null;
-  
+
   // 분반 관련 필드
   is_grouped?: boolean | null;
   group_type?: string | null;
@@ -73,12 +96,67 @@ type Survey = {
 };
 type SurveyQuestion = {
   id: string; question_text: string; question_type: string; options: any; is_required: boolean;
-  order_index: number; section_id?: string | null;
+  order_index: number; section_id?: string | null; session_id?: string | null;
   scope: 'session' | 'operation'; satisfaction_type?: string | null;
 };
 type Section = { id: string; name: string; description?: string };
 type Course = { id: string; title: string };
 type Instructor = { id: string; name: string };
+
+type SurveyWorkflowStatus = "draft" | "review_requested" | "deployed";
+
+const STATUS_FLOW: SurveyWorkflowStatus[] = ["draft", "review_requested", "deployed"];
+
+const STATUS_META: Record<SurveyWorkflowStatus, { label: string; description: string }> = {
+  draft: {
+    label: "초안",
+    description: "설문을 편집 중입니다. 검수 요청 전에 필수 항목을 확인하세요.",
+  },
+  review_requested: {
+    label: "검수 요청",
+    description: "담당자 검수 대기 중입니다. 수정 사항이 있다면 초안으로 되돌려 편집하세요.",
+  },
+  deployed: {
+    label: "배포",
+    description: "설문이 배포되어 응답 수집을 시작했습니다. 후속 조치를 진행하세요.",
+  },
+};
+
+const REVIEW_CHECKLIST = [
+  {
+    id: "content",
+    label: "질문, 응답 옵션, 안내문을 최신 교육 내용과 비교하여 검토했습니다.",
+    description: "복수 선택 문항과 필수 여부까지 다시 한 번 확인해주세요.",
+  },
+  {
+    id: "schedule",
+    label: "시작/종료 일시와 교육 일정이 일치합니다.",
+    description: "배포 전 일정이 확정되었는지 담당자와 공유했는지 확인합니다.",
+  },
+  {
+    id: "preview",
+    label: "미리보기로 설문 흐름을 검토했습니다.",
+    description: "모든 섹션과 분기 로직이 의도대로 노출되는지 확인합니다.",
+  },
+];
+
+const DEPLOY_CHECKLIST = [
+  {
+    id: "required-fields",
+    label: "필수 입력 항목(과정명, 일정, 질문 등)이 모두 채워져 있습니다.",
+    description: "세션별 최소 한 개의 질문이 있는지 다시 한 번 확인하세요.",
+  },
+  {
+    id: "communication",
+    label: "배포 대상과 수집 기간을 담당자와 공유했습니다.",
+    description: "메일, 메신저 등으로 공지 초안과 함께 전달했는지 점검합니다.",
+  },
+  {
+    id: "backup",
+    label: "배포 후 모니터링 계획과 응답 수집 마감 일정이 준비되었습니다.",
+    description: "필요 시 취소/수정 프로세스도 마련되어 있는지 확인하세요.",
+  },
+];
 
 /* ─────────────────────────────── component ─────────────────────────────── */
 export default function SurveyBuilder() {
@@ -135,10 +213,32 @@ export default function SurveyBuilder() {
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [sectionForm, setSectionForm] = useState({ name: "", description: "" });
 
+  const [statusChecklistOpen, setStatusChecklistOpen] = useState(false);
+  const [checklistContext, setChecklistContext] = useState<"review" | "deploy" | null>(null);
+  const [checklistState, setChecklistState] = useState<Record<string, boolean>>({});
+  const [checklistError, setChecklistError] = useState<string | null>(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [deploymentWarnings, setDeploymentWarnings] = useState<string[]>([]);
+  const [postDeployDialogOpen, setPostDeployDialogOpen] = useState(false);
+  const [creatorEmail, setCreatorEmail] = useState<string | null>(null);
+  const [notificationEmail, setNotificationEmail] = useState<string>("");
+
   const title = useMemo(
     () => buildTitle(educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber, isFinalSurvey),
     [educationYear, educationRound, educationDay, courseName, isGrouped, groupNumber, isFinalSurvey]
   );
+
+  const currentWorkflowStatus: SurveyWorkflowStatus = useMemo(() => {
+    const raw = survey?.status;
+    if (raw === "review_requested") return "review_requested";
+    if (raw === "deployed") return "deployed";
+    if (raw === "public" || raw === "active") return "deployed";
+    return "draft";
+  }, [survey?.status]);
+
+  const statusStepIndex = STATUS_FLOW.indexOf(currentWorkflowStatus);
+  const activeChecklist = checklistContext === "review" ? REVIEW_CHECKLIST : DEPLOY_CHECKLIST;
+  const allChecklistChecked = activeChecklist.every((item) => checklistState[item.id]);
 
   /* ───────────────────────────── data loaders ───────────────────────────── */
   const loadSurvey = useCallback(async () => {
@@ -156,7 +256,18 @@ export default function SurveyBuilder() {
       setEducationRound(s.education_round ?? 1);
       setEducationDay(s.education_day ?? 1);
       setCourseName(s.course_name ?? "");
-      
+      setCreatorEmail(null);
+      if (s.created_by) {
+        const { data: ownerProfile, error: ownerError } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', s.created_by)
+          .single();
+        if (!ownerError && ownerProfile?.email) {
+          setCreatorEmail(ownerProfile.email);
+        }
+      }
+
       // 분반 정보 로드
       setIsGrouped(s.is_grouped ?? false);
       setGroupType(s.group_type ?? "");
@@ -263,7 +374,230 @@ export default function SurveyBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId]);
 
+  useEffect(() => {
+    setNotificationEmail(creatorEmail ?? "");
+  }, [creatorEmail]);
+
   /* ─────────────────────────────── save/basic ────────────────────────────── */
+  const validateBeforeDeploy = useCallback(() => {
+    const errors: string[] = [];
+    const trimmedCourseName = courseName.trim();
+    const trimmedDescription = description.trim();
+    const trimmedTitle = (title ?? "").trim();
+
+    if (!trimmedCourseName) {
+      errors.push("과정명이 입력되지 않았습니다.");
+    }
+    if (!trimmedTitle) {
+      errors.push("설문 제목을 생성할 수 없습니다. 기본 정보를 다시 저장해 주세요.");
+    }
+
+    const startDate = startAt ? new Date(startAt) : null;
+    const endDate = endAt ? new Date(endAt) : null;
+    if (!startDate || isNaN(startDate.getTime())) {
+      errors.push("시작 일시가 올바르지 않습니다.");
+    }
+    if (!endDate || isNaN(endDate.getTime())) {
+      errors.push("종료 일시가 올바르지 않습니다.");
+    }
+    if (startDate && endDate && startDate >= endDate) {
+      errors.push("종료 일시는 시작 일시 이후여야 합니다.");
+    }
+
+    if (!trimmedDescription) {
+      errors.push("설문 설명을 입력해 주세요.");
+    }
+
+    if (sessions.length === 0) {
+      errors.push("최소 1개의 교육 세션이 필요합니다.");
+    }
+
+    if (questions.length === 0) {
+      errors.push("등록된 설문 질문이 없습니다.");
+    }
+
+    const sessionsWithoutQuestions = sessions.filter((session) =>
+      !questions.some((q: any) => q.scope === 'session' && q.session_id === session.id)
+    );
+    if (sessionsWithoutQuestions.length > 0) {
+      const names = sessionsWithoutQuestions
+        .map((session) => session.course?.title || session.session_name)
+        .filter(Boolean)
+        .join(', ');
+      errors.push(`질문이 없는 세션이 있습니다: ${names || '이름 없는 세션'}`);
+    }
+
+    return { valid: errors.length === 0, errors };
+  }, [courseName, title, startAt, endAt, description, sessions, questions]);
+
+  const resetChecklistState = useCallback((context: "review" | "deploy") => {
+    const source = context === "review" ? REVIEW_CHECKLIST : DEPLOY_CHECKLIST;
+    const initial: Record<string, boolean> = {};
+    source.forEach((item) => {
+      initial[item.id] = false;
+    });
+    setChecklistState(initial);
+  }, []);
+
+  const handleChecklistOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setChecklistContext(null);
+        setChecklistState({});
+        setChecklistError(null);
+      }
+      setStatusChecklistOpen(open);
+    },
+    []
+  );
+
+  const openChecklist = useCallback(
+    (context: "review" | "deploy") => {
+      setChecklistContext(context);
+      resetChecklistState(context);
+      setChecklistError(null);
+      setStatusChecklistOpen(true);
+    },
+    [resetChecklistState]
+  );
+
+  const updateSurveyStatus = useCallback(
+    async (next: SurveyWorkflowStatus) => {
+      if (!surveyId) return;
+      setStatusUpdating(true);
+      const dbStatus = next === "deployed" ? "public" : next;
+      try {
+        const { error } = await supabase.from("surveys").update({ status: dbStatus }).eq("id", surveyId);
+        if (error) throw error;
+        setSurvey((prev) => (prev ? { ...prev, status: dbStatus } : prev));
+        await loadSurvey();
+
+        if (next === "review_requested") {
+          toast({ title: "검수 요청 완료", description: "담당자에게 검수 요청을 전달했습니다." });
+        } else if (next === "deployed") {
+          toast({ title: "배포 완료", description: "설문이 배포되었습니다. 후속 안내를 진행하세요." });
+          setDeploymentWarnings([]);
+          setPostDeployDialogOpen(true);
+        } else {
+          toast({ title: "초안으로 변경", description: "설문이 다시 편집 가능한 상태가 되었습니다." });
+        }
+      } catch (e: any) {
+        console.error("Status update error:", e);
+        toast({
+          title: "상태 변경 실패",
+          description: e?.message ?? "상태 변경 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      } finally {
+        setStatusUpdating(false);
+      }
+    },
+    [surveyId, loadSurvey, toast]
+  );
+
+  const handleOpenReviewChecklist = useCallback(() => {
+    openChecklist("review");
+  }, [openChecklist]);
+
+  const handleOpenDeployChecklist = useCallback(() => {
+    const { valid, errors } = validateBeforeDeploy();
+    setDeploymentWarnings(errors);
+    if (!valid) {
+      toast({
+        title: "배포 전 확인 필요",
+        description: "배포 요건을 충족한 뒤 다시 시도해 주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+    openChecklist("deploy");
+  }, [openChecklist, toast, validateBeforeDeploy]);
+
+  const handleRunValidation = useCallback(() => {
+    const { valid, errors } = validateBeforeDeploy();
+    setDeploymentWarnings(errors);
+    if (valid) {
+      toast({ title: "배포 전 점검 완료", description: "배포 요건을 모두 충족했습니다." });
+    } else {
+      toast({ title: "점검 필요", description: "배포 전 확인해야 할 항목이 있습니다.", variant: "destructive" });
+    }
+  }, [toast, validateBeforeDeploy]);
+
+  const handleReturnToDraft = useCallback(() => {
+    if (statusUpdating) return;
+    if (!confirm("설문을 초안 상태로 되돌릴까요? 현재 검수 요청/배포 상태가 초기화됩니다.")) return;
+    updateSurveyStatus("draft");
+  }, [statusUpdating, updateSurveyStatus]);
+
+  const handleChecklistConfirm = useCallback(async () => {
+    if (!checklistContext) return;
+    if (!allChecklistChecked) {
+      setChecklistError("모든 확인 항목에 동의해야 진행할 수 있습니다.");
+      return;
+    }
+    if (checklistContext === "review") {
+      await updateSurveyStatus("review_requested");
+    } else if (checklistContext === "deploy") {
+      await updateSurveyStatus("deployed");
+    }
+    handleChecklistOpenChange(false);
+  }, [allChecklistChecked, checklistContext, handleChecklistOpenChange, updateSurveyStatus]);
+
+  const handleChecklistToggle = useCallback((id: string, value: boolean) => {
+    setChecklistState((prev) => ({ ...prev, [id]: value }));
+    setChecklistError(null);
+  }, []);
+
+  const handleCopyPreviewLink = useCallback(async () => {
+    if (!surveyId) return;
+    const previewUrl = `${window.location.origin}/survey-preview/${surveyId}`;
+    try {
+      await navigator.clipboard.writeText(previewUrl);
+      toast({ title: "링크 복사 완료", description: "설문 미리보기 링크가 복사되었습니다." });
+    } catch (error) {
+      console.error("Copy preview link error:", error);
+      toast({
+        title: "복사 실패",
+        description: "브라우저에서 복사를 허용하지 않았습니다. 직접 복사해 주세요.",
+        variant: "destructive",
+      });
+    }
+  }, [surveyId, toast]);
+
+  const handleOpenPreview = useCallback(() => {
+    if (!surveyId) return;
+    const previewUrl = `/survey-preview/${surveyId}?preview=true`;
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
+  }, [surveyId]);
+
+  const handleSendDeploymentEmail = useCallback(() => {
+    const recipient = notificationEmail.trim();
+    if (!recipient) {
+      toast({ title: "이메일 주소 필요", description: "담당자 이메일을 입력해 주세요.", variant: "destructive" });
+      return;
+    }
+    const previewUrl = surveyId ? `${window.location.origin}/survey-preview/${surveyId}` : "";
+    const subject = `[설문 배포 안내] ${title || "교육 설문"}`;
+    const bodyLines = [
+      "안녕하세요.",
+      `설문 "${title || "교육 설문"}"이 배포되었습니다.`,
+      previewUrl ? `설문 링크: ${previewUrl}` : "",
+      "응답 기간과 안내 문구를 확인한 뒤 공유 부탁드립니다.",
+    ].filter(Boolean);
+    const mailto = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\n'))}`;
+    window.open(mailto, "_blank");
+    toast({ title: "메일 작성 창 열림", description: `${recipient} 주소로 새 메일을 작성합니다.` });
+  }, [notificationEmail, surveyId, title, toast]);
+
+  const handleGoToManagement = useCallback(() => {
+    setPostDeployDialogOpen(false);
+    navigate("/dashboard/surveys");
+  }, [navigate]);
+
+  const handleDismissWarnings = useCallback(() => {
+    setDeploymentWarnings([]);
+  }, []);
+
   const saveBasic = async () => {
     if (!surveyId) return;
     if (!educationYear || !educationRound || !educationDay || !courseName) {
@@ -948,6 +1282,74 @@ export default function SurveyBuilder() {
   /* ─────────────────────────────── render ──────────────────────────────── */
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() + 1 - i);
 
+  const statusActionButtons = (() => {
+    switch (currentWorkflowStatus) {
+      case "draft":
+        return (
+          <>
+            <Button
+              variant="outline"
+              onClick={handleOpenReviewChecklist}
+              disabled={statusUpdating || loading || !survey}
+              className="rounded-full"
+            >
+              <ClipboardCheck className="w-4 h-4 mr-2" /> 검수 요청하기
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleRunValidation}
+              disabled={loading}
+              className="rounded-full"
+            >
+              <AlertCircle className="w-4 h-4 mr-2" /> 배포 전 점검
+            </Button>
+          </>
+        );
+      case "review_requested":
+        return (
+          <>
+            <Button
+              onClick={handleOpenDeployChecklist}
+              disabled={statusUpdating || loading || !survey}
+              className="rounded-full"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" /> 배포하기
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleReturnToDraft}
+              disabled={statusUpdating || !survey}
+              className="rounded-full"
+            >
+              <RefreshCcw className="w-4 h-4 mr-2" /> 초안으로 되돌리기
+            </Button>
+          </>
+        );
+      case "deployed":
+        return (
+          <>
+            <Button
+              onClick={() => setPostDeployDialogOpen(true)}
+              disabled={statusUpdating}
+              className="rounded-full"
+            >
+              <BellRing className="w-4 h-4 mr-2" /> 후속 조치 보기
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleReturnToDraft}
+              disabled={statusUpdating || !survey}
+              className="rounded-full"
+            >
+              <RefreshCcw className="w-4 h-4 mr-2" /> 수정 재요청
+            </Button>
+          </>
+        );
+      default:
+        return null;
+    }
+  })();
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
@@ -963,6 +1365,84 @@ export default function SurveyBuilder() {
         <div className="py-10 text-sm text-muted-foreground">해당 설문을 찾을 수 없습니다.</div>
       ) : (
         <div className="space-y-6">
+          <div className="rounded-2xl border bg-muted/40 p-4 md:p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="uppercase tracking-wide text-xs">
+                    {STATUS_META[currentWorkflowStatus].label}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {survey?.status ? `DB: ${survey.status}` : "초안 상태"}
+                  </span>
+                </div>
+                <h2 className="text-xl font-semibold">설문 상태 진행 현황</h2>
+                <p className="text-sm text-muted-foreground max-w-2xl">
+                  {STATUS_META[currentWorkflowStatus].description}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {statusActionButtons}
+              </div>
+            </div>
+            <Separator className="my-4" />
+            <div className="grid gap-4 sm:grid-cols-3">
+              {STATUS_FLOW.map((step, index) => {
+                const meta = STATUS_META[step];
+                const isCompleted = index < statusStepIndex;
+                const isActive = index === statusStepIndex;
+                return (
+                  <div
+                    key={step}
+                    className={`flex items-start gap-3 rounded-xl border bg-background/80 p-3 ${
+                      isActive ? 'border-primary/60 shadow-sm' : 'border-border'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${
+                        isActive || isCompleted
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : index + 1}
+                    </div>
+                    <div className="space-y-1">
+                      <div className={`text-sm font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        {meta.label}
+                      </div>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {meta.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {deploymentWarnings.length > 0 && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>배포 전 확인이 필요한 항목이 있습니다.</AlertTitle>
+              <AlertDescription>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {deploymentWarnings.map((warning, index) => (
+                    <li key={index}>{warning}</li>
+                  ))}
+                </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={handleRunValidation} className="rounded-full">
+                    <RefreshCcw className="mr-1.5 h-4 w-4" /> 다시 점검
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleDismissWarnings} className="rounded-full">
+                    경고 숨기기
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* 기본 정보 */}
           <Card>
             <CardHeader><CardTitle className="text-2xl">기본 정보</CardTitle></CardHeader>
@@ -1473,6 +1953,109 @@ export default function SurveyBuilder() {
               </div>
             </div>
           )}
+
+          {/* 상태 체크리스트 다이얼로그 */}
+          <Dialog open={statusChecklistOpen} onOpenChange={handleChecklistOpenChange}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{checklistContext === "review" ? "검수 요청 체크리스트" : "배포 체크리스트"}</DialogTitle>
+                <DialogDescription>
+                  {checklistContext === "review"
+                    ? "검수 요청 전에 아래 항목을 모두 확인했는지 점검하세요."
+                    : "배포 전 필수 항목을 체크하면 바로 배포 상태로 전환됩니다."}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                {(checklistContext === "review" ? REVIEW_CHECKLIST : DEPLOY_CHECKLIST).map((item) => (
+                  <label
+                    key={item.id}
+                    className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3"
+                    htmlFor={`check-${item.id}`}
+                  >
+                    <Checkbox
+                      id={`check-${item.id}`}
+                      checked={!!checklistState[item.id]}
+                      onCheckedChange={(checked) => handleChecklistToggle(item.id, Boolean(checked))}
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">{item.label}</p>
+                      {item.description && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{item.description}</p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {checklistError && <p className="text-sm text-destructive">{checklistError}</p>}
+              <DialogFooter className="gap-2">
+                {checklistContext === "deploy" && (
+                  <Button variant="ghost" onClick={handleOpenPreview} className="rounded-full">
+                    <ExternalLink className="mr-2 h-4 w-4" /> 미리보기 열기
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => handleChecklistOpenChange(false)}
+                  className="rounded-full"
+                >
+                  취소
+                </Button>
+                <Button onClick={handleChecklistConfirm} disabled={statusUpdating} className="rounded-full">
+                  {statusUpdating
+                    ? "처리 중..."
+                    : checklistContext === "review"
+                      ? "검수 요청 보내기"
+                      : "배포 진행"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 배포 후 후속 조치 다이얼로그 */}
+          <Dialog open={postDeployDialogOpen} onOpenChange={setPostDeployDialogOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>배포 완료! 다음 단계를 진행하세요</DialogTitle>
+                <DialogDescription>
+                  담당자에게 배포 사실을 안내하고 필요한 후속 작업을 이어갈 수 있습니다.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="notification-email">담당자 이메일</Label>
+                  <Input
+                    id="notification-email"
+                    type="email"
+                    value={notificationEmail}
+                    onChange={(e) => setNotificationEmail(e.target.value)}
+                    placeholder="담당자 이메일을 입력하세요"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    메일 작성 버튼을 클릭하면 기본 메일 앱이 열립니다.
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button onClick={handleSendDeploymentEmail} className="rounded-full">
+                    <Mail className="mr-2 h-4 w-4" /> 메일 작성
+                  </Button>
+                  <Button variant="outline" onClick={handleCopyPreviewLink} className="rounded-full">
+                    <ClipboardCheck className="mr-2 h-4 w-4" /> 미리보기 링크 복사
+                  </Button>
+                  <Button variant="outline" onClick={handleOpenPreview} className="rounded-full">
+                    <ExternalLink className="mr-2 h-4 w-4" /> 설문 미리보기
+                  </Button>
+                  <Button variant="ghost" onClick={handleGoToManagement} className="rounded-full">
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> 설문 관리로 이동
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPostDeployDialogOpen(false)} className="rounded-full">
+                  닫기
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* 질문 추가/편집 다이얼로그 */}
           <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
