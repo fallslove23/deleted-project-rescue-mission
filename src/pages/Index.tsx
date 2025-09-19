@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -176,6 +176,20 @@ const Index = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ko-KR');
+  };
+
+  const handleSurveyNavigation = (surveyId: string) => {
+    navigate(`/survey/${surveyId}`);
+  };
+
+  const handleCardKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    surveyId: string,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleSurveyNavigation(surveyId);
+    }
   };
 
   if (loading) {
@@ -408,7 +422,15 @@ const Index = () => {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {courseSurveys.map((survey) => (
-                        <Card key={survey.id} className="cursor-pointer hover:shadow-lg transition-shadow">
+                        <Card
+                          key={survey.id}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${survey.title} 설문 참여하기`}
+                          onClick={() => handleSurveyNavigation(survey.id)}
+                          onKeyDown={(event) => handleCardKeyDown(event, survey.id)}
+                          className="cursor-pointer hover:shadow-lg transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        >
                           <CardHeader>
                             <div className="flex items-start justify-between">
                               <CardTitle className="text-lg font-display">{survey.title}</CardTitle>
@@ -465,13 +487,9 @@ const Index = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="mt-4">
-                              <Button 
-                                onClick={() => navigate(`/survey/${survey.id}`)}
-                                className="w-full"
-                              >
-                                설문 참여하기
-                              </Button>
+                            <div className="mt-4 flex items-center justify-between text-primary font-medium font-sans">
+                              <span>설문 참여하기</span>
+                              <span aria-hidden="true">→</span>
                             </div>
                           </CardContent>
                         </Card>
