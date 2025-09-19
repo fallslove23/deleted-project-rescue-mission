@@ -1,6 +1,20 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit, RefreshCcw, CheckSquare, Square } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Pencil,
+  Trash2,
+  Plus,
+  Settings,
+  Edit,
+  RefreshCcw,
+  CheckSquare,
+  Square,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+} from "lucide-react";
 
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +32,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 /* ───────────────────────────────── helpers ───────────────────────────────── */
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -102,6 +118,8 @@ export default function SurveyBuilder() {
   // 멀티 셀렉션 상태
   const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [bulkActionSection, setBulkActionSection] = useState<string | undefined>();
   
   // 템플릿 선택 관련 상태
   const [templateSelections, setTemplateSelections] = useState<Record<string, string>>({});
@@ -310,8 +328,9 @@ export default function SurveyBuilder() {
   
   // 멀티 셀렉션 핸들러들
   const handleToggleMultiSelect = () => {
-    setIsMultiSelectMode(!isMultiSelectMode);
+    setIsMultiSelectMode((prev) => !prev);
     setSelectedQuestions(new Set());
+    setBulkActionSection(undefined);
   };
   
   const handleSelectQuestion = (questionId: string) => {
@@ -324,19 +343,24 @@ export default function SurveyBuilder() {
     setSelectedQuestions(newSelected);
   };
   
-  const handleSelectAllQuestions = () => {
-    if (selectedQuestions.size === questions.length) {
-      setSelectedQuestions(new Set());
+  const handleSelectAllQuestions = (checked?: boolean | "indeterminate") => {
+    const shouldSelectAll =
+      typeof checked === "boolean"
+        ? checked
+        : selectedQuestions.size !== questions.length;
+
+    if (shouldSelectAll) {
+      setSelectedQuestions(new Set(questions.map((q) => q.id)));
     } else {
-      setSelectedQuestions(new Set(questions.map(q => q.id)));
+      setSelectedQuestions(new Set());
     }
   };
   
   const handleBulkDeleteQuestions = async () => {
     if (selectedQuestions.size === 0) return;
-    
+
     if (!confirm(`선택한 ${selectedQuestions.size}개의 질문을 삭제하시겠습니까?`)) return;
-    
+
     try {
       const { error } = await supabase
         .from('survey_questions')
@@ -348,10 +372,154 @@ export default function SurveyBuilder() {
       toast({ title: "성공", description: `${selectedQuestions.size}개의 질문이 삭제되었습니다.` });
       setSelectedQuestions(new Set());
       setIsMultiSelectMode(false);
+      setBulkActionSection(undefined);
       loadQuestions();
     } catch (e: any) {
       toast({ title: "삭제 실패", description: e.message, variant: "destructive" });
     }
+  };
+
+  const handleBulkMoveQuestions = async (targetSectionId: string | null) => {
+    if (selectedQuestions.size === 0) return;
+
+    const selected = questions.filter((q) => selectedQuestions.has(q.id));
+    const movable = selected.filter((q) => q.scope === "session");
+    const skippedCount = selected.length - movable.length;
+
+    if (movable.length === 0) {
+      toast({
+        title: "이동할 수 없음",
+        description: "세션 질문만 섹션으로 이동할 수 있습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("survey_questions")
+        .update({ section_id: targetSectionId })
+        .in("id", movable.map((q) => q.id));
+
+      if (error) throw error;
+
+      const targetName = targetSectionId
+        ? sections.find((section) => section.id === targetSectionId)?.name || "선택한 섹션"
+        : "섹션 없음";
+
+      toast({
+        title: "이동 완료",
+        description: `${movable.length}개의 질문을 "${targetName}"으로 이동했습니다.${
+          skippedCount > 0 ? ` ${skippedCount}개의 공통 질문은 제외되었습니다.` : ""
+        }`,
+      });
+
+      setBulkActionSection(undefined);
+      await Promise.all([loadQuestions(), loadSections()]);
+    } catch (e: any) {
+      toast({ title: "이동 실패", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const toggleSectionCollapse = (sectionKey: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }));
+  };
+
+  const isSectionCollapsed = (sectionKey: string) => collapsedSections[sectionKey];
+
+  const renderQuestionCard = (
+    question: SurveyQuestion,
+    index: number,
+    variant: "session" | "operation" = "session",
+  ) => {
+    const isSelected = selectedQuestions.has(question.id);
+    const isOperation = variant === "operation";
+
+    return (
+      <div
+        key={question.id}
+        className={cn(
+          "rounded-xl border bg-background/80 p-4 shadow-sm transition-all",
+          "hover:border-primary/50 hover:shadow-md",
+          "min-h-[96px]",
+          isSelected && "border-primary/60 ring-2 ring-primary/40",
+          isOperation && "border-orange-200 bg-orange-50/70",
+        )}
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-1 items-start gap-3">
+            {isMultiSelectMode && (
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => handleSelectQuestion(question.id)}
+                className="mt-1"
+              />
+            )}
+            <div
+              className={cn(
+                "mt-1 flex h-8 w-8 cursor-grab items-center justify-center rounded-full border border-dashed border-input bg-muted/60 text-muted-foreground transition hover:bg-muted",
+                isOperation && "border-orange-300 bg-orange-100/80 text-orange-600 hover:bg-orange-100",
+              )}
+              title="드래그하여 순서 변경"
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-semibold text-primary">#{index + 1}</span>
+                <span
+                  className={cn(
+                    "rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground",
+                    isOperation && "bg-orange-200/80 text-orange-900",
+                  )}
+                >
+                  {question.question_type}
+                </span>
+                {question.satisfaction_type && (
+                  <span className="rounded-full bg-muted px-2 py-0.5">
+                    만족도: {question.satisfaction_type}
+                  </span>
+                )}
+                {question.is_required && (
+                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-700">
+                    필수
+                  </span>
+                )}
+              </div>
+              <p className="text-sm leading-relaxed text-foreground">
+                {question.question_text}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 self-end sm:self-start">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => handleEditQuestion(question)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            {!isMultiSelectMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-8 w-8 p-0 text-destructive hover:text-destructive",
+                  isOperation && "text-orange-600 hover:text-orange-700",
+                )}
+                onClick={() => handleDeleteQuestion(question.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
   
   const handleQuestionSave = () => { setQuestionDialogOpen(false); loadQuestions(); };
@@ -1162,52 +1330,82 @@ export default function SurveyBuilder() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* 플로팅 액션 바 */}
-              {isMultiSelectMode && selectedQuestions.size > 0 && (
-                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-                  <div className="bg-primary text-primary-foreground px-6 py-3 rounded-full shadow-lg border flex items-center gap-4">
-                    <span className="font-medium">{selectedQuestions.size}개 선택됨</span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedQuestions(new Set());
-                          setIsMultiSelectMode(false);
-                        }}
-                        className="rounded-full"
-                      >
-                        취소
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleBulkDeleteQuestions}
-                        className="rounded-full"
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        삭제
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 다중 선택 모드일 때 컨트롤 바 */}
-              {isMultiSelectMode && questions.length > 0 && (
-                <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSelectAllQuestions}
-                      >
-                        {selectedQuestions.size === questions.length ? "전체 해제" : "전체 선택"}
-                      </Button>
+              {isMultiSelectMode && (
+                <div className="sticky top-20 z-30 mb-4 rounded-lg border bg-background/95 p-3 shadow-sm backdrop-blur">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="select-all-questions"
+                          checked={
+                            questions.length > 0 && selectedQuestions.size === questions.length
+                              ? true
+                              : selectedQuestions.size > 0
+                              ? "indeterminate"
+                              : false
+                          }
+                          onCheckedChange={(checked) => handleSelectAllQuestions(checked)}
+                        />
+                        <Label htmlFor="select-all-questions" className="text-sm font-medium">
+                          전체 선택
+                        </Label>
+                      </div>
                       <span className="text-sm text-muted-foreground">
                         {selectedQuestions.size}개 선택됨
                       </span>
+                    </div>
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Select
+                          value={bulkActionSection}
+                          onValueChange={(value) => setBulkActionSection(value)}
+                        >
+                          <SelectTrigger className="w-full sm:w-56">
+                            <SelectValue placeholder="이동할 섹션 선택" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60">
+                            <SelectItem value="__none">섹션 없음으로 이동</SelectItem>
+                            {sections.map((section) => (
+                              <SelectItem key={section.id} value={section.id}>
+                                {section.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="sm:w-auto"
+                          disabled={typeof bulkActionSection === "undefined" || selectedQuestions.size === 0}
+                          onClick={() =>
+                            typeof bulkActionSection !== "undefined" &&
+                            handleBulkMoveQuestions(bulkActionSection === "__none" ? null : bulkActionSection)
+                          }
+                        >
+                          선택 항목 이동
+                        </Button>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedQuestions(new Set());
+                            setBulkActionSection(undefined);
+                          }}
+                        >
+                          선택 해제
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleBulkDeleteQuestions}
+                          disabled={selectedQuestions.size === 0}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          선택 삭제
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1248,232 +1446,158 @@ export default function SurveyBuilder() {
                       q.scope === 'session' && 
                       (q as any).session_id === session.id
                     );
-                    const sessionSections = sections.filter(s => 
+                    const sessionSections = sections.filter(s =>
                       sessionQuestions.some(q => q.section_id === s.id)
                     );
+                    const unsectionKey = `unsection-${session.id}`;
+                    const unsectionedQuestions = sessionQuestions.filter((q) => !q.section_id);
+                    const unsectionCollapsed = !!isSectionCollapsed(unsectionKey);
                     
                     if (sessionQuestions.length === 0) return null;
                     
                     return (
-                      <div key={session.id} className="border-2 border-dashed border-muted rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm font-bold">
-                            {session.session_order + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-lg">
-                              {session.instructor?.name} - {session.course?.title || session.session_name}
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              {sessionQuestions.length}개 질문
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full px-3"
-                          onClick={() => {
-                            setSelectedSessionId(session.id);
-                            setTemplateSelectOpen(true);
-                          }}
-                          disabled={loading}
-                        >
-                          <Plus className="w-4 h-4 mr-1.5" /> 템플릿 추가
-                        </Button>
-                      </div>
-                        
-                        {/* 섹션별 질문들 */}
-                        {sessionSections.map((section) => {
-                          const sectionQuestions = sessionQuestions.filter(q => q.section_id === section.id);
-                          return (
-                            <div key={section.id} className="mb-4">
-                              <h5 className="font-medium text-muted-foreground mb-2 text-sm">
-                                📁 {section.name}
-                              </h5>
-                              <div className="space-y-2 ml-4">
-                                 {sectionQuestions.map((q, idx) => (
-                                   <div key={q.id} className={`border rounded-lg p-3 relative bg-background ${selectedQuestions.has(q.id) ? 'ring-2 ring-primary' : ''}`}>
-                                     {isMultiSelectMode && (
-                                       <div className="absolute left-2 top-2 z-10">
-                                         <Button
-                                           variant="ghost"
-                                           size="sm"
-                                           className="h-6 w-6 p-0"
-                                           onClick={() => handleSelectQuestion(q.id)}
-                                         >
-                                           {selectedQuestions.has(q.id) ? (
-                                             <CheckSquare className="h-4 w-4 text-primary" />
-                                           ) : (
-                                             <Square className="h-4 w-4" />
-                                           )}
-                                         </Button>
-                                       </div>
-                                     )}
-                                     <div className={`absolute ${isMultiSelectMode ? 'left-8' : 'left-3'} top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full`}>
-                                       {idx + 1}
-                                     </div>
-                                     <div className="absolute top-3 right-3 flex gap-1">
-                                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
-                                         <Edit className="h-3 w-3" />
-                                       </Button>
-                                       {!isMultiSelectMode && (
-                                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
-                                           <Trash2 className="h-3 w-3" />
-                                         </Button>
-                                       )}
-                                     </div>
-                                     <div className={`${isMultiSelectMode ? 'ml-11' : 'ml-6'} mr-12`}>
-                                       <p className="text-sm font-medium">
-                                         {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
-                                       </p>
-                                       <div className="text-xs text-muted-foreground mt-1">
-                                         유형: {q.question_type}
-                                         {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
-                                       </div>
-                                     </div>
-                                   </div>
-                                 ))}
-                              </div>
+                      <div
+                        key={session.id}
+                        className="rounded-xl border-2 border-dashed border-muted bg-background/60 p-4 shadow-sm"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                              {session.session_order + 1}
                             </div>
-                          );
-                        })}
-                        
-                         {/* 섹션 없는 질문들 */}
-                         {sessionQuestions.filter(q => !q.section_id).map((q, idx) => (
-                           <div key={q.id} className={`border rounded-lg p-3 relative bg-background ${selectedQuestions.has(q.id) ? 'ring-2 ring-primary' : ''}`}>
-                             {isMultiSelectMode && (
-                               <div className="absolute left-2 top-2 z-10">
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   className="h-6 w-6 p-0"
-                                   onClick={() => handleSelectQuestion(q.id)}
-                                 >
-                                   {selectedQuestions.has(q.id) ? (
-                                     <CheckSquare className="h-4 w-4 text-primary" />
-                                   ) : (
-                                     <Square className="h-4 w-4" />
-                                   )}
-                                 </Button>
-                               </div>
-                             )}
-                             <div className={`absolute ${isMultiSelectMode ? 'left-8' : 'left-3'} top-3 flex items-center justify-center w-5 h-5 bg-secondary text-xs font-bold rounded-full`}>
-                               {idx + 1}
-                             </div>
-                             <div className="absolute top-3 right-3 flex gap-1">
-                               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
-                                 <Edit className="h-3 w-3" />
-                               </Button>
-                               {!isMultiSelectMode && (
-                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
-                                   <Trash2 className="h-3 w-3" />
-                                 </Button>
-                               )}
-                             </div>
-                             <div className={`${isMultiSelectMode ? 'ml-11' : 'ml-6'} mr-12`}>
-                               <p className="text-sm font-medium">
-                                 {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
-                               </p>
-                               <div className="text-xs text-muted-foreground mt-1">
-                                 유형: {q.question_type}
-                                 {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
-                               </div>
-                             </div>
-                           </div>
-                         ))}
+                            <div>
+                              <h4 className="text-lg font-semibold leading-tight">
+                                {session.instructor?.name} - {session.course?.title || session.session_name}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {sessionQuestions.length}개 질문
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full px-3"
+                            onClick={() => {
+                              setSelectedSessionId(session.id);
+                              setTemplateSelectOpen(true);
+                            }}
+                            disabled={loading}
+                          >
+                            <Plus className="mr-1.5 h-4 w-4" /> 템플릿 추가
+                          </Button>
+                        </div>
+
+                        <div className="mt-4 space-y-4">
+                          {sessionSections.map((section) => {
+                            const sectionQuestions = sessionQuestions.filter((q) => q.section_id === section.id);
+                            const sectionKey = section.id;
+                            const collapsed = !!isSectionCollapsed(sectionKey);
+
+                            return (
+                              <div key={section.id} className="overflow-hidden rounded-lg border bg-muted/20">
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-between px-3 py-2 text-left transition hover:bg-muted/50"
+                                  onClick={() => toggleSectionCollapse(sectionKey)}
+                                >
+                                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                    {collapsed ? (
+                                      <ChevronRight className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4" />
+                                    )}
+                                    <span className="line-clamp-1">📁 {section.name}</span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {sectionQuestions.length}문항
+                                  </span>
+                                </button>
+                                {!collapsed && (
+                                  <div className="space-y-3 border-t bg-background/80 px-3 py-3">
+                                    {sectionQuestions.map((question, idx) =>
+                                      renderQuestionCard(question, idx),
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {unsectionedQuestions.length > 0 && (
+                            <div className="overflow-hidden rounded-lg border bg-muted/20">
+                              <button
+                                type="button"
+                                className="flex w-full items-center justify-between px-3 py-2 text-left transition hover:bg-muted/50"
+                                onClick={() => toggleSectionCollapse(unsectionKey)}
+                              >
+                                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                  {unsectionCollapsed ? (
+                                    <ChevronRight className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                  )}
+                                  <span className="line-clamp-1">📄 섹션 없음</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {unsectionedQuestions.length}문항
+                                </span>
+                              </button>
+                              {!unsectionCollapsed && (
+                                <div className="space-y-3 border-t bg-background/80 px-3 py-3">
+                                  {unsectionedQuestions.map((question, idx) =>
+                                    renderQuestionCard(question, idx),
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
                   
                   {/* 공통 질문들 (scope: operation) */}
-                  {questions.filter(q => q.scope === 'operation').length > 0 && (
-                    <div className="border-2 border-dashed border-orange-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-lg mb-4 text-orange-700">
-                        🔄 공통 질문 (전체 설문에 1회만 표시)
-                      </h4>
-                       <div className="space-y-2">
-                         {questions.filter(q => q.scope === 'operation').map((q, idx) => (
-                           <div key={q.id} className={`border rounded-lg p-3 relative bg-orange-50 ${selectedQuestions.has(q.id) ? 'ring-2 ring-primary' : ''}`}>
-                             {isMultiSelectMode && (
-                               <div className="absolute left-2 top-2 z-10">
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   className="h-6 w-6 p-0"
-                                   onClick={() => handleSelectQuestion(q.id)}
-                                 >
-                                   {selectedQuestions.has(q.id) ? (
-                                     <CheckSquare className="h-4 w-4 text-primary" />
-                                   ) : (
-                                     <Square className="h-4 w-4" />
-                                   )}
-                                 </Button>
-                               </div>
-                             )}
-                             <div className={`absolute ${isMultiSelectMode ? 'left-8' : 'left-3'} top-3 flex items-center justify-center w-5 h-5 bg-orange-500 text-white text-xs font-bold rounded-full`}>
-                               {idx + 1}
-                             </div>
-                             <div className="absolute top-3 right-3 flex gap-1">
-                               <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEditQuestion(q)}>
-                                 <Edit className="h-3 w-3" />
-                               </Button>
-                               {!isMultiSelectMode && (
-                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500 hover:text-red-700" onClick={() => handleDeleteQuestion(q.id)}>
-                                   <Trash2 className="h-3 w-3" />
-                                 </Button>
-                               )}
-                             </div>
-                             <div className={`${isMultiSelectMode ? 'ml-11' : 'ml-6'} mr-12`}>
-                               <p className="text-sm font-medium">
-                                 {q.question_text}{q.is_required && <span className="text-red-500 ml-1">*</span>}
-                               </p>
-                               <div className="text-xs text-muted-foreground mt-1">
-                                 유형: {q.question_type}
-                                 {q.satisfaction_type ? ` • 만족도: ${q.satisfaction_type}` : ""}
-                               </div>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                    </div>
-                  )}
+                  {(() => {
+                    const operationQuestions = questions.filter((q) => q.scope === "operation");
+                    const operationKey = "operation";
+                    const collapsed = !!isSectionCollapsed(operationKey);
+
+                    if (operationQuestions.length === 0) return null;
+
+                    return (
+                      <div className="overflow-hidden rounded-xl border-2 border-dashed border-orange-200 bg-orange-50/80">
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between px-4 py-3 text-left text-orange-800 transition hover:bg-orange-100/70"
+                          onClick={() => toggleSectionCollapse(operationKey)}
+                        >
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            {collapsed ? (
+                              <ChevronRight className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                            <span className="text-base">🔄 공통 질문 (전체 설문에 1회만 표시)</span>
+                          </div>
+                          <span className="text-xs font-medium text-orange-700">
+                            {operationQuestions.length}문항
+                          </span>
+                        </button>
+                        {!collapsed && (
+                          <div className="space-y-3 border-t border-orange-200/70 bg-orange-50 px-4 py-4">
+                            {operationQuestions.map((question, idx) =>
+                              renderQuestionCard(question, idx, "operation"),
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* 플로팅 액션 바 (멀티 셀렉트 모드에서만 표시) */}
-          {isMultiSelectMode && (
-            <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">
-                  {selectedQuestions.size}개 선택됨
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsMultiSelectMode(false);
-                    setSelectedQuestions(new Set());
-                  }}
-                >
-                  취소
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDeleteQuestions}
-                  disabled={selectedQuestions.size === 0}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  삭제 ({selectedQuestions.size})
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* 질문 추가/편집 다이얼로그 */}
           <Dialog open={questionDialogOpen} onOpenChange={setQuestionDialogOpen}>
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
