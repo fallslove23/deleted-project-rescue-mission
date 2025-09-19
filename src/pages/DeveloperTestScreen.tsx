@@ -8,10 +8,12 @@ import { ArrowLeft, Eye, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const DeveloperTestScreen = () => {
   const { user, userRoles } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [instructors, setInstructors] = useState<Array<{id: string, name: string, email: string}>>([]);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
@@ -212,7 +214,10 @@ const DeveloperTestScreen = () => {
                   <Button
                     onClick={() => {
                       if (!selectedInstructor) {
-                        alert('강사를 먼저 선택해주세요.');
+                        toast({
+                          title: '강사 선택 필요',
+                          description: '미리보기 전에 강사를 선택해주세요.',
+                        });
                         return;
                       }
                       window.open(`/dashboard/my-stats?viewAs=instructor&instructorId=${selectedInstructor}`, '_blank');
@@ -227,7 +232,10 @@ const DeveloperTestScreen = () => {
                   <Button
                     onClick={() => {
                       if (!selectedInstructor) {
-                        alert('강사를 먼저 선택해주세요.');
+                        toast({
+                          title: '강사 선택 필요',
+                          description: '미리보기 전에 강사를 선택해주세요.',
+                        });
                         return;
                       }
                       navigate(`/dashboard/my-stats?viewAs=instructor&instructorId=${selectedInstructor}`);
