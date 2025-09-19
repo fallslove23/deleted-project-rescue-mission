@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Plus, Edit, Trash2, Copy, FileText } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ArrowLeft, Plus, Edit, Trash2, Copy, FileText, CheckCircle2, AlertTriangle, RotateCcw, Terminal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Template {
@@ -30,6 +31,26 @@ interface TemplateQuestion {
   options?: any;
   is_required: boolean;
   order_index: number;
+  section_id?: string | null;
+  satisfaction_type?: string | null;
+}
+
+interface TemplateSection {
+  id: string;
+  template_id: string;
+  name: string;
+  description?: string | null;
+  order_index: number;
+}
+
+interface DuplicateResultState {
+  status: 'success' | 'error';
+  originalTemplate: Template;
+  newTemplate?: Template;
+  logs: string[];
+  errorMessage?: string;
+  questionCount?: number;
+  sectionCount?: number;
 }
 
 const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolean }) => {
@@ -47,6 +68,12 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
     description: '',
     is_course_evaluation: false
   });
+
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicatingTemplateId, setDuplicatingTemplateId] = useState<string | null>(null);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateResult, setDuplicateResult] = useState<DuplicateResultState | null>(null);
+  const [showDuplicateLogs, setShowDuplicateLogs] = useState(false);
 
   useEffect(() => {
     fetchTemplates();
@@ -185,9 +212,20 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
     }
   };
 
-  const handleDuplicate = async (template: Template) => {
+  const duplicateTemplate = async (template: Template) => {
+    const formatLog = (message: string) => `${new Date().toLocaleTimeString()} - ${message}`;
+    const logs: string[] = [formatLog(`'${template.name}' 템플릿 복제를 시작합니다.`)];
+
+    setIsDuplicating(true);
+    setDuplicatingTemplateId(template.id);
+    setDuplicateModalOpen(false);
+    setDuplicateResult(null);
+    setShowDuplicateLogs(false);
+
+    let sections: TemplateSection[] = [];
+    let questions: TemplateQuestion[] = [];
+
     try {
-      // 템플릿 복제
       const { data: newTemplate, error: templateError } = await supabase
         .from('survey_templates')
         .insert([{
@@ -200,8 +238,49 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
 
       if (templateError) throw templateError;
 
-      // 기존 템플릿의 질문들 가져오기
-      const { data: questions, error: questionsError } = await supabase
+      logs.push(formatLog(`새 템플릿 생성 완료 (ID: ${newTemplate.id})`));
+
+      const { data: sectionsData, error: sectionsError } = await supabase
+        .from('template_sections')
+        .select('*')
+        .eq('template_id', template.id)
+        .order('order_index');
+
+      if (sectionsError) throw sectionsError;
+
+      sections = (sectionsData as TemplateSection[] | null) ?? [];
+      logs.push(formatLog(`섹션 ${sections.length}개를 불러왔습니다.`));
+
+      const sectionIdMap: Record<string, string> = {};
+      if (sections.length > 0) {
+        logs.push(formatLog('섹션 복제를 시작합니다.'));
+        const sectionPayload = sections.map(section => ({
+          template_id: newTemplate.id,
+          name: section.name,
+          description: section.description ?? null,
+          order_index: section.order_index
+        }));
+
+        const { data: insertedSections, error: insertSectionsError } = await supabase
+          .from('template_sections')
+          .insert(sectionPayload)
+          .select();
+
+        if (insertSectionsError) throw insertSectionsError;
+
+        ((insertedSections as TemplateSection[] | null) ?? []).forEach((newSection, index) => {
+          const originalSection = sections[index];
+          if (originalSection) {
+            sectionIdMap[originalSection.id] = newSection.id;
+          }
+        });
+
+        logs.push(formatLog(`섹션 ${sections.length}개 복제를 완료했습니다.`));
+      } else {
+        logs.push(formatLog('복제할 섹션이 없습니다.'));
+      }
+
+      const { data: questionsData, error: questionsError } = await supabase
         .from('template_questions')
         .select('*')
         .eq('template_id', template.id)
@@ -209,39 +288,99 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
 
       if (questionsError) throw questionsError;
 
-      // 질문들 복제
-      if (questions && questions.length > 0) {
-        const newQuestions = questions.map(q => ({
+      questions = (questionsData as TemplateQuestion[] | null) ?? [];
+      logs.push(formatLog(`질문 ${questions.length}개를 불러왔습니다.`));
+
+      if (questions.length > 0) {
+        logs.push(formatLog('질문 복제를 시작합니다.'));
+        const questionPayload = questions.map(q => ({
           template_id: newTemplate.id,
           question_text: q.question_text,
           question_type: q.question_type,
           options: q.options,
           is_required: q.is_required,
           order_index: q.order_index,
-          section_id: q.section_id
+          section_id: q.section_id ? sectionIdMap[q.section_id] ?? null : null,
+          satisfaction_type: q.satisfaction_type ?? null
         }));
 
-        const { error: insertError } = await supabase
+        const { error: insertQuestionsError } = await supabase
           .from('template_questions')
-          .insert(newQuestions);
+          .insert(questionPayload);
 
-        if (insertError) throw insertError;
+        if (insertQuestionsError) throw insertQuestionsError;
+
+        logs.push(formatLog(`질문 ${questions.length}개 복제를 완료했습니다.`));
+      } else {
+        logs.push(formatLog('복제할 질문이 없습니다.'));
       }
+
+      logs.push(formatLog('템플릿 복제 작업이 완료되었습니다.'));
 
       toast({
         title: "성공",
         description: "템플릿이 복제되었습니다."
       });
 
+      setDuplicateResult({
+        status: 'success',
+        originalTemplate: template,
+        newTemplate,
+        logs,
+        questionCount: questions.length,
+        sectionCount: sections.length
+      });
+      setDuplicateModalOpen(true);
       fetchTemplates();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      logs.push(formatLog(`오류 발생: ${errorMessage}`));
       console.error('Error duplicating template:', error);
       toast({
         title: "오류",
         description: "템플릿 복제 중 오류가 발생했습니다.",
         variant: "destructive"
       });
+      setDuplicateResult({
+        status: 'error',
+        originalTemplate: template,
+        logs,
+        errorMessage
+      });
+      setDuplicateModalOpen(true);
+    } finally {
+      setIsDuplicating(false);
+      setDuplicatingTemplateId(null);
     }
+  };
+
+  const handleDuplicate = (template: Template) => {
+    if (isDuplicating) {
+      return;
+    }
+    void duplicateTemplate(template);
+  };
+
+  const handleRetryDuplicate = async () => {
+    if (!duplicateResult?.originalTemplate || isDuplicating) {
+      return;
+    }
+    const templateToRetry = duplicateResult.originalTemplate;
+    setDuplicateModalOpen(false);
+    setDuplicateResult(null);
+    setShowDuplicateLogs(false);
+    await duplicateTemplate(templateToRetry);
+  };
+
+  const handleStartEditing = () => {
+    if (!duplicateResult?.newTemplate?.id) {
+      return;
+    }
+    const templateId = duplicateResult.newTemplate.id;
+    setDuplicateModalOpen(false);
+    setDuplicateResult(null);
+    setShowDuplicateLogs(false);
+    navigate(`/template-builder/${templateId}`);
   };
 
   const handleEditQuestions = (templateId: string) => {
@@ -381,9 +520,13 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
                          size="sm"
                          onClick={() => handleDuplicate(template)}
                          className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
+                         disabled={isDuplicating}
+                         aria-label="템플릿 복사"
                        >
                          <Copy className="h-3 w-3 sm:mr-1 flex-shrink-0" />
-                         <span className="hidden sm:inline truncate">복사</span>
+                         <span className="hidden sm:inline truncate">
+                           {isDuplicating && duplicatingTemplateId === template.id ? '복사 중...' : '복사'}
+                         </span>
                        </Button>
                        <Button
                          variant="outline"
@@ -427,6 +570,111 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
           )}
         </div>
       </main>
+      <Dialog
+        open={duplicateModalOpen}
+        onOpenChange={(open) => {
+          setDuplicateModalOpen(open);
+          if (!open) {
+            setDuplicateResult(null);
+            setShowDuplicateLogs(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>템플릿 복제 결과</DialogTitle>
+          </DialogHeader>
+          {duplicateResult ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                {duplicateResult.status === 'success' ? (
+                  <CheckCircle2 className="mt-1 h-5 w-5 text-emerald-500" />
+                ) : (
+                  <AlertTriangle className="mt-1 h-5 w-5 text-destructive" />
+                )}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {duplicateResult.status === 'success'
+                      ? `"${duplicateResult.originalTemplate.name}" 템플릿이 성공적으로 복제되었습니다.`
+                      : `"${duplicateResult.originalTemplate.name}" 템플릿 복제에 실패했습니다.`}
+                  </p>
+                  {duplicateResult.status === 'success' && duplicateResult.newTemplate && (
+                    <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                      <p className="font-medium text-foreground">새 템플릿 정보</p>
+                      <div className="mt-2 space-y-1 text-muted-foreground">
+                        <p>
+                          템플릿 ID:{' '}
+                          <span className="font-mono text-xs sm:text-sm break-all">
+                            {duplicateResult.newTemplate.id}
+                          </span>
+                        </p>
+                        <p>질문 수: {duplicateResult.questionCount ?? 0}</p>
+                        <p>섹션 수: {duplicateResult.sectionCount ?? 0}</p>
+                      </div>
+                    </div>
+                  )}
+                  {duplicateResult.status === 'error' && (
+                    <p className="text-sm text-destructive">{duplicateResult.errorMessage}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowDuplicateLogs(prev => !prev)}
+                  className="touch-friendly"
+                >
+                  <Terminal className="h-4 w-4 mr-2" />
+                  {showDuplicateLogs ? '로그 숨기기' : '로그 보기'}
+                </Button>
+                {duplicateResult.status === 'error' && (
+                  <Button
+                    type="button"
+                    onClick={handleRetryDuplicate}
+                    disabled={isDuplicating}
+                    className="touch-friendly"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    {isDuplicating ? '재시도 중...' : '재시도'}
+                  </Button>
+                )}
+                {duplicateResult.status === 'success' && duplicateResult.newTemplate && (
+                  <Button onClick={handleStartEditing} className="touch-friendly">
+                    <Edit className="h-4 w-4 mr-2" />
+                    편집 시작
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setDuplicateModalOpen(false);
+                    setDuplicateResult(null);
+                    setShowDuplicateLogs(false);
+                  }}
+                  className="touch-friendly"
+                >
+                  닫기
+                </Button>
+              </div>
+
+              {showDuplicateLogs && (
+                <ScrollArea className="max-h-48 rounded-md border p-3">
+                  <div className="space-y-2 text-xs font-mono text-muted-foreground">
+                    {duplicateResult.logs.map((log, index) => (
+                      <div key={index}>{log}</div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">복제 결과 정보를 찾을 수 없습니다.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
