@@ -435,7 +435,7 @@ export default function SurveyManagementV2() {
         user_id: user.id,
         preset_name: name,
         filter_type: "survey_management",
-        filter_data: filterPayload,
+        filter_data: filterPayload as any,
       });
       if (error) throw error;
       toast({

@@ -311,8 +311,12 @@ const SurveyParticipateSession = () => {
           instructor_id: '',
           session_order: (sessionList.length || 0) + 1000,
           session_name: '운영/공통 문항',
-        } as SurveySession;
-        sessionList = [...sessionList, operationSession];
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          course: { id: '', title: '' },
+          instructor: { id: '', name: '', email: '', photo_url: '', bio: '' }
+        };
+        sessionList = [...sessionList, operationSession as any];
       }
 
       let initialAnswers = typedQuestions.map((q) => ({
@@ -484,10 +488,10 @@ const SurveyParticipateSession = () => {
     }
   }, [currentSessionIndex, surveySessions.length]);
 
-  const currentSession = surveySessions[currentSessionIndex];
+  const activeSession = surveySessions[currentSessionIndex];
   const currentGroups = useMemo(
-    () => (currentSession ? getGroupsForSession(currentSession.id) : []),
-    [currentSession, getGroupsForSession]
+    () => (activeSession ? getGroupsForSession(activeSession.id) : []),
+    [activeSession, getGroupsForSession]
   );
 
   useEffect(() => {
@@ -969,7 +973,7 @@ const SurveyParticipateSession = () => {
     );
   }
 
-  const currentSession = surveySessions[currentSessionIndex];
+  const currentSessionData = surveySessions[currentSessionIndex];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-blue-100 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
@@ -1210,7 +1214,7 @@ const SurveyParticipateSession = () => {
                   <div className="space-y-2">
                     <div className="inline-flex items-center gap-2">
                       <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                        {currentSession.session_name}
+                        {currentSessionData.session_name}
                       </span>
                       {currentSessionMeta && (
                         <span className="text-xs font-medium text-primary/80">
@@ -1218,8 +1222,8 @@ const SurveyParticipateSession = () => {
                         </span>
                       )}
                     </div>
-                    {currentSession.course?.title && (
-                      <div className="text-sm text-muted-foreground">과목: {currentSession.course.title}</div>
+                    {currentSessionData.course?.title && (
+                      <div className="text-sm text-muted-foreground">과목: {currentSessionData.course.title}</div>
                     )}
                   </div>
                   {currentSessionMeta && (
@@ -1230,9 +1234,9 @@ const SurveyParticipateSession = () => {
                 </div>
                 {currentSessionMeta && <Progress value={currentSessionMeta.completion} className="h-1.5" />}
               </CardHeader>
-              {currentSession.instructor && (
+              {currentSessionData.instructor && (
                 <CardContent className="pt-0">
-                  <InstructorInfoSection instructor={currentSession.instructor} />
+                  <InstructorInfoSection instructor={currentSessionData.instructor} />
                 </CardContent>
               )}
             </Card>

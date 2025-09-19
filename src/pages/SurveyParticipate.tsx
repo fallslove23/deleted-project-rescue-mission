@@ -155,7 +155,7 @@ interface SurveyAutosaveData {
   answers: Record<string, string | string[]>;
   currentStep: number;
   updatedAt: number;
-  phase?: 'intro' | 'survey';
+  phase?: 'intro' | 'survey' | 'completed';
 }
 
 const SurveyParticipate = () => {
@@ -431,7 +431,7 @@ const SurveyParticipate = () => {
         answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
       }));
       let restoredStep = 0;
-      let restoredPhase: 'intro' | 'survey' | null = null;
+      let restoredPhase: 'intro' | 'survey' | 'completed' | null = null;
       let restoredUpdatedAt: number | null = null;
       let restored = false;
 
