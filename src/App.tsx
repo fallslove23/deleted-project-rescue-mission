@@ -25,6 +25,7 @@ import DashboardUserManagement from "./pages/DashboardUserManagement";
 import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
 import DashboardCumulativeData from "./pages/DashboardCumulativeData";
+import AccessDenied from "./pages/AccessDenied";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagementV2 from "./pages/SurveyManagementV2";
 import SurveyBuilder from "./pages/SurveyBuilder";
@@ -325,6 +326,8 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+
+      <Route path="/access-denied" element={<AccessDenied />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

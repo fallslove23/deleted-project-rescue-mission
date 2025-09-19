@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import LoadingScreen from './LoadingScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: string[];
-  redirectTo?: string;
 }
 
-const ProtectedRoute = ({ children, allowedRoles, redirectTo }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, userRoles, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const didRedirect = useRef(false);
 
   const needRoleCheck = useMemo(() => !!(allowedRoles && allowedRoles.length > 0), [allowedRoles]);
@@ -36,15 +36,24 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo }: ProtectedRoutePr
     // 접근권한 없음 → 역할별 기본 랜딩으로 보냄
     if (needRoleCheck && !hasAccess) {
       didRedirect.current = true;
-      if (userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director')) {
-        navigate(redirectTo || '/dashboard', { replace: true });
-      } else if (userRoles.includes('instructor')) {
-        navigate(redirectTo || '/dashboard/results', { replace: true });
-      } else {
-        navigate('/auth', { replace: true });
+      const params = new URLSearchParams();
+      params.set('from', `${location.pathname}${location.search}`);
+      if (allowedRoles && allowedRoles.length > 0) {
+        params.set('required', allowedRoles.join(','));
       }
+      navigate(`/access-denied?${params.toString()}`, { replace: true });
     }
-  }, [loading, user, userRoles, needRoleCheck, hasAccess, redirectTo, navigate]);
+  }, [
+    loading,
+    user,
+    userRoles,
+    needRoleCheck,
+    hasAccess,
+    allowedRoles,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
 
   // 로딩 중이거나, 역할 체크가 필요한데 아직 roles가 비어있으면 로딩
   if (loading || (needRoleCheck && user && userRoles.length === 0)) {
