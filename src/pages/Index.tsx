@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Clock, Calendar, Users, BookOpen, FileText, Filter, Search, Hourglass, ArrowRight } from 'lucide-react';
 import { MobileOptimizedContainer } from '@/components/MobileOptimizedContainer';
 import LoadingScreen from '@/components/LoadingScreen';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Survey {
   id: string;
@@ -82,6 +83,7 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const skipUrlSyncRef = useRef(false);
   const { toast } = useToast();
+  const { user: authUser, loading: authLoading } = useAuth();
 
   const statusOptions = useMemo(
     () => [
@@ -448,6 +450,16 @@ const Index = () => {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold text-primary font-display">설문조사 시스템</h1>
+              {!authLoading && !authUser && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/auth')}
+                  className="font-sans"
+                >
+                  로그인
+                </Button>
+              )}
             </div>
             {filterSummaryBadges.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
