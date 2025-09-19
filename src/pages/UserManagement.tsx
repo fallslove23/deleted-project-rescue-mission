@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Users, Edit, Search, UserX, Shield, Key, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -238,119 +239,143 @@ const UserManagement = () => {
 
         {/* 사용자 목록 */}
         <div className="grid gap-4">
-          {filteredUsers.map((user) => {
-            const instructor = getUserInstructor(user.id);
-            const roles = userRoles[user.id] || [];
-            
-            return (
-              <Card key={user.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={instructor?.photo_url} />
-                        <AvatarFallback>
-                          {instructor ? instructor.name.charAt(0) : user.email?.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">
-                          {instructor ? instructor.name : user.email}
+          {loading
+            ? Array.from({ length: 5 }).map((_, index) => (
+                <Card key={`user-skeleton-${index}`}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-32" />
+                          <Skeleton className="h-4 w-40" />
+                          <div className="flex gap-2">
+                            <Skeleton className="h-5 w-16" />
+                            <Skeleton className="h-5 w-12" />
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {user.email}
+                      </div>
+                      <div className="hidden sm:flex items-center gap-2">
+                        <Skeleton className="h-9 w-28" />
+                        <Skeleton className="h-9 w-24" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            : filteredUsers.map((user) => {
+                const instructor = getUserInstructor(user.id);
+                const roles = userRoles[user.id] || [];
+
+                return (
+                  <Card key={user.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={instructor?.photo_url} />
+                            <AvatarFallback>
+                              {instructor ? instructor.name.charAt(0) : user.email?.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">
+                              {instructor ? instructor.name : user.email}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {user.email}
+                            </div>
+                            <div className="flex gap-1 mt-1">
+                              {roles.length > 0 ? (
+                                roles.map(role => (
+                                  <Badge key={role} variant="secondary" className="text-xs">
+                                    {role}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <Badge variant="outline" className="text-xs">
+                                  권한 없음
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-1 mt-1">
-                          {roles.length > 0 ? (
-                            roles.map(role => (
-                              <Badge key={role} variant="secondary" className="text-xs">
-                                {role}
-                              </Badge>
-                            ))
-                          ) : (
+                        <div className="flex items-center gap-2">
+                          {user.first_login && (
                             <Badge variant="outline" className="text-xs">
-                              권한 없음
+                              첫 로그인 대기
                             </Badge>
                           )}
+                          <div className="hidden sm:flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResetPassword(user)}
+                            >
+                              <Key className="h-4 w-4 mr-1" />
+                              비밀번호 초기화
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditRoles(user)}
+                            >
+                              <Shield className="h-4 w-4 mr-1" />
+                              권한 편집
+                            </Button>
+                          </div>
+
+                          {/* 모바일 액션 버튼 */}
+                          <div className="sm:hidden">
+                            <Sheet>
+                              <SheetTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </SheetTrigger>
+                              <SheetContent>
+                                <SheetHeader>
+                                  <SheetTitle>사용자 관리</SheetTitle>
+                                </SheetHeader>
+                                <div className="py-4 space-y-4">
+                                  <div className="p-4 bg-muted rounded-lg">
+                                    <div className="font-medium">
+                                      {instructor ? instructor.name : user.email}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {user.email}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    className="w-full justify-start"
+                                    variant="outline"
+                                    onClick={() => handleResetPassword(user)}
+                                  >
+                                    <Key className="h-4 w-4 mr-2" />
+                                    비밀번호 초기화
+                                  </Button>
+                                  <Button
+                                    className="w-full justify-start"
+                                    variant="outline"
+                                    onClick={() => handleEditRoles(user)}
+                                  >
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    권한 편집
+                                  </Button>
+                                </div>
+                              </SheetContent>
+                            </Sheet>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {user.first_login && (
-                        <Badge variant="outline" className="text-xs">
-                          첫 로그인 대기
-                        </Badge>
-                      )}
-                      <div className="hidden sm:flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleResetPassword(user)}
-                        >
-                          <Key className="h-4 w-4 mr-1" />
-                          비밀번호 초기화
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditRoles(user)}
-                        >
-                          <Shield className="h-4 w-4 mr-1" />
-                          권한 편집
-                        </Button>
-                      </div>
-                      
-                      {/* 모바일 액션 버튼 */}
-                      <div className="sm:hidden">
-                        <Sheet>
-                          <SheetTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </SheetTrigger>
-                          <SheetContent>
-                            <SheetHeader>
-                              <SheetTitle>사용자 관리</SheetTitle>
-                            </SheetHeader>
-                            <div className="py-4 space-y-4">
-                              <div className="p-4 bg-muted rounded-lg">
-                                <div className="font-medium">
-                                  {instructor ? instructor.name : user.email}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {user.email}
-                                </div>
-                              </div>
-                              <Button
-                                className="w-full justify-start"
-                                variant="outline"
-                                onClick={() => handleResetPassword(user)}
-                              >
-                                <Key className="h-4 w-4 mr-2" />
-                                비밀번호 초기화
-                              </Button>
-                              <Button
-                                className="w-full justify-start"
-                                variant="outline"
-                                onClick={() => handleEditRoles(user)}
-                              >
-                                <Shield className="h-4 w-4 mr-2" />
-                                권한 편집
-                              </Button>
-                            </div>
-                          </SheetContent>
-                        </Sheet>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
         </div>
 
         {/* 검색 결과 없음 */}
-        {filteredUsers.length === 0 && (
+        {!loading && filteredUsers.length === 0 && (
           <div className="text-center py-8">
             <UserX className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">검색 결과가 없습니다</h3>
