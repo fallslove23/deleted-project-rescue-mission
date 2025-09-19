@@ -79,14 +79,19 @@ export default {
 					DEFAULT: 'hsl(var(--popover))',
 					foreground: 'hsl(var(--popover-foreground))'
 				},
-				card: {
-					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))'
-				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
+                                card: {
+                                        DEFAULT: 'hsl(var(--card))',
+                                        foreground: 'hsl(var(--card-foreground))'
+                                },
+                                surface: {
+                                        DEFAULT: 'hsl(var(--surface))',
+                                        foreground: 'hsl(var(--surface-foreground))',
+                                        border: 'hsl(var(--surface-border))'
+                                },
+                                sidebar: {
+                                        DEFAULT: 'hsl(var(--sidebar-background))',
+                                        foreground: 'hsl(var(--sidebar-foreground))',
+                                        primary: 'hsl(var(--sidebar-primary))',
 					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
 					accent: 'hsl(var(--sidebar-accent))',
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
