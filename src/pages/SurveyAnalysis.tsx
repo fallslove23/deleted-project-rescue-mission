@@ -14,6 +14,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieCha
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ChartEmptyState } from '@/components/charts';
 
 interface Survey {
   id: string;
@@ -281,6 +282,17 @@ const SurveyAnalysis = () => {
           value: count as number,
           percentage: questionAnswers.length > 0 ? Math.round(((count as number) / questionAnswers.length) * 100) : 0,
         }));
+        const hasValues = chartData.some(item => item.value > 0);
+
+        if (!hasValues) {
+          return {
+            question,
+            totalAnswers: questionAnswers.length,
+            type: 'empty' as const,
+            emptyMessage: '응답이 없어 선택형 결과를 표시할 수 없습니다. 다른 설문을 선택하거나 응답을 수집해 주세요.'
+          };
+        }
+
         return {
           question,
           totalAnswers: questionAnswers.length,
@@ -289,6 +301,15 @@ const SurveyAnalysis = () => {
         };
       } else if (question.question_type === 'rating') {
         const ratings = questionAnswers.map((a) => parseInt(a.answer_text)).filter((r) => !isNaN(r));
+        if (ratings.length === 0) {
+          return {
+            question,
+            totalAnswers: questionAnswers.length,
+            type: 'empty' as const,
+            emptyMessage: '평점 응답이 없어 차트를 표시할 수 없습니다.'
+          };
+        }
+
         const average = ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1) : '0';
         const distribution: Record<number, number> = {};
         for (let i = 1; i <= 5; i++) distribution[i] = ratings.filter((r) => r === i).length;
@@ -297,6 +318,17 @@ const SurveyAnalysis = () => {
           value: count as number,
           percentage: ratings.length > 0 ? Math.round(((count as number) / ratings.length) * 100) : 0,
         }));
+        const hasValues = chartData.some(item => item.value > 0);
+
+        if (!hasValues) {
+          return {
+            question,
+            totalAnswers: questionAnswers.length,
+            type: 'empty' as const,
+            emptyMessage: '평점이 모두 0점이라 차트를 표시할 수 없습니다.'
+          };
+        }
+
         return {
           question,
           totalAnswers: questionAnswers.length,
@@ -644,6 +676,12 @@ const SurveyAnalysis = () => {
                       </div>
                     </CardHeader>
                     <CardContent>
+                      {analysis.type === 'empty' && (
+                        <ChartEmptyState
+                          description={analysis.emptyMessage || '응답이 없어 차트를 표시할 수 없습니다.'}
+                          actions="⚙️ 다른 설문을 선택하거나 응답 수집 이후 다시 시도하세요."
+                        />
+                      )}
                       {analysis.type === 'chart' && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           <div className="h-64">

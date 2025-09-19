@@ -1,4 +1,14 @@
-import { Radar, RadarChart as RechartsRadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { ReactNode, useMemo } from 'react';
+import {
+  Radar,
+  RadarChart as RechartsRadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ResponsiveContainer,
+  Tooltip
+} from 'recharts';
+import { ChartEmptyState } from './ChartEmptyState';
 
 interface RadarChartProps {
   data: Array<{
@@ -11,69 +21,81 @@ interface RadarChartProps {
     fill?: string;
     stroke?: string;
   };
+  emptyState?: ReactNode;
 }
 
-export const RadarChart = ({ 
-  data, 
+export const RadarChart = ({
+  data,
   title,
   colors = {
     fill: 'hsl(var(--chart-1) / 0.3)',
     stroke: 'hsl(var(--chart-1))'
-  }
+  },
+  emptyState
 }: RadarChartProps) => {
+  const hasData = useMemo(
+    () => data && data.length > 0 && data.some(item => Number.isFinite(item.value) && item.value !== 0),
+    [data]
+  );
+
   return (
-    <div className="w-full h-full">
+    <div className="h-full w-full">
       {title && (
-        <h3 className="text-center font-semibold mb-4 text-foreground">{title}</h3>
+        <h3 className="mb-4 text-center font-semibold text-foreground">{title}</h3>
       )}
-      <ResponsiveContainer width="100%" height="100%">
-        <RechartsRadarChart data={data} margin={{ top: 20, right: 80, bottom: 20, left: 80 }}>
-          <PolarGrid 
-            stroke="hsl(var(--chart-1) / 0.2)"
-            strokeWidth={1}
-            radialLines={true}
-          />
-          <PolarAngleAxis 
-            dataKey="subject" 
-            tick={{ 
-              fontSize: 12, 
-              fill: 'hsl(var(--foreground))',
-              fontWeight: 500
-            }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <PolarRadiusAxis 
-            angle={90}
-            domain={[0, 10]}
-            tick={{ 
-              fontSize: 10, 
-              fill: 'hsl(var(--muted-foreground))',
-              fontWeight: 400
-            }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Radar
-            name="점수"
-            dataKey="value"
-            stroke={colors.stroke}
-            fill={colors.fill}
-            fillOpacity={0.4}
-            strokeWidth={3}
-            dot={{ r: 4, fill: colors.stroke, strokeWidth: 2, stroke: 'white' }}
-          />
-          <Tooltip 
-            formatter={(value: number) => [`${value}점`, '점수']}
-            contentStyle={{
-              backgroundColor: 'hsl(var(--card))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '8px',
-              color: 'hsl(var(--card-foreground))'
-            }}
-          />
-        </RechartsRadarChart>
-      </ResponsiveContainer>
+
+      {hasData ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartsRadarChart data={data} margin={{ top: 20, right: 80, bottom: 20, left: 80 }}>
+            <PolarGrid stroke="hsl(var(--chart-1) / 0.2)" strokeWidth={1} radialLines />
+            <PolarAngleAxis
+              dataKey="subject"
+              tick={{
+                fontSize: 12,
+                fill: 'hsl(var(--foreground))',
+                fontWeight: 500
+              }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <PolarRadiusAxis
+              angle={90}
+              domain={[0, 10]}
+              tick={{
+                fontSize: 10,
+                fill: 'hsl(var(--muted-foreground))',
+                fontWeight: 400
+              }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Radar
+              name="점수"
+              dataKey="value"
+              stroke={colors.stroke}
+              fill={colors.fill}
+              fillOpacity={0.4}
+              strokeWidth={3}
+              dot={{ r: 4, fill: colors.stroke, strokeWidth: 2, stroke: 'white' }}
+            />
+            <Tooltip
+              formatter={(value: number) => [`${value}점`, '점수']}
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                color: 'hsl(var(--card-foreground))'
+              }}
+            />
+          </RechartsRadarChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="flex h-64 w-full items-center justify-center">
+          {emptyState ?? (
+            <ChartEmptyState description="데이터가 없어 레이더 차트를 표시할 수 없습니다. 응답을 수집하거나 다른 조건을 선택해 주세요." />
+          )}
+        </div>
+      )}
     </div>
   );
 };
