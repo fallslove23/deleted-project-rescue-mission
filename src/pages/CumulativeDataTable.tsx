@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useCallback, useMemo } from 'react';
+import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import { useCumulativeSurveyStats } from '@/hooks/useCumulativeSurveyStats';
+import { formatSatisfaction } from '@/utils/satisfaction';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,287 +9,187 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Filter, FileSpreadsheet, Calendar, Users, Star, Target } from 'lucide-react';
 import { TestDataToggle } from '@/components/TestDataToggle';
-import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import VirtualizedTable, { type VirtualizedColumn } from '@/components/data-table/VirtualizedTable';
+import type { SurveyCumulativeRow } from '@/repositories/cumulativeStatsRepo';
 
-interface CumulativeDataRow {
-  id: string;
-  survey_title: string;
-  education_year: number;
-  education_round: number;
-  course_name: string;
-  instructor_name: string;
-  response_count: number;
-  avg_satisfaction: number;
-  submitted_at: string;
-  status: string;
-}
+const getInstructorDisplay = (row: SurveyCumulativeRow) => {
+  const names = row.instructor_names ?? [];
+  const filtered = names.filter((name): name is string => Boolean(name && name.trim()));
+
+  if (filtered.length === 0) return '미지정';
+  if (filtered.length === 1) return filtered[0];
+  return `${filtered[0]} 외 ${filtered.length - 1}명`;
+};
+
+const getResponseCount = (row: SurveyCumulativeRow, includeTestData: boolean) => {
+  if (includeTestData) {
+    return row.total_response_count ?? 0;
+  }
+  return row.real_response_count ?? 0;
+};
+
+const getAverageSatisfactionValue = (row: SurveyCumulativeRow, includeTestData: boolean) => {
+  if (includeTestData) {
+    return row.avg_satisfaction_total ?? null;
+  }
+  return row.avg_satisfaction_real ?? null;
+};
+
+const getStatusLabel = (status: string | null) => {
+  if (status === 'completed') return '완료';
+  if (status === 'active') return '진행중';
+  return '준비중';
+};
 
 const CumulativeDataTable = () => {
-  const { userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
-  const [data, setData] = useState<CumulativeDataRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterYear, setFilterYear] = useState('all');
-  const [filterCourse, setFilterCourse] = useState('all');
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [availableCourses, setAvailableCourses] = useState<string[]>([]);
+  const includeTestData = testDataOptions.includeTestData;
 
-  const isAdmin = userRoles.includes('admin');
-  const isOperator = userRoles.includes('operator');
-  const isDirector = userRoles.includes('director');
-  const canViewAll = isAdmin || isOperator || isDirector;
+  const {
+    data,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    summary,
+    searchTerm,
+    setSearchTerm,
+    selectedYear,
+    setSelectedYear,
+    selectedCourse,
+    setSelectedCourse,
+    availableYears,
+    availableCourses,
+    loadMore,
+    getExportData,
+  } = useCumulativeSurveyStats({ includeTestData, pageSize: 50 });
 
-  useEffect(() => {
-    fetchData();
-    fetchFilterOptions();
-  }, [testDataOptions.includeTestData]);
+  const columns = useMemo<VirtualizedColumn<SurveyCumulativeRow>[]>(() => [
+    {
+      key: 'title',
+      title: '설문 제목',
+      minWidth: 220,
+      render: (row) => row.title ?? '-',
+    },
+    {
+      key: 'yearRound',
+      title: '연도/회차',
+      minWidth: 140,
+      render: (row) =>
+        row.education_year && row.education_round
+          ? `${row.education_year}년 ${row.education_round}차`
+          : '-',
+    },
+    {
+      key: 'course',
+      title: '과정명',
+      minWidth: 200,
+      render: (row) => row.course_name ?? '-',
+    },
+    {
+      key: 'instructor',
+      title: '담당 강사',
+      minWidth: 180,
+      render: (row) => getInstructorDisplay(row),
+    },
+    {
+      key: 'responses',
+      title: '응답 수',
+      minWidth: 120,
+      render: (row) => {
+        const count = getResponseCount(row, includeTestData);
+        return (
+          <Badge variant={count > 0 ? 'default' : 'secondary'}>
+            {count.toLocaleString()}명
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'satisfaction',
+      title: '평균 만족도',
+      minWidth: 140,
+      render: (row) => {
+        const value = getAverageSatisfactionValue(row, includeTestData);
+        if (value === null) {
+          return <span className="text-muted-foreground">-</span>;
+        }
 
-  const fetchData = async () => {
+        const badgeVariant = value >= 8 ? 'default' : value >= 6 ? 'secondary' : 'destructive';
+        return <Badge variant={badgeVariant}>{formatSatisfaction(value)}</Badge>;
+      },
+    },
+    {
+      key: 'status',
+      title: '상태',
+      minWidth: 120,
+      render: (row) => (
+        <Badge variant={row.status === 'completed' ? 'default' : 'outline'}>
+          {getStatusLabel(row.status)}
+        </Badge>
+      ),
+    },
+  ], [includeTestData]);
+
+  const handleExport = useCallback(async () => {
     try {
-      setLoading(true);
-      
-      let query = supabase
-        .from('surveys')
-        .select(`
-          id,
-          title,
-          education_year,
-          education_round,
-          course_name,
-          status,
-          created_at,
-          instructor:instructors(name),
-          survey_sessions(
-            instructor:instructors(name)
-          )
-        `)
-        .not('course_name', 'is', null);
+      const rows = await getExportData();
+      const headers = [
+        '설문 제목',
+        '교육 연도',
+        '교육 회차',
+        '과정명',
+        '담당 강사',
+        '응답 수',
+        '평균 만족도',
+        '상태',
+        '최근 응답일',
+      ];
 
-      // 테스트 데이터 필터링
-      if (!testDataOptions.includeTestData) {
-        query = query.or('is_test.is.null,is_test.eq.false');
-      }
+      const csvRows = rows.map((row) => {
+        const count = getResponseCount(row, includeTestData);
+        const avg = getAverageSatisfactionValue(row, includeTestData);
+        const dateSource = row.last_response_at ?? row.created_at;
+        const formattedDate = dateSource ? new Date(dateSource).toLocaleDateString() : '';
 
-      const { data: surveys, error: surveyError } = await query;
+        return [
+          `"${row.title ?? ''}"`,
+          row.education_year ?? '',
+          row.education_round ?? '',
+          `"${row.course_name ?? ''}"`,
+          `"${getInstructorDisplay(row)}"`,
+          count,
+          avg !== null ? formatSatisfaction(avg) : '',
+          `"${getStatusLabel(row.status)}"`,
+          `"${formattedDate}"`,
+        ].join(',');
+      });
 
-      if (surveyError) throw surveyError;
-
-      // 실제 응답 수와 만족도 계산
-      const enrichedData: CumulativeDataRow[] = await Promise.all(
-        (surveys || []).map(async (survey) => {
-          // 응답 수 계산
-          let responsesQuery = supabase
-            .from('survey_responses')
-            .select('id', { count: 'exact' })
-            .eq('survey_id', survey.id);
-
-          if (!testDataOptions.includeTestData) {
-            responsesQuery = responsesQuery.or('is_test.is.null,is_test.eq.false');
-          }
-
-          const { data: responseRows, count: responseCount, error: responseError } = await responsesQuery;
-          if (responseError) throw responseError;
-
-          const validResponseIds = (responseRows || []).map(row => row.id);
-          const responseCountNumber = responseCount ?? validResponseIds.length;
-
-          // 만족도 계산
-          let avgSatisfaction = 0;
-          if (validResponseIds.length > 0) {
-            const { data: satisfactionData, error: satisfactionError } = await supabase
-              .from('question_answers')
-              .select(`
-                answer_value,
-                survey_questions!inner(question_type, satisfaction_type)
-              `)
-              .eq('survey_questions.survey_id', survey.id)
-              .in('response_id', validResponseIds)
-              .in('survey_questions.question_type', ['rating', 'scale'])
-              .not('answer_value', 'is', null);
-
-            if (satisfactionError) throw satisfactionError;
-
-            if (satisfactionData && satisfactionData.length > 0) {
-              const validScores = satisfactionData
-                .map(item => {
-                  let score = 0;
-                  if (item.answer_value) {
-                    if (typeof item.answer_value === 'number') {
-                      score = item.answer_value;
-                    } else if (typeof item.answer_value === 'string') {
-                      const parsed = parseFloat(item.answer_value.replace(/"/g, ''));
-                      if (!isNaN(parsed)) score = parsed;
-                    }
-                  }
-                  // 5점 척도면 10점으로 변환
-                  return score <= 5 ? score * 2 : score;
-                })
-                .filter(score => score > 0);
-
-              if (validScores.length > 0) {
-                avgSatisfaction = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
-              }
-            }
-          }
-
-          // 강사 정보 처리 - 메인 강사와 세션별 강사 모두 포함
-          const instructors = new Set<string>();
-          
-          // 메인 강사 추가
-          if ((survey.instructor as any)?.name) {
-            instructors.add((survey.instructor as any).name);
-          }
-          
-          // 세션별 강사 추가
-          if (survey.survey_sessions && Array.isArray(survey.survey_sessions)) {
-            survey.survey_sessions.forEach((session: any) => {
-              if (session.instructor?.name) {
-                instructors.add(session.instructor.name);
-              }
-            });
-          }
-          
-          const instructorList = Array.from(instructors).filter(name => name);
-          let instructorDisplayName = '';
-          
-          if (instructorList.length === 0) {
-            instructorDisplayName = '미지정';
-          } else if (instructorList.length === 1) {
-            instructorDisplayName = instructorList[0];
-          } else {
-            instructorDisplayName = `${instructorList[0]} 외 ${instructorList.length - 1}명`;
-          }
-
-          return {
-            id: survey.id,
-            survey_title: survey.title,
-            education_year: survey.education_year,
-            education_round: survey.education_round,
-            course_name: survey.course_name,
-            instructor_name: instructorDisplayName,
-            response_count: responseCountNumber,
-            avg_satisfaction: Math.round(avgSatisfaction * 10) / 10, // 소수점 1자리
-            submitted_at: survey.created_at,
-            status: survey.status,
-          };
-        })
-      );
-
-      setData(enrichedData);
-    } catch (error) {
-      console.error('Error fetching cumulative data:', error);
-    } finally {
-      setLoading(false);
+      const csvContent = [headers.join(','), ...csvRows].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `누적데이터_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export cumulative survey data', err);
     }
-  };
+  }, [getExportData, includeTestData]);
 
-  const fetchFilterOptions = async () => {
-    try {
-      let query = supabase
-        .from('surveys')
-        .select('education_year, course_name')
-        .not('course_name', 'is', null);
-
-      // 테스트 데이터 필터링
-      if (!testDataOptions.includeTestData) {
-        query = query.or('is_test.is.null,is_test.eq.false');
-      }
-
-      const { data: surveys } = await query;
-
-      if (surveys) {
-        const years = [...new Set(surveys.map(s => s.education_year))].sort((a, b) => b - a);
-        const courses = [...new Set(surveys.map(s => s.course_name))].sort();
-        
-        setAvailableYears(years);
-        setAvailableCourses(courses);
-      }
-    } catch (error) {
-      console.error('Error fetching filter options:', error);
-    }
-  };
-
-  const filteredData = data.filter(item => {
-    const matchesSearch = !searchTerm || 
-      item.survey_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.course_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.instructor_name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesYear = filterYear === 'all' || String(item.education_year) === filterYear;
-    const matchesCourse = filterCourse === 'all' || item.course_name === filterCourse;
-    
-    return matchesSearch && matchesYear && matchesCourse;
-  });
-
-  const getStatistics = () => {
-    const totalResponses = filteredData.reduce((sum, item) => sum + item.response_count, 0);
-    const validItems = filteredData.filter(item => item.avg_satisfaction > 0);
-    const avgSatisfaction = totalResponses > 0 && validItems.length > 0
-      ? validItems.reduce((sum, item) => sum + (item.avg_satisfaction * item.response_count), 0) / totalResponses
-      : 0;
-    const participatingInstructors = new Set(filteredData.map(item => item.instructor_name)).size;
-    const coursesInProgress = new Set(filteredData.map(item => item.course_name)).size;
-
-    return {
-      totalResponses,
-      avgSatisfaction: totalResponses > 0 ? Math.round(avgSatisfaction * 10) / 10 : 0,
-      participatingInstructors,
-      coursesInProgress
-    };
-  };
-
-  const handleExport = () => {
-    const headers = [
-      '설문 제목',
-      '교육 연도',
-      '교육 회차',
-      '과정명',
-      '담당 강사',
-      '응답 수',
-      '평균 만족도',
-      '상태',
-      '제출일'
-    ];
-
-    const csvContent = [
-      headers.join(','),
-      ...filteredData.map(item => [
-        `"${item.survey_title}"`,
-        item.education_year,
-        item.education_round,
-        `"${item.course_name}"`,
-        `"${item.instructor_name}"`,
-        item.response_count,
-        item.avg_satisfaction,
-        `"${item.status}"`,
-        `"${new Date(item.submitted_at).toLocaleDateString()}"`
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `누적데이터_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const stats = getStatistics();
+  const averageDisplay = formatSatisfaction(summary.averageSatisfaction, { fallback: '0' });
 
   return (
     <div className="space-y-6">
-      {/* Test Data Toggle */}
       {testDataOptions.canToggleTestData && (
         <div className="flex justify-end">
           <TestDataToggle testDataOptions={testDataOptions} />
         </div>
       )}
 
-      {/* 필터 섹션 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -303,33 +204,47 @@ const CumulativeDataTable = () => {
               <Input
                 placeholder="설문명, 과정명, 강사명 검색..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">연도</label>
-              <Select value={filterYear} onValueChange={setFilterYear}>
+              <Select
+                value={selectedYear !== null ? String(selectedYear) : 'all'}
+                onValueChange={(value) =>
+                  setSelectedYear(value === 'all' ? null : Number(value))
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="연도 선택" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체</SelectItem>
-                  {availableYears.map(year => (
-                    <SelectItem key={year} value={String(year)}>{year}년</SelectItem>
+                  {availableYears.map((year) => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}년
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">과정</label>
-              <Select value={filterCourse} onValueChange={setFilterCourse}>
+              <Select
+                value={selectedCourse ?? 'all'}
+                onValueChange={(value) =>
+                  setSelectedCourse(value === 'all' ? null : value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="과정 선택" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체</SelectItem>
-                  {availableCourses.map(course => (
-                    <SelectItem key={course} value={course}>{course}</SelectItem>
+                  {availableCourses.map((course) => (
+                    <SelectItem key={course} value={course}>
+                      {course}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -344,14 +259,13 @@ const CumulativeDataTable = () => {
         </CardContent>
       </Card>
 
-      {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">총 응답 수</p>
-                <p className="text-2xl font-bold">{stats.totalResponses.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{summary.totalResponses.toLocaleString()}</p>
               </div>
               <Calendar className="h-8 w-8 text-blue-500" />
             </div>
@@ -363,7 +277,7 @@ const CumulativeDataTable = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">평균 만족도</p>
-                <p className="text-2xl font-bold">{stats.avgSatisfaction || 0}</p>
+                <p className="text-2xl font-bold">{averageDisplay}</p>
               </div>
               <Star className="h-8 w-8 text-green-500" />
             </div>
@@ -375,7 +289,7 @@ const CumulativeDataTable = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">참여 강사</p>
-                <p className="text-2xl font-bold">{stats.participatingInstructors}</p>
+                <p className="text-2xl font-bold">{summary.participatingInstructors.toLocaleString()}</p>
               </div>
               <Users className="h-8 w-8 text-purple-500" />
             </div>
@@ -387,7 +301,7 @@ const CumulativeDataTable = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">진행 과정</p>
-                <p className="text-2xl font-bold">{stats.coursesInProgress}</p>
+                <p className="text-2xl font-bold">{summary.coursesInProgress.toLocaleString()}</p>
               </div>
               <Target className="h-8 w-8 text-orange-500" />
             </div>
@@ -395,70 +309,33 @@ const CumulativeDataTable = () => {
         </Card>
       </div>
 
-      {/* 누적 데이터 목록 */}
       <Card>
         <CardHeader>
           <CardTitle>누적 데이터 목록</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {loading && data.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
                 <p>데이터를 불러오는 중...</p>
               </div>
             </div>
-          ) : filteredData.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>조건에 맞는 데이터가 없습니다.</p>
-            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-destructive">{error}</div>
+          ) : data.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">조건에 맞는 데이터가 없습니다.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">설문 제목</th>
-                    <th className="text-left p-2">연도/회차</th>
-                    <th className="text-left p-2">과정명</th>
-                    <th className="text-left p-2">담당 강사</th>
-                    <th className="text-left p-2">응답 수</th>
-                    <th className="text-left p-2">평균 만족도</th>
-                    <th className="text-left p-2">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="p-2">{item.survey_title}</td>
-                      <td className="p-2">{item.education_year}년 {item.education_round}차</td>
-                      <td className="p-2">{item.course_name}</td>
-                      <td className="p-2">{item.instructor_name}</td>
-                      <td className="p-2">
-                        <Badge variant={item.response_count > 0 ? "default" : "secondary"}>
-                          {item.response_count}명
-                        </Badge>
-                      </td>
-                      <td className="p-2">
-                        {item.avg_satisfaction > 0 ? (
-                          <Badge 
-                            variant={item.avg_satisfaction >= 8 ? "default" : item.avg_satisfaction >= 6 ? "secondary" : "destructive"}
-                          >
-                            {item.avg_satisfaction}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="p-2">
-                        <Badge variant={item.status === 'completed' ? "default" : "outline"}>
-                          {item.status === 'completed' ? '완료' : item.status === 'active' ? '진행중' : '준비중'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <VirtualizedTable
+              data={data}
+              columns={columns}
+              height={520}
+              itemHeight={56}
+              loading={loadingMore}
+              loadingRows={4}
+              onLoadMore={loadMore}
+              hasMore={hasMore}
+            />
           )}
         </CardContent>
       </Card>
