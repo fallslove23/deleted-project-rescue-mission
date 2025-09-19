@@ -78,23 +78,36 @@ const CumulativeDataTable = () => {
       const enrichedData: CumulativeDataRow[] = await Promise.all(
         (surveys || []).map(async (survey) => {
           // 응답 수 계산
-          const { count: responseCount } = await supabase
+          let responsesQuery = supabase
             .from('survey_responses')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact' })
             .eq('survey_id', survey.id);
+
+          if (!testDataOptions.includeTestData) {
+            responsesQuery = responsesQuery.or('is_test.is.null,is_test.eq.false');
+          }
+
+          const { data: responseRows, count: responseCount, error: responseError } = await responsesQuery;
+          if (responseError) throw responseError;
+
+          const validResponseIds = (responseRows || []).map(row => row.id);
+          const responseCountNumber = responseCount ?? validResponseIds.length;
 
           // 만족도 계산
           let avgSatisfaction = 0;
-          if (responseCount && responseCount > 0) {
-            const { data: satisfactionData } = await supabase
+          if (validResponseIds.length > 0) {
+            const { data: satisfactionData, error: satisfactionError } = await supabase
               .from('question_answers')
               .select(`
                 answer_value,
                 survey_questions!inner(question_type, satisfaction_type)
               `)
               .eq('survey_questions.survey_id', survey.id)
+              .in('response_id', validResponseIds)
               .in('survey_questions.question_type', ['rating', 'scale'])
               .not('answer_value', 'is', null);
+
+            if (satisfactionError) throw satisfactionError;
 
             if (satisfactionData && satisfactionData.length > 0) {
               const validScores = satisfactionData
@@ -154,7 +167,7 @@ const CumulativeDataTable = () => {
             education_round: survey.education_round,
             course_name: survey.course_name,
             instructor_name: instructorDisplayName,
-            response_count: responseCount || 0,
+            response_count: responseCountNumber,
             avg_satisfaction: Math.round(avgSatisfaction * 10) / 10, // 소수점 1자리
             submitted_at: survey.created_at,
             status: survey.status,

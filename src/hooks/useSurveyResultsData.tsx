@@ -149,7 +149,11 @@ export const useSurveyResultsData = (profile: any, canViewAll: boolean, isInstru
   const fetchAllResponses = async () => {
     try {
       let query = supabase.from('survey_responses').select('*');
-      
+
+      if (!testDataOptions?.includeTestData) {
+        query = query.or('is_test.is.null,is_test.eq.false');
+      }
+
       // 강사인 경우 자신의 강의 설문에 대한 응답만 조회
       if (isInstructor && profile?.instructor_id && !canViewAll) {
         let surveyQuery = supabase

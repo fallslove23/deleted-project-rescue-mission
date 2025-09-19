@@ -180,12 +180,15 @@ const SurveyResults = () => {
 
       // 테스트 데이터 필터링
       if (!testDataOptions.includeTestData) {
+        // 테스트 응답 자체 제외
+        query = query.or('is_test.is.null,is_test.eq.false');
+
         // 테스트 설문의 응답 제외
         const { data: nonTestSurveys } = await supabase
           .from('surveys')
           .select('id')
           .or('is_test.is.null,is_test.eq.false');
-        
+
         if (nonTestSurveys && nonTestSurveys.length > 0) {
           const surveyIds = nonTestSurveys.map(s => s.id);
           query = query.in('survey_id', surveyIds);
@@ -297,10 +300,16 @@ const SurveyResults = () => {
       if (qErr) throw qErr;
       setAllQuestions((qData ?? []) as SurveyQuestion[]);
 
-      const { data: respIds, error: rErr } = await supabase
+      let responseQuery = supabase
         .from('survey_responses')
         .select('id')
         .in('survey_id', surveyIds);
+
+      if (!testDataOptions.includeTestData) {
+        responseQuery = responseQuery.or('is_test.is.null,is_test.eq.false');
+      }
+
+      const { data: respIds, error: rErr } = await responseQuery;
       if (rErr) throw rErr;
 
       if (respIds && respIds.length) {
@@ -330,10 +339,16 @@ const SurveyResults = () => {
         .order('order_index');
       if (qErr) throw qErr;
 
-      const { data: rIds, error: rErr } = await supabase
+      let responseQuery = supabase
         .from('survey_responses')
         .select('id')
         .eq('survey_id', selectedSurvey);
+
+      if (!testDataOptions.includeTestData) {
+        responseQuery = responseQuery.or('is_test.is.null,is_test.eq.false');
+      }
+
+      const { data: rIds, error: rErr } = await responseQuery;
       if (rErr) throw rErr;
 
       if (rIds && rIds.length) {
