@@ -207,7 +207,10 @@ const TemplateBuilder = () => {
 
     const element = document.getElementById(`question-${pendingFocusQuestionId}`);
 
-    if (!(element instanceof HTMLElement)) return;
+    if (!(element instanceof HTMLElement)) {
+      setPendingFocusQuestionId(null);
+      return;
+    }
 
     const focusElement = () => {
       element.focus({ preventScroll: true });
@@ -228,7 +231,10 @@ const TemplateBuilder = () => {
 
     const element = document.getElementById(`section-${pendingFocusSectionId}`);
 
-    if (!(element instanceof HTMLElement)) return;
+    if (!(element instanceof HTMLElement)) {
+      setPendingFocusSectionId(null);
+      return;
+    }
 
     const focusElement = () => {
       element.focus({ preventScroll: true });
@@ -917,52 +923,61 @@ const TemplateBuilder = () => {
                     const sectionQuestions = questions
                       .filter(q => q.section_id === section.id)
                       .sort((a, b) => a.order_index - b.order_index);
-                    
-                    if (sectionQuestions.length > 0) {
-                      result.push(
-                        <div
-                          key={section.id}
-                          id={`section-${section.id}`}
-                          tabIndex={-1}
-                          className="space-y-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-200"
-                        >
-                          {/* Section Header */}
-                          <div className="py-4 border-b border-gray-200">
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                  {section.name}
-                                </h3>
-                                {section.description && (
-                                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                                    {section.description}
-                                  </p>
-                                )}
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditSection(section)}
-                                className="text-gray-500 hover:text-gray-700"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+
+                    result.push(
+                      <div
+                        key={section.id}
+                        id={`section-${section.id}`}
+                        tabIndex={-1}
+                        className="space-y-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-200"
+                      >
+                        {/* Section Header */}
+                        <div className="py-4 border-b border-gray-200">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {section.name}
+                              </h3>
+                              {section.description && (
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                                  {section.description}
+                                </p>
+                              )}
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditSection(section)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           </div>
-                          
-                          {/* Questions in Section */}
-                          <div className="space-y-4">
-                            {sectionQuestions.map((question) => (
+                        </div>
+
+                        {/* Questions in Section */}
+                        <div className="space-y-4">
+                          {sectionQuestions.length > 0 ? (
+                            sectionQuestions.map((question) => (
                               <QuestionItem
                                 key={question.id}
                                 question={question}
                                 globalIndex={globalQuestionIndex++}
                               />
-                            ))}
-                          </div>
+                            ))
+                          ) : (
+                            <div className="rounded-lg border border-dashed border-sky-200 bg-sky-50/40 px-4 py-6 text-center">
+                              <p className="text-sm font-medium text-sky-700">
+                                이 섹션에는 아직 질문이 없습니다.
+                              </p>
+                              <p className="mt-1 text-xs text-sky-600">
+                                아래 질문 추가 버튼을 눌러 첫 질문을 만들어보세요.
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      );
-                    }
+                      </div>
+                    );
                   });
                 }
                 
