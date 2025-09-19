@@ -1,0 +1,154 @@
+import React, { useMemo, CSSProperties } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export interface VirtualizedColumn<T> {
+  key: string;
+  title: string;
+  width?: number;
+  minWidth?: number;
+  render?: (item: T, index: number) => React.ReactNode;
+  className?: string;
+}
+
+export interface VirtualizedTableProps<T> {
+  data: T[];
+  columns: VirtualizedColumn<T>[];
+  height: number;
+  itemHeight: number;
+  loading?: boolean;
+  loadingRows?: number;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  className?: string;
+  emptyMessage?: string;
+}
+
+export function VirtualizedTable<T>({
+  data,
+  columns,
+  height,
+  itemHeight,
+  loading = false,
+  loadingRows = 5,
+  onLoadMore,
+  hasMore = false,
+  className = "",
+  emptyMessage = "데이터가 없습니다."
+}: VirtualizedTableProps<T>) {
+  const parentRef = React.useRef<HTMLDivElement>(null);
+
+  // 로딩 스켈레톤을 포함한 전체 아이템 수
+  const totalItems = useMemo(() => {
+    const baseCount = data.length;
+    if (loading && loadingRows > 0) {
+      return baseCount + loadingRows;
+    }
+    return baseCount;
+  }, [data.length, loading, loadingRows]);
+
+  const virtualizer = useVirtualizer({
+    count: totalItems,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => itemHeight,
+    overscan: 5,
+  });
+
+  // 무한 스크롤 트리거
+  React.useEffect(() => {
+    const [lastItem] = [...virtualizer.getVirtualItems()].reverse();
+    
+    if (!lastItem || !hasMore || loading) return;
+    
+    if (lastItem.index >= data.length - 1 && onLoadMore) {
+      onLoadMore();
+    }
+  }, [virtualizer.getVirtualItems(), data.length, hasMore, loading, onLoadMore]);
+
+  const renderRow = (index: number, style: CSSProperties) => {
+    const isLoadingRow = loading && index >= data.length;
+    
+    if (isLoadingRow) {
+      return (
+        <TableRow key={`loading-${index}`} style={style} className="absolute inset-x-0">
+          {columns.map((column, colIndex) => (
+            <TableCell key={colIndex} className={column.className}>
+              <Skeleton className="h-4 w-full" />
+            </TableCell>
+          ))}
+        </TableRow>
+      );
+    }
+
+    const item = data[index];
+    if (!item) return null;
+
+    return (
+      <TableRow key={index} style={style} className="absolute inset-x-0">
+        {columns.map((column) => (
+          <TableCell key={column.key} className={column.className}>
+            {column.render ? column.render(item, index) : (item as any)[column.key]}
+          </TableCell>
+        ))}
+      </TableRow>
+    );
+  };
+
+  if (!loading && data.length === 0) {
+    return (
+      <div className={`flex items-center justify-center ${className}`} style={{ height }}>
+        <p className="text-muted-foreground">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`border rounded-md ${className}`}>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((column) => (
+              <TableHead 
+                key={column.key}
+                className={column.className}
+                style={{ 
+                  width: column.width, 
+                  minWidth: column.minWidth 
+                }}
+              >
+                {column.title}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+      </Table>
+
+      <div 
+        ref={parentRef}
+        className="relative overflow-auto"
+        style={{ height }}
+      >
+        <TableBody 
+          style={{
+            height: virtualizer.getTotalSize(),
+            position: 'relative',
+          }}
+        >
+          {virtualizer.getVirtualItems().map((virtualRow) => 
+            renderRow(virtualRow.index, {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: virtualRow.size,
+              transform: `translateY(${virtualRow.start}px)`,
+            })
+          )}
+        </TableBody>
+      </div>
+    </div>
+  );
+}
+
+export default VirtualizedTable;

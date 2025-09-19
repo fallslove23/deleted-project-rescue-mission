@@ -11,46 +11,35 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Users, Edit, Search, UserX, Shield, Key, Menu } from 'lucide-react';
+import { Users, Edit, Search, Shield, Key, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/lib/utils';
-
-
-interface UserProfile {
-  id: string;
-  email: string;
-  role: string;
-  instructor_id?: string;
-  first_login: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface UserRole {
-  role: string;
-}
-
-interface Instructor {
-  id: string;
-  name: string;
-  email?: string;
-  photo_url?: string;
-}
+import { useUserManagementPagination } from '@/hooks/useUserManagementPagination';
+import { VirtualizedTable, PaginationControls } from '@/components/data-table';
+import type { UserProfile } from '@/hooks/useUserManagementPagination';
 
 const UserManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const {
+    users,
+    pagination,
+    goToPage,
+    setPageSize,
+    filters,
+    updateFilters,
+    loading,
+    fetchUsers,
+    fetchUserRoles,
+    getUserInstructor,
+    userRoles,
+  } = useUserManagementPagination(20);
+
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [selectedRoleFilters, setSelectedRoleFilters] = useState<string[]>([]);
-  const [showFirstLoginOnly, setShowFirstLoginOnly] = useState(false);
+  const [useVirtualScroll, setUseVirtualScroll] = useState(false);
 
   const availableRoles = ['admin', 'operator', 'instructor', 'director'];
   const roleLabels: Record<string, string> = {
@@ -61,62 +50,8 @@ const UserManagement = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [usersRes, instructorsRes] = await Promise.all([
-        supabase.rpc('get_all_profiles_for_admin', { requesting_user_id: user?.id || '' }),
-        supabase.from('instructors').select('id, name, email, photo_url')
-      ]);
-
-      if (usersRes.error) throw usersRes.error;
-      if (instructorsRes.error) throw instructorsRes.error;
-
-      setUsers(usersRes.data || []);
-      setInstructors(instructorsRes.data || []);
-
-      await fetchUserRoles();
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: "오류",
-        description: "데이터를 불러오는 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUserRoles = async () => {
-    try {
-      const { data: userRolesData, error } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
-
-      if (error) throw error;
-
-      const rolesByUser: Record<string, string[]> = {};
-      userRolesData?.forEach(ur => {
-        if (!rolesByUser[ur.user_id]) {
-          rolesByUser[ur.user_id] = [];
-        }
-        rolesByUser[ur.user_id].push(ur.role);
-      });
-
-      setUserRoles(rolesByUser);
-    } catch (error) {
-      console.error('Error fetching user roles:', error);
-    }
-  };
-
-  const getUserInstructor = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    if (!user?.instructor_id) return null;
-    return instructors.find(i => i.id === user.instructor_id);
-  };
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleEditRoles = (user: UserProfile) => {
     setEditingUser(user);
@@ -144,7 +79,6 @@ const UserManagement = () => {
       if (error) throw error;
 
       await fetchUserRoles();
-
       toast({
         title: "성공",
         description: "사용자 역할이 업데이트되었습니다."
@@ -184,364 +118,141 @@ const UserManagement = () => {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const searchLower = searchQuery.toLowerCase();
-    const instructor = getUserInstructor(user.id);
-    const roles = userRoles[user.id] || [];
-
-    const matchesSearch =
-      user.email?.toLowerCase().includes(searchLower) ||
-      instructor?.name.toLowerCase().includes(searchLower) ||
-      roles.some(role => role.toLowerCase().includes(searchLower));
-
-    const matchesRole =
-      selectedRoleFilters.length === 0 ||
-      roles.some(role => selectedRoleFilters.includes(role));
-
-    const matchesFirstLogin = !showFirstLoginOnly || user.first_login;
-
-    return matchesSearch && matchesRole && matchesFirstLogin;
-  });
-
-  const appliedFiltersCount = selectedRoleFilters.length + (showFirstLoginOnly ? 1 : 0);
-
-  const resetFilters = () => {
-    setSelectedRoleFilters([]);
-    setShowFirstLoginOnly(false);
-  };
-
-  const handleRoleFilterChange = (value: string[]) => {
-    setSelectedRoleFilters(value);
-  };
-
-  // 데스크톱 액션 버튼들
-  const DesktopActions = () => (
-    <div className="hidden sm:flex items-center gap-3">
-      <Badge variant="secondary" className="flex items-center gap-1">
-        <Users className="h-4 w-4" />
-        <span>{filteredUsers.length}</span>
-        <span className="text-xs text-muted-foreground">/ {users.length}</span>
-      </Badge>
-      <ToggleGroup
-        type="multiple"
-        value={selectedRoleFilters}
-        onValueChange={handleRoleFilterChange}
-        variant="outline"
-        size="sm"
-        className="gap-2"
-      >
-        {availableRoles.map((role) => (
-          <ToggleGroupItem key={role} value={role} className="text-sm">
-            {roleLabels[role] || role}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="first-login-filter-desktop"
-          checked={showFirstLoginOnly}
-          onCheckedChange={(checked) => setShowFirstLoginOnly(Boolean(checked))}
-        />
-        <label htmlFor="first-login-filter-desktop" className="text-sm text-muted-foreground">
-          첫 로그인만
-        </label>
-      </div>
-      <Badge variant="outline" className="whitespace-nowrap">
-        필터 {appliedFiltersCount}
-      </Badge>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={resetFilters}
-        disabled={appliedFiltersCount === 0}
-      >
-        필터 초기화
-      </Button>
-    </div>
-  );
-
-  // 모바일 액션 버튼들
-  const MobileActions = () => (
-    <div className="sm:hidden">
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
-            <Menu className="h-4 w-4" />
-            필터
-            {appliedFiltersCount > 0 && (
-              <Badge variant="secondary" className="ml-1">
-                {appliedFiltersCount}
-              </Badge>
-            )}
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="right" className="w-[320px] sm:w-[360px]">
-          <SheetHeader>
-            <SheetTitle>사용자 필터</SheetTitle>
-          </SheetHeader>
-          <div className="py-4 space-y-6">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                <span>{filteredUsers.length}</span>
-                <span className="text-xs text-muted-foreground">/ {users.length}</span>
-              </Badge>
-              <Badge variant="outline" className="whitespace-nowrap">
-                필터 {appliedFiltersCount}
-              </Badge>
-            </div>
-            <div className="space-y-3">
-              <div className="text-sm font-medium">역할 필터</div>
-              <ToggleGroup
-                type="multiple"
-                value={selectedRoleFilters}
-                onValueChange={handleRoleFilterChange}
-                variant="outline"
-                size="sm"
-                className="grid grid-cols-2 gap-2"
-              >
-                {availableRoles.map((role) => (
-                  <ToggleGroupItem key={role} value={role} className="text-sm">
-                    {roleLabels[role] || role}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">첫 로그인만 보기</span>
-              <Checkbox
-                id="first-login-filter-mobile"
-                checked={showFirstLoginOnly}
-                onCheckedChange={(checked) => setShowFirstLoginOnly(Boolean(checked))}
-              />
-            </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={resetFilters}
-              disabled={appliedFiltersCount === 0}
-            >
-              필터 초기화
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
-    </div>
-  );
+  const appliedFiltersCount = filters.roleFilters.length + (filters.showFirstLoginOnly ? 1 : 0);
 
   return (
     <div className="space-y-6">
-      {/* 액션 버튼들 */}
-      <div className="flex justify-end gap-2 mb-4">
-        <MobileActions />
-        <DesktopActions />
-      </div>
-      <div className="space-y-6">
-        {/* 검색 */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="이메일, 이름, 역할로 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+      {/* 검색 */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="이메일, 이름, 역할로 검색..."
+            value={filters.searchQuery}
+            onChange={(e) => updateFilters({ searchQuery: e.target.value })}
+            className="pl-10"
+          />
         </div>
+      </div>
 
-        {/* 사용자 목록 */}
-        <div className="grid gap-4">
-          {loading
-            ? Array.from({ length: 5 }).map((_, index) => (
-                <Card key={`user-skeleton-${index}`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <Skeleton className="h-12 w-12 rounded-full" />
-                        <div className="space-y-2">
-                          <Skeleton className="h-5 w-32" />
-                          <Skeleton className="h-4 w-40" />
-                          <div className="flex gap-2">
-                            <Skeleton className="h-5 w-16" />
-                            <Skeleton className="h-5 w-12" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="hidden sm:flex items-center gap-2">
-                        <Skeleton className="h-9 w-28" />
-                        <Skeleton className="h-9 w-24" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            : filteredUsers.map((user) => {
-                const instructor = getUserInstructor(user.id);
-                const roles = userRoles[user.id] || [];
+      {/* 사용자 목록 */}
+      <div className="grid gap-4">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, index) => (
+            <Card key={`user-skeleton-${index}`}>
+              <CardContent className="p-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          users.map((user) => {
+            const instructor = getUserInstructor(user.id);
+            const roles = userRoles[user.id] || [];
 
-                return (
-                  <Card key={user.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={instructor?.photo_url} />
-                            <AvatarFallback>
-                              {instructor ? instructor.name.charAt(0) : user.email?.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">
-                              {instructor ? instructor.name : user.email}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {user.email}
-                            </div>
-                            <div className="flex gap-1 mt-1">
-                              {roles.length > 0 ? (
-                                roles.map(role => (
-                                  <Badge key={role} variant="secondary" className="text-xs">
-                                    {role}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <Badge variant="outline" className="text-xs">
-                                  권한 없음
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
+            return (
+              <Card key={user.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={instructor?.photo_url} />
+                        <AvatarFallback>
+                          {instructor ? instructor.name.charAt(0) : user.email?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">
+                          {instructor ? instructor.name : user.email}
                         </div>
-                        <div className="flex items-center gap-2">
-                          {user.first_login && (
+                        <div className="text-sm text-muted-foreground">
+                          {user.email}
+                        </div>
+                        <div className="flex gap-1 mt-1">
+                          {roles.length > 0 ? (
+                            roles.map(role => (
+                              <Badge key={role} variant="secondary" className="text-xs">
+                                {roleLabels[role] || role}
+                              </Badge>
+                            ))
+                          ) : (
                             <Badge variant="outline" className="text-xs">
-                              첫 로그인 대기
+                              권한 없음
                             </Badge>
                           )}
-                          <div className="hidden sm:flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleResetPassword(user)}
-                            >
-                              <Key className="h-4 w-4 mr-1" />
-                              비밀번호 초기화
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditRoles(user)}
-                            >
-                              <Shield className="h-4 w-4 mr-1" />
-                              권한 편집
-                            </Button>
-                          </div>
-
-                          {/* 모바일 액션 버튼 */}
-                          <div className="sm:hidden">
-                            <Sheet>
-                              <SheetTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </SheetTrigger>
-                              <SheetContent>
-                                <SheetHeader>
-                                  <SheetTitle>사용자 관리</SheetTitle>
-                                </SheetHeader>
-                                <div className="py-4 space-y-4">
-                                  <div className="p-4 bg-muted rounded-lg">
-                                    <div className="font-medium">
-                                      {instructor ? instructor.name : user.email}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {user.email}
-                                    </div>
-                                  </div>
-                                  <Button
-                                    className="w-full justify-start"
-                                    variant="outline"
-                                    onClick={() => handleResetPassword(user)}
-                                  >
-                                    <Key className="h-4 w-4 mr-2" />
-                                    비밀번호 초기화
-                                  </Button>
-                                  <Button
-                                    className="w-full justify-start"
-                                    variant="outline"
-                                    onClick={() => handleEditRoles(user)}
-                                  >
-                                    <Shield className="h-4 w-4 mr-2" />
-                                    권한 편집
-                                  </Button>
-                                </div>
-                              </SheetContent>
-                            </Sheet>
-                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-        </div>
-
-        {/* 검색 결과 없음 */}
-        {!loading && filteredUsers.length === 0 && (
-          <div className="text-center py-8">
-            <UserX className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">검색 결과가 없습니다</h3>
-            <p className="text-muted-foreground">
-              다른 검색어를 시도해보세요.
-            </p>
-          </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {user.first_login && (
+                        <Badge variant="outline" className="text-xs">
+                          첫 로그인 대기
+                        </Badge>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResetPassword(user)}
+                      >
+                        <Key className="h-4 w-4 mr-1" />
+                        비밀번호 초기화
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditRoles(user)}
+                      >
+                        <Shield className="h-4 w-4 mr-1" />
+                        권한 편집
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
-
-        {/* 역할 편집 다이얼로그 */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>사용자 권한 편집</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {editingUser && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="font-medium">{editingUser.email}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {getUserInstructor(editingUser.id)?.name || '일반 사용자'}
-                  </div>
-                </div>
-              )}
-              
-              <div className="space-y-3">
-                <div className="font-medium">권한 설정</div>
-                {availableRoles.map(role => (
-                  <div key={role} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={role}
-                      checked={selectedRoles.includes(role)}
-                      onCheckedChange={(checked) => handleRoleChange(role, checked as boolean)}
-                    />
-                    <label htmlFor={role} className="text-sm font-medium">
-                      {role}
-                    </label>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button onClick={handleSaveRoles}>
-                  저장
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      {/* 페이지네이션 */}
+      <PaginationControls
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        total={pagination.total}
+        totalPages={pagination.totalPages}
+        onPageChange={goToPage}
+        onPageSizeChange={setPageSize}
+        loading={loading}
+      />
+
+      {/* 역할 편집 다이얼로그 */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>사용자 역할 편집</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {availableRoles.map((role) => (
+              <div key={role} className="flex items-center space-x-2">
+                <Checkbox
+                  id={role}
+                  checked={selectedRoles.includes(role)}
+                  onCheckedChange={(checked) => handleRoleChange(role, Boolean(checked))}
+                />
+                <label htmlFor={role} className="text-sm font-medium">
+                  {roleLabels[role]}
+                </label>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end space-x-2 mt-6">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleSaveRoles}>저장</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

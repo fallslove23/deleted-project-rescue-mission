@@ -80,6 +80,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SurveyCreateForm from "@/components/SurveyCreateForm";
+import { useServerPagination, VirtualizedTable, PaginationControls } from "@/components/data-table";
+import type { VirtualizedColumn, ServerPaginationParams } from "@/components/data-table";
 
 const TIMEZONE = "Asia/Seoul";
 const PAGE_SIZE = 10;
@@ -228,6 +230,9 @@ export default function SurveyManagementV2() {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [availableCourseNames, setAvailableCourseNames] = useState<string[]>([]);
   const [templates, setTemplates] = useState<TemplateLite[]>([]);
+  
+  // 서버 페이지네이션을 위한 새로운 상태
+  const [useVirtualScroll, setUseVirtualScroll] = useState(false);
 
   const [filters, setFilters] = useState<SurveyFilters>({
     year: params.get("year") ? parseInt(params.get("year") as string) : null,
@@ -306,25 +311,54 @@ export default function SurveyManagementV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, sortBy, sortDir, currentPage]);
 
-  // 데이터 로드
+  // 서버 페이지네이션 페치 함수
+  const fetchSurveysWithPagination = async (params: ServerPaginationParams) => {
+    const result = await SurveysRepository.fetchSurveyList(
+      params.page, 
+      params.pageSize, 
+      filters, 
+      sortBy, 
+      sortDir
+    );
+    return {
+      data: result.data,
+      total: result.count,
+      page: params.page,
+      pageSize: params.pageSize,
+      totalPages: result.totalPages
+    };
+  };
+
+  // 서버 페이지네이션 훅 사용
+  const paginationHook = useServerPagination(
+    fetchSurveysWithPagination,
+    PAGE_SIZE,
+    [filters, sortBy, sortDir]
+  );
+
+  // 기존 데이터 로드 (호환성 유지)
   const loadData = async () => {
+    await paginationHook.refresh();
+    // 추가 데이터 로드
     try {
-      setLoading(true);
-      setError(null);
-      const [result, years] = await Promise.all([
-        SurveysRepository.fetchSurveyList(currentPage, PAGE_SIZE, filters, sortBy, sortDir),
-        SurveysRepository.getAvailableYears(),
-      ]);
-      setSurveys(result.data);
-      setTotalPages(result.totalPages);
-      setTotalCount(result.count);
+      const years = await SurveysRepository.getAvailableYears();
       setAvailableYears(years);
     } catch (e: any) {
       setError(e?.message || "데이터를 불러오는데 실패했습니다.");
-    } finally {
-      setLoading(false);
     }
   };
+
+  // paginationHook 결과를 기존 상태와 동기화
+  React.useEffect(() => {
+    setSurveys(paginationHook.data);
+    setTotalCount(paginationHook.pagination.total);
+    setTotalPages(paginationHook.pagination.totalPages);
+    setLoading(paginationHook.loading);
+    setError(paginationHook.error);
+    if (paginationHook.pagination.page !== currentPage) {
+      setCurrentPage(paginationHook.pagination.page);
+    }
+  }, [paginationHook.data, paginationHook.pagination, paginationHook.loading, paginationHook.error]);
 
   const loadCourseNames = async (year: number | null) => {
     const names = await SurveysRepository.getAvailableCourseNames(year);
@@ -334,7 +368,13 @@ export default function SurveyManagementV2() {
     }
   };
 
-  useEffect(() => { loadData(); }, [currentPage, filters.year, filters.status, filters.q, filters.courseName, sortBy, sortDir]);
+  useEffect(() => { 
+    paginationHook.refresh(); 
+  }, [filters.year, filters.status, filters.q, filters.courseName, sortBy, sortDir]);
+  
+  useEffect(() => { 
+    paginationHook.goToPage(currentPage); 
+  }, [currentPage]);
   useEffect(() => { loadCourseNames(filters.year); }, [filters.year]);
   useEffect(() => { (async () => setTemplates(await SurveysRepository.listTemplates()))(); }, []);
 
@@ -868,135 +908,285 @@ export default function SurveyManagementV2() {
                   {selected.size > 0 ? `${selected.size}개 선택됨` : '전체 선택'}
                 </span>
               </div>
-              <div className="text-sm text-muted-foreground">
-                총 {surveys.length}개 설문
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setUseVirtualScroll(!useVirtualScroll)}
+                  className="text-sm"
+                >
+                  {useVirtualScroll ? '일반 보기' : '가상 스크롤'}
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  총 {totalCount}개 설문
+                </span>
               </div>
             </div>
 
-            <div className="space-y-4">
-              {surveys.map((survey) => (
-                <div key={survey.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleOne(survey.id)}
-                    className="h-8 w-8 p-0 flex-shrink-0"
-                  >
-                    <CheckSquare className={`h-4 w-4 ${selected.has(survey.id) ? 'text-primary' : 'text-muted-foreground'}`} />
-                  </Button>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-medium">{survey.title}</h3>
-                      <Badge variant={getStatusInfo(survey).variant}>
-                        {getStatusInfo(survey).label}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <div>과정: {survey.course_name} - {survey.education_year}년 {survey.education_round}차 {survey.education_day}일차</div>
-                      {survey.instructor_name && (
-                        <div>강사: {survey.instructor_name}</div>
-                      )}
-                      <div>생성일: {formatSafeDate(survey.created_at)}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/survey-preview/${survey.id}`)}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      미리보기
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`, { 
-                        state: { from: 'survey-management' } 
-                      })}
-                    >
-                      <BarChart className="h-4 w-4 mr-1" />
-                      분석
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>작업</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => navigate(`/survey-builder/${survey.id}`)}>
-                          <Settings className="h-4 w-4 mr-2" />
-                          편집
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          setQrSurveyId(survey.id);
-                          setQrOpen(true);
-                        }}>
-                          <QrCode className="h-4 w-4 mr-2" />
-                          QR 코드
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          const surveyUrl = getSurveyUrl(survey.id);
-                          navigator.clipboard.writeText(surveyUrl);
-                          toast({
-                            title: "링크 복사 완료",
-                            description: "설문 링크가 클립보드에 복사되었습니다.",
-                          });
-                        }}>
-                          <Link className="h-4 w-4 mr-2" />
-                          링크 복사
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicateSurvey(survey.id)}>
-                          <Copy className="h-4 w-4 mr-2" />
-                          복제
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusToggle(survey.id, survey.status)}>
-                          {survey.status === 'active' ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-                          {survey.status === 'active' ? '비활성화' : '활성화'}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => {
-                            setDeletingSurveyId(survey.id);
-                            setDeleteOpen(true);
-                          }}
-                          className="text-red-600"
+            {/* 가상 스크롤 또는 일반 목록 */}
+            {useVirtualScroll && surveys.length > 10 ? (
+              <VirtualizedTable
+                data={surveys}
+                columns={[
+                  {
+                    key: 'select',
+                    title: '선택',
+                    width: 60,
+                    render: (survey) => (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleOne(survey.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <CheckSquare className={`h-4 w-4 ${selected.has(survey.id) ? 'text-primary' : 'text-muted-foreground'}`} />
+                      </Button>
+                    )
+                  },
+                  {
+                    key: 'title',
+                    title: '제목',
+                    minWidth: 200,
+                    render: (survey) => (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Highlight text={survey.title} query={q} />
+                          <Badge variant={getStatusInfo(survey).variant}>
+                            {getStatusInfo(survey).label}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {survey.course_name} - {survey.education_year}년 {survey.education_round}차 {survey.education_day}일차
+                        </div>
+                      </div>
+                    )
+                  },
+                  {
+                    key: 'instructor',
+                    title: '강사',
+                    width: 150,
+                    render: (survey) => (
+                      <span className="text-sm">
+                        <Highlight text={survey.instructor_name} query={q} />
+                      </span>
+                    )
+                  },
+                  {
+                    key: 'date',
+                    title: '생성일',
+                    width: 150,
+                    render: (survey) => (
+                      <span className="text-sm text-muted-foreground">
+                        {formatSafeDate(survey.created_at)}
+                      </span>
+                    )
+                  },
+                  {
+                    key: 'actions',
+                    title: '작업',
+                    width: 300,
+                    render: (survey) => (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/survey-preview/${survey.id}`)}
                         >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          삭제
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <Eye className="h-4 w-4 mr-1" />
+                          미리보기
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`, { 
+                            state: { from: 'survey-management' } 
+                          })}
+                        >
+                          <BarChart className="h-4 w-4 mr-1" />
+                          분석
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>작업</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => navigate(`/survey-builder/${survey.id}`)}>
+                              <Settings className="h-4 w-4 mr-2" />
+                              편집
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setQrSurveyId(survey.id);
+                              setQrOpen(true);
+                            }}>
+                              <QrCode className="h-4 w-4 mr-2" />
+                              QR 코드
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              const surveyUrl = getSurveyUrl(survey.id);
+                              navigator.clipboard.writeText(surveyUrl);
+                              toast({
+                                title: "링크 복사 완료",
+                                description: "설문 링크가 클립보드에 복사되었습니다.",
+                              });
+                            }}>
+                              <Link className="h-4 w-4 mr-2" />
+                              링크 복사
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDuplicateSurvey(survey.id)}>
+                              <Copy className="h-4 w-4 mr-2" />
+                              복제
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusToggle(survey.id, survey.status)}>
+                              {survey.status === 'active' ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                              {survey.status === 'active' ? '비활성화' : '활성화'}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                setDeletingSurveyId(survey.id);
+                                setDeleteOpen(true);
+                              }}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              삭제
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    )
+                  }
+                ]}
+                height={600}
+                itemHeight={80}
+                loading={paginationHook.loading}
+                emptyMessage="설문이 없습니다."
+              />
+            ) : (
+              <div className="space-y-4">
+                {surveys.map((survey) => (
+                  <div key={survey.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleOne(survey.id)}
+                      className="h-8 w-8 p-0 flex-shrink-0"
+                    >
+                      <CheckSquare className={`h-4 w-4 ${selected.has(survey.id) ? 'text-primary' : 'text-muted-foreground'}`} />
+                    </Button>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-medium">
+                          <Highlight text={survey.title} query={q} />
+                        </h3>
+                        <Badge variant={getStatusInfo(survey).variant}>
+                          {getStatusInfo(survey).label}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div>
+                          과정: <Highlight text={survey.course_name} query={q} /> - {survey.education_year}년 {survey.education_round}차 {survey.education_day}일차
+                        </div>
+                        {survey.instructor_name && (
+                          <div>
+                            강사: <Highlight text={survey.instructor_name} query={q} />
+                          </div>
+                        )}
+                        <div>생성일: {formatSafeDate(survey.created_at)}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/survey-preview/${survey.id}`)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        미리보기
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`, { 
+                          state: { from: 'survey-management' } 
+                        })}
+                      >
+                        <BarChart className="h-4 w-4 mr-1" />
+                        분석
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>작업</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => navigate(`/survey-builder/${survey.id}`)}>
+                            <Settings className="h-4 w-4 mr-2" />
+                            편집
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setQrSurveyId(survey.id);
+                            setQrOpen(true);
+                          }}>
+                            <QrCode className="h-4 w-4 mr-2" />
+                            QR 코드
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            const surveyUrl = getSurveyUrl(survey.id);
+                            navigator.clipboard.writeText(surveyUrl);
+                            toast({
+                              title: "링크 복사 완료",
+                              description: "설문 링크가 클립보드에 복사되었습니다.",
+                            });
+                          }}>
+                            <Link className="h-4 w-4 mr-2" />
+                            링크 복사
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicateSurvey(survey.id)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            복제
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusToggle(survey.id, survey.status)}>
+                            {survey.status === 'active' ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                            {survey.status === 'active' ? '비활성화' : '활성화'}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setDeletingSurveyId(survey.id);
+                              setDeleteOpen(true);
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            삭제
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* 페이지네이션 */}
-            <div className="flex items-center justify-between mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                이전
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-              >
-                다음
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+            <PaginationControls
+              page={paginationHook.pagination.page}
+              pageSize={paginationHook.pagination.pageSize}
+              total={paginationHook.pagination.total}
+              totalPages={paginationHook.pagination.totalPages}
+              onPageChange={paginationHook.goToPage}
+              onPageSizeChange={paginationHook.setPageSize}
+              loading={paginationHook.loading}
+              className="mt-6"
+            />
           </CardContent>
         </Card>
 
