@@ -249,6 +249,7 @@ export const useCourseReportsData = (
           ),
           survey_responses (
             id,
+            session_id,
           question_answers (
             id,
             answer_value,
@@ -340,7 +341,7 @@ export const useCourseReportsData = (
         // 강사 정보 처리 개선 - 설문 내 모든 강사 식별
         const surveyInstructorIds = new Set<string>();
         const instructorNameMap = new Map<string, string>();
-        const sessionInstructorMap = new Map<string, string>();
+        const sessionInstructorMap = new Map<string, { instructorId: string; instructorName: string }>();
 
         const mainInstructorName = (() => {
           if ((survey as any).survey_instructors && (survey as any).survey_instructors.length > 0) {
@@ -353,11 +354,33 @@ export const useCourseReportsData = (
           return (survey as any).course_name || '강사 정보 없음';
         })();
 
+        const resolveInstructorName = (id?: string | null) => {
+          if (!id) return null;
+          if (instructorNameMap.has(id)) {
+            return instructorNameMap.get(id) ?? null;
+          }
+
+          const fromMulti = (survey as any).survey_instructors?.find(
+            (si: any) => (si.instructor_id ?? si.instructors?.id) === id
+          )?.instructors?.name;
+          if (fromMulti) {
+            instructorNameMap.set(id, fromMulti);
+            return fromMulti;
+          }
+
+          if ((survey as any).instructors?.id === id && (survey as any).instructors?.name) {
+            instructorNameMap.set(id, (survey as any).instructors.name);
+            return (survey as any).instructors.name;
+          }
+
+          return null;
+        };
+
         const ensureInstructorEntry = (id?: string | null, name?: string | null) => {
           if (!id) return;
           const existingName = instructorNameMap.get(id);
           const fallbackName = survey.instructor_id === id ? mainInstructorName : undefined;
-          const resolvedName = name ?? existingName ?? fallbackName ?? '강사 정보 없음';
+          const resolvedName = name ?? existingName ?? resolveInstructorName(id) ?? fallbackName ?? '강사 정보 없음';
 
           if (!existingName || existingName === '강사 정보 없음') {
             instructorNameMap.set(id, resolvedName);
@@ -391,9 +414,6 @@ export const useCourseReportsData = (
           survey.survey_instructors.forEach((si: any) => {
             const relatedId = si.instructor_id ?? si.instructors?.id;
             const relatedName = si.instructors?.name ?? null;
-            if (relatedId && relatedName) {
-              instructorNameMap.set(relatedId, relatedName);
-            }
             ensureInstructorEntry(relatedId, relatedName);
           });
         }
@@ -403,14 +423,18 @@ export const useCourseReportsData = (
         if (survey.survey_sessions && Array.isArray(survey.survey_sessions)) {
           survey.survey_sessions.forEach((session: any) => {
             if (!session?.id || !session?.instructor_id) return;
-            sessionInstructorMap.set(session.id, session.instructor_id);
 
-            const sessionInstructorName = instructorNameMap.get(session.instructor_id)
-              ?? survey.survey_instructors?.find((si: any) => (si.instructor_id ?? si.instructors?.id) === session.instructor_id)?.instructors?.name
-              ?? (survey.instructors?.id === session.instructor_id ? survey.instructors?.name : undefined)
-              ?? null;
+            const sessionInstructorName =
+              instructorNameMap.get(session.instructor_id) ??
+              resolveInstructorName(session.instructor_id) ??
+              (survey.instructors?.id === session.instructor_id ? survey.instructors?.name : null);
 
             ensureInstructorEntry(session.instructor_id, sessionInstructorName);
+
+            sessionInstructorMap.set(session.id, {
+              instructorId: session.instructor_id,
+              instructorName: instructorNameMap.get(session.instructor_id) ?? sessionInstructorName ?? '강사 정보 없음',
+            });
           });
         }
 
@@ -441,12 +465,21 @@ export const useCourseReportsData = (
               if (answer.survey_questions.satisfaction_type === 'instructor') {
                 const targetInstructorIds: string[] = [];
 
-                const sessionId = answer.survey_questions?.session_id as string | undefined;
-                if (sessionId) {
-                  const sessionInstructorId = sessionInstructorMap.get(sessionId);
-                  if (sessionInstructorId) {
-                    targetInstructorIds.push(sessionInstructorId);
+                const responseSessionId = response?.session_id as string | undefined;
+                const questionSessionId = answer.survey_questions?.session_id as string | undefined;
+
+                const sessionIdsToCheck = [questionSessionId, responseSessionId].filter(Boolean) as string[];
+                sessionIdsToCheck.forEach(sessionId => {
+                  const sessionInstructor = sessionInstructorMap.get(sessionId);
+                  if (sessionInstructor?.instructorId) {
+                    targetInstructorIds.push(sessionInstructor.instructorId);
                   }
+                });
+
+                const answerInstructorId = (answer as any)?.instructor_id as string | undefined;
+                if (answerInstructorId) {
+                  ensureInstructorEntry(answerInstructorId, instructorNameMap.get(answerInstructorId));
+                  targetInstructorIds.push(answerInstructorId);
                 }
 
                 const uniqueTargetInstructorIds = Array.from(new Set(targetInstructorIds.filter(Boolean)));
@@ -475,8 +508,14 @@ export const useCourseReportsData = (
                   if (stat) {
                     stat.satisfactions.push(score);
                     stat.response_count += 1;
-                    if ((!stat.instructor_name || stat.instructor_name === '강사 정보 없음') && instructorNameMap.get(id)) {
-                      stat.instructor_name = instructorNameMap.get(id);
+                    if ((!stat.instructor_name || stat.instructor_name === '강사 정보 없음')) {
+                      const resolvedName = instructorNameMap.get(id) ?? sessionIdsToCheck
+                        .map(sessionId => sessionInstructorMap.get(sessionId))
+                        .find(sessionInstructor => sessionInstructor?.instructorId === id)?.instructorName;
+                      if (resolvedName) {
+                        stat.instructor_name = resolvedName;
+                        instructorNameMap.set(id, resolvedName);
+                      }
                     }
                   }
                 });
