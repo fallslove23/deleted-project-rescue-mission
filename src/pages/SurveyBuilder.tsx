@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Pencil, Trash2, Plus, Settings, Edit, RefreshCcw, CheckSquare, Square } from "lucide-react";
 
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import QuestionEditForm from "@/components/QuestionEditForm";
 import { SessionManager, SurveySession } from "@/components/SessionManager";
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,13 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 /* ───────────────────────────────── helpers ───────────────────────────────── */
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -57,6 +62,8 @@ const buildTitle = (year: number | null, round: number | null, day: number | nul
   return title;
 };
 
+const MAX_COMPARISON_TEMPLATES = 3;
+
 /* ───────────────────────────────── types ───────────────────────────────── */
 type Survey = {
   id: string; title: string | null; description: string | null;
@@ -79,6 +86,23 @@ type SurveyQuestion = {
 type Section = { id: string; name: string; description?: string };
 type Course = { id: string; title: string };
 type Instructor = { id: string; name: string };
+type TemplateQuestionDetail = {
+  id: string;
+  question_text: string;
+  question_type: string;
+  satisfaction_type?: string | null;
+  is_required: boolean;
+  order_index: number;
+};
+type TemplateSummary = {
+  id: string;
+  name: string;
+  is_course_evaluation?: boolean;
+  questionCount: number;
+  satisfactionTypes: string[];
+  recentSurveys: { id: string; title: string; updated_at: string | null; start_date: string | null }[];
+  questions: TemplateQuestionDetail[];
+};
 
 /* ─────────────────────────────── component ─────────────────────────────── */
 export default function SurveyBuilder() {
@@ -104,7 +128,7 @@ export default function SurveyBuilder() {
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   
   // 템플릿 선택 관련 상태
-  const [templateSelections, setTemplateSelections] = useState<Record<string, string>>({});
+  const [templateSelections, setTemplateSelections] = useState<Record<string, string | null>>({});
 
   const [educationYear, setEducationYear] = useState<number>(new Date().getFullYear());
   const [educationRound, setEducationRound] = useState<number>(1);
@@ -126,10 +150,15 @@ export default function SurveyBuilder() {
   const [newCourseName, setNewCourseName] = useState("");
   const [editRow, setEditRow] = useState<{ id: string; name: string } | null>(null);
 
-  const [templates, setTemplates] = useState<{id: string; name: string; is_course_evaluation?: boolean}[]>([]);
+  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [templateSelectOpen, setTemplateSelectOpen] = useState(false);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [comparisonTemplates, setComparisonTemplates] = useState<string[]>([]);
+  const [templateDialogTab, setTemplateDialogTab] = useState<"select" | "compare">("select");
+  const [confirmApplyOpen, setConfirmApplyOpen] = useState(false);
 
   const [sectionDialogOpen, setSectionDialogOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
@@ -234,9 +263,81 @@ export default function SurveyBuilder() {
   }, []);
 
   const loadTemplates = useCallback(async () => {
-    const { data, error } = await supabase.from('survey_templates').select('id,name,is_course_evaluation').order('name');
+    const { data, error } = await supabase
+      .from('survey_templates')
+      .select(`
+        id,
+        name,
+        is_course_evaluation,
+        template_questions (
+          id,
+          question_text,
+          question_type,
+          satisfaction_type,
+          is_required,
+          order_index
+        ),
+        surveys (
+          id,
+          title,
+          updated_at,
+          start_date
+        )
+      `)
+      .order('name');
     if (error) { toast({ title: "템플릿 로드 실패", description: error.message, variant: "destructive" }); return; }
-    setTemplates((data || []) as any[]);
+
+    const mapped: TemplateSummary[] = (data || []).map((template: any) => {
+      const questions: TemplateQuestionDetail[] = (template.template_questions || [])
+        .map((q: any) => ({
+          id: q.id,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          satisfaction_type: q.satisfaction_type,
+          is_required: q.is_required,
+          order_index: q.order_index,
+        }))
+        .sort((a, b) => a.order_index - b.order_index);
+
+      const satisfactionTypes = Array.from(
+        new Set(
+          questions
+            .map((q) => q.satisfaction_type)
+            .filter((value): value is string => Boolean(value))
+        )
+      );
+
+      const recentSurveys = ((template.surveys || []) as any[])
+        .map((survey) => ({
+          id: survey.id,
+          title: survey.title,
+          updated_at: survey.updated_at ?? null,
+          start_date: survey.start_date ?? null,
+        }))
+        .sort((a, b) => {
+          const parseDate = (value: string | null) => {
+            if (!value) return 0;
+            const timestamp = new Date(value).getTime();
+            return Number.isNaN(timestamp) ? 0 : timestamp;
+          };
+          const aTime = parseDate(a.updated_at) || parseDate(a.start_date);
+          const bTime = parseDate(b.updated_at) || parseDate(b.start_date);
+          return bTime - aTime;
+        })
+        .slice(0, 3);
+
+      return {
+        id: template.id,
+        name: template.name,
+        is_course_evaluation: template.is_course_evaluation,
+        questionCount: questions.length,
+        satisfactionTypes,
+        recentSurveys,
+        questions,
+      } satisfies TemplateSummary;
+    });
+
+    setTemplates(mapped);
   }, [toast]);
 
   const loadCourseNames = useCallback(async () => {
@@ -262,6 +363,39 @@ export default function SurveyBuilder() {
     reloadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surveyId]);
+
+  useEffect(() => {
+    if (templateSelectOpen) {
+      const fallbackSessionId = sessions.length > 0 ? sessions[0].id : null;
+      const targetSessionId = selectedSessionId || activeSessionId || fallbackSessionId;
+
+      if (targetSessionId && targetSessionId !== activeSessionId) {
+        setActiveSessionId(targetSessionId);
+        const preset = templateSelections[targetSessionId];
+        if (preset) {
+          setSelectedTemplateId(preset);
+        } else if (!selectedTemplateId && templates.length > 0) {
+          setSelectedTemplateId(templates[0].id);
+        }
+      } else if (!targetSessionId && templates.length > 0 && !selectedTemplateId) {
+        setSelectedTemplateId(templates[0].id);
+      }
+    } else {
+      setActiveSessionId(null);
+      setSelectedTemplateId(null);
+      setComparisonTemplates([]);
+      setTemplateDialogTab("select");
+      setConfirmApplyOpen(false);
+    }
+  }, [templateSelectOpen, sessions, selectedSessionId, templates, activeSessionId, selectedTemplateId]);
+
+  useEffect(() => {
+    if (!templateSelectOpen || !activeSessionId) return;
+    const preset = templateSelections[activeSessionId];
+    if (preset) {
+      setSelectedTemplateId(preset);
+    }
+  }, [templateSelections, activeSessionId, templateSelectOpen]);
 
   /* ─────────────────────────────── save/basic ────────────────────────────── */
   const saveBasic = async () => {
@@ -334,7 +468,7 @@ export default function SurveyBuilder() {
   
   const handleBulkDeleteQuestions = async () => {
     if (selectedQuestions.size === 0) return;
-    
+
     if (!confirm(`선택한 ${selectedQuestions.size}개의 질문을 삭제하시겠습니까?`)) return;
     
     try {
@@ -356,16 +490,112 @@ export default function SurveyBuilder() {
   
   const handleQuestionSave = () => { setQuestionDialogOpen(false); loadQuestions(); };
 
+  const handleTemplatePreview = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+  };
+
+  const handleAssignTemplateToSession = (templateId: string) => {
+    if (!activeSessionId) {
+      toast({
+        title: "세션을 먼저 선택하세요",
+        description: "왼쪽 목록에서 템플릿을 적용할 세션을 선택한 뒤 템플릿을 지정해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTemplateSelections((prev) => ({ ...prev, [activeSessionId]: templateId }));
+    setSelectedTemplateId(templateId);
+  };
+
+  const handleClearTemplateSelection = () => {
+    if (!activeSessionId) return;
+    setTemplateSelections((prev) => ({ ...prev, [activeSessionId]: null }));
+  };
+
+  const toggleComparisonTemplate = (templateId: string, checked: boolean | "indeterminate") => {
+    const isChecked = checked === true;
+    setComparisonTemplates((prev) => {
+      if (isChecked) {
+        if (prev.includes(templateId)) return prev;
+        if (prev.length >= MAX_COMPARISON_TEMPLATES) {
+          toast({
+            title: `비교는 최대 ${MAX_COMPARISON_TEMPLATES}개까지 가능합니다`,
+            description: "선택된 템플릿 중 하나를 해제한 뒤 다시 선택해주세요.",
+            variant: "destructive",
+          });
+          return prev;
+        }
+        return [...prev, templateId];
+      }
+      return prev.filter((id) => id !== templateId);
+    });
+  };
+
+  const formatRecentSurveyDate = (value: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" });
+  };
+
+  const activeSession = useMemo(() => {
+    if (!activeSessionId) return null;
+    return sessions.find((session) => session.id === activeSessionId) || null;
+  }, [sessions, activeSessionId]);
+
+  const selectedTemplate = useMemo(() => {
+    if (!selectedTemplateId) return null;
+    return templates.find((template) => template.id === selectedTemplateId) || null;
+  }, [templates, selectedTemplateId]);
+
+  const selectedAssignments = useMemo(() => {
+    return Object.entries(templateSelections)
+      .filter(([, templateId]) => Boolean(templateId))
+      .map(([sessionId, templateId]) => {
+        const session = sessions.find((s) => s.id === sessionId);
+        const template = templates.find((t) => t.id === templateId);
+        return {
+          sessionId,
+          sessionName: session?.course?.title || session?.session_name || "세션",
+          instructorName: session?.instructor?.name || null,
+          templateId: templateId as string,
+          templateName: template?.name || "템플릿",
+        };
+      });
+  }, [templateSelections, sessions, templates]);
+
+  const activeSessionSelection = useMemo(() => {
+    if (!activeSession) return null;
+    const templateId = templateSelections[activeSession.id] ?? null;
+    if (!templateId) {
+      return { templateId: null as string | null, templateName: null as string | null };
+    }
+    const template = templates.find((t) => t.id === templateId);
+    return { templateId, templateName: template?.name ?? null };
+  }, [activeSession, templateSelections, templates]);
+
+  const handleCloseTemplateDialog = () => {
+    setTemplateSelectOpen(false);
+    setTemplateSelections({});
+    setActiveSessionId(null);
+    setSelectedTemplateId(null);
+    setComparisonTemplates([]);
+    setConfirmApplyOpen(false);
+    setSelectedSessionId(null);
+    setTemplateDialogTab("select");
+  };
+
   // 새로운 템플릿 적용 함수
   const handleApplySelectedTemplates = async () => {
     try {
       setLoadingTemplate(true);
       console.log('Applying selected templates:', templateSelections);
-      
+
       const appliedSessions: string[] = [];
-      
+
       for (const [sessionId, templateId] of Object.entries(templateSelections)) {
-        if (templateId && templateId !== '' && templateId !== 'none') {
+        if (templateId) {
           await applyTemplateToSession(templateId, sessionId);
           const session = sessions.find(s => s.id === sessionId);
           appliedSessions.push(session?.course?.title || session?.session_name || '세션');
@@ -377,9 +607,8 @@ export default function SurveyBuilder() {
       await Promise.all([loadQuestions(), loadSections()]);
       console.log('Reload completed');
       
-      setTemplateSelectOpen(false);
-      setTemplateSelections({});
-      
+      handleCloseTemplateDialog();
+
       toast({
         title: "템플릿 적용 완료",
         description: `${appliedSessions.length}개 과목에 템플릿이 적용되었습니다.`
@@ -394,7 +623,20 @@ export default function SurveyBuilder() {
       });
     } finally {
       setLoadingTemplate(false);
+      setConfirmApplyOpen(false);
     }
+  };
+
+  const handleConfirmApply = () => {
+    if (selectedAssignments.length === 0) {
+      toast({
+        title: "템플릿을 선택해주세요",
+        description: "최소 한 개의 세션에 적용할 템플릿을 선택해야 합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmApplyOpen(true);
   };
 
   /* ───────────────────────────── sections CRUD ───────────────────────────── */
@@ -1490,76 +1732,419 @@ export default function SurveyBuilder() {
           </Dialog>
 
           {/* 템플릿 선택 다이얼로그 */}
-          <Dialog open={templateSelectOpen} onOpenChange={setTemplateSelectOpen}>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>템플릿 적용</DialogTitle>
-                <DialogDescription>
-                  각 과목별로 적용할 템플릿을 선택하세요. 선택하지 않은 과목은 템플릿이 적용되지 않습니다.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                {templates.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    사용 가능한 템플릿이 없습니다.
-                  </div>
-                ) : sessions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    과목/강사 정보가 없습니다. 먼저 과목과 강사를 추가해주세요.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid gap-3">
-                      {sessions.map((session) => (
-                        <div key={session.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex-1">
-                            <div className="font-medium">
-                              {session.course?.title || session.session_name}
+          <Dialog
+            open={templateSelectOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                handleCloseTemplateDialog();
+              } else {
+                setTemplateSelectOpen(true);
+              }
+            }}
+          >
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+              <div className="flex h-full flex-col">
+                <DialogHeader>
+                  <DialogTitle>템플릿 적용</DialogTitle>
+                  <DialogDescription>
+                    템플릿을 카드에서 선택하고 왼쪽의 세션에 적용하세요. 적용 전 미리보기와 비교를 통해 구성 차이를 확인할 수 있습니다.
+                  </DialogDescription>
+                </DialogHeader>
+                <Tabs
+                  value={templateDialogTab}
+                  onValueChange={(value) => setTemplateDialogTab(value as "select" | "compare")}
+                  className="flex h-full flex-col"
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="select">템플릿 선택</TabsTrigger>
+                    <TabsTrigger value="compare">템플릿 비교</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="select" className="mt-4 flex-1 overflow-hidden">
+                    <div className="h-full overflow-y-auto pr-1">
+                      {templates.length === 0 ? (
+                        <div className="flex h-full items-center justify-center rounded-lg border border-dashed p-10 text-sm text-muted-foreground">
+                          사용 가능한 템플릿이 없습니다.
+                        </div>
+                      ) : sessions.length === 0 ? (
+                        <div className="flex h-full items-center justify-center rounded-lg border border-dashed p-10 text-sm text-muted-foreground">
+                          과목/강사 정보를 먼저 추가해주세요.
+                        </div>
+                      ) : (
+                        <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
+                          <div className="space-y-4">
+                            <div>
+                              <h3 className="text-sm font-semibold">세션 선택</h3>
+                              <p className="text-xs text-muted-foreground">
+                                템플릿을 적용할 세션을 선택한 뒤 카드의 “세션에 적용” 버튼을 눌러주세요.
+                              </p>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              강사: {session.instructor?.name || '강사명 없음'}
+                            <div className="space-y-2">
+                              {sessions.map((session) => {
+                                const isActive = activeSessionId === session.id;
+                                const assignedTemplateId = templateSelections[session.id];
+                                const assignedTemplate = assignedTemplateId ? templates.find((t) => t.id === assignedTemplateId) : null;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={session.id}
+                                    onClick={() => {
+                                      setActiveSessionId(session.id);
+                                      const preset = templateSelections[session.id];
+                                      if (preset) {
+                                        setSelectedTemplateId(preset);
+                                      }
+                                    }}
+                                    className={cn(
+                                      "w-full rounded-lg border p-3 text-left transition hover:border-primary/60 hover:bg-muted/50",
+                                      isActive ? "border-primary bg-primary/5" : "border-border"
+                                    )}
+                                  >
+                                    <div className="font-medium">
+                                      {session.course?.title || session.session_name}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                      강사: {session.instructor?.name || "미정"}
+                                    </div>
+                                    <div className="mt-2 text-xs font-medium text-primary">
+                                      {assignedTemplate ? `선택된 템플릿: ${assignedTemplate.name}` : "선택된 템플릿 없음"}
+                                    </div>
+                                  </button>
+                                );
+                              })}
                             </div>
+                            {activeSession && (
+                              <div className="rounded-lg border border-dashed bg-muted/50 p-3 text-xs text-muted-foreground">
+                                <div className="font-medium text-foreground">
+                                  {activeSession.course?.title || activeSession.session_name}
+                                </div>
+                                <div className="mt-1 flex items-center justify-between">
+                                  <span>
+                                    현재 선택: {activeSessionSelection?.templateName || "없음"}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={handleClearTemplateSelection}
+                                  >
+                                    선택 해제
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex-shrink-0 w-48">
-                            <SearchableSelect
-                              options={[
-                                { value: 'none', label: '선택 안함' },
-                                ...templates.map((template) => ({ value: template.id, label: template.name }))
-                              ]}
-                              value={templateSelections[session.id] || ''}
-                              onValueChange={(value) => {
-                                setTemplateSelections(prev => ({
-                                  ...prev,
-                                  [session.id]: value
-                                }));
-                              }}
-                              placeholder="템플릿 선택"
-                              searchPlaceholder="템플릿 검색..."
-                              emptyText="검색 결과가 없습니다."
-                            />
+                          <div className="space-y-4">
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                              {templates.map((template) => {
+                                const isActiveTemplate = selectedTemplateId === template.id;
+                                const isAssignedToActive = activeSessionId ? templateSelections[activeSessionId] === template.id : false;
+                                const isInComparison = comparisonTemplates.includes(template.id);
+                                return (
+                                  <Card
+                                    key={template.id}
+                                    onClick={() => handleTemplatePreview(template.id)}
+                                    className={cn(
+                                      "relative flex h-full cursor-pointer flex-col border transition",
+                                      isActiveTemplate ? "border-primary shadow-lg shadow-primary/20" : "border-border hover:border-primary/40",
+                                      isAssignedToActive && !isActiveTemplate ? "ring-2 ring-primary/20" : ""
+                                    )}
+                                  >
+                                    <div className="absolute right-3 top-3 flex items-center gap-2">
+                                      <span className="text-[11px] text-muted-foreground">비교</span>
+                                      <Checkbox
+                                        checked={isInComparison}
+                                        onCheckedChange={(checked) => toggleComparisonTemplate(template.id, checked)}
+                                        onClick={(event) => event.stopPropagation()}
+                                      />
+                                    </div>
+                                    <CardHeader className="pb-4 pr-16">
+                                      <CardTitle className="text-base">{template.name}</CardTitle>
+                                      <div className="text-xs text-muted-foreground">
+                                        질문 {template.questionCount}개 • 만족도 유형 {template.satisfactionTypes.length}
+                                      </div>
+                                      {!template.is_course_evaluation && (
+                                        <Badge variant="outline" className="w-max text-[11px]">
+                                          운영 평가 템플릿
+                                        </Badge>
+                                      )}
+                                    </CardHeader>
+                                    <CardContent className="flex flex-1 flex-col gap-3">
+                                      <div>
+                                        <p className="text-xs font-semibold text-muted-foreground">만족도 유형</p>
+                                        <div className="mt-1 flex flex-wrap gap-1.5">
+                                          {template.satisfactionTypes.length > 0 ? (
+                                            template.satisfactionTypes.map((type) => (
+                                              <Badge key={type} variant="secondary" className="text-[11px]">
+                                                {type}
+                                              </Badge>
+                                            ))
+                                          ) : (
+                                            <span className="text-[11px] text-muted-foreground">지정된 만족도 유형 없음</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-semibold text-muted-foreground">최근 사용 설문</p>
+                                        <div className="mt-1 space-y-1.5 text-[11px] text-muted-foreground">
+                                          {template.recentSurveys.length === 0 ? (
+                                            <div>최근 사용 내역 없음</div>
+                                          ) : (
+                                            template.recentSurveys.map((survey) => {
+                                              const displayDate =
+                                                formatRecentSurveyDate(survey.updated_at) ||
+                                                formatRecentSurveyDate(survey.start_date) ||
+                                                "날짜 정보 없음";
+                                              return (
+                                                <div key={survey.id} className="flex justify-between gap-3">
+                                                  <span className="truncate font-medium text-foreground">{survey.title}</span>
+                                                  <span>{displayDate}</span>
+                                                </div>
+                                              );
+                                            })
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="mt-auto flex items-center justify-between text-[11px] text-muted-foreground">
+                                        <span>{template.questionCount}개의 질문 포함</span>
+                                        {isAssignedToActive && <Badge variant="secondary">선택됨</Badge>}
+                                      </div>
+                                    </CardContent>
+                                    <CardFooter className="pt-3">
+                                      <Button
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleAssignTemplateToSession(template.id);
+                                        }}
+                                        disabled={!activeSessionId}
+                                      >
+                                        {isAssignedToActive
+                                          ? "선택 완료"
+                                          : activeSession
+                                            ? `${activeSession.course?.title || activeSession.session_name}에 적용`
+                                            : "세션을 선택하세요"}
+                                      </Button>
+                                    </CardFooter>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                            <Card className="h-full">
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-lg">템플릿 미리보기</CardTitle>
+                                <p className="text-xs text-muted-foreground">
+                                  선택한 템플릿의 질문 구성과 만족도 유형을 확인하세요.
+                                </p>
+                              </CardHeader>
+                              <CardContent className="flex flex-col gap-3">
+                                {selectedTemplate ? (
+                                  <>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                      <Badge variant="outline" className="text-[11px]">{selectedTemplate.questionCount}문항</Badge>
+                                      {selectedTemplate.satisfactionTypes.map((type) => (
+                                        <Badge key={type} variant="secondary" className="text-[11px]">
+                                          {type}
+                                        </Badge>
+                                      ))}
+                                      {selectedTemplate.satisfactionTypes.length === 0 && (
+                                        <span>만족도 유형 없음</span>
+                                      )}
+                                    </div>
+                                    <ScrollArea className="max-h-72 pr-4">
+                                      <div className="space-y-3">
+                                        {selectedTemplate.questions.map((question, index) => (
+                                          <div key={question.id} className="rounded-lg border bg-card/50 p-3">
+                                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                              <span>
+                                                Q{index + 1}. {question.question_type}
+                                              </span>
+                                              {question.is_required && (
+                                                <Badge variant="destructive" className="text-[10px]">
+                                                  필수
+                                                </Badge>
+                                              )}
+                                            </div>
+                                            <p className="mt-2 text-sm font-medium">{question.question_text}</p>
+                                            {question.satisfaction_type && (
+                                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                                만족도 유형: {question.satisfaction_type}
+                                              </p>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </ScrollArea>
+                                  </>
+                                ) : (
+                                  <div className="flex h-60 items-center justify-center text-sm text-muted-foreground">
+                                    미리보기를 확인할 템플릿을 선택하세요.
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
                           </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                    
-                    <div className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
-                      💡 팁: 템플릿을 적용하면 해당 과목에 새로운 질문들이 추가됩니다. 기존 질문은 유지됩니다.
+                  </TabsContent>
+                  <TabsContent value="compare" className="mt-4 flex-1 overflow-hidden">
+                    <div className="h-full overflow-y-auto pr-1">
+                      {templates.length === 0 ? (
+                        <div className="flex h-full items-center justify-center rounded-lg border border-dashed p-10 text-sm text-muted-foreground">
+                          사용 가능한 템플릿이 없습니다.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                            <span>선택 탭에서 비교 체크박스를 통해 최대 {MAX_COMPARISON_TEMPLATES}개의 템플릿을 나란히 비교할 수 있습니다.</span>
+                            {comparisonTemplates.length > 0 && (
+                              <Button variant="ghost" size="sm" onClick={() => setComparisonTemplates([])}>
+                                비교 초기화
+                              </Button>
+                            )}
+                          </div>
+                          {comparisonTemplates.length < 2 ? (
+                            <div className="flex h-48 items-center justify-center rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                              {comparisonTemplates.length === 0
+                                ? "비교할 템플릿을 두 개 이상 선택해주세요."
+                                : "템플릿을 한 개 더 선택하면 비교가 시작됩니다."}
+                            </div>
+                          ) : (
+                            <div className={cn(
+                              "grid gap-4",
+                              comparisonTemplates.length >= 3 ? "xl:grid-cols-3 md:grid-cols-2" : "md:grid-cols-2"
+                            )}>
+                              {comparisonTemplates.map((templateId) => {
+                                const template = templates.find((t) => t.id === templateId);
+                                if (!template) return null;
+                                return (
+                                  <Card key={template.id} className="flex h-full flex-col">
+                                    <CardHeader className="pb-3">
+                                      <CardTitle className="text-base">{template.name}</CardTitle>
+                                      <div className="text-xs text-muted-foreground">질문 {template.questionCount}개</div>
+                                    </CardHeader>
+                                    <CardContent className="flex flex-1 flex-col gap-3">
+                                      <div>
+                                        <p className="text-xs font-semibold text-muted-foreground">만족도 유형</p>
+                                        <div className="mt-1 flex flex-wrap gap-1.5">
+                                          {template.satisfactionTypes.length > 0 ? (
+                                            template.satisfactionTypes.map((type) => (
+                                              <Badge key={type} variant="secondary" className="text-[11px]">
+                                                {type}
+                                              </Badge>
+                                            ))
+                                          ) : (
+                                            <span className="text-[11px] text-muted-foreground">없음</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-semibold text-muted-foreground">최근 사용 설문</p>
+                                        <div className="mt-1 space-y-1.5 text-[11px] text-muted-foreground">
+                                          {template.recentSurveys.length === 0 ? (
+                                            <div>사용 기록 없음</div>
+                                          ) : (
+                                            template.recentSurveys.map((survey) => {
+                                              const displayDate =
+                                                formatRecentSurveyDate(survey.updated_at) ||
+                                                formatRecentSurveyDate(survey.start_date) ||
+                                                "날짜 정보 없음";
+                                              return (
+                                                <div key={survey.id} className="flex justify-between gap-3">
+                                                  <span className="truncate font-medium text-foreground">{survey.title}</span>
+                                                  <span>{displayDate}</span>
+                                                </div>
+                                              );
+                                            })
+                                          )}
+                                        </div>
+                                      </div>
+                                      <ScrollArea className="mt-auto max-h-56 pr-4">
+                                        <div className="space-y-2">
+                                          {template.questions.map((question, index) => (
+                                            <div key={question.id} className="rounded-lg border bg-card/50 p-3">
+                                              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                                <span>
+                                                  Q{index + 1}. {question.question_type}
+                                                </span>
+                                                {question.is_required && (
+                                                  <Badge variant="destructive" className="text-[10px]">
+                                                    필수
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                              <p className="mt-2 text-sm font-medium">{question.question_text}</p>
+                                              {question.satisfaction_type && (
+                                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                                  만족도: {question.satisfaction_type}
+                                                </p>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </ScrollArea>
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
+                  </TabsContent>
+                </Tabs>
+                <DialogFooter className="mt-4 gap-2">
+                  <Button variant="outline" onClick={handleCloseTemplateDialog} disabled={loadingTemplate}>
+                    취소
+                  </Button>
+                  <Button onClick={handleConfirmApply} disabled={loadingTemplate || selectedAssignments.length === 0}>
+                    {loadingTemplate ? "적용 중..." : "템플릿 적용"}
+                  </Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={confirmApplyOpen} onOpenChange={setConfirmApplyOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>템플릿 적용 확인</DialogTitle>
+                <DialogDescription>
+                  선택한 세션에 템플릿을 적용하면 해당 템플릿의 질문이 추가됩니다. 기존 질문은 유지됩니다.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                {selectedAssignments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">적용할 템플릿이 없습니다.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedAssignments.map((assignment) => (
+                      <div key={assignment.sessionId} className="rounded-lg border p-3">
+                        <div className="text-sm font-semibold text-foreground">
+                          {assignment.sessionName}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {assignment.instructorName ? `강사: ${assignment.instructorName}` : "강사 정보 없음"}
+                        </div>
+                        <div className="mt-2 text-sm">
+                          <span className="font-medium">템플릿:</span> {assignment.templateName}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  적용 후에는 세션별 질문 목록이 갱신되며, 필요한 경우 언제든 다른 템플릿을 다시 적용할 수 있습니다.
+                </p>
               </div>
               <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => {
-                  setTemplateSelectOpen(false);
-                  setTemplateSelections({});
-                }}>
+                <Button variant="outline" onClick={() => setConfirmApplyOpen(false)} disabled={loadingTemplate}>
                   취소
                 </Button>
-                <Button 
-                  onClick={handleApplySelectedTemplates}
-                  disabled={Object.values(templateSelections).every(v => !v || v === 'none') || loadingTemplate}
-                >
-                  {loadingTemplate ? '적용 중...' : '템플릿 적용'}
+                <Button onClick={handleApplySelectedTemplates} disabled={loadingTemplate || selectedAssignments.length === 0}>
+                  {loadingTemplate ? "적용 중..." : "적용"}
                 </Button>
               </DialogFooter>
             </DialogContent>
