@@ -135,6 +135,8 @@ const TemplateBuilder = () => {
   const [editingSection, setEditingSection] = useState<TemplateSection | null>(null);
   const [pendingFocusQuestionId, setPendingFocusQuestionId] = useState<string | null>(null);
   const [pendingFocusSectionId, setPendingFocusSectionId] = useState<string | null>(null);
+  const [questionToDelete, setQuestionToDelete] = useState<TemplateQuestion | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
@@ -331,14 +333,19 @@ const TemplateBuilder = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (!window.confirm('이 질문을 삭제하시겠습니까?')) return;
+  const requestDeleteQuestion = (question: TemplateQuestion) => {
+    setQuestionToDelete(question);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteQuestion = async () => {
+    if (!questionToDelete) return;
 
     try {
       const { error } = await supabase
         .from('template_questions')
         .delete()
-        .eq('id', questionId);
+        .eq('id', questionToDelete.id);
 
       if (error) throw error;
 
@@ -347,6 +354,8 @@ const TemplateBuilder = () => {
         description: "질문이 삭제되었습니다."
       });
 
+      setIsDeleteDialogOpen(false);
+      setQuestionToDelete(null);
       fetchTemplateData();
     } catch (error) {
       console.error('Error deleting question:', error);
@@ -356,6 +365,11 @@ const TemplateBuilder = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteDialogOpen(false);
+    setQuestionToDelete(null);
   };
 
   const handleAddSection = async (e: React.FormEvent) => {
@@ -479,7 +493,7 @@ const TemplateBuilder = () => {
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 hover:bg-gray-100"
-            onClick={() => handleDeleteQuestion(question.id)}
+            onClick={() => requestDeleteQuestion(question)}
           >
             <Trash2 className="h-4 w-4 text-gray-600" />
           </Button>
@@ -989,6 +1003,44 @@ const TemplateBuilder = () => {
           </div>
         </div>
       </main>
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setQuestionToDelete(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md border-t-4 border-rose-400">
+          <DialogHeader className="space-y-3 border-b border-rose-100 pb-3 text-left">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <DialogTitle className="text-lg font-semibold text-rose-900">질문 삭제</DialogTitle>
+                <DialogDescription className="text-sm text-rose-600">
+                  삭제된 질문은 되돌릴 수 없습니다. 계속하시겠습니까?
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4 pt-3">
+            <div className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">
+              {questionToDelete?.question_text ?? ''}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={handleCancelDelete}>
+                취소
+              </Button>
+              <Button type="button" variant="destructive" onClick={handleDeleteQuestion}>
+                삭제
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
