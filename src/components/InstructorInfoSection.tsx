@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Instructor {
   id: string;
@@ -14,18 +15,20 @@ interface Instructor {
 interface InstructorInfoSectionProps {
   instructor: Instructor | null;
   title?: string;
+  className?: string;
 }
 
-export const InstructorInfoSection: React.FC<InstructorInfoSectionProps> = ({ 
-  instructor, 
-  title = "강사 정보" 
+export const InstructorInfoSection: React.FC<InstructorInfoSectionProps> = ({
+  instructor,
+  title = "강사 정보",
+  className,
 }) => {
   if (!instructor) {
     return null;
   }
 
   return (
-    <Card className="mb-6 border-primary/20">
+    <Card className={cn("mb-6 border-primary/20", className)}>
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold text-primary">
           {title}

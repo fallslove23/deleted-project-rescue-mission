@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, Eye, AlertTriangle, Copy } from 'lucide-react';
 import { getSurveyUrl } from '@/lib/utils';
@@ -83,8 +84,9 @@ const SurveyPreview = () => {
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [currentQuestionInstructor, setCurrentQuestionInstructor] = useState<Instructor | null>(null);
   const [sessionInstructorMap, setSessionInstructorMap] = useState<Map<string, Instructor>>(new Map());
-  const [sessionsMap, setSessionsMap] = useState<Map<string, { session_name?: string; course_title?: string }>>(new Map());
+  const [sessionsMap, setSessionsMap] = useState<Map<string, { session_name?: string; course_title?: string; session_order?: number }>>(new Map());
   const [isCourseEvaluation, setIsCourseEvaluation] = useState(false);
+  const [hasCopied, setHasCopied] = useState(false);
 
   useEffect(() => {
     if (surveyId) {
@@ -243,14 +245,19 @@ const SurveyPreview = () => {
         .select(`
           id,
           session_name,
+          session_order,
           courses(title)
         `)
         .eq('survey_id', surveyId);
 
-      // 세션 맵 생성: session_id -> { session_name, course_title }
-      const sessionsMapTemp = new Map<string, { session_name?: string; course_title?: string }>();
+      // 세션 맵 생성: session_id -> { session_name, course_title, session_order }
+      const sessionsMapTemp = new Map<string, { session_name?: string; course_title?: string; session_order?: number }>();
       (sessionsData || []).forEach((s: any) => {
-        sessionsMapTemp.set(s.id, { session_name: s.session_name, course_title: s.courses?.title });
+        sessionsMapTemp.set(s.id, {
+          session_name: s.session_name,
+          course_title: s.courses?.title,
+          session_order: s.session_order,
+        });
       });
       setSessionsMap(sessionsMapTemp);
 
@@ -598,9 +605,118 @@ const SurveyPreview = () => {
   };
   
   const progress = calculateProgress();
-  
+
   const isLastStep = currentStep === totalSteps - 1;
   const currentQuestions = getCurrentStepQuestions();
+  const currentSessionId = currentQuestions[0]?.session_id;
+  const sessionDetails = Array.from(sessionsMap.entries())
+    .map(([id, info]) => ({
+      id,
+      session_name: info.session_name,
+      course_title: info.course_title,
+      session_order: info.session_order,
+      instructor: sessionInstructorMap.get(id) || null,
+    }))
+    .sort((a, b) => (a.session_order ?? 0) - (b.session_order ?? 0));
+  const hasInstructorInfo = Boolean(currentQuestionInstructor || instructor);
+  const hasSessionInfo = sessionDetails.length > 0;
+
+  const renderInstructorSection = (className = 'mb-0') => {
+    if (!hasInstructorInfo) {
+      return null;
+    }
+
+    const instructorToShow = currentQuestionInstructor || instructor;
+
+    return (
+      <InstructorInfoSection
+        instructor={instructorToShow}
+        title={currentQuestionInstructor ? "현재 강사" : "강사 정보"}
+        className={className}
+      />
+    );
+  };
+
+  const renderSessionInfoCard = (className = 'mb-0') => {
+    if (!hasSessionInfo) {
+      return null;
+    }
+
+    const cardClassName = ['border-primary/20', className].filter(Boolean).join(' ');
+
+    return (
+      <Card className={cardClassName}>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold">세션 안내</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {sessionDetails.map(detail => {
+            const isActive = detail.id === currentSessionId;
+            const containerClass = [
+              'rounded-lg border p-3 transition-colors',
+              isActive ? 'border-primary bg-primary/5' : 'border-border bg-muted/30',
+            ].join(' ');
+
+            return (
+              <div key={detail.id} className={containerClass}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium text-foreground">
+                      {detail.course_title || detail.session_name || '세션'}
+                    </p>
+                    {detail.course_title && detail.session_name && (
+                      <p className="text-xs text-muted-foreground">{detail.session_name}</p>
+                    )}
+                    {detail.instructor?.name && (
+                      <p className="text-xs text-muted-foreground">담당: {detail.instructor.name}</p>
+                    )}
+                  </div>
+                  {isActive && (
+                    <Badge variant="secondary" className="shrink-0">
+                      진행 중
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const handleCopyLink = async () => {
+    if (!surveyId) return;
+
+    const surveyUrl = getSurveyUrl(surveyId);
+
+    if (typeof navigator === 'undefined' || !navigator.clipboard || !navigator.clipboard.writeText) {
+      toast({
+        title: '클립보드를 지원하지 않습니다',
+        description: '브라우저에서 복사 기능을 지원하지 않습니다. 링크를 직접 선택해 복사해 주세요.',
+        variant: 'destructive',
+      });
+      setHasCopied(false);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(surveyUrl);
+      toast({
+        title: '링크 복사 완료',
+        description: '설문 링크가 클립보드에 복사되었습니다.',
+      });
+      setHasCopied(true);
+    } catch (error) {
+      console.error('Failed to copy survey link:', error);
+      toast({
+        title: '링크 복사 실패',
+        description: '브라우저 설정을 확인하거나 링크를 직접 복사해 주세요.',
+        variant: 'destructive',
+      });
+      setHasCopied(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -624,132 +740,136 @@ const SurveyPreview = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-6 max-w-2xl overflow-hidden">
-        {/* 미리보기 알림 */}
-        <Alert className="mb-6 bg-blue-50 border-blue-200">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            이것은 설문 미리보기 모드입니다. 응답 데이터는 실제로 저장되지 않습니다.
-          </AlertDescription>
-        </Alert>
+      <main className="container mx-auto px-3 sm:px-4 py-6 max-w-6xl overflow-hidden">
+        <div className="grid gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-6">
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                이것은 설문 미리보기 모드입니다. 응답 데이터는 실제로 저장되지 않습니다.
+              </AlertDescription>
+            </Alert>
 
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs sm:text-sm text-muted-foreground">
-              {currentStep + 1} / {totalSteps}
-            </span>
-            <span className="text-xs sm:text-sm text-muted-foreground">
-              {Math.round(progress)}% 완료
-            </span>
-          </div>
-          <Progress value={progress} className="h-2 mb-4" />
-        </div>
-
-        {/* 강사 정보 표시 - 현재 질문의 세션에 맞는 강사 표시 */}
-        {currentQuestionInstructor && (
-          <div className="mb-6">
-            <InstructorInfoSection instructor={currentQuestionInstructor} />
-          </div>
-        )}
-
-        {/* 섹션 헤더 */}
-        {currentQuestions.length > 0 && (() => {
-          const first = currentQuestions[0];
-          const sec = first.section_id ? sections.find(s => s.id === first.section_id) : undefined;
-          return sec ? (
-            <div className="mb-4">
-              <div className="text-base font-semibold">{sec.name}</div>
-              {sec.description && (
-                <div className="text-sm text-muted-foreground mt-1">{sec.description}</div>
-              )}
-            </div>
-          ) : null;
-        })()}
-
-        {/* 질문 카드 */}
-        {currentQuestions.map((question, index) => (
-          <Card key={question.id} className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-base sm:text-lg break-words flex items-start gap-2">
-                <span className="flex-1">{question.question_text}</span>
-                {question.is_required && (
-                  <span className="text-red-500 text-sm shrink-0">*</span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderQuestion(question)}
-            </CardContent>
-          </Card>
-        ))}
-
-        {/* 네비게이션 버튼 */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:justify-between items-stretch sm:items-center mt-8">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 0}
-            className="touch-friendly order-2 sm:order-1"
-          >
-            이전
-          </Button>
-          
-          {!isLastStep ? (
-            <Button
-              type="button"
-              onClick={handleNext}
-              className="touch-friendly order-1 sm:order-2"
-            >
-              다음
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={handlePreviewComplete}
-              className="touch-friendly bg-green-600 hover:bg-green-700 order-1 sm:order-2"
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              미리보기 완료
-            </Button>
-          )}
-        </div>
-
-        {/* 설문 링크 복사 섹션 */}
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Copy className="h-5 w-5" />
-                설문 링크 복사
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Input 
-                    value={getSurveyUrl(surveyId!)} 
-                    readOnly 
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => {
-                      const surveyUrl = getSurveyUrl(surveyId!);
-                      navigator.clipboard.writeText(surveyUrl);
-                      toast({
-                        title: "링크 복사 완료",
-                        description: "설문 링크가 클립보드에 복사되었습니다.",
-                      });
-                    }}
-                    variant="outline"
-                    size="icon"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  {currentStep + 1} / {totalSteps}
+                </span>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  {Math.round(progress)}% 완료
+                </span>
               </div>
-            </CardContent>
-          </Card>
+              <Progress value={progress} className="h-2" />
+            </div>
+
+            <div className="space-y-6 lg:hidden">
+              {renderInstructorSection()}
+              {renderSessionInfoCard()}
+            </div>
+
+            <Card className="max-w-full">
+              <CardHeader className="px-4 sm:px-6">
+                <CardTitle className="text-base sm:text-lg break-words">
+                  {currentQuestions.length > 1 ? `페이지 ${currentStep + 1}` : `질문 ${currentStep + 1}`}
+                </CardTitle>
+                {(() => {
+                  const cur = getCurrentStepQuestions();
+                  const first = cur[0];
+                  if (!first || !first.section_id) return null;
+                  const s = sections.find((x) => x.id === first.section_id);
+                  return s?.description ? <p className="text-muted-foreground text-sm break-words">{s.description}</p> : null;
+                })()}
+              </CardHeader>
+
+              <CardContent className="space-y-6 px-4 sm:px-6 pb-4 sm:pb-6">
+                {currentQuestions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">이 섹션에는 질문이 없습니다.</div>
+                ) : (
+                  currentQuestions.map((q, index) => (
+                    <div key={q.id} className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                      <Label className="text-sm sm:text-base break-words hyphens-auto leading-relaxed block">
+                        {currentQuestions.length > 1 && (
+                          <span className="text-sm text-muted-foreground mr-2">{index + 1}.</span>
+                        )}
+                        {q.question_text}
+                        {q.is_required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                      <div className="max-w-full overflow-x-auto">{renderQuestion(q)}</div>
+                    </div>
+                  ))
+                )}
+
+                <div className="flex justify-between pt-6 gap-3 flex-wrap sm:flex-nowrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={currentStep === 0}
+                    className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-1"
+                  >
+                    이전
+                  </Button>
+
+                  {!isLastStep ? (
+                    <Button
+                      type="button"
+                      onClick={handleNext}
+                      className="touch-friendly flex-1 sm:flex-none sm:min-w-[100px] order-2"
+                    >
+                      다음
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={handlePreviewComplete}
+                      className="touch-friendly flex-1 sm:flex-none sm:min-w-[140px] order-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      미리보기 완료
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Copy className="h-5 w-5" />
+                  설문 링크 공유
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Input value={getSurveyUrl(surveyId!)} readOnly className="w-full" />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button onClick={handleCopyLink} className="touch-friendly w-full sm:w-auto">
+                    <Copy className="h-4 w-4 mr-2" />
+                    링크 복사
+                  </Button>
+                  {hasCopied && (
+                    <Button
+                      onClick={handleCopyLink}
+                      variant="outline"
+                      className="touch-friendly w-full sm:w-auto"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      링크 재복사
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  복사 기능이 동작하지 않으면 위 링크를 직접 선택해 복사해 주세요.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {(hasInstructorInfo || hasSessionInfo) && (
+            <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24 h-fit">
+              {renderInstructorSection('mb-0')}
+              {renderSessionInfoCard('mb-0')}
+            </aside>
+          )}
         </div>
       </main>
     </div>
