@@ -65,6 +65,7 @@ const InstructorManagement = React.forwardRef<{
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [instructorRoles, setInstructorRoles] = useState<Record<string, string[]>>({});
+  const [instructorAccountStatus, setInstructorAccountStatus] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,8 +115,8 @@ const InstructorManagement = React.forwardRef<{
       setCourses(coursesRes.data || []);
       setInstructorCourses(instructorCoursesRes.data || []);
 
-      // 강사별 역할 정보 조회
-      await fetchInstructorRoles();
+      // 강사별 역할 정보 및 계정 상태 조회
+      await fetchInstructorRoles(instructorsRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -128,7 +129,7 @@ const InstructorManagement = React.forwardRef<{
     }
   };
 
-  const fetchInstructorRoles = async () => {
+  const fetchInstructorRoles = async (instructorsList?: Instructor[]) => {
     try {
       // user_roles를 먼저 조회하고 profiles와 매칭
       const { data: userRoles, error: rolesError } = await supabase
@@ -144,9 +145,13 @@ const InstructorManagement = React.forwardRef<{
 
       if (profilesError) throw profilesError;
 
+      const currentInstructors = instructorsList ?? instructors;
       const rolesByInstructor: Record<string, string[]> = {};
+      const connectedInstructorIds = new Set<string>();
+
       profiles?.forEach(profile => {
         if (profile.instructor_id) {
+          connectedInstructorIds.add(profile.instructor_id);
           const userRolesList = userRoles?.filter(ur => ur.user_id === profile.id);
           if (userRolesList && userRolesList.length > 0) {
             rolesByInstructor[profile.instructor_id] = userRolesList.map(ur => ur.role);
@@ -154,7 +159,13 @@ const InstructorManagement = React.forwardRef<{
         }
       });
 
+      const accountStatus: Record<string, boolean> = {};
+      currentInstructors.forEach(inst => {
+        accountStatus[inst.id] = connectedInstructorIds.has(inst.id);
+      });
+
       setInstructorRoles(rolesByInstructor);
+      setInstructorAccountStatus(accountStatus);
     } catch (error) {
       console.error('Error fetching instructor roles:', error);
     }
@@ -644,7 +655,7 @@ const InstructorManagement = React.forwardRef<{
         variant: "default"
       });
 
-      // 역할 정보 새로고침
+      // 역할 및 계정 상태 새로고침
       await fetchInstructorRoles();
     } catch (error) {
       console.error('Error syncing instructors:', error);
@@ -652,6 +663,84 @@ const InstructorManagement = React.forwardRef<{
         title: "오류",
         description: "계정 동기화 중 오류가 발생했습니다.",
         variant: "destructive"
+      });
+    } finally {
+      setCreatingUsers(false);
+    }
+  };
+
+  const handleCreateInstructorAccount = async (instructor: Instructor) => {
+    if (!instructor.email) {
+      toast({
+        title: '오류',
+        description: '이메일이 등록되지 않은 강사는 계정을 생성할 수 없습니다.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setCreatingUsers(true);
+    try {
+      const { error } = await supabase.rpc('create_instructor_account', {
+        instructor_email: instructor.email,
+        instructor_password: 'bsedu123',
+        instructor_id_param: instructor.id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: '계정 생성 완료',
+        description: `${instructor.name} 강사의 계정 생성이 완료되었습니다.`,
+        variant: 'default'
+      });
+
+      await fetchInstructorRoles();
+    } catch (error) {
+      console.error('Error creating instructor account:', error);
+      toast({
+        title: '오류',
+        description: '강사 계정 생성 중 오류가 발생했습니다.',
+        variant: 'destructive'
+      });
+    } finally {
+      setCreatingUsers(false);
+    }
+  };
+
+  const handleSyncInstructorAccount = async (instructor: Instructor) => {
+    if (!instructor.email) {
+      toast({
+        title: '오류',
+        description: '이메일이 등록되지 않은 강사는 동기화할 수 없습니다.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setCreatingUsers(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-instructor-users', {
+        body: { instructors: [instructor] }
+      });
+
+      if (error) throw error;
+
+      const processedCount = data?.successful?.length || 1;
+
+      toast({
+        title: '동기화 완료',
+        description: `${processedCount}명의 강사 계정이 동기화되었습니다.`,
+        variant: 'default'
+      });
+
+      await fetchInstructorRoles();
+    } catch (error) {
+      console.error('Error syncing instructor account:', error);
+      toast({
+        title: '오류',
+        description: '강사 계정 동기화 중 오류가 발생했습니다.',
+        variant: 'destructive'
       });
     } finally {
       setCreatingUsers(false);
@@ -767,7 +856,7 @@ const InstructorManagement = React.forwardRef<{
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">계정 연결된 강사</p>
                   <p className="text-2xl font-bold">
-                    {Object.keys(instructorRoles).length}
+                    {Object.values(instructorAccountStatus).filter(Boolean).length}
                   </p>
                 </div>
               </div>
@@ -780,7 +869,8 @@ const InstructorManagement = React.forwardRef<{
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredInstructors.map((instructor) => {
               const instructorCoursesData = getInstructorCourses(instructor.id);
-              
+              const isAccountConnected = instructorAccountStatus[instructor.id];
+
               return (
                 <Card key={instructor.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
@@ -830,8 +920,41 @@ const InstructorManagement = React.forwardRef<{
                         {instructor.bio}
                       </p>
                     )}
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant={isAccountConnected ? 'secondary' : 'destructive'}
+                        className="text-xs"
+                      >
+                        {isAccountConnected ? '계정 연결됨' : '계정 미연결'}
+                      </Badge>
+                      {!isAccountConnected && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => handleCreateInstructorAccount(instructor)}
+                            disabled={creatingUsers}
+                          >
+                            <UserPlus className="mr-1 h-3 w-3" />
+                            계정 생성
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => handleSyncInstructorAccount(instructor)}
+                            disabled={creatingUsers}
+                          >
+                            <RefreshCcw className={`mr-1 h-3 w-3 ${creatingUsers ? 'animate-spin' : ''}`} />
+                            계정 동기화
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </CardHeader>
-                  
+
                   <CardContent className="pt-0 space-y-4">
                     {/* Roles */}
                     <div>
@@ -936,6 +1059,7 @@ const InstructorManagement = React.forwardRef<{
                     <tr className="border-b">
                       <th className="text-left p-4 font-medium">강사</th>
                       <th className="text-left p-4 font-medium">이메일</th>
+                      <th className="text-left p-4 font-medium">계정 상태</th>
                       <th className="text-left p-4 font-medium">역할</th>
                       <th className="text-left p-4 font-medium">담당 과목</th>
                       <th className="text-left p-4 font-medium">작업</th>
@@ -944,7 +1068,8 @@ const InstructorManagement = React.forwardRef<{
                   <tbody>
                     {filteredInstructors.map((instructor) => {
                       const instructorCoursesData = getInstructorCourses(instructor.id);
-                      
+                      const isAccountConnected = instructorAccountStatus[instructor.id];
+
                       return (
                         <tr key={instructor.id} className="border-b hover:bg-muted/50">
                           <td className="p-4">
@@ -967,6 +1092,40 @@ const InstructorManagement = React.forwardRef<{
                           </td>
                           <td className="p-4">
                             <p className="text-sm">{instructor.email || '-'}</p>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge
+                                variant={isAccountConnected ? 'secondary' : 'destructive'}
+                                className="text-xs"
+                              >
+                                {isAccountConnected ? '계정 연결됨' : '계정 미연결'}
+                              </Badge>
+                              {!isAccountConnected && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleCreateInstructorAccount(instructor)}
+                                    disabled={creatingUsers}
+                                  >
+                                    <UserPlus className="mr-1 h-3 w-3" />
+                                    계정 생성
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => handleSyncInstructorAccount(instructor)}
+                                    disabled={creatingUsers}
+                                  >
+                                    <RefreshCcw className={`mr-1 h-3 w-3 ${creatingUsers ? 'animate-spin' : ''}`} />
+                                    계정 동기화
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4">
                             <div className="flex flex-wrap gap-1">
@@ -1268,3 +1427,4 @@ const InstructorManagement = React.forwardRef<{
 InstructorManagement.displayName = 'InstructorManagement';
 
 export default InstructorManagement;
+
