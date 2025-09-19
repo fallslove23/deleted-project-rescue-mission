@@ -170,13 +170,13 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
     setIsDialogOpen(true);
   };
 
-  const handleDeleteClick = (template: Template) => {
+  const openDeleteDialog = (template: Template) => {
     setTemplateToDelete(template);
     setIsDeleteDialogOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!templateToDelete) {
+    if (!templateToDelete || isDeleting) {
       return;
     }
 
@@ -221,8 +221,8 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
       });
     } finally {
       setIsDeleting(false);
-      setIsDeleteDialogOpen(false);
       setTemplateToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -554,8 +554,7 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
                        <Button
                          variant="outline"
                          size="sm"
-                         onClick={() => handleDeleteClick(template)}
-                         disabled={isDeleting}
+                         onClick={() => openDeleteDialog(template)}
                          className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
                        >
                          <Trash2 className="h-3 w-3 sm:mr-1 flex-shrink-0" />
@@ -591,7 +590,6 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
           setIsDeleteDialogOpen(open);
           if (!open) {
             setTemplateToDelete(null);
-            setIsDeleting(false);
           }
         }}
         title="템플릿 삭제"
@@ -607,9 +605,8 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
           </>
         }
         primaryAction={{
-          label: isDeleting ? '삭제 중...' : '삭제',
+          label: '삭제',
           variant: 'destructive',
-          disabled: isDeleting,
           onClick: () => {
             void handleDelete();
           },
