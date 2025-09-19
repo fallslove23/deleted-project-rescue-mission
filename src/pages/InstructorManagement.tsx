@@ -502,20 +502,36 @@ const InstructorManagement = React.forwardRef<{
     return courses.filter(course => instructorCourseIds.includes(course.id));
   };
 
-  // Filter instructors based on search query and role
-  const filteredInstructors = instructors.filter(instructor => {
-    // Only include instructors who have the 'instructor' role
-    const hasInstructorRole = instructorRoles[instructor.id]?.includes('instructor');
-    if (!hasInstructorRole) return false;
+  // Filter instructors based on search query while surfacing those without linked accounts
+  const filteredInstructors = instructors
+    .filter(instructor => {
+      const searchLower = searchQuery.toLowerCase();
+      const instructorCoursesData = getInstructorCourses(instructor.id);
+      const courseTitles = instructorCoursesData.map(course => course.title.toLowerCase()).join(' ');
 
-    const searchLower = searchQuery.toLowerCase();
-    const instructorCoursesData = getInstructorCourses(instructor.id);
-    const courseTitles = instructorCoursesData.map(course => course.title.toLowerCase()).join(' ');
-    
-    return instructor.name.toLowerCase().includes(searchLower) ||
-           (instructor.email && instructor.email.toLowerCase().includes(searchLower)) ||
-           courseTitles.includes(searchLower);
-  });
+      return (
+        instructor.name.toLowerCase().includes(searchLower) ||
+        (instructor.email && instructor.email.toLowerCase().includes(searchLower)) ||
+        courseTitles.includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      const aConnected = instructorAccountStatus[a.id] ? 1 : 0;
+      const bConnected = instructorAccountStatus[b.id] ? 1 : 0;
+      const aHasInstructorRole = instructorRoles[a.id]?.includes('instructor') ? 1 : 0;
+      const bHasInstructorRole = instructorRoles[b.id]?.includes('instructor') ? 1 : 0;
+
+      // Prioritize connected instructors and those already tagged with the instructor role
+      if (aConnected !== bConnected) {
+        return bConnected - aConnected;
+      }
+
+      if (aHasInstructorRole !== bHasInstructorRole) {
+        return bHasInstructorRole - aHasInstructorRole;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
 
   // Filter courses based on search query in dialog
   const filteredCourses = courses.filter(course => {
