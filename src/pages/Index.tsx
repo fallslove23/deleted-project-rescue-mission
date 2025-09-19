@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Menu, Clock, Calendar, Users, BarChart, TrendingUp, BookOpen, FileText, Filter } from 'lucide-react';
 import { MobileOptimizedContainer } from '@/components/MobileOptimizedContainer';
 import LoadingScreen from '@/components/LoadingScreen';
+import emptyStateIllustration from '@/assets/empty-state-illustration.svg';
 
 interface Survey {
   id: string;
@@ -53,6 +54,8 @@ const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const scheduleUrl = import.meta.env.VITE_SCHEDULE_URL as string | undefined;
+  const contactUrl = import.meta.env.VITE_CONTACT_URL as string | undefined;
 
   useEffect(() => {
     fetchData();
@@ -191,6 +194,29 @@ const Index = () => {
       handleSurveyNavigation(surveyId);
     }
   };
+
+  const handleExternalNavigation = (url: string | undefined, fallbackMessage: string) => {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    toast({
+      title: '링크를 준비 중입니다.',
+      description: fallbackMessage,
+      variant: 'destructive',
+    });
+  };
+
+  const emptyStateMessage = loading
+    ? '설문을 불러오는 중입니다...'
+    : timeFilter === 'today'
+      ? selectedCourse === 'all'
+        ? '오늘 진행중인 설문조사가 없습니다.'
+        : '선택한 과정에 오늘 진행중인 설문조사가 없습니다.'
+      : selectedCourse === 'all'
+        ? '현재 진행중인 설문조사가 없습니다.'
+        : '선택한 과정에 진행중인 설문조사가 없습니다.';
 
   if (loading) {
     return <LoadingScreen />;
@@ -348,50 +374,75 @@ const Index = () => {
           )}
 
           {surveys.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground text-lg font-sans">
-                {loading 
-                  ? '설문을 불러오는 중입니다...'
-                  : timeFilter === 'today'
-                    ? selectedCourse === 'all' 
-                      ? '오늘 진행중인 설문조사가 없습니다.' 
-                      : '선택한 과정에 오늘 진행중인 설문조사가 없습니다.'
-                    : selectedCourse === 'all' 
-                      ? '현재 진행중인 설문조사가 없습니다.' 
-                      : '선택한 과정에 진행중인 설문조사가 없습니다.'
-                }
-              </p>
+            <div className="flex min-h-[50vh] flex-col items-center justify-center px-6 py-12 text-center">
+              <img
+                src={emptyStateIllustration}
+                alt="참여 가능한 설문이 없는 상태를 설명하는 일러스트"
+                className="w-full max-w-xs md:max-w-sm"
+              />
+              <div className="mt-8 space-y-3">
+                <h3 className="text-2xl font-semibold text-foreground font-display">참여 가능한 설문이 없어요</h3>
+                <p className="text-base text-muted-foreground font-sans">{emptyStateMessage}</p>
+                {!loading && (
+                  <p className="text-sm text-muted-foreground font-sans">
+                    다음 교육 일정을 확인하거나 담당자에게 문의해 주세요.
+                  </p>
+                )}
+              </div>
+
               {!loading && (
-                <div className="mt-4 space-y-2">
-                  {timeFilter === 'today' && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setTimeFilter('all')}
-                      className="mr-2"
+                <div className="mt-10 flex w-full max-w-xl flex-col items-center gap-6">
+                  <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
+                    {timeFilter === 'today' && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setTimeFilter('all')}
+                        className="w-full sm:w-auto"
+                      >
+                        전체 설문 보기
+                      </Button>
+                    )}
+                    {selectedCourse !== 'all' && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedCourse('all')}
+                        className="w-full sm:w-auto"
+                      >
+                        모든 과정 보기
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto"
+                      onClick={() => handleExternalNavigation(scheduleUrl, '강의 일정 확인 링크가 아직 설정되지 않았습니다.')}
                     >
-                      전체 설문 보기
+                      강의 일정 확인
                     </Button>
-                  )}
-                  {selectedCourse !== 'all' && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setSelectedCourse('all')}
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => handleExternalNavigation(contactUrl, '문의하기 링크가 아직 설정되지 않았습니다.')}
                     >
-                      모든 과정 보기
+                      문의하기
                     </Button>
+                  </div>
+
+                  {surveys.length === 0 && allSurveys.length === 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      <p>설문 데이터를 불러올 수 없습니다.</p>
+                      <Button
+                        variant="outline"
+                        onClick={() => window.location.reload()}
+                        className="mt-2"
+                      >
+                        페이지 새로고침
+                      </Button>
+                    </div>
                   )}
-                </div>
-              )}
-              {!loading && surveys.length === 0 && allSurveys.length === 0 && (
-                <div className="mt-4 text-sm text-muted-foreground">
-                  <p>설문 데이터를 불러올 수 없습니다.</p>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => window.location.reload()}
-                    className="mt-2"
-                  >
-                    페이지 새로고침
-                  </Button>
                 </div>
               )}
             </div>
