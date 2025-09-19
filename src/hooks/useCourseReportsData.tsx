@@ -119,23 +119,26 @@ export const useCourseReportsData = (
   // 강사 ID 찾기
   useEffect(() => {
     const fetchInstructorId = async () => {
-      if (isInstructor && user?.email) {
-        try {
-          const { data } = await supabase
-            .from('instructors')
-            .select('id')
-            .eq('email', user.email)
-            .maybeSingle();
-          
-          if (data) {
-            setInstructorId(data.id);
-          }
-        } catch (error) {
-          console.error('강사 ID 조회 오류:', error);
+      if (!isInstructor || !user?.email) {
+        setInstructorId(null);
+        return;
+      }
+
+      try {
+        const { data } = await supabase
+          .from('instructors')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (data) {
+          setInstructorId(data.id);
         }
+      } catch (error) {
+        console.error('강사 ID 조회 오류:', error);
       }
     };
-    
+
     fetchInstructorId();
   }, [isInstructor, user?.email]);
 
