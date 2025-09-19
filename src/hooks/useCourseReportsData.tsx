@@ -131,9 +131,7 @@ export const useCourseReportsData = (
           .eq('email', user.email)
           .maybeSingle();
 
-        if (data) {
-          setInstructorId(data.id);
-        }
+        setInstructorId(data?.id ?? null);
       } catch (error) {
         console.error('강사 ID 조회 오류:', error);
       }
