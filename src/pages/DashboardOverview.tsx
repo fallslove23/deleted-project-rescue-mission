@@ -470,7 +470,7 @@ const DashboardOverview: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">만족도 평균</span>
-                    <span className="font-semibold text-foreground">4.2/5.0</span>
+                    <span className="font-semibold text-foreground">4.2/10.0</span>
                   </div>
                 </div>
               </CardContent>
