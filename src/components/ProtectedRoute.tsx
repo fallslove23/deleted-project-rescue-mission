@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import PermissionGateFallback from './PermissionGateFallback';
 
@@ -9,12 +9,12 @@ const SUPPORT_MAIL_TO = 'mailto:support@example.com';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: string[];
-  redirectTo?: string;
 }
 
-const ProtectedRoute = ({ children, allowedRoles, redirectTo }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, userRoles, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const didRedirect = useRef(false);
 
   const needRoleCheck = useMemo(() => !!(allowedRoles && allowedRoles.length > 0), [allowedRoles]);
@@ -39,15 +39,24 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo }: ProtectedRoutePr
     // 접근권한 없음 → 역할별 기본 랜딩으로 보냄
     if (needRoleCheck && !hasAccess) {
       didRedirect.current = true;
-      if (userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director')) {
-        navigate(redirectTo || '/dashboard', { replace: true });
-      } else if (userRoles.includes('instructor')) {
-        navigate(redirectTo || '/dashboard/results', { replace: true });
-      } else {
-        navigate('/auth', { replace: true });
+      const params = new URLSearchParams();
+      params.set('from', `${location.pathname}${location.search}`);
+      if (allowedRoles && allowedRoles.length > 0) {
+        params.set('required', allowedRoles.join(','));
       }
+      navigate(`/access-denied?${params.toString()}`, { replace: true });
     }
-  }, [loading, user, userRoles, needRoleCheck, hasAccess, redirectTo, navigate]);
+  }, [
+    loading,
+    user,
+    userRoles,
+    needRoleCheck,
+    hasAccess,
+    allowedRoles,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
 
   const shouldShowVerification = useMemo(
     () => loading || (needRoleCheck && Boolean(user) && userRoles.length === 0),
