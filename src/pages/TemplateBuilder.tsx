@@ -19,7 +19,7 @@ import {
   Edit,
   FolderPlus,
   MessageSquarePlus,
-  Folders,
+  Folder,
   Sliders,
   AlignLeft,
   ListChecks,
@@ -682,7 +682,7 @@ const TemplateBuilder = () => {
                     <DialogHeader className="space-y-3 border-b border-sky-100 pb-3 text-left">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-600">
-                          <Folders className="h-6 w-6" />
+                          <Folder className="h-6 w-6" />
                         </div>
                         <div className="space-y-1">
                           <DialogTitle className="text-lg font-semibold text-sky-900">
