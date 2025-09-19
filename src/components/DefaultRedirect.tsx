@@ -3,7 +3,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import LoadingScreen from './LoadingScreen';
+import PermissionGateFallback from './PermissionGateFallback';
+
+const HELP_ARTICLE_URL = 'https://support.example.com/articles/role-access';
+const SUPPORT_MAIL_TO = 'mailto:support@example.com';
 
 const DefaultRedirect = () => {
   const { user, userRoles, loading } = useAuth();
@@ -56,9 +59,22 @@ const DefaultRedirect = () => {
     return priorities[role] || 99;
   };
 
-  const rawRoles = userRoles.length ? userRoles : (extraRoles ?? []);
+  const rawRoles = useMemo(() => {
+    if (userRoles.length) return [...userRoles];
+    if (Array.isArray(extraRoles)) return [...extraRoles];
+    return [] as string[];
+  }, [userRoles, extraRoles]);
+
   // 역할 우선순위로 정렬 (instructor를 맨 뒤로)
-  const finalRoles = rawRoles.sort((a: string, b: string) => getRolePriority(a) - getRolePriority(b));
+  const finalRoles = useMemo(
+    () => [...rawRoles].sort((a: string, b: string) => getRolePriority(a) - getRolePriority(b)),
+    [rawRoles]
+  );
+
+  const shouldShowVerification = useMemo(
+    () => loading || (Boolean(user) && rawRoles.length === 0),
+    [loading, user, rawRoles]
+  );
 
   useEffect(() => {
     if (loading || didRedirect.current || isPreview) return;
@@ -95,9 +111,21 @@ const DefaultRedirect = () => {
   // 미리보기 모드에선 아무 것도 하지 않음
   if (isPreview) return null;
 
-  // 로딩/역할 대기 시 스피너
-  if (loading || (user && finalRoles.length === 0)) {
-    return <LoadingScreen />;
+  const handleRelogin = () => {
+    didRedirect.current = true;
+    const authPath = next ? `/auth?next=${encodeURIComponent(next)}` : '/auth';
+    navigate(authPath, { replace: true });
+  };
+
+  // 로딩/역할 대기 시 중간 상태 노출
+  if (shouldShowVerification) {
+    return (
+      <PermissionGateFallback
+        helpHref={HELP_ARTICLE_URL}
+        supportHref={SUPPORT_MAIL_TO}
+        onRetry={handleRelogin}
+      />
+    );
   }
 
   return null;

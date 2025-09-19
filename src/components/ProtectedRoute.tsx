@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import LoadingScreen from './LoadingScreen';
+import PermissionGateFallback from './PermissionGateFallback';
+
+const HELP_ARTICLE_URL = 'https://support.example.com/articles/role-access';
+const SUPPORT_MAIL_TO = 'mailto:support@example.com';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -46,9 +49,25 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo }: ProtectedRoutePr
     }
   }, [loading, user, userRoles, needRoleCheck, hasAccess, redirectTo, navigate]);
 
-  // 로딩 중이거나, 역할 체크가 필요한데 아직 roles가 비어있으면 로딩
-  if (loading || (needRoleCheck && user && userRoles.length === 0)) {
-    return <LoadingScreen />;
+  const shouldShowVerification = useMemo(
+    () => loading || (needRoleCheck && Boolean(user) && userRoles.length === 0),
+    [loading, needRoleCheck, user, userRoles]
+  );
+
+  const handleRelogin = () => {
+    didRedirect.current = true;
+    navigate('/auth', { replace: true });
+  };
+
+  // 로딩 중이거나, 역할 체크가 필요한데 아직 roles가 비어있으면 중간 화면 제공
+  if (shouldShowVerification) {
+    return (
+      <PermissionGateFallback
+        helpHref={HELP_ARTICLE_URL}
+        supportHref={SUPPORT_MAIL_TO}
+        onRetry={handleRelogin}
+      />
+    );
   }
 
   // 미인증: useEffect에서 리다이렉트, 여기선 렌더 중단
