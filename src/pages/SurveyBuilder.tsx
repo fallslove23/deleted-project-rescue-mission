@@ -489,8 +489,8 @@ export default function SurveyBuilder() {
   );
 
   const updateSurveyStatus = useCallback(
-    async (next: SurveyWorkflowStatus) => {
-      if (!surveyId) return;
+    async (next: SurveyWorkflowStatus): Promise<boolean> => {
+      if (!surveyId) return false;
       setStatusUpdating(true);
 
       const updates: { workflow_status: SurveyWorkflowStatus; status?: Survey["status"] } = {
@@ -503,6 +503,7 @@ export default function SurveyBuilder() {
         updates.status = "draft";
       }
 
+      let succeeded = false;
       try {
         const { error } = await supabase.from("surveys").update(updates).eq("id", surveyId);
         if (error) throw error;
@@ -526,6 +527,7 @@ export default function SurveyBuilder() {
         } else {
           toast({ title: "초안으로 변경", description: "설문이 다시 편집 가능한 상태가 되었습니다." });
         }
+        succeeded = true;
       } catch (e: any) {
         console.error("Status update error:", e);
         toast({
@@ -536,6 +538,8 @@ export default function SurveyBuilder() {
       } finally {
         setStatusUpdating(false);
       }
+
+      return succeeded;
     },
     [surveyId, survey?.status, loadSurvey, toast]
   );
@@ -580,12 +584,15 @@ export default function SurveyBuilder() {
       setChecklistError("모든 확인 항목에 동의해야 진행할 수 있습니다.");
       return;
     }
+    let succeeded = false;
     if (checklistContext === "review") {
-      await updateSurveyStatus("review_requested");
+      succeeded = await updateSurveyStatus("review_requested");
     } else if (checklistContext === "deploy") {
-      await updateSurveyStatus("deployed");
+      succeeded = await updateSurveyStatus("deployed");
     }
-    handleChecklistOpenChange(false);
+    if (succeeded) {
+      handleChecklistOpenChange(false);
+    }
   }, [allChecklistChecked, checklistContext, handleChecklistOpenChange, updateSurveyStatus]);
 
   const handleChecklistToggle = useCallback((id: string, value: boolean) => {
