@@ -2446,6 +2446,36 @@ export type Database = {
           total_responses: number
         }[]
       }
+      get_survey_analysis: {
+        Args: {
+          p_year?: number | null
+          p_round?: number | null
+          p_course_name?: string | null
+          p_instructor_id?: string | null
+          p_include_test?: boolean | null
+        }
+        Returns: {
+          survey_id: string
+          title: string
+          description: string | null
+          education_year: number
+          education_round: number
+          course_name: string | null
+          status: string | null
+          instructor_id: string | null
+          instructor_name: string | null
+          expected_participants: number | null
+          is_test: boolean | null
+          response_count: number
+          last_response_at: string | null
+          avg_overall_satisfaction: number | null
+          avg_course_satisfaction: number | null
+          avg_instructor_satisfaction: number | null
+          avg_operation_satisfaction: number | null
+          question_count: number
+          question_type_distribution: Json
+        }[]
+      }
       get_survey_responses_by_date_range: {
         Args: { end_date?: string; start_date?: string }
         Returns: {
