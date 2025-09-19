@@ -1,28 +1,60 @@
 // src/components/AdminSidebar.tsx
 import { NavLink, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { 
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, 
-  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { 
-  LayoutDashboard, BarChart3, Users, UserCheck, BookOpen, FileText, 
-  Mail, Settings, TrendingUp, Award, PieChart, Database, Code, Shield
+import {
+  LayoutDashboard,
+  BarChart3,
+  Users,
+  UserCheck,
+  BookOpen,
+  FileText,
+  Mail,
+  Settings,
+  TrendingUp,
+  Award,
+  PieChart,
+  Database,
+  Code,
+  Shield,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function AdminSidebar() {
   const { userRoles, user } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  
+
   const viewMode = searchParams.get('view'); // URL에서 view 파라미터 읽기
   const isAdmin = userRoles.includes('admin');
   const isInstructor = userRoles.includes('instructor');
   const isDeveloper = user?.email === 'sethetrend87@osstem.com';
 
+  type MenuItem = {
+    title: string;
+    url: string;
+    icon: LucideIcon;
+    exact: boolean;
+  };
+
+  type MenuSection = {
+    title: string;
+    items: MenuItem[];
+  };
+
   // 메뉴 구성 함수
   const getMenuItems = () => {
-    const baseAdminMenuItems = [
+    const baseAdminMenuItems: MenuSection[] = [
       {
         title: "개요",
         items: [
@@ -59,7 +91,7 @@ export function AdminSidebar() {
       }
     ];
 
-    const baseInstructorMenuItems = [
+    const baseInstructorMenuItems: MenuSection[] = [
       {
         title: "분석",
         items: [
@@ -76,7 +108,7 @@ export function AdminSidebar() {
 
 
   // 교육생 뷰 메뉴 (오늘의 설문만)
-  const studentMenuItems = [
+  const studentMenuItems: MenuSection[] = [
     {
       title: "설문",
       items: [
@@ -86,7 +118,7 @@ export function AdminSidebar() {
   ];
 
   // 강사 뷰 메뉴 (결과 분석 및 과정 통계)
-  const instructorViewMenuItems = [
+  const instructorViewMenuItems: MenuSection[] = [
     {
       title: "설문 분석",
       items: [
@@ -97,7 +129,7 @@ export function AdminSidebar() {
   ];
 
   // view 모드에 따른 메뉴 선택
-  let menuItems;
+  let menuItems: MenuSection[];
   if (viewMode === 'student') {
     menuItems = studentMenuItems;
   } else if (viewMode === 'instructor') {
@@ -109,105 +141,101 @@ export function AdminSidebar() {
     menuItems = isAdmin ? baseAdminMenuItems : baseInstructorMenuItems;
   }
 
+  const normalizePath = (path: string) => {
+    if (!path) {
+      return "/";
+    }
+
+    const trimmed = path.replace(/\/+$/, "");
+    return trimmed === "" ? "/" : trimmed;
+  };
+
+  const currentPath = normalizePath(location.pathname);
+
+  const renderMenuItem = (
+    item: MenuItem,
+    options: { variant?: "default" | "developer" } = {}
+  ) => {
+    const { variant = "default" } = options;
+    const targetPath = normalizePath(item.url);
+    const isActive = item.exact
+      ? currentPath === targetPath
+      : currentPath.startsWith(targetPath);
+
+    const iconClass =
+      variant === "developer"
+        ? "text-destructive group-data-[active=true]/menu-button:text-destructive-foreground"
+        : "text-sidebar-foreground/55 group-data-[active=true]/menu-button:text-sidebar-primary-foreground";
+
+    return (
+      <SidebarMenuItem key={item.url}>
+        <SidebarMenuButton
+          asChild
+          isActive={isActive}
+          className={cn(
+            "group/menu-button rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            variant === "developer"
+              ? "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground"
+              : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-sidebar-ring/40 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-sm"
+          )}
+        >
+          <NavLink
+            to={item.url}
+            end={item.exact}
+            className="flex w-full items-center gap-3"
+          >
+            <item.icon
+              className={cn(
+                "h-4 w-4 flex-shrink-0 transition-colors",
+                iconClass
+              )}
+            />
+            <span className="truncate leading-5">{item.title}</span>
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
   return (
-    <Sidebar className="border-r bg-sidebar">
-      <style>
-        {`
-          [data-sidebar="menu-button"] {
-            color: #7c3aed !important;
-          }
-          [data-sidebar="menu-button"]:hover {
-            color: #6d28d9 !important;
-            background-color: rgba(124, 58, 237, 0.1) !important;
-          }
-          [data-sidebar="menu-button"][data-active="true"] {
-            background-color: #7c3aed !important;
-            color: white !important;
-          }
-          .sidebar-menu-item {
-            color: #7c3aed !important;
-          }
-          .sidebar-menu-item:hover {
-            color: #6d28d9 !important;
-          }
-          .sidebar-menu-item svg {
-            color: inherit !important;
-          }
-          /* 개발자 도구 스타일 */
-          .sidebar-menu-item[style*="ef4444"] {
-            color: #ef4444 !important;
-          }
-          .sidebar-menu-item[style*="ef4444"]:hover {
-            color: #dc2626 !important;
-            background-color: rgba(239, 68, 68, 0.1) !important;
-          }
-          .sidebar-menu-item[style*="ef4444"].active {
-            background-color: #ef4444 !important;
-            color: white !important;
-          }
-        `}
-      </style>
-      <SidebarContent className="bg-sidebar">
-        {menuItems.map((section) => (
-          <SidebarGroup key={section.title}>
-            <SidebarGroupLabel className="font-light text-xs uppercase tracking-wider px-3 py-2" style={{ color: '#7c3aed' }}>
-              {section.title}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {section.items.map((item) => (
-                  <SidebarMenuItem key={item.url}>
-                    <NavLink to={item.url} end={item.exact}>
-                      {({ isActive }) => (
-                        <SidebarMenuButton
-                          asChild
-                          isActive={isActive}
-                          className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
-                          style={{ color: '#7c3aed !important' }}
-                        >
-                          <span className="flex items-center gap-3">
-                            <item.icon className="h-4 w-4 flex-shrink-0" />
-                            <span className="font-light">{item.title}</span>
-                          </span>
-                        </SidebarMenuButton>
-                      )}
-                    </NavLink>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
-        
-        {/* 개발자 전용 섹션 */}
-        {isDeveloper && (
-          <SidebarGroup className="mt-auto border-t pt-4">
-            <SidebarGroupLabel className="font-light text-xs uppercase tracking-wider px-3 py-2" style={{ color: '#ef4444' }}>
-              개발자 도구
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <NavLink to="/developer-test">
-                    {({ isActive }) => (
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive}
-                        className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
-                        style={{ color: '#ef4444 !important' }}
-                      >
-                        <span className="flex items-center gap-3">
-                          <Code className="h-4 w-4 flex-shrink-0" />
-                          <span className="font-light">테스트 화면</span>
-                        </span>
-                      </SidebarMenuButton>
-                    )}
-                  </NavLink>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+    <Sidebar className="border-r border-sidebar-border bg-sidebar">
+      <SidebarContent className="bg-sidebar px-3 py-5 text-sidebar-foreground">
+        <div className="space-y-6">
+          {menuItems.map((section) => (
+            <SidebarGroup key={section.title} className="space-y-2">
+              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-foreground/60">
+                {section.title}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {section.items.map((item) => renderMenuItem(item))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+
+          {/* 개발자 전용 섹션 */}
+          {isDeveloper && (
+            <SidebarGroup className="space-y-2 border-t border-sidebar-border pt-4">
+              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-destructive">
+                개발자 도구
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {renderMenuItem(
+                    {
+                      title: "테스트 화면",
+                      url: "/developer-test",
+                      icon: Code,
+                      exact: false,
+                    },
+                    { variant: "developer" }
+                  )}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+        </div>
       </SidebarContent>
     </Sidebar>
   );
