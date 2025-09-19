@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -44,6 +45,25 @@ const queryClient = new QueryClient();
 
 function AppContent() {
   const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const fullPath = `${location.pathname}${location.search}${location.hash}`;
+
+    try {
+      const stored = window.sessionStorage.getItem("recentPaths");
+      const parsed = stored ? (JSON.parse(stored) as string[]) : [];
+      const filtered = parsed.filter((path) => path && path !== fullPath);
+      const updated = [fullPath, ...filtered].slice(0, 10);
+
+      window.sessionStorage.setItem("recentPaths", JSON.stringify(updated));
+    } catch (storageError) {
+      console.error("최근 방문 경로를 저장하지 못했습니다", storageError);
+    }
+  }, [location.pathname, location.search, location.hash]);
 
   const routes = (
     <Routes>
