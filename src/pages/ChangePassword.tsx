@@ -7,49 +7,55 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { FieldErrors, useForm } from 'react-hook-form';
+
+type ChangePasswordFormValues = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
 
 const ChangePassword = () => {
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    setFocus,
+    watch,
+    formState: { errors },
+  } = useForm<ChangePasswordFormValues>({
+    mode: 'onChange',
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "오류",
-        description: "새 비밀번호가 일치하지 않습니다.",
-        variant: "destructive"
-      });
-      return;
+  const watchNewPassword = watch('newPassword');
+
+  const focusFirstError = (formErrors: FieldErrors<ChangePasswordFormValues>) => {
+    const firstErrorField = Object.keys(formErrors)[0] as keyof ChangePasswordFormValues | undefined;
+    if (firstErrorField) {
+      setFocus(firstErrorField);
     }
+  };
 
-    if (newPassword.length < 6) {
-      toast({
-        title: "오류", 
-        description: "비밀번호는 최소 6자 이상이어야 합니다.",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const handleChangePassword = async ({ newPassword }: ChangePasswordFormValues) => {
     setLoading(true);
 
     try {
-      // Update password
       const { error } = await supabase.auth.updateUser({
-        password: newPassword
+        password: newPassword,
       });
 
       if (error) throw error;
 
-      // Update first_login flag
       if (user) {
         const { error: profileError } = await supabase
           .from('profiles')
@@ -63,15 +69,16 @@ const ChangePassword = () => {
 
       toast({
         title: "성공",
-        description: "비밀번호가 변경되었습니다."
+        description: "비밀번호가 변경되었습니다.",
       });
 
       navigate('/dashboard');
     } catch (error: any) {
+      setFocus('newPassword');
       toast({
         title: "오류",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -116,42 +123,92 @@ const ChangePassword = () => {
               <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">비밀번호 변경</CardTitle>
             </CardHeader>
             <CardContent className="px-6 sm:px-8 lg:px-10 pb-8">
-              <form onSubmit={handleChangePassword} className="space-y-6">
+              <form
+                onSubmit={handleSubmit(handleChangePassword, focusFirstError)}
+                noValidate
+                className="space-y-6"
+              >
                 <div className="space-y-3">
                   <Label htmlFor="currentPassword" className="text-sm font-medium">현재 비밀번호</Label>
                   <Input
                     id="currentPassword"
                     type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="bsedu123"
                     className="w-full h-12 text-base"
-                    required
+                    aria-invalid={!!errors.currentPassword}
+                    aria-describedby={errors.currentPassword ? 'current-password-error' : undefined}
+                    {...register('currentPassword', {
+                      required: '현재 비밀번호를 입력해주세요.',
+                      minLength: {
+                        value: 6,
+                        message: '비밀번호는 최소 6자 이상이어야 합니다.',
+                      },
+                    })}
                   />
+                  {errors.currentPassword && (
+                    <p
+                      id="current-password-error"
+                      role="alert"
+                      className="flex items-center text-sm text-destructive"
+                    >
+                      <AlertCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                      {errors.currentPassword.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <Label htmlFor="newPassword" className="text-sm font-medium">새 비밀번호</Label>
                   <Input
                     id="newPassword"
                     type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="최소 6자 이상"
                     className="w-full h-12 text-base"
-                    required
+                    aria-invalid={!!errors.newPassword}
+                    aria-describedby={errors.newPassword ? 'new-password-error' : undefined}
+                    {...register('newPassword', {
+                      required: '새 비밀번호를 입력해주세요.',
+                      minLength: {
+                        value: 6,
+                        message: '비밀번호는 최소 6자 이상이어야 합니다.',
+                      },
+                    })}
                   />
+                  {errors.newPassword && (
+                    <p
+                      id="new-password-error"
+                      role="alert"
+                      className="flex items-center text-sm text-destructive"
+                    >
+                      <AlertCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                      {errors.newPassword.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <Label htmlFor="confirmPassword" className="text-sm font-medium">새 비밀번호 확인</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="새 비밀번호를 다시 입력"
                     className="w-full h-12 text-base"
-                    required
+                    aria-invalid={!!errors.confirmPassword}
+                    aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
+                    {...register('confirmPassword', {
+                      required: '새 비밀번호를 다시 입력해주세요.',
+                      validate: (value) =>
+                        value === watchNewPassword || '새 비밀번호가 일치하지 않습니다.',
+                    })}
                   />
+                  {errors.confirmPassword && (
+                    <p
+                      id="confirm-password-error"
+                      role="alert"
+                      className="flex items-center text-sm text-destructive"
+                    >
+                      <AlertCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                      {errors.confirmPassword.message}
+                    </p>
+                  )}
                 </div>
                 <Button
                   type="submit"

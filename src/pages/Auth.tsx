@@ -1,25 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { translateAuthError } from '@/utils/authErrorTranslator';
 import { getBaseUrl } from '@/lib/utils';
+import { FieldErrors, useForm } from 'react-hook-form';
+
+type AuthFormValues = {
+  email: string;
+  password?: string;
+};
 
 const Auth = () => {
   const navigate = useNavigate();
   const [isResetPassword, setIsResetPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const {
+    register,
+    handleSubmit,
+    setFocus,
+    setValue,
+    formState: { errors },
+  } = useForm<AuthFormValues>({
+    mode: 'onChange',
+    shouldUnregister: true,
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (isResetPassword) {
+      setValue('password', '');
+    }
+  }, [isResetPassword, setValue]);
+
+  const focusFirstError = (formErrors: FieldErrors<AuthFormValues>) => {
+    const firstErrorField = Object.keys(formErrors)[0] as keyof AuthFormValues | undefined;
+    if (firstErrorField) {
+      setFocus(firstErrorField);
+    }
+  };
+
+  const handleLogin = async ({ email, password }: AuthFormValues) => {
+    if (!password) {
+      setFocus('password');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -56,6 +90,7 @@ const Auth = () => {
       }
     } catch (error: any) {
       console.error('Login error:', error);
+      setFocus('email');
       toast({
         title: "로그인 실패",
         description: translateAuthError(error.message || '알 수 없는 오류가 발생했습니다.'),
@@ -66,8 +101,7 @@ const Auth = () => {
     }
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleResetPassword = async ({ email }: AuthFormValues) => {
     setLoading(true);
 
     try {
@@ -85,6 +119,7 @@ const Auth = () => {
       setIsResetPassword(false);
     } catch (error: any) {
       console.error('Password reset error:', error);
+      setFocus('email');
       toast({
         title: "비밀번호 재설정 오류",
         description: translateAuthError(error.message || '비밀번호 재설정 중 오류가 발생했습니다.'),
@@ -135,18 +170,41 @@ const Auth = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-6 sm:px-8 lg:px-10 pb-8">
-              <form onSubmit={isResetPassword ? handleResetPassword : handleLogin} className="space-y-6">
+              <form
+                onSubmit={handleSubmit(
+                  isResetPassword ? handleResetPassword : handleLogin,
+                  focusFirstError
+                )}
+                noValidate
+                className="space-y-6"
+              >
                 <div className="space-y-3">
                   <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
                   <Input
                     id="email"
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="이메일을 입력하세요"
                     className="w-full h-12 text-base"
-                    required
+                    aria-invalid={!!errors.email}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
+                    {...register('email', {
+                      required: '이메일을 입력해주세요.',
+                      pattern: {
+                        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                        message: '올바른 이메일 주소를 입력해주세요.',
+                      },
+                    })}
                   />
+                  {errors.email && (
+                    <p
+                      id="email-error"
+                      role="alert"
+                      className="flex items-center text-sm text-destructive"
+                    >
+                      <AlertCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                      {errors.email.message}
+                    </p>
+                  )}
                 </div>
                 {!isResetPassword && (
                   <div className="space-y-3">
@@ -154,12 +212,28 @@ const Auth = () => {
                     <Input
                       id="password"
                       type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
                       placeholder="비밀번호를 입력하세요"
                       className="w-full h-12 text-base"
-                      required
+                      aria-invalid={!!errors.password}
+                      aria-describedby={errors.password ? 'password-error' : undefined}
+                      {...register('password', {
+                        required: '비밀번호를 입력해주세요.',
+                        minLength: {
+                          value: 6,
+                          message: '비밀번호는 최소 6자 이상이어야 합니다.',
+                        },
+                      })}
                     />
+                    {errors.password && (
+                      <p
+                        id="password-error"
+                        role="alert"
+                        className="flex items-center text-sm text-destructive"
+                      >
+                        <AlertCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                        {errors.password.message}
+                      </p>
+                    )}
                   </div>
                 )}
                 <Button
