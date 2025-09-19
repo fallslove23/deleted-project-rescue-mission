@@ -1100,9 +1100,10 @@ const InstructorManagement = React.forwardRef<{
               </div>
             </CardContent>
           </Card>
-        )}
+         )}
+       </div>
 
-        {/* Add/Edit Instructor Dialog */}
+       {/* Add/Edit Instructor Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
