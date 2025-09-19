@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Users, Edit, Search, UserX, Shield, Key, Menu } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/lib/utils';
@@ -48,8 +49,16 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedRoleFilters, setSelectedRoleFilters] = useState<string[]>([]);
+  const [showFirstLoginOnly, setShowFirstLoginOnly] = useState(false);
 
   const availableRoles = ['admin', 'operator', 'instructor', 'director'];
+  const roleLabels: Record<string, string> = {
+    admin: '관리자',
+    operator: '운영',
+    instructor: '강사',
+    director: '조직장'
+  };
 
   useEffect(() => {
     fetchData();
@@ -179,48 +188,152 @@ const UserManagement = () => {
     const searchLower = searchQuery.toLowerCase();
     const instructor = getUserInstructor(user.id);
     const roles = userRoles[user.id] || [];
-    
-    return (
+
+    const matchesSearch =
       user.email?.toLowerCase().includes(searchLower) ||
       instructor?.name.toLowerCase().includes(searchLower) ||
-      roles.some(role => role.toLowerCase().includes(searchLower))
-    );
+      roles.some(role => role.toLowerCase().includes(searchLower));
+
+    const matchesRole =
+      selectedRoleFilters.length === 0 ||
+      roles.some(role => selectedRoleFilters.includes(role));
+
+    const matchesFirstLogin = !showFirstLoginOnly || user.first_login;
+
+    return matchesSearch && matchesRole && matchesFirstLogin;
   });
+
+  const appliedFiltersCount = selectedRoleFilters.length + (showFirstLoginOnly ? 1 : 0);
+
+  const resetFilters = () => {
+    setSelectedRoleFilters([]);
+    setShowFirstLoginOnly(false);
+  };
+
+  const handleRoleFilterChange = (value: string[]) => {
+    setSelectedRoleFilters(value);
+  };
 
   // 데스크톱 액션 버튼들
   const DesktopActions = () => (
-    <div className="flex items-center gap-2">
-      <Users className="h-5 w-5" />
-      <span className="font-medium">{users.length}명</span>
+    <div className="hidden sm:flex items-center gap-3">
+      <Badge variant="secondary" className="flex items-center gap-1">
+        <Users className="h-4 w-4" />
+        <span>{filteredUsers.length}</span>
+        <span className="text-xs text-muted-foreground">/ {users.length}</span>
+      </Badge>
+      <ToggleGroup
+        type="multiple"
+        value={selectedRoleFilters}
+        onValueChange={handleRoleFilterChange}
+        variant="outline"
+        size="sm"
+        className="gap-2"
+      >
+        {availableRoles.map((role) => (
+          <ToggleGroupItem key={role} value={role} className="text-sm">
+            {roleLabels[role] || role}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="first-login-filter-desktop"
+          checked={showFirstLoginOnly}
+          onCheckedChange={(checked) => setShowFirstLoginOnly(Boolean(checked))}
+        />
+        <label htmlFor="first-login-filter-desktop" className="text-sm text-muted-foreground">
+          첫 로그인만
+        </label>
+      </div>
+      <Badge variant="outline" className="whitespace-nowrap">
+        필터 {appliedFiltersCount}
+      </Badge>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={resetFilters}
+        disabled={appliedFiltersCount === 0}
+      >
+        필터 초기화
+      </Button>
     </div>
   );
 
-  // 모바일 액션 버튼들  
+  // 모바일 액션 버튼들
   const MobileActions = () => (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Menu className="h-4 w-4" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>사용자 관리 메뉴</SheetTitle>
-        </SheetHeader>
-        <div className="py-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="h-4 w-4" />
-            <span>총 {users.length}명의 사용자</span>
+    <div className="sm:hidden">
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <Menu className="h-4 w-4" />
+            필터
+            {appliedFiltersCount > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                {appliedFiltersCount}
+              </Badge>
+            )}
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="w-[320px] sm:w-[360px]">
+          <SheetHeader>
+            <SheetTitle>사용자 필터</SheetTitle>
+          </SheetHeader>
+          <div className="py-4 space-y-6">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                <span>{filteredUsers.length}</span>
+                <span className="text-xs text-muted-foreground">/ {users.length}</span>
+              </Badge>
+              <Badge variant="outline" className="whitespace-nowrap">
+                필터 {appliedFiltersCount}
+              </Badge>
+            </div>
+            <div className="space-y-3">
+              <div className="text-sm font-medium">역할 필터</div>
+              <ToggleGroup
+                type="multiple"
+                value={selectedRoleFilters}
+                onValueChange={handleRoleFilterChange}
+                variant="outline"
+                size="sm"
+                className="grid grid-cols-2 gap-2"
+              >
+                {availableRoles.map((role) => (
+                  <ToggleGroupItem key={role} value={role} className="text-sm">
+                    {roleLabels[role] || role}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">첫 로그인만 보기</span>
+              <Checkbox
+                id="first-login-filter-mobile"
+                checked={showFirstLoginOnly}
+                onCheckedChange={(checked) => setShowFirstLoginOnly(Boolean(checked))}
+              />
+            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={resetFilters}
+              disabled={appliedFiltersCount === 0}
+            >
+              필터 초기화
+            </Button>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 
   return (
     <div className="space-y-6">
       {/* 액션 버튼들 */}
       <div className="flex justify-end gap-2 mb-4">
+        <MobileActions />
         <DesktopActions />
       </div>
       <div className="space-y-6">
