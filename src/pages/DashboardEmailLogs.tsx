@@ -22,6 +22,13 @@ interface EmailLog {
   created_at: string;
 }
 
+interface SurveyDetails {
+  id: string;
+  title: string;
+  education_year: number | null;
+  education_round: number | null;
+}
+
 const DashboardEmailLogs = () => {
   const { userRoles } = useAuth();
   const { toast } = useToast();
@@ -30,8 +37,47 @@ const DashboardEmailLogs = () => {
   const [allowlistOpen, setAllowlistOpen] = useState(false);
   const [allowlistLoading, setAllowlistLoading] = useState(false);
   const [allowlistEmails, setAllowlistEmails] = useState<string[]>([]);
+  const [surveyDetails, setSurveyDetails] = useState<Record<string, SurveyDetails>>({});
 
   const canViewLogs = userRoles.includes('admin') || userRoles.includes('operator');
+
+  const fetchSurveyDetails = async (logs: EmailLog[]) => {
+    const surveyIds = Array.from(
+      new Set(
+        logs
+          .map((log) => log.survey_id)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+
+    if (surveyIds.length === 0) {
+      setSurveyDetails({});
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('surveys')
+        .select('id, title, education_year, education_round')
+        .in('id', surveyIds);
+
+      if (error) throw error;
+
+      const details = (data || []).reduce<Record<string, SurveyDetails>>((acc, survey) => {
+        acc[survey.id] = {
+          id: survey.id,
+          title: survey.title,
+          education_year: survey.education_year ?? null,
+          education_round: survey.education_round ?? null,
+        };
+        return acc;
+      }, {});
+
+      setSurveyDetails(details);
+    } catch (error) {
+      console.error('Error fetching survey details:', error);
+    }
+  };
 
   const fetchEmailLogs = async () => {
     try {
@@ -52,7 +98,9 @@ const DashboardEmailLogs = () => {
         .limit(100);
 
       if (error) throw error;
-      setEmailLogs(data || []);
+      const normalizedLogs = (data || []) as EmailLog[];
+      setEmailLogs(normalizedLogs);
+      await fetchSurveyDetails(normalizedLogs);
     } catch (error) {
       console.error('Error fetching email logs:', error);
       toast({
@@ -152,6 +200,30 @@ const DashboardEmailLogs = () => {
     successCount: emailLogs.filter(log => log.status === 'success').length,
     failedCount: emailLogs.filter(log => log.status === 'failed').length,
     pendingCount: emailLogs.filter(log => log.status === 'pending').length
+  };
+
+  const getSurveyInfo = (surveyId: string) => {
+    const info = surveyDetails[surveyId];
+
+    if (!info) {
+      return {
+        title: '설문 정보 없음',
+        meta: undefined,
+      };
+    }
+
+    const segments: string[] = [];
+    if (info.education_year) {
+      segments.push(`${info.education_year}년`);
+    }
+    if (info.education_round) {
+      segments.push(`${info.education_round}차`);
+    }
+
+    return {
+      title: info.title,
+      meta: segments.length > 0 ? segments.join(' ') : undefined,
+    };
   };
 
   const getStatusBadge = (status: string) => {
@@ -263,26 +335,41 @@ const DashboardEmailLogs = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    emailLogs.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="font-medium">
-                          설문 ID: {log.survey_id}
-                        </TableCell>
-                        <TableCell>{log.recipients?.length || 0}명</TableCell>
-                        <TableCell>{getStatusBadge(log.status)}</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <span className="text-green-600">{log.sent_count || 0}건 성공</span>
-                            {log.failed_count > 0 && (
-                              <> / <span className="text-red-600">{log.failed_count}건 실패</span></>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(log.created_at).toLocaleString('ko-KR')}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    emailLogs.map((log) => {
+                      const surveyInfo = getSurveyInfo(log.survey_id);
+
+                      return (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-medium min-w-[220px]">
+                            <div className="flex flex-col gap-1">
+                              <span>{surveyInfo.title}</span>
+                              {surveyInfo.meta && (
+                                <span className="text-xs text-muted-foreground">
+                                  {surveyInfo.meta}
+                                </span>
+                              )}
+                              <span className="text-xs text-muted-foreground break-all">
+                                ID: {log.survey_id}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{log.recipients?.length || 0}명</TableCell>
+                          <TableCell>{getStatusBadge(log.status)}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <span className="text-green-600">{log.sent_count || 0}건 성공</span>
+                              {log.failed_count > 0 && (
+                                <> / <span className="text-red-600">{log.failed_count}건 실패</span></>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString('ko-KR')}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                    )}
                   )}
                 </TableBody>
               </Table>
