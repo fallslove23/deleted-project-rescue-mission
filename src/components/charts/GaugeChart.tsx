@@ -1,7 +1,9 @@
+import { ReactNode, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { ChartEmptyState } from './ChartEmptyState';
 
 interface GaugeChartProps {
-  value: number; // 0-100 사이의 값
+  value: number;
   maxValue?: number;
   title?: string;
   subtitle?: string;
@@ -12,12 +14,13 @@ interface GaugeChartProps {
     fill?: string;
     text?: string;
   };
+  emptyState?: ReactNode;
 }
 
-export const GaugeChart = ({ 
-  value, 
+export const GaugeChart = ({
+  value,
   maxValue = 100,
-  title, 
+  title,
   subtitle,
   size = 200,
   thickness = 20,
@@ -25,12 +28,27 @@ export const GaugeChart = ({
     background: 'hsl(var(--muted) / 0.3)',
     fill: 'hsl(var(--chart-1))',
     text: 'hsl(var(--foreground))'
-  }
+  },
+  emptyState
 }: GaugeChartProps) => {
-  const normalizedValue = Math.min(Math.max(value, 0), maxValue);
+  const normalizedValue = useMemo(() => {
+    if (!Number.isFinite(value)) return null;
+    if (!Number.isFinite(maxValue) || maxValue <= 0) return null;
+    return Math.min(Math.max(value, 0), maxValue);
+  }, [value, maxValue]);
+
+  if (normalizedValue === null) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        {emptyState ?? (
+          <ChartEmptyState description="게이지를 표시할 데이터가 없습니다. 측정 가능한 값을 추가한 후 다시 시도해 주세요." />
+        )}
+      </div>
+    );
+  }
+
   const percentage = (normalizedValue / maxValue) * 100;
-  
-  // 게이지 데이터 (180도 반원)
+
   const data = [
     { name: 'filled', value: percentage, color: colors.fill },
     { name: 'empty', value: 100 - percentage, color: colors.background }
@@ -38,16 +56,14 @@ export const GaugeChart = ({
 
   const gradientId = `gauge-gradient-${Math.random().toString(36).substr(2, 9)}`;
 
-  const renderLabel = () => null; // 라벨 숨김
-
   return (
     <div className="flex flex-col items-center">
       {title && (
-        <h3 className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
+        <h3 className="mb-2 text-lg font-semibold" style={{ color: colors.text }}>
           {title}
         </h3>
       )}
-      
+
       <div className="relative" style={{ width: size, height: size / 2 + 20 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -60,18 +76,17 @@ export const GaugeChart = ({
             <Pie
               data={data}
               cx="50%"
-              cy="90%" // 하단에 중심점 위치
-              startAngle={180} // 왼쪽부터 시작
-              endAngle={0} // 오른쪽에서 끝
+              cy="90%"
+              startAngle={180}
+              endAngle={0}
               innerRadius={size / 2 - thickness}
               outerRadius={size / 2}
               dataKey="value"
               labelLine={false}
-              label={renderLabel}
             >
               {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
+                <Cell
+                  key={`cell-${index}`}
                   fill={index === 0 ? `url(#${gradientId})` : entry.color}
                   stroke="white"
                   strokeWidth={index === 0 ? 2 : 0}
@@ -80,42 +95,32 @@ export const GaugeChart = ({
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-        
-        {/* 중앙 값 표시 */}
-        <div 
-          className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-center"
+
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 transform text-center"
           style={{ color: colors.text }}
         >
-          <div className="text-2xl font-bold">
-            {normalizedValue.toFixed(1)}
-          </div>
+          <div className="text-2xl font-bold">{normalizedValue.toFixed(1)}</div>
           {subtitle && (
-            <div className="text-sm text-muted-foreground">
-              {subtitle}
-            </div>
+            <div className="text-sm text-muted-foreground">{subtitle}</div>
           )}
         </div>
-        
-        {/* 눈금 표시 */}
-        <div className="absolute inset-0 pointer-events-none">
+
+        <div className="pointer-events-none absolute inset-0">
           {[0, 25, 50, 75, 100].map((tick) => {
-            const angle = 180 - (tick / 100) * 180; // 180도에서 0도까지
+            const angle = 180 - (tick / 100) * 180;
             const radian = (angle * Math.PI) / 180;
             const innerRadius = size / 2 - thickness - 5;
             const outerRadius = size / 2 - thickness;
-            
+
             const x1 = size / 2 + innerRadius * Math.cos(radian);
             const y1 = size / 2 + innerRadius * Math.sin(radian);
             const x2 = size / 2 + outerRadius * Math.cos(radian);
             const y2 = size / 2 + outerRadius * Math.sin(radian);
-            
+
             return (
               <div key={tick}>
-                <svg 
-                  className="absolute inset-0"
-                  width={size} 
-                  height={size / 2 + 20}
-                >
+                <svg className="absolute inset-0" width={size} height={size / 2 + 20}>
                   <line
                     x1={x1}
                     y1={y1 + 10}
@@ -126,8 +131,7 @@ export const GaugeChart = ({
                     opacity="0.5"
                   />
                 </svg>
-                
-                {/* 눈금 라벨 */}
+
                 <div
                   className="absolute text-xs"
                   style={{
@@ -137,7 +141,7 @@ export const GaugeChart = ({
                     opacity: 0.7
                   }}
                 >
-                  {(tick * maxValue / 100).toFixed(0)}
+                  {((tick * maxValue) / 100).toFixed(0)}
                 </div>
               </div>
             );
