@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, KeyboardEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -770,73 +770,64 @@ const Index = () => {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {courseSurveys.map((survey) => (
-                        <Card
+                        <Link
                           key={survey.id}
-                          role="button"
-                          tabIndex={0}
+                          to={`/survey/${survey.id}`}
                           aria-label={`${survey.title} 설문 참여하기`}
-                          onClick={() => handleSurveyNavigation(survey.id)}
-                          onKeyDown={(event) => handleCardKeyDown(event, survey.id)}
-                          className="cursor-pointer hover:shadow-lg transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                          className="group block h-full cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
-                          <CardHeader>
-                            <div className="flex items-start justify-between gap-4">
-                              <CardTitle className="text-lg font-display truncate" title={survey.title}>
-                                {survey.title}
-                              </CardTitle>
-                              {getStatusBadge(survey.status, survey.end_date)}
-                            </div>
-                            {survey.description && (
-                              <CardDescription className="font-sans truncate" title={survey.description}>
-                                {survey.description}
-                              </CardDescription>
-                            )}
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2 text-sm font-sans">
-                              {(() => {
-                                const instructorName = getInstructorNames(survey);
-                                if (!instructorName) {
-                                  return null;
-                                }
-                                return (
+                          <Card className="flex h-full cursor-pointer flex-col transition-shadow group-hover:shadow-lg">
+                            <CardHeader>
+                              <div className="flex items-start justify-between gap-4">
+                                <CardTitle className="text-lg font-display truncate" title={survey.title}>
+                                  {survey.title}
+                                </CardTitle>
+                                {getStatusBadge(survey.status, survey.end_date)}
+                              </div>
+                              {survey.description && (
+                                <CardDescription className="font-sans truncate" title={survey.description}>
+                                  {survey.description}
+                                </CardDescription>
+                              )}
+                            </CardHeader>
+                            <CardContent className="flex h-full flex-col justify-between">
+                              <div className="space-y-2 text-sm font-sans">
+                                {(() => {
+                                  const instructorName = getInstructorNames(survey);
+                                  if (!instructorName) {
+                                    return null;
+                                  }
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <Users className="h-4 w-4 text-muted-foreground" />
+                                      <span className="truncate" title={instructorName}>
+                                        강사: {instructorName}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  <span>생성일: {formatDate(survey.created_at)}</span>
+                                </div>
+                                {(survey.start_date || survey.end_date) && (
                                   <div className="flex items-center gap-2">
-                                    <Users className="h-4 w-4 text-muted-foreground" />
-                                    <span className="truncate" title={instructorName}>
-                                      강사: {instructorName}
+                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                    <span>
+                                      {survey.start_date && `시작: ${formatDate(survey.start_date)}`}
+                                      {survey.start_date && survey.end_date && ' | '}
+                                      {survey.end_date && `종료: ${formatDate(survey.end_date)}`}
                                     </span>
                                   </div>
-                                );
-                              })()}
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>생성일: {formatDate(survey.created_at)}</span>
+                                )}
                               </div>
-                              {(survey.start_date || survey.end_date) && (
-                                <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4 text-muted-foreground" />
-                                  <span>
-                                    {survey.start_date && `시작: ${formatDate(survey.start_date)}`}
-                                    {survey.start_date && survey.end_date && ' | '}
-                                    {survey.end_date && `종료: ${formatDate(survey.end_date)}`}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <Button
-                              type="button"
-                              size="lg"
-                              className="mt-4 w-full justify-between font-sans"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleSurveyNavigation(survey.id);
-                              }}
-                            >
-                              설문 참여하기
-                              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                            </Button>
-                          </CardContent>
-                        </Card>
+                              <div className="mt-4 flex items-center justify-between text-primary font-medium font-sans">
+                                <span>설문 참여하기</span>
+                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
                       ))}
                     </div>
                   </div>
