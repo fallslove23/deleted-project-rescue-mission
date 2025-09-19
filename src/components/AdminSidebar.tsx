@@ -114,21 +114,21 @@ export function AdminSidebar() {
       <style>
         {`
           [data-sidebar="menu-button"] {
-            color: #7c3aed !important;
+            color: #1f2937 !important;
           }
           [data-sidebar="menu-button"]:hover {
-            color: #6d28d9 !important;
-            background-color: rgba(124, 58, 237, 0.1) !important;
+            color: #111827 !important;
+            background-color: rgba(17, 24, 39, 0.08) !important;
           }
           [data-sidebar="menu-button"][data-active="true"] {
-            background-color: #7c3aed !important;
-            color: white !important;
+            background-color: #111827 !important;
+            color: #ffffff !important;
           }
           .sidebar-menu-item {
-            color: #7c3aed !important;
+            color: #1f2937 !important;
           }
           .sidebar-menu-item:hover {
-            color: #6d28d9 !important;
+            color: #111827 !important;
           }
           .sidebar-menu-item svg {
             color: inherit !important;
@@ -162,7 +162,7 @@ export function AdminSidebar() {
                         to={item.url}
                         end={item.exact}
                         className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
-                        style={{ color: '#7c3aed !important' }}
+                        style={{ color: '#1f2937' }}
                       >
                         <item.icon className="h-4 w-4 flex-shrink-0" />
                         <span className="font-light">{item.title}</span>
@@ -188,7 +188,7 @@ export function AdminSidebar() {
                     <NavLink
                       to="/developer-test"
                       className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
-                      style={{ color: '#ef4444 !important' }}
+                      style={{ color: '#ef4444' }}
                     >
                       <Code className="h-4 w-4 flex-shrink-0" />
                       <span className="font-light">테스트 화면</span>

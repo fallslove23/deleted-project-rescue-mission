@@ -245,7 +245,11 @@ export const useCourseReportsData = (
           ),
           survey_sessions!survey_sessions_survey_id_fkey (
             id,
-            instructor_id
+            instructor_id,
+            instructors (
+              id,
+              name
+            )
           ),
           survey_responses (
             id,
@@ -310,9 +314,9 @@ export const useCourseReportsData = (
         
         // 강사 필터 (클라이언트에서 안전하게 처리)
         if (selectedInstructor) {
-          const hasMainInstructor = s.instructor_id === selectedInstructor;
-          const hasMultiInstructor = s.survey_instructors?.some((si: any) => si.instructor_id === selectedInstructor);
-          const hasSessionInstructor = s.survey_sessions?.some((ss: any) => ss.instructor_id === selectedInstructor);
+          const hasMainInstructor = String(s.instructor_id) === selectedInstructor;
+          const hasMultiInstructor = s.survey_instructors?.some((si: any) => String(si.instructor_id) === selectedInstructor);
+          const hasSessionInstructor = s.survey_sessions?.some((ss: any) => String(ss.instructor_id) === selectedInstructor);
           
           if (!hasMainInstructor && !hasMultiInstructor && !hasSessionInstructor) {
             return false;
@@ -333,53 +337,80 @@ export const useCourseReportsData = (
 
       filteredSurveys.forEach(survey => {
         console.log('Processing survey:', survey.id, 'instructor_id:', survey.instructor_id, 'responses:', survey.survey_responses?.length);
-        
+
         totalSurveys += 1;
         totalResponses += survey.survey_responses?.length || 0;
 
-        // 강사 정보 처리 개선
-        const instructorId = survey.instructor_id;
-        const instructorName = (() => {
-          // survey_instructors 확인
-          if ((survey as any).survey_instructors && (survey as any).survey_instructors.length > 0) {
-            const names = (survey as any).survey_instructors
-              .map((si: any) => si.instructors?.name)
-              .filter(Boolean);
-            if (names.length > 0) return names.join(', ');
+        const surveyInstructorMap = new Map<string, string>();
+
+        const registerInstructor = (rawId: any, name?: string | null) => {
+          if (!rawId) return;
+          const instructorId = String(rawId);
+          const fallbackName =
+            name?.trim() ||
+            (survey as any).survey_instructors?.find((si: any) => String(si.instructor_id) === instructorId)?.instructors?.name ||
+            (survey as any).instructors?.name ||
+            (survey as any).course_name ||
+            '강사 정보 없음';
+
+          if (!surveyInstructorMap.has(instructorId)) {
+            surveyInstructorMap.set(instructorId, fallbackName);
           }
-          // 개별 instructor 확인
-          if ((survey as any).instructors?.name) return (survey as any).instructors.name;
-          // 과정명 사용
-          return (survey as any).course_name || '강사 정보 없음';
-        })();
-        
-        if (instructorId) {
+
           if (!instructorStatsMap.has(instructorId)) {
             instructorStatsMap.set(instructorId, {
               instructor_id: instructorId,
-              instructor_name: instructorName,
+              instructor_name: fallbackName,
               survey_count: 0,
               response_count: 0,
-              satisfactions: []
+              satisfactions: [] as number[]
             });
           }
-          
-          const instructorStat = instructorStatsMap.get(instructorId);
-          instructorStat.survey_count += 1;
-          instructorStat.response_count += survey.survey_responses?.length || 0;
-        }
 
-        // 만족도 점수 계산
+          const stat = instructorStatsMap.get(instructorId);
+          if (stat && stat.instructor_name !== fallbackName && stat.instructor_name === '강사 정보 없음') {
+            stat.instructor_name = fallbackName;
+          }
+        };
+
+        (survey as any).survey_instructors?.forEach((si: any) => {
+          registerInstructor(si.instructor_id, si.instructors?.name);
+        });
+
+        registerInstructor(survey.instructor_id, (survey as any).instructors?.name);
+
+        (survey as any).survey_sessions?.forEach((session: any) => {
+          registerInstructor(session.instructor_id, session.instructors?.name);
+        });
+
+        const sessionInstructorMap = new Map<string, string>();
+        (survey as any).survey_sessions?.forEach((session: any) => {
+          if (session.id && session.instructor_id) {
+            sessionInstructorMap.set(session.id, String(session.instructor_id));
+          }
+        });
+
+        surveyInstructorMap.forEach((_, id) => {
+          const stat = instructorStatsMap.get(id);
+          if (stat) {
+            stat.survey_count += 1;
+            stat.response_count += survey.survey_responses?.length || 0;
+          }
+        });
+
         const selectedSessionIds = selectedInstructor
-          ? new Set((survey as any).survey_sessions?.filter((ss: any) => ss.instructor_id === selectedInstructor).map((ss: any) => ss.id))
+          ? new Set(
+              ((survey as any).survey_sessions || [])
+                .filter((ss: any) => String(ss.instructor_id) === selectedInstructor)
+                .map((ss: any) => ss.id)
+            )
           : null;
 
         survey.survey_responses?.forEach((response: any) => {
           response.question_answers?.forEach((answer: any) => {
-            // 선택된 강사에 해당하는 세션/설문만 포함
             if (selectedInstructor) {
               const sid = answer.survey_questions?.session_id as string | undefined;
-              const isOwner = survey.instructor_id === selectedInstructor;
+              const isOwner = String(survey.instructor_id) === selectedInstructor;
               const sessionMatch = sid && selectedSessionIds?.has(sid);
               if (!isOwner && !sessionMatch) return;
             }
@@ -389,20 +420,32 @@ export const useCourseReportsData = (
               if (scoreRaw === null) return;
               let score = scoreRaw;
 
-              // 유효성 검사 - NaN과 무효한 값 필터링
               if (isNaN(score) || score <= 0 || !isFinite(score)) {
                 return;
               }
 
-              // 5점 척도를 10점으로 변환 (10점 척도는 그대로 유지)
               if (score <= 5 && score > 0) {
                 score = score * 2;
               }
-              
+
               if (answer.survey_questions.satisfaction_type === 'instructor') {
                 allInstructorSatisfactions.push(score);
-                if (instructorId && instructorStatsMap.has(instructorId)) {
-                  instructorStatsMap.get(instructorId).satisfactions.push(score);
+
+                let targetInstructorId: string | undefined;
+                const sessionId = answer.survey_questions?.session_id as string | undefined;
+                if (sessionId && sessionInstructorMap.has(sessionId)) {
+                  targetInstructorId = sessionInstructorMap.get(sessionId);
+                } else if (surveyInstructorMap.size === 1) {
+                  targetInstructorId = Array.from(surveyInstructorMap.keys())[0];
+                } else if (survey.instructor_id) {
+                  targetInstructorId = String(survey.instructor_id);
+                }
+
+                if (targetInstructorId) {
+                  const stat = instructorStatsMap.get(targetInstructorId);
+                  if (stat) {
+                    stat.satisfactions.push(score);
+                  }
                 }
               } else if (answer.survey_questions.satisfaction_type === 'course') {
                 allCourseSatisfactions.push(score);
@@ -511,13 +554,28 @@ export const useCourseReportsData = (
             id,
             name
           ),
+          survey_instructors (
+            instructor_id,
+            instructors (
+              id,
+              name
+            )
+          ),
+          survey_sessions!survey_sessions_survey_id_fkey (
+            id,
+            instructor_id,
+            instructors (
+              id,
+              name
+            )
+          ),
           survey_responses (
             id,
           question_answers (
             id,
             answer_value,
             answer_text,
-            survey_questions (satisfaction_type, question_type)
+            survey_questions (satisfaction_type, question_type, session_id)
           )
           )
         `)
@@ -598,45 +656,89 @@ export const useCourseReportsData = (
         }>();
 
         prevSurveys.forEach(survey => {
-          if (survey.instructor_id) {
-            const existingStat = prevInstructorStatsMap.get(survey.instructor_id) || {
-              survey_count: 0,
-              response_count: 0,
-              instructor_satisfactions: [],
-              instructor_name: (() => {
-                // survey_instructors 확인
-                if ((survey as any).survey_instructors && (survey as any).survey_instructors.length > 0) {
-                  const names = (survey as any).survey_instructors
-                    .map((si: any) => si.instructors?.name)
-                    .filter(Boolean);
-                  if (names.length > 0) return names.join(', ');
-                }
-                // 개별 instructor 확인
-                if ((survey as any).instructors?.name) return (survey as any).instructors.name;
-                // 과정명 사용
-                return (survey as any).course_name || '강사 정보 없음';
-              })()
-            };
+          const surveyInstructorMap = new Map<string, string>();
 
-            existingStat.survey_count += 1;
-            existingStat.response_count += survey.survey_responses?.length || 0;
+          const registerInstructor = (rawId: any, name?: string | null) => {
+            if (!rawId) return;
+            const instructorId = String(rawId);
+            const fallbackName =
+              name?.trim() ||
+              (survey as any).survey_instructors?.find((si: any) => String(si.instructor_id) === instructorId)?.instructors?.name ||
+              (survey as any).instructors?.name ||
+              (survey as any).course_name ||
+              '강사 정보 없음';
 
-            survey.survey_responses?.forEach(response => {
-              response.question_answers?.forEach(answer => {
-                if (answer.survey_questions?.satisfaction_type === 'instructor' && 
-                    answer.survey_questions?.question_type === 'scale' && 
-                    (answer.answer_value != null || answer.answer_text != null)) {
-                  let scoreRaw = parseScore((answer as any).answer_value ?? (answer as any).answer_text);
-                  if (scoreRaw === null) return;
-                  let score = scoreRaw;
-                  if (score <= 5 && score > 0) score = score * 2;
-                  existingStat.instructor_satisfactions.push(score);
-                }
+            if (!surveyInstructorMap.has(instructorId)) {
+              surveyInstructorMap.set(instructorId, fallbackName);
+            }
+
+            if (!prevInstructorStatsMap.has(instructorId)) {
+              prevInstructorStatsMap.set(instructorId, {
+                survey_count: 0,
+                response_count: 0,
+                instructor_satisfactions: [],
+                instructor_name: fallbackName
               });
-            });
+            }
 
-            prevInstructorStatsMap.set(survey.instructor_id, existingStat);
-          }
+            const stat = prevInstructorStatsMap.get(instructorId);
+            if (stat && stat.instructor_name === '강사 정보 없음') {
+              stat.instructor_name = fallbackName;
+            }
+          };
+
+          (survey as any).survey_instructors?.forEach((si: any) => {
+            registerInstructor(si.instructor_id, si.instructors?.name);
+          });
+
+          registerInstructor(survey.instructor_id, (survey as any).instructors?.name);
+
+          (survey as any).survey_sessions?.forEach((session: any) => {
+            registerInstructor(session.instructor_id, session.instructors?.name);
+          });
+
+          const sessionInstructorMap = new Map<string, string>();
+          (survey as any).survey_sessions?.forEach((session: any) => {
+            if (session.id && session.instructor_id) {
+              sessionInstructorMap.set(session.id, String(session.instructor_id));
+            }
+          });
+
+          surveyInstructorMap.forEach((_, id) => {
+            const stat = prevInstructorStatsMap.get(id);
+            if (stat) {
+              stat.survey_count += 1;
+              stat.response_count += survey.survey_responses?.length || 0;
+            }
+          });
+
+          survey.survey_responses?.forEach(response => {
+            response.question_answers?.forEach(answer => {
+              if (answer.survey_questions?.satisfaction_type === 'instructor' &&
+                  answer.survey_questions?.question_type === 'scale' &&
+                  (answer.answer_value != null || answer.answer_text != null)) {
+                let scoreRaw = parseScore((answer as any).answer_value ?? (answer as any).answer_text);
+                if (scoreRaw === null) return;
+                let score = scoreRaw;
+                if (score <= 5 && score > 0) score = score * 2;
+
+                let targetInstructorId: string | undefined;
+                const sessionId = answer.survey_questions?.session_id as string | undefined;
+                if (sessionId && sessionInstructorMap.has(sessionId)) {
+                  targetInstructorId = sessionInstructorMap.get(sessionId);
+                } else if (surveyInstructorMap.size === 1) {
+                  targetInstructorId = Array.from(surveyInstructorMap.keys())[0];
+                } else if (survey.instructor_id) {
+                  targetInstructorId = String(survey.instructor_id);
+                }
+
+                if (targetInstructorId) {
+                  const stat = prevInstructorStatsMap.get(targetInstructorId);
+                  stat?.instructor_satisfactions.push(score);
+                }
+              }
+            });
+          });
         });
 
         const prevInstructorStats: InstructorStats[] = Array.from(prevInstructorStatsMap.entries()).map(([id, stat]) => ({
@@ -644,8 +746,8 @@ export const useCourseReportsData = (
           instructor_name: stat.instructor_name,
           survey_count: stat.survey_count,
           response_count: stat.response_count,
-          avg_satisfaction: stat.instructor_satisfactions.length > 0 
-            ? stat.instructor_satisfactions.reduce((a, b) => a + b, 0) / stat.instructor_satisfactions.length 
+          avg_satisfaction: stat.instructor_satisfactions.length > 0
+            ? stat.instructor_satisfactions.reduce((a, b) => a + b, 0) / stat.instructor_satisfactions.length
             : 0
         }));
 
@@ -668,7 +770,11 @@ export const useCourseReportsData = (
           instructor_id,
           survey_sessions (
             id,
-            instructor_id
+            instructor_id,
+            instructors (
+              id,
+              name
+            )
           ),
           survey_responses (
             id,
