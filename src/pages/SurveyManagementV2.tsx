@@ -28,6 +28,7 @@ import {
   Play,
   Pause,
   MoreHorizontal,
+  XCircle,
 } from "lucide-react";
 import { getSurveyUrl } from '@/lib/utils';
 
@@ -80,6 +81,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SurveyCreateForm from "@/components/SurveyCreateForm";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  DrawerClose,
+} from "@/components/ui/drawer";
 
 const TIMEZONE = "Asia/Seoul";
 const PAGE_SIZE = 10;
@@ -249,10 +260,23 @@ export default function SurveyManagementV2() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const allChecked = useMemo(() => surveys.length > 0 && surveys.every((s) => selected.has(s.id)), [surveys, selected]);
+  const selectedSurveys = useMemo(() => surveys.filter((s) => selected.has(s.id)), [surveys, selected]);
+  const activeSelectedCount = useMemo(
+    () => selectedSurveys.filter((s) => s.status === 'active').length,
+    [selectedSurveys]
+  );
+  const inactiveSelectedCount = useMemo(
+    () => selectedSurveys.length - activeSelectedCount,
+    [selectedSurveys, activeSelectedCount]
+  );
+  const bulkStatusIsDeactivate = activeSelectedCount > inactiveSelectedCount;
+  const bulkStatusLabel = bulkStatusIsDeactivate ? '일괄 비활성화' : '일괄 활성화';
 
   // 상세 시트
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetSurvey, setSheetSurvey] = useState<SurveyListItem | null>(null);
+
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
 
   // 다이얼로그들
   const [quickOpen, setQuickOpen] = useState(false);
@@ -362,6 +386,12 @@ export default function SurveyManagementV2() {
     };
   }, [searchText]);
 
+  useEffect(() => {
+    if (selected.size === 0 && mobileActionsOpen) {
+      setMobileActionsOpen(false);
+    }
+  }, [selected, mobileActionsOpen]);
+
   const formatSafeDate = (iso: string | null): string => {
     if (!iso) return "미설정";
     try {
@@ -411,6 +441,16 @@ export default function SurveyManagementV2() {
     const s = new Set(selected);
     s.has(id) ? s.delete(id) : s.add(id);
     setSelected(s);
+  };
+  const handleClearSelection = () => setSelected(new Set());
+  const handleBulkStatusAction = async () => {
+    if (!selected.size) return;
+    const newStatus = bulkStatusIsDeactivate ? 'draft' : 'active';
+    await handleBulkStatusChange(Array.from(selected), newStatus);
+  };
+  const handleBulkDelete = () => {
+    setDeletingSurveyId(Array.from(selected).join(','));
+    setDeleteOpen(true);
   };
 
   const exportCsvAll = async () => {
@@ -691,6 +731,143 @@ export default function SurveyManagementV2() {
       ]}
     >
       <div className="space-y-6">
+        {selected.size > 0 && (
+          <div className="sticky top-[5.75rem] z-30">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/10 bg-background/95 px-4 py-2 shadow-lg backdrop-blur supports-[backdrop-filter]:backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary" className="flex items-center gap-2 rounded-full px-3 py-1 text-sm">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  <span>{selected.size}개 선택됨</span>
+                </Badge>
+                <span className="hidden text-xs font-medium text-muted-foreground md:block">
+                  원하는 작업을 선택하세요
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClearSelection}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="선택 해제"
+                >
+                  <XCircle className="h-4 w-4" />
+                  <span className="sr-only">선택 해제</span>
+                </Button>
+                <div className="hidden items-center gap-2 md:flex">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={exportCsvSelected}
+                    title="선택 항목 내보내기"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="sr-only">선택 항목 내보내기</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleBulkStatusAction}
+                    title={bulkStatusLabel}
+                  >
+                    {bulkStatusIsDeactivate ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                    <span className="sr-only">{bulkStatusLabel}</span>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={handleBulkDelete}
+                    title="선택 항목 삭제"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">선택 항목 삭제</span>
+                  </Button>
+                </div>
+                <Drawer open={mobileActionsOpen} onOpenChange={setMobileActionsOpen}>
+                  <DrawerTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="md:hidden"
+                      title="선택 작업 열기"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">선택 작업 열기</span>
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent className="pb-6">
+                    <DrawerHeader className="text-left">
+                      <DrawerTitle>선택된 설문</DrawerTitle>
+                      <DrawerDescription>
+                        {selected.size}개 항목에 대해 실행할 작업을 선택하세요.
+                      </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="grid gap-3 px-4">
+                      <Button
+                        variant="outline"
+                        className="justify-start gap-3"
+                        onClick={async () => {
+                          await exportCsvSelected();
+                          setMobileActionsOpen(false);
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                        내보내기
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="justify-start gap-3"
+                        onClick={async () => {
+                          await handleBulkStatusAction();
+                          setMobileActionsOpen(false);
+                        }}
+                      >
+                        {bulkStatusIsDeactivate ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                        {bulkStatusLabel}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="justify-start gap-3"
+                        onClick={() => {
+                          handleBulkDelete();
+                          setMobileActionsOpen(false);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        삭제
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="justify-start gap-3"
+                        onClick={() => {
+                          handleClearSelection();
+                          setMobileActionsOpen(false);
+                        }}
+                      >
+                        <XCircle className="h-4 w-4" />
+                        선택 해제
+                      </Button>
+                    </div>
+                    <DrawerFooter className="px-4">
+                      <DrawerClose asChild>
+                        <Button variant="outline">닫기</Button>
+                      </DrawerClose>
+                    </DrawerFooter>
+                  </DrawerContent>
+                </Drawer>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 검색 및 필터 */}
         <Card>
           <CardHeader>
@@ -775,79 +952,6 @@ export default function SurveyManagementV2() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        )}
-
-        {/* 멀티 선택 플로팅 액션바 */}
-        {selected.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-            <Card className="shadow-lg border-2 border-primary/20 bg-background/95 backdrop-blur-sm">
-              <CardContent className="px-4 py-3">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <CheckSquare className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">{selected.size}개 선택됨</span>
-                  </div>
-                  <div className="h-4 w-px bg-border" />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={exportCsvSelected}
-                      disabled={selected.size === 0}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      내보내기
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const selectedSurveys = surveys.filter(s => selected.has(s.id));
-                        const activeCount = selectedSurveys.filter(s => s.status === 'active').length;
-                        const inactiveCount = selectedSurveys.length - activeCount;
-                        
-                        // 대부분이 활성화된 경우 비활성화, 그렇지 않으면 활성화
-                        const newStatus = activeCount > inactiveCount ? 'draft' : 'active';
-                        handleBulkStatusChange(Array.from(selected), newStatus);
-                      }}
-                    >
-                      {surveys.filter(s => selected.has(s.id) && s.status === 'active').length > 
-                       surveys.filter(s => selected.has(s.id) && s.status !== 'active').length ? (
-                        <>
-                          <Pause className="h-4 w-4 mr-1" />
-                          일괄 비활성화
-                        </>
-                      ) : (
-                        <>
-                          <Play className="h-4 w-4 mr-1" />
-                          일괄 활성화
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        setDeletingSurveyId(Array.from(selected).join(','));
-                        setDeleteOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      삭제
-                    </Button>
-                  </div>
-                  <div className="h-4 w-px bg-border" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelected(new Set())}
-                  >
-                    선택 해제
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         )}
 
         {/* 설문 목록 */}
