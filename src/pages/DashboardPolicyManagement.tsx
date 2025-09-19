@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate, formatMessage, formatNumber, MESSAGE_KEYS } from '@/utils/formatters';
 
 interface PagePermission {
   path: string;
@@ -455,17 +456,19 @@ const DashboardPolicyManagement = () => {
                                             {roleOptions.find(r => r.value === role)?.label || role}
                                           </Badge>
                                         )) : (
-                                          <Badge variant="outline">역할 없음</Badge>
+                                          <Badge variant="outline">{formatMessage(MESSAGE_KEYS.policy.noRole)}</Badge>
                                         )}
                                       </div>
                                     )}
                                   </TableCell>
                                   <TableCell className="text-sm text-muted-foreground">
-                                    {new Date(u.created_at).toLocaleDateString('ko-KR')}
+                                    {formatDate(u.created_at)}
                                   </TableCell>
                                   <TableCell>
                                     <span className="text-sm">
-                                      {userAccessiblePages.length}개 페이지
+                                      {formatMessage(MESSAGE_KEYS.common.pageCount, {
+                                        count: formatNumber(userAccessiblePages.length),
+                                      })}
                                     </span>
                                   </TableCell>
                                   <TableCell>
@@ -478,7 +481,7 @@ const DashboardPolicyManagement = () => {
                                             onClick={() => setEditingUserId(null)}
                                             disabled={isSaving}
                                           >
-                                            취소
+                                            {formatMessage(MESSAGE_KEYS.common.cancel)}
                                           </Button>
                                         </>
                                       ) : (
@@ -488,7 +491,9 @@ const DashboardPolicyManagement = () => {
                                           onClick={() => setEditingUserId(u.id)}
                                           disabled={isSaving}
                                         >
-                                          {isSaving ? '저장중...' : '편집'}
+                                          {isSaving
+                                            ? formatMessage(MESSAGE_KEYS.common.saving)
+                                            : formatMessage(MESSAGE_KEYS.common.edit)}
                                         </Button>
                                       )}
                                     </div>
@@ -507,7 +512,7 @@ const DashboardPolicyManagement = () => {
               <Alert>
                 <Shield className="h-4 w-4" />
                 <AlertDescription>
-                  사용자 권한 관리는 관리자만 접근할 수 있습니다.
+                  {formatMessage(MESSAGE_KEYS.common.adminOnlyAccess)}
                 </AlertDescription>
               </Alert>
             )}

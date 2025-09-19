@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Menu, Clock, Calendar, Users, BarChart, TrendingUp, BookOpen, FileText, Filter } from 'lucide-react';
 import { MobileOptimizedContainer } from '@/components/MobileOptimizedContainer';
 import LoadingScreen from '@/components/LoadingScreen';
+import { formatDate } from '@/utils/formatters';
 
 interface Survey {
   id: string;
@@ -172,10 +173,6 @@ const Index = () => {
       default:
         return <Badge variant="outline" className="font-sans">준비중</Badge>;
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR');
   };
 
   const handleSurveyNavigation = (surveyId: string) => {

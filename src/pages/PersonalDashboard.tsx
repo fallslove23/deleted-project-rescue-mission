@@ -15,6 +15,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { formatDateTime, formatMessage, formatNumber, MESSAGE_KEYS } from '@/utils/formatters';
 
 interface Survey {
   id: string;
@@ -778,8 +779,17 @@ const PersonalDashboard: FC = () => {
                     <span className="text-sm">{item.name}</span>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{item.value}개</p>
-                    <p className="text-xs text-muted-foreground">{item.percentage}%</p>
+                    <p className="font-medium">
+                      {formatMessage(MESSAGE_KEYS.common.countWithUnit, {
+                        count: formatNumber(item.value),
+                        unit: '개',
+                      })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatMessage(MESSAGE_KEYS.common.percentage, {
+                        value: formatNumber(item.percentage),
+                      })}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -801,7 +811,10 @@ const PersonalDashboard: FC = () => {
                     <Progress value={item.percentage} className="h-2" />
                   </div>
                   <span className="text-sm text-muted-foreground w-16">
-                    {item.value}개 ({item.percentage}%)
+                    {formatMessage(MESSAGE_KEYS.analysis.valueWithPercentage, {
+                      count: formatNumber(item.value),
+                      percentage: formatNumber(item.percentage),
+                    })}
                   </span>
                 </div>
               ))}
@@ -816,18 +829,20 @@ const PersonalDashboard: FC = () => {
                 <div key={answer.id} className="p-3 border rounded-lg">
                   <p className="text-sm">{answer.answer_text}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(answer.created_at).toLocaleString()}
+                    {formatDateTime(answer.created_at)}
                   </p>
                 </div>
               ))
             ) : (
               <p className="text-muted-foreground text-center py-8">
-                아직 응답이 없습니다.
+                {formatMessage(MESSAGE_KEYS.common.noResponses)}
               </p>
             )}
             {analysis.totalAnswers > 10 && (
               <p className="text-sm text-muted-foreground text-center">
-                총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
+                {formatMessage(MESSAGE_KEYS.common.recentResponsesLimited, {
+                  count: formatNumber(analysis.totalAnswers),
+                })}
               </p>
             )}
           </div>

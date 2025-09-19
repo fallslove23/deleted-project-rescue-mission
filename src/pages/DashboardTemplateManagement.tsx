@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/utils/formatters';
 
 interface Template {
   id: string;
@@ -154,7 +155,7 @@ const DashboardTemplateManagement = () => {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
-                    {new Date(template.created_at).toLocaleDateString()}
+                    {formatDate(template.created_at)}
                   </span>
                   <div className="flex gap-2">
                     <Button

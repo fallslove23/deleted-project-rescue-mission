@@ -17,6 +17,7 @@ import { toZonedTime } from 'date-fns-tz';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import LoadingScreen from '@/components/LoadingScreen';
+import { formatDate, formatDateTime, formatMessage, formatNumber, MESSAGE_KEYS } from '@/utils/formatters';
 
 interface Survey {
   id: string;
@@ -234,7 +235,7 @@ const SurveyParticipate = () => {
           description: '해당 설문이 존재하지 않거나 비활성화되었습니다.',
           variant: 'destructive',
         });
-        setError('설문 데이터가 없습니다');
+        setError(formatMessage(MESSAGE_KEYS.errors.surveyMissing));
         return;
       }
 
@@ -246,19 +247,27 @@ const SurveyParticipate = () => {
 
       // 설문이 아직 시작되지 않은 경우
       if (startDate && now < startDate) {
-        setError(`설문 시작 시간이 아직 되지 않았습니다. 설문 시작: ${startDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+        setError(
+          formatMessage(MESSAGE_KEYS.errors.surveyNotStarted, {
+            date: formatDateTime(startDate, { timeZone }),
+          }),
+        );
         return;
       }
 
       // 설문이 이미 종료된 경우
       if (endDate && now > endDate) {
-        setError(`설문이 종료되었습니다. 설문 종료: ${endDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+        setError(
+          formatMessage(MESSAGE_KEYS.errors.surveyEnded, {
+            date: formatDateTime(endDate, { timeZone }),
+          }),
+        );
         return;
       }
 
       // 설문이 비활성 상태인 경우
       if (surveyData.status !== 'active' && surveyData.status !== 'public') {
-        setError('현재 참여할 수 없는 설문입니다.');
+        setError(formatMessage(MESSAGE_KEYS.errors.surveyUnavailable));
         return;
       }
 
@@ -773,8 +782,16 @@ const SurveyParticipate = () => {
               <h4 className="font-medium">참여하신 설문</h4>
               <p className="text-sm text-muted-foreground">{survey?.title}</p>
               <div className="text-xs text-muted-foreground flex items-center gap-4">
-                <span>• 총 {questions.length}개 문항 응답 완료</span>
-                <span>• {new Date().toLocaleDateString('ko-KR')} 제출</span>
+                <span>
+                  {formatMessage(MESSAGE_KEYS.common.completedQuestionCount, {
+                    count: formatNumber(questions.length),
+                  })}
+                </span>
+                <span>
+                  {formatMessage(MESSAGE_KEYS.common.todaySubmission, {
+                    date: formatDate(new Date()),
+                  })}
+                </span>
               </div>
             </div>
 

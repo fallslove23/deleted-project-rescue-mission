@@ -12,6 +12,7 @@ import { RefreshCw, Calendar, Search, Filter, AlertCircle, CheckCircle, XCircle,
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { formatDateTime, formatMessage, MESSAGE_KEYS } from '@/utils/formatters';
 // 변경 전: import { AdminLayout } from "@/components/layouts/AdminLayout";
 
 
@@ -350,7 +351,7 @@ const SystemLogs = () => {
                   {filteredLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="font-mono text-sm">
-                        {new Date(log.timestamp).toLocaleString('ko-KR')}
+                        {formatDateTime(log.timestamp)}
                       </TableCell>
                       <TableCell>
                         {getLevelBadge(log.level)}
@@ -371,7 +372,7 @@ const SystemLogs = () => {
                               <DialogHeader>
                                 <DialogTitle>로그 상세 정보</DialogTitle>
                                 <DialogDescription>
-                                  {new Date(log.timestamp).toLocaleString('ko-KR')}
+                                  {formatDateTime(log.timestamp)}
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4">
@@ -407,7 +408,7 @@ const SystemLogs = () => {
                   {filteredLogs.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        조건에 맞는 로그가 없습니다.
+                        {formatMessage(MESSAGE_KEYS.common.noLogs)}
                       </TableCell>
                     </TableRow>
                   )}

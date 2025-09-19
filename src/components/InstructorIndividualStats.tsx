@@ -9,6 +9,7 @@ import { BarChart, Star, TrendingUp, Calendar, Filter, Eye, FileText } from 'luc
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDate, formatDateTime, formatMessage, formatNumber, MESSAGE_KEYS } from '@/utils/formatters';
 
 interface Instructor {
   id: string;
@@ -666,19 +667,20 @@ const InstructorIndividualStats = ({
                              <div className="mt-4 pt-4 border-t">
                                {/* 요약 정보 */}
                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                                 <div className="text-center p-3 bg-muted/30 rounded">
-                                   <div className="text-lg font-bold text-primary">
-                                     {instructorResponses.length}
-                                   </div>
-                                   <div className="text-xs text-muted-foreground">총 응답 수</div>
-                                 </div>
-                                 <div className="text-center p-3 bg-muted/30 rounded">
-                                   <div className="text-lg font-bold text-primary">
-                                     {instructorResponses.length > 0 ? 
-                                      new Date(instructorResponses[0].submitted_at).toLocaleDateString() : '-'}
-                                   </div>
-                                   <div className="text-xs text-muted-foreground">최근 응답</div>
-                                 </div>
+                               <div className="text-center p-3 bg-muted/30 rounded">
+                                  <div className="text-lg font-bold text-primary">
+                                    {formatNumber(instructorResponses.length)}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">총 응답 수</div>
+                                </div>
+                                <div className="text-center p-3 bg-muted/30 rounded">
+                                  <div className="text-lg font-bold text-primary">
+                                    {instructorResponses.length > 0
+                                      ? formatDate(instructorResponses[0].submitted_at)
+                                      : '-'}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">최근 응답</div>
+                                </div>
                                  <div className="text-center p-3 bg-muted/30 rounded">
                                    <div className="text-lg font-bold text-primary">
                                      {(() => {
@@ -705,12 +707,14 @@ const InstructorIndividualStats = ({
                                <div className="space-y-4">
                                  <h5 className="font-medium flex items-center gap-2">
                                    <FileText className="h-4 w-4" />
-                                   개별 응답 ({instructorResponses.length}건)
+                                   {formatMessage(MESSAGE_KEYS.summary.responseCount, {
+                                     count: formatNumber(instructorResponses.length),
+                                   })}
                                  </h5>
                                  
                                  {instructorResponses.length === 0 ? (
                                    <div className="text-center py-8 text-muted-foreground">
-                                     아직 응답이 없습니다
+                                     {formatMessage(MESSAGE_KEYS.common.noResponses)}
                                    </div>
                                  ) : (
                                    <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -726,7 +730,7 @@ const InstructorIndividualStats = ({
                                                <div>
                                                  <CardTitle className="text-sm">응답 #{responseIndex + 1}</CardTitle>
                                                  <p className="text-xs text-muted-foreground">
-                                                   {new Date(response.submitted_at).toLocaleString()}
+                                                   {formatDateTime(response.submitted_at)}
                                                  </p>
                                                </div>
                                                {response.respondent_email && (

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { formatDateTime, formatMessage, formatNumber, MESSAGE_KEYS } from '@/utils/formatters';
 
 interface EmailLog {
   id: string;
@@ -331,7 +332,7 @@ const DashboardEmailLogs = () => {
                   {emailLogs.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
-                        <div className="text-muted-foreground">이메일 발송 기록이 없습니다.</div>
+                        <div className="text-muted-foreground">{formatMessage(MESSAGE_KEYS.common.noEmailLogs)}</div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -353,18 +354,33 @@ const DashboardEmailLogs = () => {
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell>{log.recipients?.length || 0}명</TableCell>
+                          <TableCell>
+                            {formatMessage(MESSAGE_KEYS.email.logs.recipientCount, {
+                              count: formatNumber(log.recipients?.length || 0),
+                            })}
+                          </TableCell>
                           <TableCell>{getStatusBadge(log.status)}</TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <span className="text-green-600">{log.sent_count || 0}건 성공</span>
+                              <span className="text-green-600">
+                                {formatMessage(MESSAGE_KEYS.email.logs.successCount, {
+                                  count: formatNumber(log.sent_count || 0),
+                                })}
+                              </span>
                               {log.failed_count > 0 && (
-                                <> / <span className="text-red-600">{log.failed_count}건 실패</span></>
+                                <>
+                                  {' '}/{' '}
+                                  <span className="text-red-600">
+                                    {formatMessage(MESSAGE_KEYS.email.logs.failureCount, {
+                                      count: formatNumber(log.failed_count),
+                                    })}
+                                  </span>
+                                </>
                               )}
                             </div>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {new Date(log.created_at).toLocaleString('ko-KR')}
+                            {formatDateTime(log.created_at)}
                           </TableCell>
                         </TableRow>
                       );
@@ -387,7 +403,11 @@ const DashboardEmailLogs = () => {
           </DialogHeader>
 
           <div className="flex items-center justify-between py-2">
-            <div className="text-sm text-muted-foreground">총 {allowlistEmails.length}개</div>
+            <div className="text-sm text-muted-foreground">
+              {formatMessage(MESSAGE_KEYS.common.allowlistTotal, {
+                count: formatNumber(allowlistEmails.length),
+              })}
+            </div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={copyAllowlist} disabled={allowlistEmails.length === 0}>
                 <Clipboard className="h-4 w-4 mr-1" /> 복사

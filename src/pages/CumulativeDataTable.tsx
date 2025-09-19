@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Filter, FileSpreadsheet, Calendar, Users, Star, Target } from 'lucide-react';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import { formatDate, formatNumber } from '@/utils/formatters';
 
 interface CumulativeDataRow {
   id: string;
@@ -262,7 +263,7 @@ const CumulativeDataTable = () => {
         item.response_count,
         item.avg_satisfaction,
         `"${item.status}"`,
-        `"${new Date(item.submitted_at).toLocaleDateString()}"`
+        `"${formatDate(item.submitted_at)}"`
       ].join(','))
     ].join('\n');
 
@@ -270,7 +271,7 @@ const CumulativeDataTable = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `누적데이터_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `누적데이터_${formatDate(new Date(), { pattern: 'yyyy-MM-dd' })}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -351,7 +352,7 @@ const CumulativeDataTable = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">총 응답 수</p>
-                <p className="text-2xl font-bold">{stats.totalResponses.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatNumber(stats.totalResponses)}</p>
               </div>
               <Calendar className="h-8 w-8 text-blue-500" />
             </div>

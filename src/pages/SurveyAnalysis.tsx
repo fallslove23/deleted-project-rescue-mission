@@ -14,6 +14,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieCha
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { formatDate } from '@/utils/formatters';
 
 interface Survey {
   id: string;
@@ -731,7 +732,7 @@ const SurveyAnalysis = () => {
                             <div className="flex items-center justify-between">
                               <h4 className="font-medium">응답 #{index + 1}</h4>
                               <span className="text-sm text-muted-foreground">
-                                {new Date(response.submitted_at).toLocaleDateString('ko-KR')}
+                                {formatDate(response.submitted_at)}
                               </span>
                             </div>
                           </CardHeader>

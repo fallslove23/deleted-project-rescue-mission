@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Edit, Trash2, Copy, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { formatDate, formatMessage, MESSAGE_KEYS } from '@/utils/formatters';
 
 interface Template {
   id: string;
@@ -408,10 +409,14 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
                   <div className="text-xs sm:text-sm text-muted-foreground break-words">
-                    생성일: {new Date(template.created_at).toLocaleDateString()}
+                    {formatMessage(MESSAGE_KEYS.templates.createdOn, {
+                      date: formatDate(template.created_at),
+                    })}
                     {template.updated_at !== template.created_at && (
                       <span className="block sm:inline sm:ml-4">
-                        수정일: {new Date(template.updated_at).toLocaleDateString()}
+                        {formatMessage(MESSAGE_KEYS.templates.updatedOn, {
+                          date: formatDate(template.updated_at),
+                        })}
                       </span>
                     )}
                   </div>

@@ -10,6 +10,7 @@ import ProgramManager from "@/components/ProgramManager";
 import { Separator } from "@/components/ui/separator";
 import { Zap, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { formatDateTime } from "@/utils/formatters";
 
 interface SurveyCreateFormProps {
   onSuccess: (surveyId: string) => void;
@@ -278,7 +279,7 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     try {
       // 1. 테스트 설문 생성
       const surveyPayload = {
-        title: `테스트 설문 - ${new Date().toLocaleString()}`,
+        title: `테스트 설문 - ${formatDateTime(new Date())}`,
         description: '테스트용으로 자동 생성된 설문입니다.',
         education_year: new Date().getFullYear(),
         education_round: 1,

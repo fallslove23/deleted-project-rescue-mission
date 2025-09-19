@@ -1,0 +1,44 @@
+{
+  "common": {
+    "cancel": "취소",
+    "edit": "편집",
+    "saving": "저장중...",
+    "adminOnlyAccess": "사용자 권한 관리는 관리자만 접근할 수 있습니다.",
+    "pageCount": "{count}개 페이지",
+    "countWithUnit": "{count}{unit}",
+    "percentage": "{value}%",
+    "todaySubmission": "• {date} 제출",
+    "completedQuestionCount": "• 총 {count}개 문항 응답 완료",
+    "noResponses": "아직 응답이 없습니다.",
+    "recentResponsesLimited": "총 {count}개 응답 중 최근 10개만 표시됩니다.",
+    "allowlistTotal": "총 {count}개",
+    "noEmailLogs": "이메일 발송 기록이 없습니다.",
+    "noLogs": "조건에 맞는 로그가 없습니다."
+  },
+  "policy": {
+    "noRole": "역할 없음"
+  },
+  "templates": {
+    "createdOn": "생성일: {date}",
+    "updatedOn": "수정일: {date}"
+  },
+  "email": {
+    "logs": {
+      "recipientCount": "{count}명",
+      "successCount": "{count}건 성공",
+      "failureCount": "{count}건 실패"
+    }
+  },
+  "errors": {
+    "surveyNotStarted": "설문 시작 시간이 아직 되지 않았습니다. 설문 시작: {date}",
+    "surveyEnded": "설문이 종료되었습니다. 설문 종료: {date}",
+    "surveyUnavailable": "현재 참여할 수 없는 설문입니다.",
+    "surveyMissing": "설문 데이터가 없습니다"
+  },
+  "summary": {
+    "responseCount": "개별 응답 ({count}건)"
+  },
+  "analysis": {
+    "valueWithPercentage": "{count}개 ({percentage}%)"
+  }
+}
