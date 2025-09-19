@@ -13,7 +13,16 @@
     "recentResponsesLimited": "총 {count}개 응답 중 최근 10개만 표시됩니다.",
     "allowlistTotal": "총 {count}개",
     "noEmailLogs": "이메일 발송 기록이 없습니다.",
-    "noLogs": "조건에 맞는 로그가 없습니다."
+    "noLogs": "조건에 맞는 로그가 없습니다.",
+    "refresh": "새로고침",
+    "loading": "로딩 중...",
+    "details": "상세",
+    "none": "없음",
+    "accessDenied": "접근 권한 없음",
+    "units": {
+      "case": "건",
+      "person": "명"
+    }
   },
   "policy": {
     "noRole": "역할 없음"
@@ -26,7 +35,59 @@
     "logs": {
       "recipientCount": "{count}명",
       "successCount": "{count}건 성공",
-      "failureCount": "{count}건 실패"
+      "failureCount": "{count}건 실패",
+      "menuTitle": "이메일 로그 메뉴",
+      "menuSummaryTotal": "총 {count}의 발송 기록",
+      "menuSummaryRate": "성공률 {percentage}",
+      "noPermissionDescription": "이메일 로그를 조회할 권한이 없습니다.",
+      "totalRecords": "총 발송 기록",
+      "totalSuccess": "총 성공 발송",
+      "totalFailure": "총 실패 건수",
+      "successRate": "성공률",
+      "statusDistribution": "상태별 분포",
+      "monthlyStats": "월별 발송 통계",
+      "filterTitle": "필터",
+      "filterSurveyLabel": "설문",
+      "filterSurveyAll": "전체 설문",
+      "filterStatusLabel": "상태",
+      "filterStatusAll": "전체 상태",
+      "status": {
+        "success": "성공",
+        "failed": "실패",
+        "partial": "부분성공"
+      },
+      "filterPeriodLabel": "기간",
+      "filterPeriodAll": "전체 기간",
+      "searchLabel": "이메일 검색",
+      "searchPlaceholder": "이메일 주소로 검색",
+      "tableTitle": "발송 기록 ({count})",
+      "table": {
+        "survey": "설문",
+        "status": "상태",
+        "recipients": "수신자",
+        "result": "성공/실패",
+        "sentAt": "발송일시",
+        "details": "상세"
+      },
+      "empty": "발송 기록이 없습니다.",
+      "additionalRecipients": "외 {count}",
+      "surveyWithRound": "{title} ({year}년 {round}차)",
+      "dialogTitle": "발송 상세 정보",
+      "basicInfo": "기본 정보",
+      "field": {
+        "survey": "설문",
+        "status": "상태",
+        "sentAt": "발송일시",
+        "result": "성공/실패"
+      },
+      "recipients": "수신자 목록 ({count})",
+      "errorInfo": "오류 정보",
+      "resultDetails": "상세 결과",
+      "toast": {
+        "errorTitle": "오류",
+        "errorDescription": "이메일 로그를 불러오는 중 오류가 발생했습니다."
+      },
+      "noSurveyInfo": "설문 정보 없음"
     }
   },
   "errors": {
