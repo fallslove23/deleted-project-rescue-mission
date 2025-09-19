@@ -25,6 +25,7 @@ import {
   ListChecks,
   type LucideIcon
 } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 
@@ -333,19 +334,17 @@ const TemplateBuilder = () => {
     setIsDialogOpen(true);
   };
 
-  const requestDeleteQuestion = (question: TemplateQuestion) => {
+  const openDeleteQuestionDialog = (question: TemplateQuestion) => {
     setQuestionToDelete(question);
     setIsDeleteDialogOpen(true);
   };
 
-  const handleDeleteQuestion = async () => {
-    if (!questionToDelete) return;
-
+  const handleDeleteQuestion = async (questionId: string) => {
     try {
       const { error } = await supabase
         .from('template_questions')
         .delete()
-        .eq('id', questionToDelete.id);
+        .eq('id', questionId);
 
       if (error) throw error;
 
@@ -365,11 +364,6 @@ const TemplateBuilder = () => {
         variant: "destructive"
       });
     }
-  };
-
-  const handleCancelDelete = () => {
-    setIsDeleteDialogOpen(false);
-    setQuestionToDelete(null);
   };
 
   const handleAddSection = async (e: React.FormEvent) => {
@@ -493,7 +487,7 @@ const TemplateBuilder = () => {
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 hover:bg-gray-100"
-            onClick={() => requestDeleteQuestion(question)}
+            onClick={() => openDeleteQuestionDialog(question)}
           >
             <Trash2 className="h-4 w-4 text-gray-600" />
           </Button>
@@ -1003,7 +997,7 @@ const TemplateBuilder = () => {
           </div>
         </div>
       </main>
-      <Dialog
+      <ConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={(open) => {
           setIsDeleteDialogOpen(open);
@@ -1011,36 +1005,28 @@ const TemplateBuilder = () => {
             setQuestionToDelete(null);
           }
         }}
-      >
-        <DialogContent className="sm:max-w-md border-t-4 border-rose-400">
-          <DialogHeader className="space-y-3 border-b border-rose-100 pb-3 text-left">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-                <Trash2 className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <DialogTitle className="text-lg font-semibold text-rose-900">질문 삭제</DialogTitle>
-                <DialogDescription className="text-sm text-rose-600">
-                  삭제된 질문은 되돌릴 수 없습니다. 계속하시겠습니까?
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="space-y-4 pt-3">
-            <div className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">
-              {questionToDelete?.question_text ?? ''}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={handleCancelDelete}>
-                취소
-              </Button>
-              <Button type="button" variant="destructive" onClick={handleDeleteQuestion}>
-                삭제
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        title="질문 삭제"
+        description={
+          <>
+            <p>선택한 질문을 삭제하면 설문에서 즉시 제거됩니다.</p>
+            {questionToDelete && (
+              <p className="rounded-md bg-muted px-3 py-2 font-medium text-foreground">
+                {questionToDelete.question_text}
+              </p>
+            )}
+            <p className="font-semibold text-destructive">이 작업은 되돌릴 수 없습니다.</p>
+          </>
+        }
+        primaryAction={{
+          label: '삭제',
+          variant: 'destructive',
+          onClick: () => {
+            if (questionToDelete) {
+              void handleDeleteQuestion(questionToDelete.id);
+            }
+          },
+        }}
+      />
     </div>
   );
 };
