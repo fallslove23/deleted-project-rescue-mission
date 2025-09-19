@@ -189,7 +189,14 @@ const SurveyDetailedAnalysis = () => {
     };
   }, [isRestrictedInstructor, accessibleSessionIds, questions, answers, responses]);
 
-  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
+  // Design system chart colors
+  const COLORS = [
+    'hsl(var(--chart-1))',
+    'hsl(var(--chart-2))',
+    'hsl(var(--chart-3))',
+    'hsl(var(--chart-4))',
+    'hsl(var(--chart-5))',
+  ];
 
   useEffect(() => {
     if (surveyId) {
@@ -306,8 +313,14 @@ const SurveyDetailedAnalysis = () => {
         .select(`
           id,
           session_name,
+          session_order,
+          survey_id,
+          course_id,
           instructor_id,
-          courses (title),
+          courses (
+            id,
+            title
+          ),
           instructors (
             id,
             name,
@@ -319,8 +332,56 @@ const SurveyDetailedAnalysis = () => {
 
       if (sessionError) throw sessionError;
 
+      let sessions = sessionData ?? [];
+
+      let profileInstructorId: string | null = null;
+      if (isRestrictedInstructor && user?.id) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('instructor_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile for instructor filtering:', profileError);
+        } else if (profile?.instructor_id) {
+          profileInstructorId = profile.instructor_id;
+        }
+      }
+
+      if (isRestrictedInstructor) {
+        const lowerEmail = user?.email?.toLowerCase() ?? '';
+        const allowedInstructorIds = new Set<string>();
+
+        if (currentSurvey?.instructor_id) {
+          allowedInstructorIds.add(currentSurvey.instructor_id);
+        }
+        if (instructor?.id) {
+          allowedInstructorIds.add(instructor.id);
+        }
+        if (profileInstructorId) {
+          allowedInstructorIds.add(profileInstructorId);
+        }
+
+        sessions = sessions.filter((session: any) => {
+          if (session.instructor_id && allowedInstructorIds.has(session.instructor_id)) {
+            return true;
+          }
+
+          const sessionInstructorEmail = session.instructors?.email
+            ? session.instructors.email.toLowerCase()
+            : '';
+
+          if (sessionInstructorEmail && lowerEmail && sessionInstructorEmail === lowerEmail) {
+            return true;
+          }
+
+          return false;
+        });
+      }
+
       let formattedSessions =
-        sessionData?.map((session: any) => ({
+        sessions.map((session: any) => ({
           id: session.id as string,
           title: session.session_name || session.courses?.title || '세션',
           course_name: session.courses?.title || session.session_name || currentSurvey?.course_name || '',
@@ -331,22 +392,6 @@ const SurveyDetailedAnalysis = () => {
           instructor_email: session.instructors?.email || '',
           status: currentSurvey?.status,
         })) ?? [];
-
-      if (isRestrictedInstructor) {
-        const lowerEmail = user?.email?.toLowerCase() ?? '';
-        formattedSessions = formattedSessions.filter((session) => {
-          if (session.instructor_id && currentSurvey?.instructor_id && session.instructor_id === currentSurvey.instructor_id) {
-            return true;
-          }
-          if (session.instructor_id && instructor?.id && session.instructor_id === instructor.id) {
-            return true;
-          }
-          if (session.instructor_email && lowerEmail && session.instructor_email.toLowerCase() === lowerEmail) {
-            return true;
-          }
-          return false;
-        });
-      }
 
       if ((!formattedSessions || formattedSessions.length === 0) && currentSurvey) {
         formattedSessions = [
@@ -977,22 +1022,29 @@ const SurveyDetailedAnalysis = () => {
                         <CardContent>
                           {analysis.type === 'rating' && (
                             <div className="space-y-4">
-                              <div className="flex items-center gap-4">
-                                <div className="text-3xl font-bold text-primary">{analysis.average}/10</div>
-                                <div className="text-sm text-muted-foreground">
-                                  총 {analysis.totalAnswers}개 응답
+                              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div className="space-y-1">
+                                  <div className="text-3xl font-bold text-primary">{analysis.average}/10</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    총 {analysis.totalAnswers}개 응답
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="w-full">
-                                <ResponsiveContainer width="100%" height={200}>
-                                  <RechartsBarChart data={analysis.chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis />
-                                    <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                    <Bar dataKey="value" fill="#3b82f6" />
-                                  </RechartsBarChart>
-                                </ResponsiveContainer>
+                                <div className="w-full">
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <RechartsBarChart data={analysis.chartData}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="name" />
+                                      <YAxis />
+                                      <Tooltip
+                                        formatter={(value: number | string, _name: string, props: any) => {
+                                          const percentage = props?.payload?.percentage ?? 0;
+                                          return [`${value}개 (${percentage}%)`, '응답 수'];
+                                        }}
+                                      />
+                                      <Bar dataKey="value" fill="hsl(var(--chart-1))" />
+                                    </RechartsBarChart>
+                                  </ResponsiveContainer>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -1007,7 +1059,7 @@ const SurveyDetailedAnalysis = () => {
                                     labelLine={false}
                                     label={({ name, percentage }) => `${name} (${percentage}%)`}
                                     outerRadius={80}
-                                    fill="#8884d8"
+                                    fill="hsl(var(--chart-1))"
                                     dataKey="value"
                                   >
                                     {analysis.chartData.map((entry, index) => (
@@ -1125,22 +1177,29 @@ const SurveyDetailedAnalysis = () => {
                         <CardContent>
                           {analysis.type === 'rating' && (
                             <div className="space-y-4">
-                              <div className="flex items-center gap-4">
-                                <div className="text-3xl font-bold text-primary">{analysis.average}/10</div>
-                                <div className="text-sm text-muted-foreground">
-                                  총 {analysis.totalAnswers}개 응답
+                              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div className="space-y-1">
+                                  <div className="text-3xl font-bold text-primary">{analysis.average}/10</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    총 {analysis.totalAnswers}개 응답
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="w-full">
-                                <ResponsiveContainer width="100%" height={200}>
-                                  <RechartsBarChart data={analysis.chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis />
-                                    <Tooltip formatter={(value, name) => [`${value}개 (${analysis.chartData.find(d => d.name === name)?.percentage}%)`, '응답 수']} />
-                                    <Bar dataKey="value" fill="#3b82f6" />
-                                  </RechartsBarChart>
-                                </ResponsiveContainer>
+                                <div className="w-full">
+                                  <ResponsiveContainer width="100%" height={200}>
+                                    <RechartsBarChart data={analysis.chartData}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="name" />
+                                      <YAxis />
+                                      <Tooltip
+                                        formatter={(value: number | string, _name: string, props: any) => {
+                                          const percentage = props?.payload?.percentage ?? 0;
+                                          return [`${value}개 (${percentage}%)`, '응답 수'];
+                                        }}
+                                      />
+                                      <Bar dataKey="value" fill="hsl(var(--chart-1))" />
+                                    </RechartsBarChart>
+                                  </ResponsiveContainer>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -1155,7 +1214,7 @@ const SurveyDetailedAnalysis = () => {
                                     labelLine={false}
                                     label={({ name, percentage }) => `${name} (${percentage}%)`}
                                     outerRadius={80}
-                                    fill="#8884d8"
+                                    fill="hsl(var(--chart-1))"
                                     dataKey="value"
                                   >
                                     {analysis.chartData.map((entry, index) => (
