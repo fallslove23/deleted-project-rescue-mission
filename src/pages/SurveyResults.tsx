@@ -1,5 +1,5 @@
 // src/pages/SurveyResults.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { BarChart as IconBarChart, FileText, TrendingUp, Send, Menu, BarChart3, FileSpreadsheet } from 'lucide-react';
+import { BarChart as IconBarChart, FileText, TrendingUp, Send, Menu, BarChart3, FileSpreadsheet, Check } from 'lucide-react';
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -34,6 +34,7 @@ import {
 } from '@/utils/csvExport';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import { FilterPresetManager } from '@/components/FilterPresetManager';
 
 
 interface Survey {
@@ -88,7 +89,7 @@ interface SurveyQuestion {
 
 const SurveyResults = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
   const { toast } = useToast();
@@ -106,8 +107,11 @@ const SurveyResults = () => {
   const [selectedSurvey, setSelectedSurvey] = useState<string>('all');
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [pendingYear, setPendingYear] = useState<string>('all');
+  const [pendingCourse, setPendingCourse] = useState<string>('all');
+  const [pendingInstructor, setPendingInstructor] = useState<string>('all');
+  const [pendingSurvey, setPendingSurvey] = useState<string>('all');
   const [showCourseStats, setShowCourseStats] = useState<boolean>(false);
   const [availableCourses, setAvailableCourses] = useState<
     { year: number; round: number; course_name: string; key: string }[]
@@ -122,6 +126,68 @@ const SurveyResults = () => {
   const isDirector = userRoles.includes('director');
   const isInstructor = userRoles.includes('instructor');
   const canViewAll = isAdmin || isOperator || isDirector;
+
+  // 과정명에서 분반/조 정보 등을 제거하여 일관된 비교를 수행
+  const normalizeCourseName = useCallback((courseName: string) => {
+    if (!courseName) return '';
+
+    let normalized = courseName;
+
+    normalized = normalized.replace(/\((?:홀수조|짝수조|\d+조)\)/g, '');
+    normalized = normalized.replace(/-\d+일차\s*\d*조?/g, '');
+    normalized = normalized.replace(/-\d+일차/g, '');
+    normalized = normalized.replace(/\s*\d+조$/g, '');
+
+    normalized = normalized.replace(/\s{2,}/g, ' ').replace(/-{2,}/g, '-').trim();
+
+    return normalized;
+  }, []);
+
+  const filterSurveysWithValues = useCallback(
+    (filters: {
+      year?: string;
+      course?: string;
+      instructor?: string;
+    }) => {
+      const { year, course, instructor } = filters;
+      let filtered = surveys;
+
+      if (year && year !== 'all') {
+        filtered = filtered.filter((s) => String(s.education_year) === year);
+      }
+
+      const normalizedCourse = course && course !== 'all' ? normalizeCourseName(course) : null;
+      if (normalizedCourse) {
+        filtered = filtered.filter((s) => normalizeCourseName(s.course_name) === normalizedCourse);
+      }
+
+      if (canViewAll && instructor && instructor !== 'all') {
+        filtered = filtered.filter((s) => s.instructor_id === instructor);
+      }
+
+      return filtered;
+    },
+    [surveys, canViewAll, normalizeCourseName]
+  );
+
+  const getFilteredSurveys = useCallback(
+    (override?: {
+      year?: string;
+      course?: string;
+      instructor?: string;
+    }) => {
+      const targetYear = override?.year ?? selectedYear;
+      const targetCourse = override?.course ?? selectedCourse;
+      const targetInstructor = override?.instructor ?? selectedInstructor;
+
+      return filterSurveysWithValues({
+        year: targetYear,
+        course: targetCourse,
+        instructor: targetInstructor,
+      });
+    },
+    [filterSurveysWithValues, selectedYear, selectedCourse, selectedInstructor]
+  );
 
   // test data 토글 변경 시 리프레시
   useEffect(() => {
@@ -148,11 +214,54 @@ const SurveyResults = () => {
     fetchSurveys();
     fetchAllResponses();
     fetchAllQuestionsAndAnswers();
-
-    const surveyIdFromUrl = searchParams.get('surveyId');
-    if (surveyIdFromUrl) setSelectedSurvey(surveyIdFromUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, searchParams]);
+  }, [profile]);
+
+  useEffect(() => {
+    const yearParam = searchParams.get('year') ?? 'all';
+    const courseParam = searchParams.get('course') ?? 'all';
+    const instructorParam = searchParams.get('instructor') ?? 'all';
+    const surveyParam = searchParams.get('surveyId') ?? 'all';
+
+    if (selectedYear !== yearParam) {
+      setSelectedYear(yearParam);
+    }
+
+    if (selectedCourse !== courseParam) {
+      setSelectedCourse(courseParam);
+    }
+
+    if (canViewAll) {
+      if (selectedInstructor !== instructorParam) {
+        setSelectedInstructor(instructorParam);
+      }
+    } else if (selectedInstructor !== 'all') {
+      setSelectedInstructor('all');
+    }
+
+    const filteredByParams = filterSurveysWithValues({
+      year: yearParam,
+      course: courseParam,
+      instructor: canViewAll ? instructorParam : undefined,
+    });
+
+    const validSurveyId =
+      surveyParam !== 'all' && filteredByParams.some((survey) => survey.id === surveyParam)
+        ? surveyParam
+        : 'all';
+
+    if (selectedSurvey !== validSurveyId) {
+      setSelectedSurvey(validSurveyId);
+    }
+  }, [
+    searchParams,
+    canViewAll,
+    filterSurveysWithValues,
+    selectedYear,
+    selectedCourse,
+    selectedInstructor,
+    selectedSurvey,
+  ]);
 
   // 선택된 설문이 바뀌면 해당 설문 응답/질문/답변 로드
   useEffect(() => {
@@ -172,6 +281,69 @@ const SurveyResults = () => {
     const filtered = allResponses.filter((r) => r.survey_id === selectedSurvey);
     setResponses(filtered);
   }, [selectedSurvey, allResponses]);
+
+  useEffect(() => {
+    setPendingYear(selectedYear);
+  }, [selectedYear]);
+
+  useEffect(() => {
+    setPendingCourse(selectedCourse);
+  }, [selectedCourse]);
+
+  useEffect(() => {
+    if (canViewAll) {
+      setPendingInstructor(selectedInstructor);
+    } else {
+      setPendingInstructor('all');
+    }
+  }, [selectedInstructor, canViewAll]);
+
+  useEffect(() => {
+    setPendingSurvey(selectedSurvey);
+  }, [selectedSurvey]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+
+    if (selectedYear && selectedYear !== 'all') {
+      next.set('year', selectedYear);
+    } else {
+      next.delete('year');
+    }
+
+    if (selectedCourse && selectedCourse !== 'all') {
+      next.set('course', selectedCourse);
+    } else {
+      next.delete('course');
+    }
+
+    if (canViewAll && selectedInstructor && selectedInstructor !== 'all') {
+      next.set('instructor', selectedInstructor);
+    } else {
+      next.delete('instructor');
+    }
+
+    if (selectedSurvey && selectedSurvey !== 'all') {
+      next.set('surveyId', selectedSurvey);
+    } else {
+      next.delete('surveyId');
+    }
+
+    const nextString = next.toString();
+    const currentString = searchParams.toString();
+
+    if (nextString !== currentString) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [
+    selectedYear,
+    selectedCourse,
+    selectedInstructor,
+    selectedSurvey,
+    canViewAll,
+    searchParams,
+    setSearchParams,
+  ]);
 
   // ======= Data fetchers =======
   const fetchAllResponses = async () => {
@@ -487,7 +659,6 @@ const SurveyResults = () => {
         
         if (instructorId) {
           query = query.eq('instructor_id', instructorId);
-          console.log('🔍 강사 설문 필터링:', { instructorId, userEmail: user?.email });
         } else {
           // instructor_id를 찾을 수 없는 경우 빈 결과 반환 (보안상 중요)
           console.warn('⚠️ 강사 권한이지만 instructor_id를 찾을 수 없습니다.');
@@ -501,7 +672,6 @@ const SurveyResults = () => {
         .order('education_round', { ascending: false });
       if (error) throw error;
       
-      console.log('📋 조회된 설문 수:', (data ?? []).length);
       setSurveys((data ?? []) as Survey[]);
     } catch (e) {
       console.error('Error fetching surveys:', e);
@@ -589,29 +759,6 @@ const SurveyResults = () => {
     return rounds.sort((a, b) => b - a);
   };
 
-  // 코스명 정규화 함수 (분반/조 정보 제거)
-  const normalizeCourseName = (courseName: string) => {
-    if (!courseName) return '';
-    
-    // 원본 과정명을 보존하여 핵심 과정명만 추출
-    let normalized = courseName;
-    
-    // 괄호 안의 조별 정보 제거: (홀수조), (짝수조) 등
-    normalized = normalized.replace(/\((?:홀수조|짝수조|\d+조)\)/g, '');
-    
-    // 일차별, 조별 정보 제거
-    normalized = normalized.replace(/-\d+일차\s*\d*조?/g, '');
-    normalized = normalized.replace(/-\d+일차/g, '');
-    normalized = normalized.replace(/\s*\d+조$/g, '');
-    
-    // 중복 공백 및 하이픈 정리
-    normalized = normalized.replace(/\s{2,}/g, ' ').replace(/-{2,}/g, '-').trim();
-    
-    // 핵심 과정명이 다르면 별도 그룹으로 처리
-    // 예: "영업 BS 집체교육"과 "BS Advanced"는 서로 다른 과정
-    return normalized;
-  };
-
   // 제목에서 'n일차' 숫자를 추출하여 정렬에 사용
   const extractDayFromTitle = (title: string): number | null => {
     const match = title?.match(/(\d+)일차/);
@@ -633,22 +780,6 @@ const SurveyResults = () => {
       return NaN;
     }
   };
-  const getFilteredSurveys = () => {
-    let filtered = surveys;
-    if (selectedYear && selectedYear !== 'all') filtered = filtered.filter((s) => String(s.education_year) === selectedYear);
-
-    if (selectedCourse && selectedCourse !== 'all') {
-      // 정규화된 과정명을 기준으로 필터링 (분반/조 표기 제거)
-      filtered = filtered.filter((s) => normalizeCourseName(s.course_name) === selectedCourse);
-    }
-
-    if (canViewAll && selectedInstructor !== 'all') {
-      // 강사별 필터링을 설문의 instructor_id로 처리
-      filtered = filtered.filter((s) => s.instructor_id === selectedInstructor);
-    }
-    return filtered;
-  };
-
   // 설문 그룹화 함수 - 개별 설문과 종합 결과를 함께 표시
   const getGroupedSurveys = () => {
     const filtered = getFilteredSurveys();
@@ -816,18 +947,6 @@ const SurveyResults = () => {
       relevantSurveys = relevantSurveys.filter(s => s.instructor_id === selectedInstructor);
     }
 
-    console.log('📊 Course Statistics Debug:', {
-      isInstructor,
-      canViewAll,
-      selectedInstructor,
-      userEmail: user?.email,
-      instructorId: profile?.instructor_id,
-      relevantSurveys: relevantSurveys.length,
-      allResponses: allResponses.length,
-      allQuestions: allQuestions.length,
-      allAnswers: allAnswers.length
-    });
-
     const courseStats: Record<
       string,
       {
@@ -881,12 +1000,6 @@ const SurveyResults = () => {
         surveyAnswers = surveyAnswers.filter(a => questionIds.includes(a.question_id));
       }
 
-      console.log(`📋 ${key} 통계:`, {
-        surveyQuestions: surveyQuestions.length,
-        surveyAnswers: surveyAnswers.length,
-        surveyResponses: surveyResponses.length
-      });
-
       // 만족도 타입별 계산 (개선된 숫자 파싱 적용)
       const satisfactionTypes = [
         { key: 'instructorSatisfaction', types: ['instructor'] },
@@ -915,13 +1028,6 @@ const SurveyResults = () => {
               const avg = sum / validValues.length;
               (stat as any)[satKey] = avg;
               
-              console.log(`${satKey} 계산 (개선된 파싱):`, {
-                questions: typeQuestions.length,
-                totalAnswers: typeAnswers.length,
-                validAnswers: validValues.length,
-                validValues: validValues.slice(0, 5),
-                avg
-              });
             } else {
               (stat as any)[satKey] = 0;
             }
@@ -936,7 +1042,6 @@ const SurveyResults = () => {
       displayName: `${stat.year}년 ${stat.round}차 ${stat.course_name}`,
     }));
 
-    console.log('📈 최종 courseStats:', result);
     return result;
   };
 
@@ -1088,20 +1193,180 @@ const SurveyResults = () => {
     });
   };
 
-  // ======= Derived data with memoization =======
-  const statistics = useMemo(() => {
-    const result = getStatistics();
-    console.log('🔄 Statistics 재계산:', result);
-    return result;
-  }, [getFilteredSurveys(), allResponses, selectedSurvey, responses, selectedInstructor, profile?.instructor_id]);
+  const handleApplyFilters = () => {
+    const nextYear = pendingYear;
+    const nextCourse = pendingCourse;
+    const nextInstructor = canViewAll ? pendingInstructor : 'all';
+    let nextSurvey = pendingSurvey;
 
-  const courseStats = useMemo(() => {
-    const result = getCourseStatistics();
-    console.log('🔄 CourseStats 재계산:', result.length, 'courses');
-    return result;
-  }, [getFilteredSurveys(), allResponses, allQuestions, allAnswers, profile?.instructor_id]);
+    const availableAfterApply = filterSurveysWithValues({
+      year: nextYear,
+      course: nextCourse,
+      instructor: canViewAll ? nextInstructor : undefined,
+    });
+
+    if (
+      nextSurvey !== 'all' &&
+      !availableAfterApply.some((survey) => survey.id === nextSurvey)
+    ) {
+      nextSurvey = 'all';
+    }
+
+    setSelectedYear(nextYear);
+    setSelectedCourse(nextCourse);
+    if (canViewAll) {
+      setSelectedInstructor(nextInstructor);
+    } else {
+      setSelectedInstructor('all');
+      setPendingInstructor('all');
+    }
+    setSelectedSurvey(nextSurvey);
+    setPendingSurvey(nextSurvey);
+  };
+
+  const handleResetFilters = () => {
+    setPendingYear('all');
+    setPendingCourse('all');
+    setPendingSurvey('all');
+    setPendingInstructor('all');
+
+    setSelectedYear('all');
+    setSelectedCourse('all');
+    setSelectedInstructor('all');
+    setSelectedSurvey('all');
+  };
+
+  const handleRemoveFilter = (key: string) => {
+    switch (key) {
+      case 'selectedYear':
+        setSelectedYear('all');
+        setPendingYear('all');
+        break;
+      case 'selectedCourse':
+        setSelectedCourse('all');
+        setPendingCourse('all');
+        break;
+      case 'selectedInstructor':
+        setSelectedInstructor('all');
+        setPendingInstructor('all');
+        break;
+      case 'selectedSurvey':
+        setSelectedSurvey('all');
+        setPendingSurvey('all');
+        break;
+      default:
+        return;
+    }
+  };
+
+
+  const handleLoadPreset = (filters: any) => {
+    if (!filters) return;
+
+    const nextYear = filters.selectedYear ?? 'all';
+    const nextCourse = filters.selectedCourse ?? 'all';
+    const nextInstructor = filters.selectedInstructor ?? 'all';
+    let nextSurvey = filters.selectedSurvey ?? 'all';
+
+    const available = filterSurveysWithValues({
+      year: nextYear,
+      course: nextCourse,
+      instructor: canViewAll ? nextInstructor : undefined,
+    });
+
+    if (nextSurvey !== 'all' && !available.some((survey) => survey.id === nextSurvey)) {
+      nextSurvey = 'all';
+    }
+
+    setPendingYear(nextYear);
+    setPendingCourse(nextCourse);
+    setPendingInstructor(canViewAll ? nextInstructor : 'all');
+    setPendingSurvey(nextSurvey);
+
+    setSelectedYear(nextYear);
+    setSelectedCourse(nextCourse);
+    if (canViewAll) {
+      setSelectedInstructor(nextInstructor);
+    } else {
+      setSelectedInstructor('all');
+    }
+    setSelectedSurvey(nextSurvey);
+  };
+
+
+  // ======= Derived data with memoization =======
+  const statistics = useMemo(
+    () => getStatistics(),
+    [
+      getFilteredSurveys,
+      allResponses,
+      allQuestions,
+      allAnswers,
+      selectedSurvey,
+      responses,
+      selectedInstructor,
+      canViewAll,
+      isInstructor,
+      profile?.instructor_id,
+    ]
+  );
+
+  const courseStats = useMemo(
+    () => getCourseStatistics(),
+    [
+      getFilteredSurveys,
+      allResponses,
+      allQuestions,
+      allAnswers,
+      questions,
+      answers,
+      selectedSurvey,
+      selectedInstructor,
+      canViewAll,
+      isInstructor,
+      profile?.instructor_id,
+      user?.email,
+      allInstructors,
+    ]
+  );
 
   const questionAnalyses = getQuestionAnalyses();
+
+  const pendingFilteredSurveys = getFilteredSurveys({
+    year: pendingYear,
+    course: pendingCourse,
+    instructor: canViewAll ? pendingInstructor : undefined,
+  });
+
+  const filterLabels = {
+    selectedYear: '교육 연도',
+    selectedCourse: '과정',
+    selectedInstructor: '강사',
+    selectedSurvey: '설문',
+  } as const;
+
+  const appliedFilters = {
+    selectedYear,
+    selectedCourse,
+    selectedInstructor: canViewAll ? selectedInstructor : 'all',
+    selectedSurvey,
+  };
+
+  const filterDisplayValues = {
+    selectedYear: selectedYear !== 'all' ? `${selectedYear}년` : undefined,
+    selectedCourse:
+      selectedCourse !== 'all'
+        ? availableCourses.find((course) => course.key === selectedCourse)?.course_name ?? selectedCourse
+        : undefined,
+    selectedInstructor:
+      canViewAll && selectedInstructor !== 'all'
+        ? allInstructors.find((instructor) => instructor.id === selectedInstructor)?.name ?? selectedInstructor
+        : undefined,
+    selectedSurvey:
+      selectedSurvey !== 'all'
+        ? surveys.find((survey) => survey.id === selectedSurvey)?.title ?? selectedSurvey
+        : undefined,
+  };
 
   if (loading) {
     return (
@@ -1147,100 +1412,113 @@ const SurveyResults = () => {
         </div>
 
         {/* 필터 섹션 */}
-        <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border/60 p-6 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">교육 연도</label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger>
-                  <SelectValue placeholder="전체" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체</SelectItem>
-                  {getUniqueYears().map((year) => (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}년
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border/60 mb-6 overflow-hidden">
+          <div className="sticky top-24 z-20 -mx-6 px-6 py-4 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-b border-border/60 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <FilterPresetManager
+              filterType="survey_results"
+              currentFilters={appliedFilters}
+              filterLabels={filterLabels}
+              filterDisplayValues={filterDisplayValues}
+              onLoadPreset={handleLoadPreset}
+              onRemoveFilter={handleRemoveFilter}
+              className="flex-1"
+            />
+            <div className="flex flex-col gap-2 w-full md:w-auto md:flex-row md:items-center">
+              <Button
+                variant="outline"
+                onClick={handleResetFilters}
+                className="w-full md:w-auto"
+              >
+                필터 초기화
+              </Button>
+              <Button onClick={handleApplyFilters} className="w-full md:w-auto">
+                필터 적용
+              </Button>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">과정</label>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                <SelectTrigger>
-                  <SelectValue placeholder="전체" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체</SelectItem>
-                  {availableCourses.map((course) => (
-                    <SelectItem key={course.key} value={course.key}>
-                      {course.course_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {canViewAll && (
+          </div>
+          <div className="px-6 py-6 space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">강사</label>
-                <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">교육 연도</label>
+                <Select value={pendingYear} onValueChange={setPendingYear}>
                   <SelectTrigger>
                     <SelectValue placeholder="전체" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체</SelectItem>
-                    {allInstructors.map((instructor) => (
-                      <SelectItem key={instructor.id} value={instructor.id}>
-                        {instructor.name}
+                    {getUniqueYears().map((year) => (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}년
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
-          </div>
 
-        {/* 설문 선택 */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-muted-foreground mb-2">설문 선택</label>
-            <Select value={selectedSurvey} onValueChange={setSelectedSurvey}>
-              <SelectTrigger>
-                <SelectValue placeholder="전체 설문" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체 설문</SelectItem>
-                {getFilteredSurveys().map((survey) => (
-                  <SelectItem key={survey.id} value={survey.id}>
-                    {survey.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-end">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSelectedYear('all');
-                setSelectedCourse('all');
-                if (canViewAll) setSelectedInstructor('all'); // 강사는 본인 설문만 볼 수 있으므로 초기화하지 않음
-                setSelectedSurvey('all');
-              }}
-              className="flex items-center gap-2 whitespace-nowrap"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              필터 초기화
-            </Button>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">과정</label>
+                <Select value={pendingCourse} onValueChange={setPendingCourse}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    {availableCourses.map((course) => (
+                      <SelectItem key={course.key} value={course.key}>
+                        {course.course_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {canViewAll && (
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">강사</label>
+                  <Select value={pendingInstructor} onValueChange={setPendingInstructor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="전체" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">전체</SelectItem>
+                      {allInstructors.map((instructor) => (
+                        <SelectItem key={instructor.id} value={instructor.id}>
+                          {instructor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">설문 선택</label>
+              <Select value={pendingSurvey} onValueChange={setPendingSurvey}>
+                <SelectTrigger>
+                  <SelectValue placeholder="전체 설문" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 설문</SelectItem>
+                  {pendingFilteredSurveys.map((survey) => (
+                    <SelectItem key={survey.id} value={survey.id}>
+                      {survey.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-        </div>
+
+        <Button
+          size="icon"
+          className="md:hidden fixed bottom-24 right-6 h-14 w-14 rounded-full shadow-lg border border-border/60"
+          onClick={handleApplyFilters}
+          aria-label="필터 적용"
+        >
+          <Check className="h-6 w-6" />
+        </Button>
 
         {/* 평균 만족도 - 가장 중요한 지표로 상단에 배치 */}
         <div className="mb-6">
