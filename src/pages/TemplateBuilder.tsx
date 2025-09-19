@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Trash2, Edit, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface TemplateQuestion {
   id: string;
@@ -56,6 +57,8 @@ const TemplateBuilder = () => {
   const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<TemplateQuestion | null>(null);
   const [editingSection, setEditingSection] = useState<TemplateSection | null>(null);
+  const [questionToDelete, setQuestionToDelete] = useState<TemplateQuestion | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
 
   const [questionForm, setQuestionForm] = useState({
@@ -205,9 +208,12 @@ const TemplateBuilder = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (!window.confirm('이 질문을 삭제하시겠습니까?')) return;
+  const openDeleteQuestionDialog = (question: TemplateQuestion) => {
+    setQuestionToDelete(question);
+    setIsDeleteDialogOpen(true);
+  };
 
+  const handleDeleteQuestion = async (questionId: string) => {
     try {
       const { error } = await supabase
         .from('template_questions')
@@ -229,6 +235,9 @@ const TemplateBuilder = () => {
         description: "질문 삭제 중 오류가 발생했습니다.",
         variant: "destructive"
       });
+    } finally {
+      setQuestionToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -340,7 +349,7 @@ const TemplateBuilder = () => {
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 hover:bg-gray-100"
-            onClick={() => handleDeleteQuestion(question.id)}
+            onClick={() => openDeleteQuestionDialog(question)}
           >
             <Trash2 className="h-4 w-4 text-gray-600" />
           </Button>
@@ -782,6 +791,37 @@ const TemplateBuilder = () => {
           </div>
         </div>
       </main>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setQuestionToDelete(null);
+          }
+        }}
+        title="질문 삭제"
+        description={
+          <>
+            <p>선택한 질문을 삭제하면 설문에서 즉시 제거됩니다.</p>
+            {questionToDelete && (
+              <p className="rounded-md bg-muted px-3 py-2 font-medium text-foreground">
+                {questionToDelete.question_text}
+              </p>
+            )}
+            <p className="font-semibold text-destructive">이 작업은 되돌릴 수 없습니다.</p>
+          </>
+        }
+        primaryAction={{
+          label: '삭제',
+          variant: 'destructive',
+          onClick: () => {
+            if (questionToDelete) {
+              void handleDeleteQuestion(questionToDelete.id);
+            }
+          },
+        }}
+      />
     </div>
   );
 };

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Edit, Trash2, Copy, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Template {
   id: string;
@@ -41,6 +42,8 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const [templateForm, setTemplateForm] = useState({
     name: '',
@@ -139,11 +142,15 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (templateId: string) => {
-    if (!window.confirm('이 템플릿을 삭제하시겠습니까? 템플릿에 포함된 모든 질문도 함께 삭제됩니다.')) {
-      return;
-    }
+  const openDeleteDialog = (template: Template) => {
+    setTemplateToDelete(template);
+    setIsDeleteDialogOpen(true);
+  };
 
+  const handleDelete = async () => {
+    if (!templateToDelete) return;
+
+    const templateId = templateToDelete.id;
     try {
       // 먼저 템플릿 질문들을 삭제
       const { error: questionsError } = await supabase
@@ -182,6 +189,9 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
         description: "템플릿 삭제 중 오류가 발생했습니다.",
         variant: "destructive"
       });
+    } finally {
+      setTemplateToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -397,7 +407,7 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
                        <Button
                          variant="outline"
                          size="sm"
-                         onClick={() => handleDelete(template.id)}
+                         onClick={() => openDeleteDialog(template)}
                          className="touch-friendly text-xs h-9 px-2 flex-1 min-w-0"
                        >
                          <Trash2 className="h-3 w-3 sm:mr-1 flex-shrink-0" />
@@ -427,6 +437,35 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
           )}
         </div>
       </main>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setTemplateToDelete(null);
+          }
+        }}
+        title="템플릿 삭제"
+        description={
+          <>
+            <p>선택한 템플릿과 연결된 모든 질문과 섹션이 삭제됩니다.</p>
+            {templateToDelete && (
+              <p className="rounded-md bg-muted px-3 py-2 font-medium text-foreground">
+                {templateToDelete.name}
+              </p>
+            )}
+            <p className="font-semibold text-destructive">이 작업은 되돌릴 수 없습니다.</p>
+          </>
+        }
+        primaryAction={{
+          label: '삭제',
+          variant: 'destructive',
+          onClick: () => {
+            void handleDelete();
+          },
+        }}
+      />
     </div>
   );
 };
