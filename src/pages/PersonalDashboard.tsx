@@ -1,1584 +1,621 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FC } from 'react';
+import { useLocation } from 'react-router-dom';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import { Users, TrendingUp, Award, BarChart3, Download, Eye } from 'lucide-react';
 
-import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import { useInstructorStats } from '@/hooks/useInstructorStats';
+import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import { TestDataToggle } from '@/components/TestDataToggle';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, TrendingUp, Users, Award, BarChart3, Download, ArrowLeft, Eye } from 'lucide-react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
-} from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { ChartEmptyState } from '@/components/charts';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
-
-interface Survey {
-  id: string;
-  title: string;
-  education_year: number;
-  education_round: number;
-  status: string;
-  instructor_id: string;
-  created_at: string;
-  course_name?: string;
-}
-
-interface SurveyResponse {
-  id: string;
-  survey_id: string;
-  submitted_at: string;
-  respondent_email: string;
-}
-
-interface QuestionAnswer {
-  id: string;
-  question_id: string;
-  answer_text: string;
-  answer_value: any;
-  response_id: string;
-}
-
-interface SurveyQuestion {
-  id: string;
-  question_text: string;
-  question_type: string;
-  satisfaction_type: string;
-  survey_id: string;
-  order_index: number;
-  options?: any;
-}
+import {
+  getCombinedRecordMetrics,
+  type AggregatedQuestion,
+  type SummaryMetrics,
+  type TrendPoint,
+} from '@/utils/surveyStats';
 
 interface Profile {
   role: string;
-  instructor_id: string;
+  instructor_id: string | null;
 }
 
-const normalizeCourseName = (courseName?: string | null) => {
-  if (!courseName) return null;
-  const match = courseName.match(/.*?-\s*(.+)$/);
-  return match ? match[1].trim() : courseName.trim();
-};
+const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
 
 const PersonalDashboard: FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
+  const testDataOptions = useTestDataToggle();
 
-  // Preview parameters for admin/developer to view as instructor
   const searchParams = new URLSearchParams(location.search);
   const viewAs = searchParams.get('viewAs');
   const previewInstructorId = searchParams.get('instructorId');
   const previewInstructorEmail = searchParams.get('instructorEmail');
 
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [allSurveys, setAllSurveys] = useState<Survey[]>([]);
-  const [responses, setResponses] = useState<SurveyResponse[]>([]);
-  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
-  const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('round');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [previewResolvedInstructorId, setPreviewResolvedInstructorId] = useState<string | null>(previewInstructorId);
+
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
 
   const isInstructor = userRoles.includes('instructor');
   const isPreviewingInstructor = viewAs === 'instructor';
   const asInstructor = isInstructor || isPreviewingInstructor;
   const canViewPersonalStats = asInstructor || userRoles.includes('admin');
 
-  /* ─────────────────────────────────── Fetchers ─────────────────────────────────── */
   const fetchProfile = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    setProfileLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('role, instructor_id')
         .eq('id', user.id)
         .maybeSingle();
-      if (error && (error as any).code !== 'PGRST116') {
-        console.error('프로필 조회 오류:', error);
+
+      if (error) {
+        throw error;
       }
-      setProfile(data);
+
+      setProfile(data as Profile | null);
     } catch (error) {
-      console.error('fetchProfile 오류:', error);
+      console.error('프로필 조회 오류:', error);
+      setProfile(null);
+    } finally {
+      setProfileLoading(false);
     }
   }, [user]);
 
-  const fetchData = useCallback(async () => {
-    if (!canViewPersonalStats) return;
-
-    console.log('PersonalDashboard fetchData 시작', { 
-      isPreviewingInstructor, 
-      previewInstructorId, 
-      asInstructor, 
-      canViewPersonalStats 
-    });
-
-    setLoading(true);
-    try {
-      let surveyQuery = supabase.from('surveys').select('*');
-      let instructorId = profile?.instructor_id;
-
-      // 강사(또는 강사로 미리보기)인 경우 대상 instructor_id 확인 및 설정
-      if (asInstructor) {
-        // 미리보기로 특정 강사를 지정한 경우 우선 사용
-        if (isPreviewingInstructor && previewInstructorId) {
-          instructorId = previewInstructorId;
-        } else if (!isPreviewingInstructor) {
-          // 실제 강사 계정인데 instructor_id가 없는 경우 이메일로 매칭 시도
-          if (!instructorId && user?.email) {
-            const { data: instructorData } = await supabase
-              .from('instructors')
-              .select('id')
-              .eq('email', user.email)
-              .maybeSingle();
-            if (instructorData) {
-              instructorId = instructorData.id;
-              // 프로필에 instructor_id 업데이트
-              await supabase
-                .from('profiles')
-                .update({ instructor_id: instructorData.id })
-                .eq('id', user.id);
-              setProfile(prev => prev ? { ...prev, instructor_id: instructorData.id } : null);
-            }
-          }
-        }
-        
-        // 강사는(또는 미리보기) 본인 설문만 조회
-        if (instructorId) {
-          console.log('강사 설문 조회 시작', { instructorId });
-          surveyQuery = surveyQuery.eq('instructor_id', instructorId);
-        } else {
-          console.log('instructor_id 없음, 빈 결과 반환');
-          // instructor_id가 없는 경우 빈 결과 반환
-          setSurveys([]);
-          setResponses([]);
-          setQuestions([]);
-          setAnswers([]);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // 필터 적용
-      if (selectedYear && selectedYear !== 'all') {
-        surveyQuery = surveyQuery.eq('education_year', parseInt(selectedYear));
-      }
-      if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
-        surveyQuery = surveyQuery.eq('education_round', parseInt(selectedRound));
-      }
-      const { data: surveysData, error: surveysError } = await surveyQuery
-        .order('education_year', { ascending: false })
-        .order('education_round', { ascending: false });
-
-      console.log('설문 조회 결과', { surveysData, surveysError });
-
-      if (surveysError) throw surveysError;
-
-      setAllSurveys(surveysData || []);
-
-      let filteredSurveys = surveysData || [];
-
-      if (selectedCourse && selectedCourse !== 'all') {
-        filteredSurveys = filteredSurveys.filter(
-          survey => normalizeCourseName(survey.course_name) === selectedCourse
-        );
-      }
-
-      // 최신 회차 필터링
-      if (selectedRound === 'latest' && filteredSurveys.length > 0) {
-        const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
-        const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
-        const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
-        filteredSurveys = filteredSurveys.filter(
-          s => s.education_year === latestYear && s.education_round === latestRound
-        );
-      }
-
-      setSurveys(filteredSurveys);
-
-      // 응답/질문/답변 로드 - 원본 surveysData 사용 (필터링 전 데이터)
-      if (filteredSurveys && filteredSurveys.length > 0) {
-        const allSurveyIds = filteredSurveys.map(s => s.id);
-
-        const { data: responsesData, error: responsesError } = await supabase
-          .from('survey_responses')
-          .select('*')
-          .in('survey_id', allSurveyIds);
-        if (responsesError) throw responsesError;
-        setResponses(responsesData || []);
-
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('survey_questions')
-          .select('*')
-          .in('survey_id', allSurveyIds);
-        if (questionsError) throw questionsError;
-        setQuestions(questionsData || []);
-
-        if (responsesData && responsesData.length > 0) {
-          const responseIds = responsesData.map(r => r.id);
-          const { data: answersData, error: answersError } = await supabase
-            .from('question_answers')
-            .select('*')
-            .in('response_id', responseIds);
-          if (answersError) throw answersError;
-          setAnswers(answersData || []);
-        } else {
-          setAnswers([]);
-        }
-      } else {
-        setResponses([]);
-        setQuestions([]);
-        setAnswers([]);
-      }
-    } catch (error) {
-      console.error('fetchData 오류:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [canViewPersonalStats, profile?.instructor_id, asInstructor, isPreviewingInstructor, previewInstructorId, user?.email, selectedYear, selectedRound, selectedCourse]);
-
-  const refreshAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      await fetchProfile();
-      await fetchData();
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchProfile, fetchData]);
-
-  /* ─────────────────────────────────── Effects ─────────────────────────────────── */
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        await fetchProfile();
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchProfile();
   }, [fetchProfile]);
 
   useEffect(() => {
-    if (profile && canViewPersonalStats) {
-      fetchData();
-    }
-  }, [profile, canViewPersonalStats, fetchData, selectedPeriod, selectedYear, selectedRound, selectedCourse]);
-
-  /* ─────────────────────────────────── Derivations ─────────────────────────────────── */
-  const getBaseSurveysForOptions = () => {
-    let baseSurveys = allSurveys;
-
-    if (selectedYear && selectedYear !== 'all') {
-      baseSurveys = baseSurveys.filter(s => s.education_year.toString() === selectedYear);
+    if (!isPreviewingInstructor) {
+      setPreviewResolvedInstructorId(previewInstructorId);
+      return;
     }
 
-    if (selectedRound && selectedRound !== 'all') {
-      if (selectedRound === 'latest' && baseSurveys.length > 0) {
-        const latestYear = Math.max(...baseSurveys.map(s => s.education_year));
-        const latestYearSurveys = baseSurveys.filter(s => s.education_year === latestYear);
-        const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
-        baseSurveys = baseSurveys.filter(
-          s => s.education_year === latestYear && s.education_round === latestRound
-        );
-      } else if (selectedRound !== 'latest') {
-        baseSurveys = baseSurveys.filter(s => s.education_round.toString() === selectedRound);
+    if (previewInstructorId) {
+      setPreviewResolvedInstructorId(previewInstructorId);
+      return;
+    }
+
+    if (!previewInstructorEmail) return;
+
+    let active = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('instructors')
+          .select('id')
+          .eq('email', previewInstructorEmail)
+          .maybeSingle();
+
+        if (!active) return;
+        if (error) throw error;
+        setPreviewResolvedInstructorId(data?.id ?? null);
+      } catch (error) {
+        console.error('미리보기 강사 조회 오류:', error);
+        if (active) setPreviewResolvedInstructorId(null);
       }
-    }
+    })();
 
-    return baseSurveys;
-  };
+    return () => {
+      active = false;
+    };
+  }, [isPreviewingInstructor, previewInstructorEmail, previewInstructorId]);
 
-  const getUniqueYears = () => {
-    const years = [...new Set(allSurveys.map(s => s.education_year))];
-    return years.sort((a, b) => b - a);
-  };
+  useEffect(() => {
+    if (!user || !isInstructor || profile?.instructor_id || !user.email) return;
 
-  const getUniqueRounds = () => {
-    const baseSurveys = getBaseSurveysForOptions();
-    const rounds = [...new Set(baseSurveys.map(s => s.education_round))];
-    return rounds.sort((a, b) => a - b);
-  };
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('instructors')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
 
-  const getUniqueCourses = () => {
-    const baseSurveys = getBaseSurveysForOptions();
-    const courses = baseSurveys
-      .map(survey => normalizeCourseName(survey.course_name))
-      .filter((course, index, self) => course && self.indexOf(course) === index)
-      .sort();
-    return courses as string[];
-  };
+        if (!active) return;
 
-  const getTrendData = () => {
-    const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-
-    let filteredSurveys = surveys;
-    if (selectedYear && selectedYear !== 'all') {
-      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
-    }
-    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
-      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
-    }
-    if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(
-        survey => normalizeCourseName(survey.course_name) === selectedCourse
-      );
-    }
-    if (selectedRound === 'latest' && filteredSurveys.length > 0) {
-      const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
-      const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
-      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
-      filteredSurveys = filteredSurveys.filter(s => s.education_year === latestYear && s.education_round === latestRound);
-    }
-
-    if (selectedPeriod === 'round') {
-      const roundData: Record<string, { total: number; count: number; responses: number; courses: Set<string> }> = {};
-      filteredSurveys.forEach(survey => {
-        const roundKey = `${survey.education_year}-${survey.education_round}차`;
-        if (!roundData[roundKey]) roundData[roundKey] = { total: 0, count: 0, responses: 0, courses: new Set() };
-        
-        // Add course to track course diversity
-        if (survey.course_name) {
-          const courseType = normalizeCourseName(survey.course_name);
-          if (courseType) {
-            roundData[roundKey].courses.add(courseType);
-          }
+        if (data?.id) {
+          setProfile(prev => (prev ? { ...prev, instructor_id: data.id } : { role: 'instructor', instructor_id: data.id }));
+          await supabase.from('profiles').update({ instructor_id: data.id }).eq('id', user.id);
         }
-        
-        const surveyResponses = responses.filter(r => r.survey_id === survey.id);
-        roundData[roundKey].responses += surveyResponses.length;
-
-        surveyResponses.forEach(response => {
-          const responseAnswers = answers.filter(a => a.response_id === response.id);
-          const ratingAnswers = responseAnswers.filter(a => ratingQuestions.some(q => q.id === a.question_id));
-          ratingAnswers.forEach(answer => {
-            const rating = parseFloat(answer.answer_text);
-            if (!isNaN(rating) && rating > 0) {
-              // Convert 5-point scale to 10-point scale
-              const convertedRating = rating <= 5 ? rating * 2 : rating;
-              roundData[roundKey].total += convertedRating;
-              roundData[roundKey].count++;
-            }
-          });
-        });
-      });
-
-      return Object.entries(roundData)
-        .map(([round, data]) => ({
-          period: round,
-          average: data.count > 0 ? (data.total / data.count) : 0,
-          responses: data.responses,
-          satisfaction: data.count > 0 ? Math.round((data.total / data.count) * 10) : 0,
-          courses: Array.from(data.courses).join(', '),
-          courseCount: data.courses.size
-        }))
-        .sort((a, b) => a.period.localeCompare(b.period));
-    }
-
-    return [];
-  };
-
-  const getCourseBreakdown = () => {
-    let filteredSurveys = surveys;
-    if (selectedYear && selectedYear !== 'all') {
-      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
-    }
-    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
-      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
-    }
-    if (selectedRound === 'latest' && filteredSurveys.length > 0) {
-      const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
-      const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
-      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
-      filteredSurveys = filteredSurveys.filter(s => s.education_year === latestYear && s.education_round === latestRound);
-    }
-
-    const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-    const courseData: Record<string, { total: number; count: number; responses: number; surveys: number }> = {};
-
-    filteredSurveys.forEach(survey => {
-      const courseType = normalizeCourseName(survey.course_name);
-      if (!courseType) return;
-
-      if (!courseData[courseType]) {
-        courseData[courseType] = { total: 0, count: 0, responses: 0, surveys: 0 };
+      } catch (error) {
+        console.error('강사 ID 매핑 오류:', error);
       }
-      
-      courseData[courseType].surveys++;
-      const surveyResponses = responses.filter(r => r.survey_id === survey.id);
-      courseData[courseType].responses += surveyResponses.length;
+    })();
 
-      surveyResponses.forEach(response => {
-        const responseAnswers = answers.filter(a => a.response_id === response.id);
-        const ratingAnswers = responseAnswers.filter(a => ratingQuestions.some(q => q.id === a.question_id));
-        ratingAnswers.forEach(answer => {
-          const rating = parseFloat(answer.answer_text);
-          if (!isNaN(rating) && rating > 0) {
-            // Convert 5-point scale to 10-point scale
-            const convertedRating = rating <= 5 ? rating * 2 : rating;
-            courseData[courseType].total += convertedRating;
-            courseData[courseType].count++;
-          }
-        });
-      });
-    });
-
-    return Object.entries(courseData)
-      .map(([course, data]) => ({
-        course,
-        avgSatisfaction: data.count > 0 ? +(data.total / data.count).toFixed(1) : 0,
-        responses: data.responses,
-        surveys: data.surveys,
-        satisfactionPercentage: data.count > 0 ? Math.round((data.total / data.count) * 10) : 0
-      }))
-      .sort((a, b) => b.avgSatisfaction - a.avgSatisfaction);
-  };
-
-  const getSummaryStats = () => {
-    let filtered = surveys;
-    if (selectedYear && selectedYear !== 'all') {
-      filtered = surveys.filter(s => s.education_year.toString() === selectedYear);
-    }
-    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
-      filtered = filtered.filter(s => s.education_round.toString() === selectedRound);
-    }
-    if (selectedCourse && selectedCourse !== 'all') {
-      filtered = filtered.filter(
-        s => normalizeCourseName(s.course_name) === selectedCourse
-      );
-    }
-    if (selectedRound === 'latest' && filtered.length > 0) {
-      const latestYear = Math.max(...filtered.map(s => s.education_year));
-      const latestYearSurveys = filtered.filter(s => s.education_year === latestYear);
-      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
-      filtered = filtered.filter(s => s.education_year === latestYear && s.education_round === latestRound);
-    }
-
-    const totalSurveys = filtered.length;
-    const filteredResponses = responses.filter(r => filtered.some(s => s.id === r.survey_id));
-    const totalResponses = filteredResponses.length;
-    const activeSurveys = filtered.filter(s => s.status === 'active').length;
-
-    const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-    const ratingAnswers = answers.filter(
-      a => ratingQuestions.some(q => q.id === a.question_id) && filteredResponses.some(r => r.id === a.response_id)
-    );
-    const validRatings = ratingAnswers.map(a => parseFloat(a.answer_text)).filter(r => !isNaN(r) && r > 0);
-    const avgSatisfaction = validRatings.length > 0 ? validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length : 0;
-
-    return {
-      totalSurveys,
-      totalResponses,
-      activeSurveys,
-      avgSatisfaction: Math.round(avgSatisfaction * 10) / 10,
-      satisfactionPercentage: Math.round(avgSatisfaction * 10),
-      avgResponsesPerSurvey: totalSurveys > 0 ? Math.round(totalResponses / totalSurveys) : 0,
+    return () => {
+      active = false;
     };
-  };
+  }, [isInstructor, profile?.instructor_id, user]);
 
-  const getRatingDistribution = () => {
-    const ratingQuestions = questions.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-    const ratingCounts: Record<string, number> = {};
-    
-    let filteredSurveys = surveys;
-    if (selectedYear && selectedYear !== 'all') {
-      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
+  const instructorId = useMemo(() => {
+    if (isPreviewingInstructor) {
+      return previewResolvedInstructorId;
     }
-    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
-      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
-    }
-    if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(
-        s => normalizeCourseName(s.course_name) === selectedCourse
-      );
-    }
-    if (selectedRound === 'latest' && filteredSurveys.length > 0) {
-      const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
-      const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
-      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
-      filteredSurveys = filteredSurveys.filter(s => s.education_year === latestYear && s.education_round === latestRound);
-    }
+    return profile?.instructor_id ?? null;
+  }, [isPreviewingInstructor, previewResolvedInstructorId, profile?.instructor_id]);
 
-    filteredSurveys.forEach(survey => {
-      const surveyResponses = responses.filter(r => r.survey_id === survey.id);
-      surveyResponses.forEach(response => {
-        const responseAnswers = answers.filter(a => a.response_id === response.id);
-        const ratingAnswers = responseAnswers.filter(a => ratingQuestions.some(q => q.id === a.question_id));
-        ratingAnswers.forEach(answer => {
-          const rating = parseFloat(answer.answer_text);
-          if (!isNaN(rating) && rating > 0) {
-            // Convert 5-point scale to 10-point scale
-            const convertedRating = rating <= 5 ? rating * 2 : rating;
-            const ratingRange = convertedRating >= 9 ? '9-10점' : convertedRating >= 7 ? '7-8점' : convertedRating >= 5 ? '5-6점' : '1-4점';
-            ratingCounts[ratingRange] = (ratingCounts[ratingRange] || 0) + 1;
-          }
-        });
-      });
-    });
+  const filters = useMemo(() => ({
+    year: selectedYear === 'all' ? 'all' : Number(selectedYear),
+    round:
+      selectedRound === 'all' || selectedRound === 'latest'
+        ? (selectedRound as 'all' | 'latest')
+        : Number(selectedRound),
+    course: selectedCourse,
+  }), [selectedYear, selectedRound, selectedCourse]);
 
-    const totalRatings = Object.values(ratingCounts).reduce((sum, count) => sum + count, 0);
-    
-    return ['9-10점', '7-8점', '5-6점', '1-4점']
-      .map(range => ({
-        name: range,
-        value: ratingCounts[range] || 0,
-        percentage: totalRatings > 0 ? Math.round(((ratingCounts[range] || 0) / totalRatings) * 100) : 0
-      }))
-      .filter(item => item.value > 0);
-  };
+  const stats = useInstructorStats({
+    instructorId: instructorId ?? undefined,
+    includeTestData: testDataOptions.includeTestData,
+    filters,
+    enabled: canViewPersonalStats && Boolean(instructorId),
+  });
 
-  // 과목-강사별 고유 조합 가져오기
-  const getUniqueSubjects = () => {
-    let filteredSurveys = surveys;
-    if (selectedYear && selectedYear !== 'all') {
-      filteredSurveys = surveys.filter(s => s.education_year.toString() === selectedYear);
-    }
-    if (selectedRound && selectedRound !== 'all' && selectedRound !== 'latest') {
-      filteredSurveys = filteredSurveys.filter(s => s.education_round.toString() === selectedRound);
-    }
-    if (selectedCourse && selectedCourse !== 'all') {
-      filteredSurveys = filteredSurveys.filter(
-        survey => normalizeCourseName(survey.course_name) === selectedCourse
-      );
-    }
-    if (selectedRound === 'latest' && filteredSurveys.length > 0) {
-      const latestYear = Math.max(...filteredSurveys.map(s => s.education_year));
-      const latestYearSurveys = filteredSurveys.filter(s => s.education_year === latestYear);
-      const latestRound = Math.max(...latestYearSurveys.map(s => s.education_round));
-      filteredSurveys = filteredSurveys.filter(s => s.education_year === latestYear && s.education_round === latestRound);
-    }
+  const loading = profileLoading || stats.loading;
+  const hasData = stats.hasData;
+  const usingTestData = useMemo(() => {
+    if (!testDataOptions.includeTestData) return false;
+    return stats.filteredRecords.some(record => getCombinedRecordMetrics(record, true).source === 'test');
+  }, [stats.filteredRecords, testDataOptions.includeTestData]);
 
-    const subjectMap = new Map();
-    
-    filteredSurveys.forEach(survey => {
-      const rawCourseName = survey.course_name || survey.title;
-      const courseType = normalizeCourseName(rawCourseName) || rawCourseName;
+  const handleDownload = useCallback(() => {
+    const csvContent = generatePersonalStatsCSV(stats.summary, stats.trend);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
 
-      const key = `${courseType}`;
-      if (!subjectMap.has(key)) {
-        subjectMap.set(key, {
-          key,
-          courseName: courseType,
-          displayName: courseType,
-          surveys: [],
-          totalResponses: 0
-        });
-      }
-      
-      const subject = subjectMap.get(key);
-      subject.surveys.push(survey);
-      subject.totalResponses += responses.filter(r => r.survey_id === survey.id).length;
-    });
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `개인통계_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
 
-    return Array.from(subjectMap.values());
-  };
+    toast({ title: '다운로드 완료', description: '개인 통계 CSV 파일이 다운로드되었습니다.' });
+  }, [stats.summary, stats.trend, toast]);
 
-  // 특정 과목의 상세 분석
-  const getSubjectDetailedAnalysis = (subjectSurveys: Survey[]) => {
-    const subjectSurveyIds = subjectSurveys.map(s => s.id);
-    const subjectQuestions = questions.filter(q => subjectSurveyIds.includes(q.survey_id));
-    const subjectResponses = responses.filter(r => subjectSurveyIds.includes(r.survey_id));
-    const subjectAnswers = answers.filter(a => 
-      subjectResponses.some(r => r.id === a.response_id)
-    );
-
-    // 질문 분류
-    const subjectQuestionsList: SurveyQuestion[] = [];
-    const instructorQuestionsList: SurveyQuestion[] = [];
-    const operationQuestionsList: SurveyQuestion[] = [];
-
-    subjectQuestions.forEach((question) => {
-      const type = question.satisfaction_type;
-      if (type === 'instructor') {
-        instructorQuestionsList.push(question);
-      } else if (type === 'operation') {
-        operationQuestionsList.push(question);
-      } else if (type === 'course' || type === 'subject') {
-        subjectQuestionsList.push(question);
-      } else {
-        // 타입 정보가 없을 때: 평점형은 과목으로 분류
-        if (question.question_type === 'rating' || question.question_type === 'scale') {
-          subjectQuestionsList.push(question);
-        } else {
-          subjectQuestionsList.push(question);
-        }
-      }
-    });
-
-    // 각 카테고리 분석
-    const getQuestionAnalysis = (questionList: SurveyQuestion[]) => {
-      const sortedQuestions = [...questionList].sort((a, b) => a.order_index - b.order_index);
-      return sortedQuestions.map(question => {
-        const questionAnswers = subjectAnswers.filter(a => a.question_id === question.id);
-
-        if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
-          const options = question.options || [];
-          const answerCounts = {} as Record<string, number>;
-
-          options.forEach(option => {
-            answerCounts[option] = 0;
-          });
-
-          questionAnswers.forEach(answer => {
-            if (answer.answer_text && answerCounts.hasOwnProperty(answer.answer_text)) {
-              answerCounts[answer.answer_text]++;
-            }
-          });
-
-          const chartData = Object.entries(answerCounts).map(([option, count]) => ({
-            name: option,
-            value: count as number,
-            percentage: questionAnswers.length > 0 ? Math.round(((count as number) / questionAnswers.length) * 100) : 0
-          }));
-
-          const hasValues = chartData.some(item => item.value > 0);
-
-          if (!hasValues) {
-            return {
-              question,
-              totalAnswers: questionAnswers.length,
-              type: 'empty' as const,
-              emptyMessage: '응답이 없어 선택형 분포를 표시할 수 없습니다. 설문 응답을 수집한 후 다시 확인해 주세요.'
-            };
-          }
-
-          return {
-            question,
-            totalAnswers: questionAnswers.length,
-            chartData,
-            type: 'chart' as const
-          };
-        } else if (question.question_type === 'rating' || question.question_type === 'scale') {
-          const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
-          if (ratings.length === 0) {
-            return {
-              question,
-              totalAnswers: questionAnswers.length,
-              type: 'empty' as const,
-              emptyMessage: '평점 응답이 없어 차트를 표시할 수 없습니다. 응답을 요청해 주세요.'
-            };
-          }
-
-          const maxScore = Math.max(...ratings);
-          let convertedRatings = ratings;
-
-          if (maxScore <= 5) {
-            convertedRatings = ratings.map(r => r * 2);
-          }
-
-          const average = convertedRatings.length > 0 ? (convertedRatings.reduce((sum, r) => sum + r, 0) / convertedRatings.length).toFixed(1) : '0';
-
-          const distribution: Record<number, number> = {};
-          for (let i = 1; i <= 10; i++) {
-            distribution[i] = convertedRatings.filter(r => r === i).length;
-          }
-
-          const chartData = Object.entries(distribution).map(([score, count]) => ({
-            name: `${score}점`,
-            value: count as number,
-            percentage: convertedRatings.length > 0 ? Math.round(((count as number) / convertedRatings.length) * 100) : 0
-          }));
-
-          const hasValues = chartData.some(item => item.value > 0);
-
-          if (!hasValues) {
-            return {
-              question,
-              totalAnswers: questionAnswers.length,
-              type: 'empty' as const,
-              emptyMessage: '평점 응답이 모두 0점이어서 차트를 만들 수 없습니다. 응답 데이터를 확인해 주세요.'
-            };
-          }
-
-          return {
-            question,
-            totalAnswers: questionAnswers.length,
-            average,
-            chartData,
-            type: 'rating' as const
-          };
-        } else {
-          return {
-            question,
-            totalAnswers: questionAnswers.length,
-            answers: questionAnswers.slice(0, 10),
-            type: 'text' as const
-          };
-        }
-      });
-    };
-
-    // 카테고리별 평균 계산
-    const calculateCategoryAverage = (questionList: SurveyQuestion[]) => {
-      const ratingQuestions = questionList.filter(q => q.question_type === 'rating' || q.question_type === 'scale');
-      if (ratingQuestions.length === 0) return '0';
-
-      let totalScore = 0;
-      let totalCount = 0;
-
-      ratingQuestions.forEach(question => {
-        const questionAnswers = subjectAnswers.filter(a => a.question_id === question.id);
-        const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
-        
-        if (ratings.length > 0) {
-          const maxScore = Math.max(...ratings);
-          let convertedRatings = ratings;
-          
-          if (maxScore <= 5) {
-            convertedRatings = ratings.map(r => r * 2);
-          }
-          
-          totalScore += convertedRatings.reduce((sum, r) => sum + r, 0);
-          totalCount += convertedRatings.length;
-        }
-      });
-
-      return totalCount > 0 ? (totalScore / totalCount).toFixed(1) : '0';
-    };
-
-    return {
-      subjectQuestions: subjectQuestionsList,
-      instructorQuestions: instructorQuestionsList,
-      operationQuestions: operationQuestionsList,
-      subjectAnalyses: getQuestionAnalysis(subjectQuestionsList),
-      instructorAnalyses: getQuestionAnalysis(instructorQuestionsList),
-      operationAnalyses: getQuestionAnalysis(operationQuestionsList),
-      subjectAverage: calculateCategoryAverage(subjectQuestionsList),
-      instructorAverage: calculateCategoryAverage(instructorQuestionsList),
-      operationAverage: calculateCategoryAverage(operationQuestionsList)
-    };
-  };
-
-  // 질문 분석 렌더링
-  const renderQuestionAnalysis = (analysis: any, index: number) => (
-    <Card key={analysis.question.id}>
-      <CardHeader>
-        <CardTitle className="text-lg">
-          Q{index + 1}. {analysis.question.question_text}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          총 응답 수: {analysis.totalAnswers}개
-          {analysis.question.is_required && (
-            <Badge variant="secondary" className="ml-2">필수</Badge>
-          )}
-        </p>
-      </CardHeader>
-      <CardContent>
-        {analysis.type === 'empty' && (
-          <ChartEmptyState
-            description={analysis.emptyMessage || '응답이 없어 시각화를 표시할 수 없습니다.'}
-            actions="💡 테스트 데이터를 활성화하거나, 설문 담당자에게 응답 수집을 요청해 주세요."
-          />
-        )}
-        {analysis.type === 'chart' && (
-          <div className="space-y-4">
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={analysis.chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {analysis.chartData.map((entry: any, idx: number) => (
-                      <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number | string, _name: string, props: any) => {
-                      const percentage = props?.payload?.percentage ?? 0;
-                      return [`${value}개 (${percentage}%)`, props?.payload?.name ?? props?.name ?? ''];
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {analysis.chartData.map((item: any, idx: number) => (
-                <div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-4 h-4 rounded-full" 
-                      style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                    />
-                    <span className="text-sm">{item.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{item.value}개</p>
-                    <p className="text-xs text-muted-foreground">{item.percentage}%</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {analysis.type === 'rating' && (
-          <div className="space-y-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">{analysis.average}</div>
-              <p className="text-sm text-muted-foreground">평균 점수 (10점 만점)</p>
-            </div>
-            <div className="space-y-2">
-              {analysis.chartData.map((item: any, idx: number) => (
-                <div key={item.name} className="flex items-center gap-4">
-                  <span className="text-sm w-12">{item.name}</span>
-                  <div className="flex-1">
-                    <Progress value={item.percentage} className="h-2" />
-                  </div>
-                  <span className="text-sm text-muted-foreground w-16">
-                    {item.value}개 ({item.percentage}%)
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {analysis.type === 'text' && (
-          <div className="space-y-3">
-            {analysis.answers && analysis.answers.length > 0 ? (
-              analysis.answers.map((answer: any, idx: number) => (
-                <div key={answer.id} className="p-3 border rounded-lg">
-                  <p className="text-sm">{answer.answer_text}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(answer.created_at).toLocaleString()}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                아직 응답이 없습니다.
-              </p>
-            )}
-            {analysis.totalAnswers > 10 && (
-              <p className="text-sm text-muted-foreground text-center">
-                총 {analysis.totalAnswers}개 응답 중 최근 10개만 표시됩니다.
-              </p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  const generatePersonalStatsCSV = () => {
-    let csvContent = '\uFEFF';
-    const stats = getSummaryStats();
-    const trendData = getTrendData();
-
-    csvContent += '개인 통계 요약\n';
-    csvContent += `총 설문,${stats.totalSurveys}\n`;
-    csvContent += `총 응답,${stats.totalResponses}\n`;
-    csvContent += `활성 설문,${stats.activeSurveys}\n`;
-    csvContent += `평균 만족도,${stats.avgSatisfaction}\n`;
-    csvContent += `만족도 백분율,${stats.satisfactionPercentage}%\n`;
-    csvContent += `설문당 평균 응답,${stats.avgResponsesPerSurvey}\n\n`;
-
-    csvContent += '기간별 트렌드\n';
-    csvContent += '기간,평균 만족도,응답 수,만족도(%)\n';
-    trendData.forEach(item => {
-      csvContent += `${item.period},${item.average.toFixed(1)},${item.responses},${item.satisfaction}%\n`;
-    });
-
-    return csvContent;
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const trendData = getTrendData();
-  const summaryStats = getSummaryStats();
-  const hasResponses = summaryStats.totalResponses > 0;
-  const isEmptyState = !hasResponses;
-  const ratingDistribution = getRatingDistribution();
-  const courseBreakdown = getCourseBreakdown();
-  const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
-
-  /* ─────────────────────────────────── Header Actions ─────────────────────────────────── */
-  const desktopActions = [
-    <Button
-      key="csv"
-      variant="outline"
-      size="sm"
-      className="rounded-full px-3 gap-2"
-      disabled={isEmptyState}
-      title={isEmptyState ? '표시할 데이터가 없어 CSV를 다운로드할 수 없습니다.' : undefined}
-      onClick={() => {
-        const element = document.createElement('a');
-        const csvContent = generatePersonalStatsCSV();
-        const file = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        element.href = URL.createObjectURL(file);
-        element.download = `개인통계_${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-        toast({ title: '다운로드 완료', description: '개인 통계 CSV 파일이 다운로드되었습니다.' });
-      }}
-    >
-      <Download className="h-4 w-4" />
-      CSV 다운로드
-    </Button>,
-    <Button
-      key="print"
-      variant="outline"
-      size="sm"
-      className="rounded-full px-3"
-      onClick={handlePrint}
-    >
-      인쇄
-    </Button>,
-  ];
-
-  const mobileActions = [
-    <Button
-      key="csv-m"
-      variant="outline"
-      size="sm"
-      className="rounded-full"
-      disabled={isEmptyState}
-      title={isEmptyState ? '표시할 데이터가 없어 CSV를 다운로드할 수 없습니다.' : undefined}
-      onClick={() => {
-        const element = document.createElement('a');
-        const csvContent = generatePersonalStatsCSV();
-        const file = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        element.href = URL.createObjectURL(file);
-        element.download = `개인통계_${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-        toast({ title: '다운로드 완료', description: '개인 통계 CSV 파일이 다운로드되었습니다.' });
-      }}
-    >
-      <Download className="h-4 w-4" />
-    </Button>,
-  ];
-
-  /* ─────────────────────────────────── Render ─────────────────────────────────── */
   return (
     <div className="space-y-6">
-      {/* 미리보기 표시 */}
       {isPreviewingInstructor && (
         <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-orange-600" />
-              <span className="text-sm font-medium text-orange-800">
-                강사 페이지 미리보기 모드
-              </span>
-              {previewInstructorId && (
-                <Badge variant="outline" className="text-orange-600 border-orange-300">
-                  강사 ID: {previewInstructorId}
-                </Badge>
-              )}
-            </div>
+          <CardContent className="p-4 flex items-center gap-2 text-sm text-orange-700">
+            <Eye className="h-4 w-4" />
+            <span>강사 페이지 미리보기 모드</span>
+            {previewInstructorEmail && <Badge variant="outline">{previewInstructorEmail}</Badge>}
+            {previewResolvedInstructorId && (
+              <Badge variant="secondary" className="ml-2">
+                ID: {previewResolvedInstructorId}
+              </Badge>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* 액션 버튼들 */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">나의 만족도 통계</h1>
-          <p className="text-muted-foreground">개인 강의 만족도 및 피드백 분석 - 전체 {surveys.length}개</p>
+          <p className="text-muted-foreground text-sm">
+            강의 만족도, 응답 추이, 주요 피드백을 한눈에 확인하세요.
+          </p>
         </div>
-        <div className="flex gap-2">
-          {desktopActions.map((action, index) => (
-            <div key={index}>{action}</div>
-          ))}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <TestDataToggle testDataOptions={testDataOptions} className="sm:mr-4" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            disabled={!hasData}
+            onClick={handleDownload}
+          >
+            <Download className="h-4 w-4" />
+            CSV 다운로드
+          </Button>
         </div>
       </div>
-      <div className="space-y-6">
-        {!canViewPersonalStats ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">개인 통계를 조회할 권한이 없습니다.</p>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>조회 조건</CardTitle>
+          <CardDescription>
+            선택한 연도, 차수, 과정을 기준으로 집계된 통계를 확인합니다.
+            {usingTestData && (
+              <Badge variant="secondary" className="ml-2">
+                테스트 데이터 포함
+              </Badge>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <p className="mb-2 text-sm font-medium">연도</p>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger>
+                  <SelectValue placeholder="연도 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {stats.availableYears.map(year => (
+                    <SelectItem key={year} value={String(year)}>
+                      {year}년
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">차수</p>
+              <Select value={selectedRound} onValueChange={setSelectedRound}>
+                <SelectTrigger>
+                  <SelectValue placeholder="차수 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {stats.availableRounds.length > 0 && <SelectItem value="latest">최신</SelectItem>}
+                  {stats.availableRounds.map(round => (
+                    <SelectItem key={round} value={String(round)}>
+                      {round}차
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">과정</p>
+              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                <SelectTrigger>
+                  <SelectValue placeholder="과정 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {stats.availableCourses.map(course => (
+                    <SelectItem key={course} value={course}>
+                      {course}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        ) : surveys.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">표시할 설문 데이터가 없습니다.</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                {asInstructor ? '아직 생성된 설문이 없거나 권한이 없습니다.' : '설문 데이터를 확인해주세요.'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* 통계 요약 카드 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <Card>
-                <CardContent className="flex flex-col items-center text-center p-3 md:p-4 aspect-square">
-                  <div className="p-2 bg-primary/10 rounded-lg mb-2">
-                    <BarChart3 className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                  </div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">총 설문</p>
-                  <p className="text-lg md:text-xl font-bold">{summaryStats.totalSurveys}</p>
-                </CardContent>
-              </Card>
+        </CardContent>
+      </Card>
 
-              <Card>
-                <CardContent className="flex flex-col items-center text-center p-3 md:p-4 aspect-square">
-                  <div className="p-2 bg-blue-500/10 rounded-lg mb-2">
-                    <Users className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
-                  </div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">총 응답</p>
-                  <p className="text-lg md:text-xl font-bold">{summaryStats.totalResponses}</p>
-                </CardContent>
-              </Card>
+      {!canViewPersonalStats ? (
+        <Card>
+          <CardContent className="py-16 text-center text-muted-foreground">
+            <Users className="mx-auto mb-4 h-12 w-12" />
+            개인 통계를 조회할 권한이 없습니다.
+          </CardContent>
+        </Card>
+      ) : loading ? (
+        <Card>
+          <CardContent className="py-16">
+            <ChartEmptyState description="데이터를 불러오는 중입니다." />
+          </CardContent>
+        </Card>
+      ) : stats.error ? (
+        <Card>
+          <CardContent className="py-16">
+            <ChartEmptyState description="집계 데이터를 불러오지 못했습니다." actions={stats.error} />
+          </CardContent>
+        </Card>
+      ) : !instructorId ? (
+        <Card>
+          <CardContent className="py-16">
+            <ChartEmptyState description="강사 정보가 확인되지 않았습니다." />
+          </CardContent>
+        </Card>
+      ) : !hasData ? (
+        <Card>
+          <CardContent className="py-16">
+            <ChartEmptyState description="표시할 데이터가 없습니다." />
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">요약</TabsTrigger>
+            <TabsTrigger value="distribution">응답 분포</TabsTrigger>
+            <TabsTrigger value="insights">질문 분석</TabsTrigger>
+          </TabsList>
 
-              <Card>
-                <CardContent className="flex flex-col items-center text-center p-3 md:p-4 aspect-square">
-                  <div className="p-2 bg-green-500/10 rounded-lg mb-2">
-                    <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-green-500" />
-                  </div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">평균 만족도</p>
-                  <div className="flex flex-col items-center space-y-1">
-                    <p className="text-lg md:text-xl font-bold">{summaryStats.avgSatisfaction}</p>
-                    <Badge
-                      variant={
-                        summaryStats.avgSatisfaction >= 4
-                          ? 'default'
-                          : summaryStats.avgSatisfaction >= 3
-                          ? 'secondary'
-                          : 'destructive'
-                      }
-                      className="text-xs"
-                    >
-                      {summaryStats.satisfactionPercentage}%
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="flex flex-col items-center text-center p-3 md:p-4 aspect-square">
-                  <div className="p-2 bg-orange-500/10 rounded-lg mb-2">
-                    <Award className="h-4 w-4 md:h-5 md:w-5 text-orange-500" />
-                  </div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">활성 설문</p>
-                  <p className="text-lg md:text-xl font-bold">{summaryStats.activeSurveys}</p>
-                </CardContent>
-              </Card>
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+              <SummaryCard icon={<BarChart3 className="h-4 w-4 text-primary" />} label="총 설문" value={stats.summary.totalSurveys} />
+              <SummaryCard icon={<Users className="h-4 w-4 text-blue-500" />} label="총 응답" value={stats.summary.totalResponses} />
+              <SummaryCard
+                icon={<TrendingUp className="h-4 w-4 text-green-500" />}
+                label="평균 만족도"
+                value={`${stats.summary.avgSatisfaction.toFixed(1)}점`}
+                extra={<Badge variant="secondary">{stats.summary.satisfactionPercentage}%</Badge>}
+              />
+              <SummaryCard icon={<Award className="h-4 w-4 text-amber-500" />} label="활성 설문" value={stats.summary.activeSurveys} />
             </div>
 
-            {/* 필터 컨트롤 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">연도</label>
-                <Select value={selectedYear} onValueChange={setSelectedYear} disabled={isEmptyState}>
-                  <SelectTrigger className="w-full" disabled={isEmptyState}>
-                    <SelectValue placeholder="전체" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체</SelectItem>
-                    {getUniqueYears().map(year => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}년
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>응답 추이</CardTitle>
+                <CardDescription>기간별 평균 만족도와 응답 수를 확인하세요.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {stats.trend.length === 0 ? (
+                  <ChartEmptyState description="추세를 계산할 데이터가 없습니다." />
+                ) : (
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={stats.trend}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis yAxisId="left" domain={[0, 10]} tickFormatter={value => `${value}점`} />
+                        <YAxis yAxisId="right" orientation="right" />
+                        <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                        <Line yAxisId="left" type="monotone" dataKey="average" name="평균 만족도" stroke="#2563eb" strokeWidth={2} />
+                        <Line yAxisId="right" type="monotone" dataKey="responses" name="응답 수" stroke="#10b981" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">과정</label>
-                <Select value={selectedCourse} onValueChange={setSelectedCourse} disabled={isEmptyState}>
-                  <SelectTrigger className="w-full" disabled={isEmptyState}>
-                    <SelectValue placeholder="전체" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체</SelectItem>
-                    {getUniqueCourses().map(course => (
-                      <SelectItem key={course} value={course}>
-                        {course}
-                      </SelectItem>
+            <Card>
+              <CardHeader>
+                <CardTitle>과정별 만족도</CardTitle>
+                <CardDescription>응답이 수집된 과정의 평균 만족도를 비교합니다.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {stats.courseBreakdown.length === 0 ? (
+                  <ChartEmptyState description="과정별 데이터를 계산할 수 없습니다." />
+                ) : (
+                  <div className="space-y-3">
+                    {stats.courseBreakdown.map(course => (
+                      <div key={course.course} className="rounded-lg border p-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">{course.course}</h4>
+                          <Badge variant={course.avgSatisfaction >= 8 ? 'default' : 'secondary'}>
+                            {course.avgSatisfaction.toFixed(1)}점
+                          </Badge>
+                        </div>
+                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                          <div className="flex justify-between">
+                            <span>응답 수</span>
+                            <span>{course.responses.toLocaleString()}명</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>설문 수</span>
+                            <span>{course.surveys.toLocaleString()}개</span>
+                          </div>
+                          <Progress value={course.satisfactionPercentage} className="h-2" />
+                        </div>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">차수</label>
-                <Select value={selectedRound} onValueChange={setSelectedRound} disabled={isEmptyState}>
-                  <SelectTrigger className="w-full" disabled={isEmptyState}>
-                    <SelectValue placeholder="전체" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체</SelectItem>
-                    {selectedPeriod === 'round' && <SelectItem value="latest">최신</SelectItem>}
-                    {getUniqueRounds().map(round => (
-                      <SelectItem key={round} value={round.toString()}>
-                        {round}차
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <TabsContent value="distribution" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>평점 분포</CardTitle>
+                <CardDescription>응답자들이 남긴 평점 범위를 확인하세요.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6 lg:grid-cols-2">
+                {stats.ratingDistribution.every(bucket => bucket.value === 0) ? (
+                  <ChartEmptyState description="평점 분포를 계산할 데이터가 없습니다." />
+                ) : (
+                  <>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={stats.ratingDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90}>
+                            {stats.ratingDistribution.map((entry, index) => (
+                              <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-3">
+                      {stats.ratingDistribution.map(entry => (
+                        <div key={entry.name} className="space-y-2">
+                          <div className="flex justify-between text-sm font-medium">
+                            <span>{entry.name}</span>
+                            <span>
+                              {entry.value.toLocaleString()} ({entry.percentage}%)
+                            </span>
+                          </div>
+                          <Progress value={entry.percentage} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="insights" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>카테고리 요약</CardTitle>
+                <CardDescription>만족도 영역별 평균 점수를 비교하세요.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-3">
+                <CategoryCard title="과정 만족도" average={stats.questionInsights.categories.subject.average} count={stats.questionInsights.categories.subject.questions.length} />
+                <CategoryCard title="강사 만족도" average={stats.questionInsights.categories.instructor.average} count={stats.questionInsights.categories.instructor.questions.length} />
+                <CategoryCard title="운영 만족도" average={stats.questionInsights.categories.operation.average} count={stats.questionInsights.categories.operation.questions.length} />
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              {stats.questionInsights.questions.map((question, index) => (
+                <QuestionAnalysisCard key={`${question.questionId}-${index}`} question={question} />
+              ))}
             </div>
 
-            {/* 트렌드 분석 */}
-            <Tabs defaultValue="trend" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="trend">만족도 트렌드</TabsTrigger>
-                <TabsTrigger value="courses">과목별 분석</TabsTrigger>
-                <TabsTrigger value="detailed">상세 분석</TabsTrigger>
-                <TabsTrigger value="distribution">평점 분포</TabsTrigger>
-                <TabsTrigger value="insights">인사이트</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="trend" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      만족도 변화 추이
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {trendData.length === 0 ? (
-                      <ChartEmptyState
-                        description="응답이 없어 트렌드 그래프를 그릴 수 없습니다. 상단 필터를 조정하거나 다음 교육 차수 이후 다시 확인해 주세요."
-                        actions="📬 필요 시 관리자에게 응답 입력을 요청하거나 테스트 데이터를 활용할 수 있습니다."
-                      />
-                    ) : (
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trendData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="period" />
-                            <YAxis domain={[0, 10]} />
-                            <Tooltip
-                              formatter={(value: any, name: string) => [
-                                name === 'average' ? `${Number(value).toFixed(1)}점` : value,
-                                name === 'average' ? '평균 만족도' : name === 'responses' ? '응답 수' : name,
-                              ]}
-                            />
-                            <Legend />
-                            <Line type="monotone" dataKey="average" stroke="#8884d8" strokeWidth={3} dot={{ r: 6 }} />
-                            <Line type="monotone" dataKey="responses" stroke="#82ca9d" strokeWidth={2} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="detailed" className="space-y-4">
-                {/* 과목-강사별 상세 분석 */}
-                <div className="space-y-4">
-                  {getUniqueSubjects().length > 0 ? (
-                    <Tabs defaultValue={getUniqueSubjects()[0]?.key || 'default'} className="space-y-4">
-                      <TabsList className="w-full overflow-x-auto">
-                        {getUniqueSubjects().map((subject) => (
-                          <TabsTrigger 
-                            key={subject.key} 
-                            value={subject.key} 
-                            className="text-sm touch-friendly whitespace-nowrap"
-                          >
-                            {subject.displayName}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-
-                      {getUniqueSubjects().map((subject) => {
-                        const subjectAnalysis = getSubjectDetailedAnalysis(subject.surveys);
-                        
-                        return (
-                          <TabsContent key={subject.key} value={subject.key} className="space-y-4">
-                            {/* 과정별 만족도 종합 */}
-                            <Card>
-                              <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                  <TrendingUp className="h-5 w-5 text-blue-500" />
-                                  과정별 만족도 종합
-                                </CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                  과목별 만족도를 종합 분석합니다.
-                                </p>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="space-y-6">
-                                  <Card className="border-l-4 border-l-blue-500">
-                                    <CardHeader>
-                                      <CardTitle className="text-lg">
-                                        {subject.courseName}
-                                      </CardTitle>
-                                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                        <span>총 {subject.surveys.length}개 설문</span>
-                                        <span>총 {subject.totalResponses}명 응답</span>
-                                      </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                      {/* 포함 과목 */}
-                                      <div className="mb-4">
-                                        <h4 className="font-medium mb-2">포함 과목:</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                          <Badge variant="secondary" className="text-xs">
-                                            {subject.courseName}
-                                          </Badge>
-                                        </div>
-                                      </div>
-
-                                      {/* 섹션별 만족도 */}
-                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <Card className="border border-blue-200">
-                                          <CardContent className="pt-4">
-                                            <div className="text-center">
-                                              <div className="text-3xl font-bold text-blue-500">
-                                                {subjectAnalysis.subjectAverage}
-                                              </div>
-                                              <div className="text-sm text-muted-foreground">과목 만족도</div>
-                                              <div className="text-xs text-muted-foreground">
-                                                {subjectAnalysis.subjectQuestions.length}개 질문
-                                              </div>
-                                            </div>
-                                          </CardContent>
-                                        </Card>
-
-                                        <Card className="border border-orange-200">
-                                          <CardContent className="pt-4">
-                                            <div className="text-center">
-                                              <div className="text-3xl font-bold text-orange-500">
-                                                {subjectAnalysis.instructorAverage}
-                                              </div>
-                                              <div className="text-sm text-muted-foreground">강사 만족도</div>
-                                              <div className="text-xs text-muted-foreground">
-                                                {subjectAnalysis.instructorQuestions.length}개 질문
-                                              </div>
-                                            </div>
-                                          </CardContent>
-                                        </Card>
-
-                                        <Card className="border border-green-200">
-                                          <CardContent className="pt-4">
-                                            <div className="text-center">
-                                              <div className="text-3xl font-bold text-green-500">
-                                                {subjectAnalysis.operationAverage}
-                                              </div>
-                                              <div className="text-sm text-muted-foreground">운영 만족도</div>
-                                              <div className="text-xs text-muted-foreground">
-                                                {subjectAnalysis.operationQuestions.length}개 질문
-                                              </div>
-                                            </div>
-                                          </CardContent>
-                                        </Card>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                </div>
-                              </CardContent>
-                            </Card>
-
-                            {/* 질문별 상세 분석 */}
-                            <div className="space-y-4">
-                              {[
-                                ...subjectAnalysis.subjectAnalyses,
-                                ...subjectAnalysis.instructorAnalyses,
-                                ...subjectAnalysis.operationAnalyses
-                              ].map((analysis, index) => renderQuestionAnalysis(analysis, index))}
-                            </div>
-                          </TabsContent>
-                        );
-                      })}
-                    </Tabs>
-                  ) : (
-                    <Card>
-                      <CardContent className="text-center py-8">
-                        <p className="text-muted-foreground">상세 분석할 데이터가 없습니다.</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="courses" className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>과목별 만족도</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {courseBreakdown.length === 0 ? (
-                        <ChartEmptyState
-                          description="과목별 분석을 표시할 데이터가 없습니다. 다른 필터를 선택하거나 응답 수집 이후 다시 확인해 주세요."
-                        />
-                      ) : (
-                        <div className="space-y-4">
-                          {courseBreakdown.map((course, index) => (
-                            <div key={course.course} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{course.course}</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {course.avgSatisfaction.toFixed(1)}점
-                                </span>
-                              </div>
-                              <Progress value={course.satisfactionPercentage} className="h-2" />
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>설문 {course.surveys}개</span>
-                                <span>응답 {course.responses}개</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>과목별 상세 통계</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {courseBreakdown.length === 0 ? (
-                        <ChartEmptyState
-                          description="표시할 과목이 없습니다. 설문 응답이 수집되면 상세 통계가 자동으로 생성됩니다."
-                        />
-                      ) : (
-                        <div className="space-y-3">
-                          {courseBreakdown.map((course, index) => (
-                            <Card key={course.course} className="p-4">
-                              <div className="mb-2 flex items-start justify-between">
-                                <h4 className="font-medium">{course.course}</h4>
-                                <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
-                                  {course.avgSatisfaction.toFixed(1)}점
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                                <div>설문: {course.surveys}개</div>
-                                <div>응답: {course.responses}개</div>
-                                <div>만족도: {course.satisfactionPercentage}%</div>
-                                <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="courses" className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>과목별 만족도</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {courseBreakdown.length === 0 ? (
-                        <ChartEmptyState
-                          description="과목별 분석을 표시할 데이터가 없습니다. 다른 필터를 선택하거나 응답 수집 이후 다시 확인해 주세요."
-                        />
-                      ) : (
-                        <div className="space-y-4">
-                          {courseBreakdown.map((course, index) => (
-                            <div key={course.course} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">{course.course}</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {course.avgSatisfaction.toFixed(1)}점
-                                </span>
-                              </div>
-                              <Progress value={course.satisfactionPercentage} className="h-2" />
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>설문 {course.surveys}개</span>
-                                <span>응답 {course.responses}개</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>과목별 상세 통계</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {courseBreakdown.length === 0 ? (
-                        <ChartEmptyState
-                          description="표시할 과목이 없습니다. 설문 응답이 수집되면 상세 통계가 자동으로 생성됩니다."
-                        />
-                      ) : (
-                        <div className="space-y-3">
-                          {courseBreakdown.map((course, index) => (
-                            <Card key={course.course} className="p-4">
-                              <div className="mb-2 flex items-start justify-between">
-                                <h4 className="font-medium">{course.course}</h4>
-                                <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
-                                  {course.avgSatisfaction.toFixed(1)}점
-                                </Badge>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                                <div>설문: {course.surveys}개</div>
-                                <div>응답: {course.responses}개</div>
-                                <div>만족도: {course.satisfactionPercentage}%</div>
-                                <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="distribution" className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>평점 분포</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {ratingDistribution.length === 0 ? (
-                        <ChartEmptyState
-                          description="평점 분포를 계산할 응답이 없습니다. 응답이 수집되면 자동으로 차트가 표시됩니다."
-                          actions="📈 설문을 공유하거나 테스트 데이터를 활성화해 샘플을 확인하세요."
-                        />
-                      ) : (
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={ratingDistribution}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                dataKey="value"
-                                label={({ name, percentage }) => `${name}: ${percentage}%`}
-                              >
-                                {ratingDistribution.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>평점별 상세</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {ratingDistribution.length === 0 ? (
-                        <ChartEmptyState
-                          description="표시할 평점 데이터가 없습니다. 응답 수집 이후 다시 시도하거나 다른 조건을 선택해 주세요."
-                        />
-                      ) : (
-                        ratingDistribution.map(item => (
-                          <div key={item.name} className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span>{item.name}</span>
-                              <span>
-                                {item.value}개 ({item.percentage}%)
-                              </span>
-                            </div>
-                            <Progress value={item.percentage} className="h-2" />
-                          </div>
-                        ))
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="insights" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <CalendarDays className="h-5 w-5" />
-                        최근 성과
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">설문당 평균 응답</span>
-                        <span className="font-medium">{summaryStats.avgResponsesPerSurvey}개</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">만족도 수준</span>
-                        <Badge
-                          variant={
-                            summaryStats.avgSatisfaction >= 4
-                              ? 'default'
-                              : summaryStats.avgSatisfaction >= 3
-                              ? 'secondary'
-                              : 'destructive'
-                          }
-                        >
-                          {summaryStats.avgSatisfaction >= 4 ? '우수' : summaryStats.avgSatisfaction >= 3 ? '보통' : '개선필요'}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">응답률 트렌드</span>
-                        <span className="font-medium">
-                          {trendData.length >= 2 &&
-                          trendData[trendData.length - 1].responses >
-                            trendData[trendData.length - 2].responses
-                            ? '📈 증가'
-                            : '📉 감소'}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>개선 제안</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3 text-sm">
-                        {summaryStats.avgSatisfaction < 3 && (
-                          <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                            <p className="text-red-700 dark:text-red-300">🔴 만족도가 낮습니다. 수업 방식 개선이 필요합니다.</p>
-                          </div>
-                        )}
-                        {summaryStats.avgResponsesPerSurvey < 5 && (
-                          <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-                            <p className="text-yellow-700 dark:text-yellow-300">🟡 응답률이 낮습니다. 설문 참여 독려가 필요합니다.</p>
-                          </div>
-                        )}
-                        {summaryStats.avgSatisfaction >= 4 && (
-                          <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                            <p className="text-green-700 dark:text-green-300">🟢 높은 만족도를 유지하고 있습니다. 지속적인 관리가 필요합니다.</p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </>
-        )}
-      </div>
+            {stats.questionInsights.textResponses.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>자유 서술형 피드백</CardTitle>
+                  <CardDescription>최근 수집된 의견을 확인하세요.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {stats.questionInsights.textResponses.slice(0, 10).map((text, index) => (
+                    <div key={`${text}-${index}`} className="rounded-lg border p-3 text-sm">
+                      {text}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 };
+
+interface SummaryCardProps {
+  icon: JSX.Element;
+  label: string;
+  value: string | number;
+  extra?: JSX.Element;
+}
+
+const SummaryCard = ({ icon, label, value, extra }: SummaryCardProps) => (
+  <Card>
+    <CardContent className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
+      <div className="rounded-lg bg-muted p-2">{icon}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-lg font-bold">{value}</div>
+      {extra}
+    </CardContent>
+  </Card>
+);
+
+interface CategoryCardProps {
+  title: string;
+  average: number | null;
+  count: number;
+}
+
+const CategoryCard = ({ title, average, count }: CategoryCardProps) => (
+  <div className="rounded-lg border p-4 text-center">
+    <h4 className="text-sm font-medium text-muted-foreground">{title}</h4>
+    <div className="mt-2 text-2xl font-bold">{average !== null ? average.toFixed(1) : '0.0'}</div>
+    <div className="text-xs text-muted-foreground">질문 {count}개</div>
+  </div>
+);
+
+const QuestionAnalysisCard = ({ question }: { question: AggregatedQuestion }) => {
+  const isRating = question.questionType === 'rating' || question.questionType === 'scale';
+  const totalResponses = Object.values(question.ratingDistribution).reduce((sum, value) => sum + value, 0);
+  const textAnswers = question.textAnswers.slice(0, 6);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{question.questionText}</CardTitle>
+        <CardDescription>
+          총 응답 {question.totalAnswers.toLocaleString()}개
+          {question.average !== null && isRating && (
+            <span className="ml-2 font-semibold text-primary">{question.average.toFixed(1)}점</span>
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isRating ? (
+          totalResponses === 0 ? (
+            <ChartEmptyState description="평점 데이터를 확인할 수 없습니다." />
+          ) : (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }, (_v, index) => index + 1).map(score => {
+                const value = question.ratingDistribution[score] ?? 0;
+                const percentage = totalResponses > 0 ? Math.round((value / totalResponses) * 100) : 0;
+                return (
+                  <div key={score} className="flex items-center gap-3 text-sm">
+                    <span className="w-12 font-medium">{score}점</span>
+                    <Progress value={percentage} className="h-2 flex-1" />
+                    <span className="w-16 text-right text-muted-foreground">
+                      {value.toLocaleString()} ({percentage}%)
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : textAnswers.length > 0 ? (
+          <div className="space-y-2 text-sm">
+            {textAnswers.map((answer, index) => (
+              <div key={`${answer}-${index}`} className="rounded border p-3">
+                {answer}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ChartEmptyState description="표시할 서술형 응답이 없습니다." />
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+function generatePersonalStatsCSV(summary: SummaryMetrics, trend: TrendPoint[]) {
+  let csv = '개인 통계 요약\n';
+  csv += `총 설문,${summary.totalSurveys}\n`;
+  csv += `총 응답,${summary.totalResponses}\n`;
+  csv += `활성 설문,${summary.activeSurveys}\n`;
+  csv += `평균 만족도,${summary.avgSatisfaction.toFixed(1)}\n`;
+  csv += `만족도 백분율,${summary.satisfactionPercentage}%\n`;
+  csv += `설문당 평균 응답,${summary.avgResponsesPerSurvey}\n\n`;
+  csv += '기간별 트렌드\n';
+  csv += '기간,평균 만족도,응답 수,만족도(%)\n';
+  trend.forEach(point => {
+    csv += `${point.period},${point.average.toFixed(1)},${point.responses},${point.satisfaction}\n`;
+  });
+  return csv;
+}
 
 export default PersonalDashboard;
