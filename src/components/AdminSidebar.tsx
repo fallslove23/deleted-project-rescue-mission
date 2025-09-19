@@ -157,17 +157,21 @@ export function AdminSidebar() {
               <SidebarMenu>
                 {section.items.map((item) => (
                   <SidebarMenuItem key={item.url}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        end={item.exact}
-                        className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
-                        style={{ color: '#7c3aed !important' }}
-                      >
-                        <item.icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="font-light">{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <NavLink to={item.url} end={item.exact}>
+                      {({ isActive }) => (
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
+                          style={{ color: '#7c3aed !important' }}
+                        >
+                          <span className="flex items-center gap-3">
+                            <item.icon className="h-4 w-4 flex-shrink-0" />
+                            <span className="font-light">{item.title}</span>
+                          </span>
+                        </SidebarMenuButton>
+                      )}
+                    </NavLink>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -184,16 +188,21 @@ export function AdminSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to="/developer-test"
-                      className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
-                      style={{ color: '#ef4444 !important' }}
-                    >
-                      <Code className="h-4 w-4 flex-shrink-0" />
-                      <span className="font-light">테스트 화면</span>
-                    </NavLink>
-                  </SidebarMenuButton>
+                  <NavLink to="/developer-test">
+                    {({ isActive }) => (
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        className="sidebar-menu-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-light transition-colors duration-200"
+                        style={{ color: '#ef4444 !important' }}
+                      >
+                        <span className="flex items-center gap-3">
+                          <Code className="h-4 w-4 flex-shrink-0" />
+                          <span className="font-light">테스트 화면</span>
+                        </span>
+                      </SidebarMenuButton>
+                    )}
+                  </NavLink>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
