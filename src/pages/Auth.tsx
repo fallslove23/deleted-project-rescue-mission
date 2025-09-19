@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { translateAuthError } from '@/utils/authErrorTranslator';
 import { getBaseUrl } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isCapsLockOn, setIsCapsLockOn] = useState(false);
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -95,6 +98,14 @@ const Auth = () => {
     }
   };
 
+  const handlePasswordKeyEvent = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (typeof event.getModifierState === 'function') {
+      setIsCapsLockOn(event.getModifierState('CapsLock'));
+    }
+  };
+
+  const handlePasswordBlur = () => setIsCapsLockOn(false);
+
   return (
     <div className="relative min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
       <div
@@ -149,17 +160,50 @@ const Auth = () => {
                   />
                 </div>
                 {!isResetPassword && (
-                  <div className="space-y-3">
-                    <Label htmlFor="password" className="text-sm font-medium">비밀번호</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="비밀번호를 입력하세요"
-                      className="w-full h-12 text-base"
-                      required
-                    />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor="password" className="text-sm font-medium">비밀번호</Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="text-xs text-muted-foreground underline decoration-dotted underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            aria-label="비밀번호 정책 안내 보기"
+                          >
+                            비밀번호 정책
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent align="end" className="max-w-xs text-xs leading-relaxed">
+                          최소 6자 이상이며 영문 대·소문자, 숫자, 특수문자를 조합하면 안전합니다.
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={handlePasswordKeyEvent}
+                        onKeyUp={handlePasswordKeyEvent}
+                        onBlur={handlePasswordBlur}
+                        autoComplete="current-password"
+                        placeholder="비밀번호를 입력하세요"
+                        className="w-full h-12 text-base pr-12"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {isCapsLockOn && (
+                      <p className="text-xs text-destructive">Caps Lock이 켜져 있습니다.</p>
+                    )}
                   </div>
                 )}
                 <Button
