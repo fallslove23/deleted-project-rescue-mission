@@ -1,9 +1,12 @@
 // src/pages/DashboardOverview.tsx
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layouts";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FileText,
   TrendingUp,
@@ -13,11 +16,12 @@ import {
   BookOpen,
   Activity,
 } from "lucide-react";
-import { 
-  AreaChart as RechartsAreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
+import { Check } from "lucide-react";
+import {
+  AreaChart as RechartsAreaChart,
+  Area,
+  XAxis,
+  YAxis,
   CartesianGrid, 
   ResponsiveContainer, 
   Tooltip,
@@ -27,6 +31,7 @@ import {
   Legend
 } from 'recharts';
 import { supabase } from "@/integrations/supabase/client";
+import { FilterPresetManager } from "@/components/FilterPresetManager";
 
 /** ---------- Types ---------- */
 type Stats = {
@@ -43,6 +48,9 @@ type Stats = {
 const DashboardOverview: React.FC = () => {
   const { userRoles, loading: authLoading } = useAuth();
   const isAdmin = !!userRoles?.includes("admin"); // ✅ 반드시 함수 내부에서 선언
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('7d');
+  const [pendingTimeRange, setPendingTimeRange] = useState<'7d' | '30d' | '90d'>('7d');
 
   const [stats, setStats] = useState<Stats>({
     totalSurveys: 0,
@@ -55,6 +63,49 @@ const DashboardOverview: React.FC = () => {
   });
 
   const [loading, setLoading] = useState<boolean>(true);
+  const timeRangeLabels: Record<'7d' | '30d' | '90d', string> = {
+    '7d': '최근 7일',
+    '30d': '최근 30일',
+    '90d': '최근 90일',
+  };
+  const timeRangeOptions: Array<{ value: '7d' | '30d' | '90d'; label: string }> = [
+    { value: '7d', label: timeRangeLabels['7d'] },
+    { value: '30d', label: timeRangeLabels['30d'] },
+    { value: '90d', label: timeRangeLabels['90d'] },
+  ];
+
+  useEffect(() => {
+    const param = searchParams.get('range');
+    if (!param) {
+      if (timeRange !== '7d') {
+        setTimeRange('7d');
+      }
+      return;
+    }
+
+    if (param === timeRange) return;
+
+    if (param === '7d' || param === '30d' || param === '90d') {
+      setTimeRange(param as '7d' | '30d' | '90d');
+    }
+  }, [searchParams, timeRange]);
+
+  useEffect(() => {
+    setPendingTimeRange(timeRange);
+  }, [timeRange]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (timeRange !== '7d') {
+      next.set('range', timeRange);
+    } else {
+      next.delete('range');
+    }
+
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [timeRange, searchParams, setSearchParams]);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -66,7 +117,8 @@ const DashboardOverview: React.FC = () => {
         supabase.from('survey_responses').select('id', { count: 'exact', head: true });
 
       const nowIso = new Date().toISOString();
-      const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const rangeDays = timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 7;
+      const rangeStartIso = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000).toISOString();
 
       const [
         totalSurveysRes,
@@ -88,7 +140,7 @@ const DashboardOverview: React.FC = () => {
         supabase
           .from('survey_responses')
           .select('id', { count: 'exact', head: true })
-          .gte('submitted_at', sevenDaysAgoIso),
+          .gte('submitted_at', rangeStartIso),
       ]);
 
       const completedSurveysCount =
@@ -108,13 +160,77 @@ const DashboardOverview: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, timeRange]);
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
 
   const busy = loading || authLoading;
+  const handlePendingTimeRangeChange = (value: string) => {
+    if (value === '7d' || value === '30d' || value === '90d') {
+      setPendingTimeRange(value);
+    }
+  };
+
+  const handleApplyFilters = () => {
+    setTimeRange(pendingTimeRange);
+  };
+
+  const handleResetFilters = () => {
+    setPendingTimeRange('7d');
+    setTimeRange('7d');
+  };
+
+  const handleRemoveFilter = (key: string) => {
+    if (key === 'timeRange') {
+      handleResetFilters();
+    }
+  };
+
+  const handleLoadPreset = (filters: any) => {
+    const nextRange = filters?.timeRange;
+    if (nextRange === '7d' || nextRange === '30d' || nextRange === '90d') {
+      setPendingTimeRange(nextRange);
+      setTimeRange(nextRange);
+    } else {
+      handleResetFilters();
+    }
+  };
+  const responseTrendData = useMemo(() => {
+    const points = timeRange === '7d' ? 7 : 6;
+    const base = Math.max(stats.recentResponsesCount, 1);
+
+    return Array.from({ length: points }).map((_, index) => {
+      const isLast = index === points - 1;
+      const remaining = points - index - 1;
+      let label: string;
+
+      if (isLast) {
+        label = '오늘';
+      } else if (timeRange === '30d') {
+        label = `${(remaining + 1) * 5}일 전`;
+      } else if (timeRange === '90d') {
+        label = `${(remaining + 1) * 15}일 전`;
+      } else {
+        label = `${remaining + 1}일 전`;
+      }
+
+      const ratio = points > 1 ? index / (points - 1) : 1;
+      const responses = isLast
+        ? base
+        : Math.max(0, Math.round(base * (0.5 + ratio * 0.5)));
+
+      return {
+        date: label,
+        responses,
+      };
+    });
+  }, [stats.recentResponsesCount, timeRange]);
+  const rangeLabel = timeRangeLabels[timeRange];
+  const overviewFilters = { timeRange };
+  const overviewFilterDisplayValues = { timeRange: timeRangeLabels[timeRange] };
+  const overviewFilterLabels = { timeRange: '조회 기간' } as const;
 
   return (
     <DashboardLayout
@@ -123,7 +239,62 @@ const DashboardOverview: React.FC = () => {
       loading={busy}
     >
       <div className="space-y-6">
-        {/* 주요 통계 카드 */}
+        {/* 필터 섹션 */}
+        <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border/60 mb-6 overflow-hidden">
+          <div className="sticky top-24 z-20 -mx-6 px-6 py-4 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-b border-border/60 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <FilterPresetManager
+              filterType="survey_analysis"
+              currentFilters={overviewFilters}
+              filterLabels={overviewFilterLabels}
+              filterDisplayValues={overviewFilterDisplayValues}
+              onLoadPreset={handleLoadPreset}
+              onRemoveFilter={handleRemoveFilter}
+              className="flex-1"
+            />
+            <div className="flex flex-col gap-2 w-full md:w-auto md:flex-row md:items-center">
+              <Button
+                variant="outline"
+                onClick={handleResetFilters}
+                className="w-full md:w-auto"
+              >
+                필터 초기화
+              </Button>
+              <Button onClick={handleApplyFilters} className="w-full md:w-auto">
+                필터 적용
+              </Button>
+            </div>
+          </div>
+        <div className="px-6 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">조회 기간</label>
+              <Select value={pendingTimeRange} onValueChange={handlePendingTimeRangeChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="조회 기간 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeRangeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Button
+        size="icon"
+        className="md:hidden fixed bottom-24 right-6 h-14 w-14 rounded-full shadow-lg border border-border/60"
+        onClick={handleApplyFilters}
+        aria-label="필터 적용"
+      >
+        <Check className="h-6 w-6" />
+      </Button>
+
+      {/* 주요 통계 카드 */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
@@ -204,7 +375,7 @@ const DashboardOverview: React.FC = () => {
             </CardHeader>
             <CardContent className="relative">
               <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-600">최근 7일 응답</p>
+                <p className="text-sm font-medium text-gray-600">최근 응답 ({rangeLabel})</p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">
                     {busy ? "-" : stats.recentResponsesCount}
@@ -293,20 +464,12 @@ const DashboardOverview: React.FC = () => {
           <Card className="bg-white border-0 shadow-sm">
             <CardHeader>
               <h3 className="text-lg font-semibold text-foreground">응답 트렌드</h3>
-              <p className="text-sm text-muted-foreground">최근 7일간 응답 추이</p>
+              <p className="text-sm text-muted-foreground">{rangeLabel} 응답 추이</p>
             </CardHeader>
             <CardContent>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RechartsAreaChart data={[
-                    { date: '7일 전', responses: Math.floor(stats.recentResponsesCount * 0.6) },
-                    { date: '6일 전', responses: Math.floor(stats.recentResponsesCount * 0.7) },
-                    { date: '5일 전', responses: Math.floor(stats.recentResponsesCount * 0.8) },
-                    { date: '4일 전', responses: Math.floor(stats.recentResponsesCount * 0.9) },
-                    { date: '3일 전', responses: Math.floor(stats.recentResponsesCount * 1.1) },
-                    { date: '2일 전', responses: Math.floor(stats.recentResponsesCount * 1.2) },
-                    { date: '어제', responses: stats.recentResponsesCount }
-                  ]}>
+                  <RechartsAreaChart data={responseTrendData}>
                     <defs>
                       <linearGradient id="responseGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
