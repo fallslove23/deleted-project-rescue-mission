@@ -10,10 +10,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit, FolderPlus } from 'lucide-react';
+import {
+  ArrowLeft,
+  Trash2,
+  Edit,
+  FolderPlus,
+  MessageSquarePlus,
+  Folders,
+  Sliders,
+  AlignLeft,
+  ListChecks,
+  type LucideIcon
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstructorInfoSection } from '@/components/InstructorInfoSection';
 
@@ -34,6 +45,72 @@ interface TemplateSection {
   description?: string;
   order_index: number;
 }
+
+interface QuestionTypeGuide {
+  title: string;
+  description: string;
+  examples: string[];
+  validations: string[];
+  icon: LucideIcon;
+  containerClass: string;
+  iconWrapperClass: string;
+  titleClass: string;
+  textClass: string;
+}
+
+const questionTypeGuides: Record<string, QuestionTypeGuide> = {
+  scale: {
+    title: '척도형 질문 가이드',
+    description: '응답자가 특정 범위의 숫자로 만족도를 표현하는 질문입니다.',
+    examples: [
+      '예시: "이 강의에 얼마나 만족하셨나요?"',
+      '응답 범위: 1 (전혀 아니다) ~ 5 (매우 그렇다)'
+    ],
+    validations: [
+      '검증: 최소값과 최대값은 1~10 사이여야 합니다.',
+      '검증: 최소값은 항상 최대값보다 작아야 합니다.'
+    ],
+    icon: Sliders,
+    containerClass: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    iconWrapperClass: 'bg-emerald-100 text-emerald-600',
+    titleClass: 'text-emerald-900',
+    textClass: 'text-emerald-700'
+  },
+  text: {
+    title: '주관식 질문 가이드',
+    description: '응답자가 자유롭게 서술형 답변을 남기는 질문입니다.',
+    examples: [
+      '예시: "강의에서 가장 인상 깊었던 점은 무엇인가요?"',
+      '예시: "추가로 제안하고 싶은 사항이 있다면 알려주세요."'
+    ],
+    validations: [
+      '검증: 답변 글자 수 제한을 안내하면 응답자가 작성 범위를 이해하기 쉽습니다.',
+      '검증: 민감한 정보 수집 시 추가 안내 문구를 포함하세요.'
+    ],
+    icon: AlignLeft,
+    containerClass: 'border-sky-200 bg-sky-50 text-sky-900',
+    iconWrapperClass: 'bg-sky-100 text-sky-600',
+    titleClass: 'text-sky-900',
+    textClass: 'text-sky-700'
+  },
+  multiple_choice: {
+    title: '객관식 질문 가이드',
+    description: '여러 선택지 중 하나를 선택하도록 안내하는 질문입니다.',
+    examples: [
+      '예시: "선호하는 학습 방식을 선택하세요."',
+      '예시: "강의 자료 중 가장 도움이 된 형태를 고르세요."'
+    ],
+    validations: [
+      '검증: 최소 2개 이상의 선택지를 제공해야 합니다.',
+      '검증: 필요 시 "기타" 옵션을 추가해 의견을 수집할 수 있습니다.'
+    ],
+    icon: ListChecks,
+    containerClass: 'border-amber-200 bg-amber-50 text-amber-900',
+    iconWrapperClass: 'bg-amber-100 text-amber-600',
+    titleClass: 'text-amber-900',
+    textClass: 'text-amber-700'
+  }
+};
 
 interface Template {
   id: string;
@@ -56,7 +133,8 @@ const TemplateBuilder = () => {
   const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<TemplateQuestion | null>(null);
   const [editingSection, setEditingSection] = useState<TemplateSection | null>(null);
-
+  const [pendingFocusQuestionId, setPendingFocusQuestionId] = useState<string | null>(null);
+  const [pendingFocusSectionId, setPendingFocusSectionId] = useState<string | null>(null);
 
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
@@ -120,6 +198,48 @@ const TemplateBuilder = () => {
     }
   };
 
+  useEffect(() => {
+    if (!pendingFocusQuestionId) return;
+    if (typeof document === 'undefined') return;
+
+    const element = document.getElementById(`question-${pendingFocusQuestionId}`);
+
+    if (!(element instanceof HTMLElement)) return;
+
+    const focusElement = () => {
+      element.focus({ preventScroll: true });
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingFocusQuestionId(null);
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => focusElement());
+    } else {
+      focusElement();
+    }
+  }, [pendingFocusQuestionId, questions]);
+
+  useEffect(() => {
+    if (!pendingFocusSectionId) return;
+    if (typeof document === 'undefined') return;
+
+    const element = document.getElementById(`section-${pendingFocusSectionId}`);
+
+    if (!(element instanceof HTMLElement)) return;
+
+    const focusElement = () => {
+      element.focus({ preventScroll: true });
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPendingFocusSectionId(null);
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => focusElement());
+    } else {
+      focusElement();
+    }
+  }, [pendingFocusSectionId, sections]);
+
   const resetQuestionForm = () => {
     const currentSectionId = questionForm.section_id; // 현재 선택된 섹션 유지
     setQuestionForm({
@@ -165,11 +285,17 @@ const TemplateBuilder = () => {
           description: "질문이 수정되었습니다."
         });
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('template_questions')
-          .insert([questionData]);
+          .insert([questionData])
+          .select()
+          .single();
 
         if (error) throw error;
+
+        if (data) {
+          setPendingFocusQuestionId(data.id);
+        }
 
         toast({
           title: "성공",
@@ -236,16 +362,22 @@ const TemplateBuilder = () => {
     e.preventDefault();
     
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('template_sections')
         .insert([{
           template_id: templateId,
           name: sectionForm.name,
           description: sectionForm.description,
           order_index: sections.length
-        }]);
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
+
+      if (data) {
+        setPendingFocusSectionId(data.id);
+      }
 
       toast({
         title: "성공",
@@ -284,9 +416,9 @@ const TemplateBuilder = () => {
 
   const handleUpdateSection = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!editingSection) return;
-    
+
     try {
       const { error } = await supabase
         .from('template_sections')
@@ -316,11 +448,18 @@ const TemplateBuilder = () => {
     }
   };
 
+  const currentQuestionGuide = questionTypeGuides[questionForm.question_type] ?? null;
+  const CurrentGuideIcon = currentQuestionGuide?.icon;
+
 
   // Improved Question Item Component to match screenshot
   const QuestionItem = ({ question, globalIndex }: { question: TemplateQuestion; globalIndex: number }) => {
     return (
-      <div className="relative border rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+      <div
+        id={`question-${question.id}`}
+        tabIndex={-1}
+        className="relative border rounded-lg bg-white p-6 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/40"
+      >
         {/* Question number in top left */}
         <div className="absolute left-4 top-4 flex items-center justify-center w-7 h-7 bg-primary text-white text-xs font-bold rounded-full">
           {globalIndex}
@@ -517,18 +656,31 @@ const TemplateBuilder = () => {
                   if (!open) resetSectionForm();
                 }}>
                   <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button
+                      variant="outline"
+                      className="border-sky-300 text-sky-700 hover:bg-sky-50"
+                    >
                       <FolderPlus className="h-4 w-4 mr-2" />
                       섹션 추가
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {editingSection ? '섹션 수정' : '새 섹션 추가'}
-                      </DialogTitle>
+                  <DialogContent className="sm:max-w-md border-t-4 border-sky-300">
+                    <DialogHeader className="space-y-3 border-b border-sky-100 pb-3 text-left">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                          <Folders className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <DialogTitle className="text-lg font-semibold text-sky-900">
+                            {editingSection ? '섹션 수정' : '새 섹션 추가'}
+                          </DialogTitle>
+                          <DialogDescription className="text-sm text-sky-600">
+                            강의평가 흐름을 나누기 위해 섹션을 구성하세요.
+                          </DialogDescription>
+                        </div>
+                      </div>
                     </DialogHeader>
-                    <form onSubmit={editingSection ? handleUpdateSection : handleAddSection} className="space-y-4">
+                    <form onSubmit={editingSection ? handleUpdateSection : handleAddSection} className="space-y-4 pt-3">
                       <div>
                         <Label htmlFor="section_name">섹션 이름</Label>
                         <Input
@@ -548,11 +700,11 @@ const TemplateBuilder = () => {
                           placeholder="섹션 설명을 입력하세요 (선택사항)"
                         />
                       </div>
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 pt-1">
                         <Button type="button" variant="outline" onClick={() => setIsSectionDialogOpen(false)}>
                           취소
                         </Button>
-                        <Button type="submit">
+                        <Button type="submit" className="bg-sky-600 text-white hover:bg-sky-700">
                           {editingSection ? '수정' : '추가'}
                         </Button>
                       </div>
@@ -565,18 +717,28 @@ const TemplateBuilder = () => {
                   if (!open) resetQuestionForm();
                 }}>
                   <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Button className="bg-emerald-600 text-white shadow-sm hover:bg-emerald-700">
+                      <MessageSquarePlus className="h-4 w-4 mr-2" />
                       질문 추가
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>
-                        {editingQuestion ? '질문 수정' : '새 질문 추가'}
-                      </DialogTitle>
+                  <DialogContent className="max-w-lg border-t-4 border-emerald-400">
+                    <DialogHeader className="space-y-3 border-b border-emerald-100 pb-3 text-left">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                          <MessageSquarePlus className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <DialogTitle className="text-lg font-semibold text-emerald-900">
+                            {editingQuestion ? '질문 수정' : '새 질문 추가'}
+                          </DialogTitle>
+                          <DialogDescription className="text-sm text-emerald-600">
+                            응답자가 이해하기 쉽게 질문 유형과 옵션을 구성하세요.
+                          </DialogDescription>
+                        </div>
+                      </div>
                     </DialogHeader>
-                    <form onSubmit={handleAddQuestion} className="space-y-4">
+                    <form onSubmit={handleAddQuestion} className="space-y-4 pt-3">
                       <div>
                         <Label htmlFor="question_text">질문 내용</Label>
                         <Textarea
@@ -587,12 +749,12 @@ const TemplateBuilder = () => {
                           required
                         />
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="question_type">질문 유형</Label>
-                          <Select 
-                            value={questionForm.question_type} 
+                          <Select
+                            value={questionForm.question_type}
                             onValueChange={(value: any) => setQuestionForm(prev => ({ ...prev, question_type: value }))}
                           >
                             <SelectTrigger>
@@ -605,11 +767,11 @@ const TemplateBuilder = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <div>
                           <Label htmlFor="section">섹션</Label>
-                          <Select 
-                            value={questionForm.section_id} 
+                          <Select
+                            value={questionForm.section_id}
                             onValueChange={(value) => setQuestionForm(prev => ({ ...prev, section_id: value }))}
                           >
                             <SelectTrigger>
@@ -625,27 +787,67 @@ const TemplateBuilder = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                       </div>
+                      </div>
 
-                       <div>
-                         <Label htmlFor="satisfaction_type">만족도 태그</Label>
-                         <Select 
-                           value={questionForm.satisfaction_type} 
-                           onValueChange={(value) => setQuestionForm(prev => ({ ...prev, satisfaction_type: value }))}
-                         >
-                           <SelectTrigger>
-                             <SelectValue placeholder="만족도 태그 선택 (선택사항)" />
-                           </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">태그 없음</SelectItem>
-                              <SelectItem value="course">과목 만족도</SelectItem>
-                              <SelectItem value="instructor">강사 만족도</SelectItem>
-                              <SelectItem value="operation">운영 만족도</SelectItem>
-                            </SelectContent>
-                         </Select>
-                       </div>
+                      {currentQuestionGuide && CurrentGuideIcon && (
+                        <div className={`rounded-xl border p-4 shadow-sm ${currentQuestionGuide.containerClass}`}>
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-1 flex h-11 w-11 items-center justify-center rounded-full ${currentQuestionGuide.iconWrapperClass}`}>
+                              <CurrentGuideIcon className="h-5 w-5" />
+                            </div>
+                            <div className="space-y-3 text-sm">
+                              <div>
+                                <p className={`text-base font-semibold ${currentQuestionGuide.titleClass}`}>
+                                  {currentQuestionGuide.title}
+                                </p>
+                                <p className={`mt-1 text-sm leading-relaxed ${currentQuestionGuide.textClass}`}>
+                                  {currentQuestionGuide.description}
+                                </p>
+                              </div>
+                              <div>
+                                <p className={`font-semibold ${currentQuestionGuide.titleClass}`}>예시</p>
+                                <ul className="mt-1 list-disc space-y-1 pl-5">
+                                  {currentQuestionGuide.examples.map((example, index) => (
+                                    <li key={index} className={`${currentQuestionGuide.textClass} leading-relaxed`}>
+                                      {example}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div>
+                                <p className={`font-semibold ${currentQuestionGuide.titleClass}`}>검증 규칙</p>
+                                <ul className="mt-1 list-disc space-y-1 pl-5">
+                                  {currentQuestionGuide.validations.map((rule, index) => (
+                                    <li key={index} className={`${currentQuestionGuide.textClass} leading-relaxed`}>
+                                      {rule}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                       {questionForm.question_type === 'scale' && (
+                      <div>
+                        <Label htmlFor="satisfaction_type">만족도 태그</Label>
+                        <Select
+                          value={questionForm.satisfaction_type}
+                          onValueChange={(value) => setQuestionForm(prev => ({ ...prev, satisfaction_type: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="만족도 태그 선택 (선택사항)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">태그 없음</SelectItem>
+                            <SelectItem value="course">과목 만족도</SelectItem>
+                            <SelectItem value="instructor">강사 만족도</SelectItem>
+                            <SelectItem value="operation">운영 만족도</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {questionForm.question_type === 'scale' && (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label htmlFor="scale_min">최소값</Label>
@@ -670,22 +872,22 @@ const TemplateBuilder = () => {
                             />
                           </div>
                         </div>
-                       )}
+                      )}
 
-                       <div className="flex items-center justify-between">
-                         <Label htmlFor="is_required">필수 문항</Label>
-                         <Switch
-                           id="is_required"
-                           checked={questionForm.is_required}
-                           onCheckedChange={(checked) => setQuestionForm(prev => ({ ...prev, is_required: checked }))}
-                         />
-                       </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="is_required">필수 문항</Label>
+                        <Switch
+                          id="is_required"
+                          checked={questionForm.is_required}
+                          onCheckedChange={(checked) => setQuestionForm(prev => ({ ...prev, is_required: checked }))}
+                        />
+                      </div>
 
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                           취소
                         </Button>
-                        <Button type="submit">
+                        <Button type="submit" className="bg-emerald-600 text-white hover:bg-emerald-700">
                           {editingQuestion ? '수정' : '추가'}
                         </Button>
                       </div>
@@ -710,7 +912,12 @@ const TemplateBuilder = () => {
                     
                     if (sectionQuestions.length > 0) {
                       result.push(
-                        <div key={section.id} className="space-y-4">
+                        <div
+                          key={section.id}
+                          id={`section-${section.id}`}
+                          tabIndex={-1}
+                          className="space-y-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-200"
+                        >
                           {/* Section Header */}
                           <div className="py-4 border-b border-gray-200">
                             <div className="flex items-start justify-between">
