@@ -13,6 +13,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
 } from 'recharts';
 import { Progress } from '@/components/ui/progress';
+import { ChartEmptyState } from '@/components/charts';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -617,68 +618,99 @@ const PersonalDashboard: FC = () => {
       const sortedQuestions = [...questionList].sort((a, b) => a.order_index - b.order_index);
       return sortedQuestions.map(question => {
         const questionAnswers = subjectAnswers.filter(a => a.question_id === question.id);
-        
+
         if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
           const options = question.options || [];
-          const answerCounts = {};
-          
+          const answerCounts = {} as Record<string, number>;
+
           options.forEach(option => {
             answerCounts[option] = 0;
           });
-          
+
           questionAnswers.forEach(answer => {
             if (answer.answer_text && answerCounts.hasOwnProperty(answer.answer_text)) {
               answerCounts[answer.answer_text]++;
             }
           });
-          
+
           const chartData = Object.entries(answerCounts).map(([option, count]) => ({
             name: option,
             value: count as number,
             percentage: questionAnswers.length > 0 ? Math.round(((count as number) / questionAnswers.length) * 100) : 0
           }));
-          
+
+          const hasValues = chartData.some(item => item.value > 0);
+
+          if (!hasValues) {
+            return {
+              question,
+              totalAnswers: questionAnswers.length,
+              type: 'empty' as const,
+              emptyMessage: '응답이 없어 선택형 분포를 표시할 수 없습니다. 설문 응답을 수집한 후 다시 확인해 주세요.'
+            };
+          }
+
           return {
             question,
             totalAnswers: questionAnswers.length,
             chartData,
-            type: 'chart'
+            type: 'chart' as const
           };
         } else if (question.question_type === 'rating' || question.question_type === 'scale') {
           const ratings = questionAnswers.map(a => parseInt(a.answer_text)).filter(r => !isNaN(r));
+          if (ratings.length === 0) {
+            return {
+              question,
+              totalAnswers: questionAnswers.length,
+              type: 'empty' as const,
+              emptyMessage: '평점 응답이 없어 차트를 표시할 수 없습니다. 응답을 요청해 주세요.'
+            };
+          }
+
           const maxScore = Math.max(...ratings);
           let convertedRatings = ratings;
-          
+
           if (maxScore <= 5) {
             convertedRatings = ratings.map(r => r * 2);
           }
-          
+
           const average = convertedRatings.length > 0 ? (convertedRatings.reduce((sum, r) => sum + r, 0) / convertedRatings.length).toFixed(1) : '0';
-          
-          const distribution = {};
+
+          const distribution: Record<number, number> = {};
           for (let i = 1; i <= 10; i++) {
             distribution[i] = convertedRatings.filter(r => r === i).length;
           }
-          
+
           const chartData = Object.entries(distribution).map(([score, count]) => ({
             name: `${score}점`,
             value: count as number,
             percentage: convertedRatings.length > 0 ? Math.round(((count as number) / convertedRatings.length) * 100) : 0
           }));
-          
+
+          const hasValues = chartData.some(item => item.value > 0);
+
+          if (!hasValues) {
+            return {
+              question,
+              totalAnswers: questionAnswers.length,
+              type: 'empty' as const,
+              emptyMessage: '평점 응답이 모두 0점이어서 차트를 만들 수 없습니다. 응답 데이터를 확인해 주세요.'
+            };
+          }
+
           return {
             question,
             totalAnswers: questionAnswers.length,
             average,
             chartData,
-            type: 'rating'
+            type: 'rating' as const
           };
         } else {
           return {
             question,
             totalAnswers: questionAnswers.length,
             answers: questionAnswers.slice(0, 10),
-            type: 'text'
+            type: 'text' as const
           };
         }
       });
@@ -740,6 +772,12 @@ const PersonalDashboard: FC = () => {
         </p>
       </CardHeader>
       <CardContent>
+        {analysis.type === 'empty' && (
+          <ChartEmptyState
+            description={analysis.emptyMessage || '응답이 없어 시각화를 표시할 수 없습니다.'}
+            actions="💡 테스트 데이터를 활성화하거나, 설문 담당자에게 응답 수집을 요청해 주세요."
+          />
+        )}
         {analysis.type === 'chart' && (
           <div className="space-y-4">
             <div className="h-64">
@@ -864,6 +902,8 @@ const PersonalDashboard: FC = () => {
 
   const trendData = getTrendData();
   const summaryStats = getSummaryStats();
+  const hasResponses = summaryStats.totalResponses > 0;
+  const isEmptyState = !hasResponses;
   const ratingDistribution = getRatingDistribution();
   const courseBreakdown = getCourseBreakdown();
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
@@ -875,6 +915,8 @@ const PersonalDashboard: FC = () => {
       variant="outline"
       size="sm"
       className="rounded-full px-3 gap-2"
+      disabled={isEmptyState}
+      title={isEmptyState ? '표시할 데이터가 없어 CSV를 다운로드할 수 없습니다.' : undefined}
       onClick={() => {
         const element = document.createElement('a');
         const csvContent = generatePersonalStatsCSV();
@@ -907,6 +949,8 @@ const PersonalDashboard: FC = () => {
       variant="outline"
       size="sm"
       className="rounded-full"
+      disabled={isEmptyState}
+      title={isEmptyState ? '표시할 데이터가 없어 CSV를 다운로드할 수 없습니다.' : undefined}
       onClick={() => {
         const element = document.createElement('a');
         const csvContent = generatePersonalStatsCSV();
@@ -1038,8 +1082,8 @@ const PersonalDashboard: FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">연도</label>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-full">
+                <Select value={selectedYear} onValueChange={setSelectedYear} disabled={isEmptyState}>
+                  <SelectTrigger className="w-full" disabled={isEmptyState}>
                     <SelectValue placeholder="전체" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1055,8 +1099,8 @@ const PersonalDashboard: FC = () => {
 
               <div>
                 <label className="text-sm font-medium mb-2 block">과정</label>
-                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                  <SelectTrigger className="w-full">
+                <Select value={selectedCourse} onValueChange={setSelectedCourse} disabled={isEmptyState}>
+                  <SelectTrigger className="w-full" disabled={isEmptyState}>
                     <SelectValue placeholder="전체" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1072,8 +1116,8 @@ const PersonalDashboard: FC = () => {
 
               <div>
                 <label className="text-sm font-medium mb-2 block">차수</label>
-                <Select value={selectedRound} onValueChange={setSelectedRound}>
-                  <SelectTrigger className="w-full">
+                <Select value={selectedRound} onValueChange={setSelectedRound} disabled={isEmptyState}>
+                  <SelectTrigger className="w-full" disabled={isEmptyState}>
                     <SelectValue placeholder="전체" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1108,24 +1152,31 @@ const PersonalDashboard: FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trendData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="period" />
-                          <YAxis domain={[0, 10]} />
-                          <Tooltip
-                            formatter={(value: any, name: string) => [
-                              name === 'average' ? `${Number(value).toFixed(1)}점` : value,
-                              name === 'average' ? '평균 만족도' : name === 'responses' ? '응답 수' : name,
-                            ]}
-                          />
-                          <Legend />
-                          <Line type="monotone" dataKey="average" stroke="#8884d8" strokeWidth={3} dot={{ r: 6 }} />
-                          <Line type="monotone" dataKey="responses" stroke="#82ca9d" strokeWidth={2} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {trendData.length === 0 ? (
+                      <ChartEmptyState
+                        description="응답이 없어 트렌드 그래프를 그릴 수 없습니다. 상단 필터를 조정하거나 다음 교육 차수 이후 다시 확인해 주세요."
+                        actions="📬 필요 시 관리자에게 응답 입력을 요청하거나 테스트 데이터를 활용할 수 있습니다."
+                      />
+                    ) : (
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={trendData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis domain={[0, 10]} />
+                            <Tooltip
+                              formatter={(value: any, name: string) => [
+                                name === 'average' ? `${Number(value).toFixed(1)}점` : value,
+                                name === 'average' ? '평균 만족도' : name === 'responses' ? '응답 수' : name,
+                              ]}
+                            />
+                            <Legend />
+                            <Line type="monotone" dataKey="average" stroke="#8884d8" strokeWidth={3} dot={{ r: 6 }} />
+                            <Line type="monotone" dataKey="responses" stroke="#82ca9d" strokeWidth={2} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1265,28 +1316,29 @@ const PersonalDashboard: FC = () => {
                       <CardTitle>과목별 만족도</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {courseBreakdown.map((course, index) => (
-                          <div key={course.course} className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium">{course.course}</span>
-                              <span className="text-sm text-muted-foreground">
-                                {course.avgSatisfaction.toFixed(1)}점
-                              </span>
+                      {courseBreakdown.length === 0 ? (
+                        <ChartEmptyState
+                          description="과목별 분석을 표시할 데이터가 없습니다. 다른 필터를 선택하거나 응답 수집 이후 다시 확인해 주세요."
+                        />
+                      ) : (
+                        <div className="space-y-4">
+                          {courseBreakdown.map((course, index) => (
+                            <div key={course.course} className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">{course.course}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {course.avgSatisfaction.toFixed(1)}점
+                                </span>
+                              </div>
+                              <Progress value={course.satisfactionPercentage} className="h-2" />
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>설문 {course.surveys}개</span>
+                                <span>응답 {course.responses}개</span>
+                              </div>
                             </div>
-                            <Progress value={course.satisfactionPercentage} className="h-2" />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>설문 {course.surveys}개</span>
-                              <span>응답 {course.responses}개</span>
-                            </div>
-                          </div>
-                        ))}
-                        {courseBreakdown.length === 0 && (
-                          <p className="text-center text-muted-foreground py-8">
-                            과목별 데이터가 없습니다.
-                          </p>
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -1295,29 +1347,30 @@ const PersonalDashboard: FC = () => {
                       <CardTitle>과목별 상세 통계</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
-                        {courseBreakdown.map((course, index) => (
-                          <Card key={course.course} className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-medium">{course.course}</h4>
-                              <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
-                                {course.avgSatisfaction.toFixed(1)}점
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                              <div>설문: {course.surveys}개</div>
-                              <div>응답: {course.responses}개</div>
-                              <div>만족도: {course.satisfactionPercentage}%</div>
-                              <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
-                            </div>
-                          </Card>
-                        ))}
-                        {courseBreakdown.length === 0 && (
-                          <p className="text-center text-muted-foreground py-8">
-                            표시할 과목이 없습니다.
-                          </p>
-                        )}
-                      </div>
+                      {courseBreakdown.length === 0 ? (
+                        <ChartEmptyState
+                          description="표시할 과목이 없습니다. 설문 응답이 수집되면 상세 통계가 자동으로 생성됩니다."
+                        />
+                      ) : (
+                        <div className="space-y-3">
+                          {courseBreakdown.map((course, index) => (
+                            <Card key={course.course} className="p-4">
+                              <div className="mb-2 flex items-start justify-between">
+                                <h4 className="font-medium">{course.course}</h4>
+                                <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                  {course.avgSatisfaction.toFixed(1)}점
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                                <div>설문: {course.surveys}개</div>
+                                <div>응답: {course.responses}개</div>
+                                <div>만족도: {course.satisfactionPercentage}%</div>
+                                <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -1330,28 +1383,29 @@ const PersonalDashboard: FC = () => {
                       <CardTitle>과목별 만족도</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {courseBreakdown.map((course, index) => (
-                          <div key={course.course} className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium">{course.course}</span>
-                              <span className="text-sm text-muted-foreground">
-                                {course.avgSatisfaction.toFixed(1)}점
-                              </span>
+                      {courseBreakdown.length === 0 ? (
+                        <ChartEmptyState
+                          description="과목별 분석을 표시할 데이터가 없습니다. 다른 필터를 선택하거나 응답 수집 이후 다시 확인해 주세요."
+                        />
+                      ) : (
+                        <div className="space-y-4">
+                          {courseBreakdown.map((course, index) => (
+                            <div key={course.course} className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">{course.course}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {course.avgSatisfaction.toFixed(1)}점
+                                </span>
+                              </div>
+                              <Progress value={course.satisfactionPercentage} className="h-2" />
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>설문 {course.surveys}개</span>
+                                <span>응답 {course.responses}개</span>
+                              </div>
                             </div>
-                            <Progress value={course.satisfactionPercentage} className="h-2" />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>설문 {course.surveys}개</span>
-                              <span>응답 {course.responses}개</span>
-                            </div>
-                          </div>
-                        ))}
-                        {courseBreakdown.length === 0 && (
-                          <p className="text-center text-muted-foreground py-8">
-                            과목별 데이터가 없습니다.
-                          </p>
-                        )}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -1360,29 +1414,30 @@ const PersonalDashboard: FC = () => {
                       <CardTitle>과목별 상세 통계</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
-                        {courseBreakdown.map((course, index) => (
-                          <Card key={course.course} className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-medium">{course.course}</h4>
-                              <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
-                                {course.avgSatisfaction.toFixed(1)}점
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                              <div>설문: {course.surveys}개</div>
-                              <div>응답: {course.responses}개</div>
-                              <div>만족도: {course.satisfactionPercentage}%</div>
-                              <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
-                            </div>
-                          </Card>
-                        ))}
-                        {courseBreakdown.length === 0 && (
-                          <p className="text-center text-muted-foreground py-8">
-                            표시할 과목이 없습니다.
-                          </p>
-                        )}
-                      </div>
+                      {courseBreakdown.length === 0 ? (
+                        <ChartEmptyState
+                          description="표시할 과목이 없습니다. 설문 응답이 수집되면 상세 통계가 자동으로 생성됩니다."
+                        />
+                      ) : (
+                        <div className="space-y-3">
+                          {courseBreakdown.map((course, index) => (
+                            <Card key={course.course} className="p-4">
+                              <div className="mb-2 flex items-start justify-between">
+                                <h4 className="font-medium">{course.course}</h4>
+                                <Badge variant={course.avgSatisfaction >= 8 ? 'default' : course.avgSatisfaction >= 6 ? 'secondary' : 'destructive'}>
+                                  {course.avgSatisfaction.toFixed(1)}점
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                                <div>설문: {course.surveys}개</div>
+                                <div>응답: {course.responses}개</div>
+                                <div>만족도: {course.satisfactionPercentage}%</div>
+                                <div>평균: {course.avgSatisfaction.toFixed(1)}/10</div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -1395,25 +1450,32 @@ const PersonalDashboard: FC = () => {
                       <CardTitle>평점 분포</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={ratingDistribution}
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={80}
-                              dataKey="value"
-                              label={({ name, percentage }) => `${name}: ${percentage}%`}
-                            >
-                              {ratingDistribution.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
+                      {ratingDistribution.length === 0 ? (
+                        <ChartEmptyState
+                          description="평점 분포를 계산할 응답이 없습니다. 응답이 수집되면 자동으로 차트가 표시됩니다."
+                          actions="📈 설문을 공유하거나 테스트 데이터를 활성화해 샘플을 확인하세요."
+                        />
+                      ) : (
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={ratingDistribution}
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={80}
+                                dataKey="value"
+                                label={({ name, percentage }) => `${name}: ${percentage}%`}
+                              >
+                                {ratingDistribution.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -1422,17 +1484,23 @@ const PersonalDashboard: FC = () => {
                       <CardTitle>평점별 상세</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {ratingDistribution.map(item => (
-                        <div key={item.name} className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>{item.name}</span>
-                            <span>
-                              {item.value}개 ({item.percentage}%)
-                            </span>
+                      {ratingDistribution.length === 0 ? (
+                        <ChartEmptyState
+                          description="표시할 평점 데이터가 없습니다. 응답 수집 이후 다시 시도하거나 다른 조건을 선택해 주세요."
+                        />
+                      ) : (
+                        ratingDistribution.map(item => (
+                          <div key={item.name} className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span>{item.name}</span>
+                              <span>
+                                {item.value}개 ({item.percentage}%)
+                              </span>
+                            </div>
+                            <Progress value={item.percentage} className="h-2" />
                           </div>
-                          <Progress value={item.percentage} className="h-2" />
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </CardContent>
                   </Card>
                 </div>
