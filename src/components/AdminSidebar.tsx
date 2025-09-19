@@ -1,5 +1,5 @@
 // src/components/AdminSidebar.tsx
-import { NavLink, useLocation, useSearchParams } from "react-router-dom";
+import { NavLink, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Sidebar,
@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 
 export function AdminSidebar() {
   const { userRoles, user } = useAuth();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
 
   const viewMode = searchParams.get('view'); // URL에서 view 파라미터 읽기
@@ -141,27 +140,11 @@ export function AdminSidebar() {
     menuItems = isAdmin ? baseAdminMenuItems : baseInstructorMenuItems;
   }
 
-  const normalizePath = (path: string) => {
-    if (!path) {
-      return "/";
-    }
-
-    const trimmed = path.replace(/\/+$/, "");
-    return trimmed === "" ? "/" : trimmed;
-  };
-
-  const currentPath = normalizePath(location.pathname);
-
   const renderMenuItem = (
     item: MenuItem,
     options: { variant?: "default" | "developer" } = {}
   ) => {
     const { variant = "default" } = options;
-    const targetPath = normalizePath(item.url);
-    const isActive = item.exact
-      ? currentPath === targetPath
-      : currentPath.startsWith(targetPath);
-
     const iconClass =
       variant === "developer"
         ? "text-destructive group-data-[active=true]/menu-button:text-destructive-foreground"
@@ -169,30 +152,30 @@ export function AdminSidebar() {
 
     return (
       <SidebarMenuItem key={item.url}>
-        <SidebarMenuButton
-          asChild
-          isActive={isActive}
-          className={cn(
-            "group/menu-button rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-            variant === "developer"
-              ? "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground"
-              : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-sidebar-ring/40 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-sm"
-          )}
-        >
-          <NavLink
-            to={item.url}
-            end={item.exact}
-            className="flex w-full items-center gap-3"
-          >
-            <item.icon
+        <NavLink to={item.url} end={item.exact} className="block">
+          {({ isActive }) => (
+            <SidebarMenuButton
+              asChild
+              isActive={isActive}
               className={cn(
-                "h-4 w-4 flex-shrink-0 transition-colors",
-                iconClass
+                "group/menu-button rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                variant === "developer"
+                  ? "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground"
+                  : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-sidebar-ring/40 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-sm"
               )}
-            />
-            <span className="truncate leading-5">{item.title}</span>
-          </NavLink>
-        </SidebarMenuButton>
+            >
+              <span className="flex w-full items-center gap-3">
+                <item.icon
+                  className={cn(
+                    "h-4 w-4 flex-shrink-0 transition-colors",
+                    iconClass
+                  )}
+                />
+                <span className="truncate leading-5">{item.title}</span>
+              </span>
+            </SidebarMenuButton>
+          )}
+        </NavLink>
       </SidebarMenuItem>
     );
   };
