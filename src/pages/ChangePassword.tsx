@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,10 +17,31 @@ const ChangePassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [supportText, setSupportText] = useState('');
+  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    setSupportText('');
+
+    if (!user?.email) {
+      toast({
+        title: "오류",
+        description: "사용자 정보를 불러오지 못했습니다. 다시 로그인 후 시도해주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       toast({
         title: "오류",
@@ -42,6 +63,18 @@ const ChangePassword = () => {
     setLoading(true);
 
     try {
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      });
+
+      if (reauthError) {
+        setSupportText(
+          '비밀번호가 기억나지 않으신가요? 계정 복구를 위해 support@example.com 으로 문의하시거나 02-1234-5678 고객센터로 연락해주세요.'
+        );
+        throw new Error('현재 비밀번호가 올바르지 않습니다.');
+      }
+
       // Update password
       const { error } = await supabase.auth.updateUser({
         password: newPassword
@@ -63,10 +96,12 @@ const ChangePassword = () => {
 
       toast({
         title: "성공",
-        description: "비밀번호가 변경되었습니다."
+        description: "비밀번호가 변경되었습니다. 3초 후 대시보드로 이동합니다."
       });
 
-      navigate('/dashboard');
+      redirectTimeoutRef.current = window.setTimeout(() => {
+        navigate('/dashboard');
+      }, 3000);
     } catch (error: any) {
       toast({
         title: "오류",
@@ -161,6 +196,12 @@ const ChangePassword = () => {
                   {loading ? '변경 중...' : '비밀번호 변경'}
                 </Button>
               </form>
+
+              {supportText && (
+                <div className="mt-4 rounded-md bg-destructive/10 p-4 text-sm text-destructive">
+                  {supportText}
+                </div>
+              )}
 
               <div className="mt-8 p-4 sm:p-6 rounded-lg border border-primary/30 bg-primary/10">
                 <p className="text-sm sm:text-base text-primary">
