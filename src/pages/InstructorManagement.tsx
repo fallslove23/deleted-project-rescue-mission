@@ -68,6 +68,7 @@ const InstructorManagement = React.forwardRef<{
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
   const [searchQuery, setSearchQuery] = useState('');
+  const [instructorRoleFilter, setInstructorRoleFilter] = useState<'all' | 'instructor-only'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -491,13 +492,18 @@ const InstructorManagement = React.forwardRef<{
     return courses.filter(course => instructorCourseIds.includes(course.id));
   };
 
+  const filterLabel = instructorRoleFilter === 'all' ? '전체 강사' : '강사 권한 보유';
+  const trimmedSearchQuery = searchQuery.trim();
+  const hasSearchQuery = trimmedSearchQuery.length > 0;
+
   // Filter instructors based on search query and role
   const filteredInstructors = instructors.filter(instructor => {
-    // Only include instructors who have the 'instructor' role
     const hasInstructorRole = instructorRoles[instructor.id]?.includes('instructor');
-    if (!hasInstructorRole) return false;
+    if (instructorRoleFilter === 'instructor-only' && !hasInstructorRole) {
+      return false;
+    }
 
-    const searchLower = searchQuery.toLowerCase();
+    const searchLower = trimmedSearchQuery.toLowerCase();
     const instructorCoursesData = getInstructorCourses(instructor.id);
     const courseTitles = instructorCoursesData.map(course => course.title.toLowerCase()).join(' ');
     
@@ -709,12 +715,13 @@ const InstructorManagement = React.forwardRef<{
             </Button>
           </div>
           <div className="text-sm text-muted-foreground">
-            강사 정보 및 계정 관리 - 전체 {filteredInstructors.length}개
+            강사 정보 및 계정 관리 - {filterLabel} 목록 {filteredInstructors.length}명
           </div>
         </div>
       )}
 
       <div className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-1 border rounded-md p-1">
             <Button
               variant={viewType === 'card' ? 'default' : 'ghost'}
@@ -731,6 +738,24 @@ const InstructorManagement = React.forwardRef<{
               className="h-8 px-3"
             >
               <List className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex gap-1 border rounded-md p-1">
+            <Button
+              variant={instructorRoleFilter === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setInstructorRoleFilter('all')}
+              className="h-8 px-3"
+            >
+              전체 강사
+            </Button>
+            <Button
+              variant={instructorRoleFilter === 'instructor-only' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setInstructorRoleFilter('instructor-only')}
+              className="h-8 px-3"
+            >
+              강사 권한 보유
             </Button>
           </div>
         </div>
@@ -776,19 +801,34 @@ const InstructorManagement = React.forwardRef<{
         </div>
 
         {/* Instructors Grid/List */}
-        {viewType === 'card' ? (
+        {filteredInstructors.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center space-y-2">
+              <p className="text-lg font-semibold">
+                {hasSearchQuery ? '검색 결과가 없습니다.' : `${filterLabel} 보기에서 표시할 강사가 없습니다.`}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {hasSearchQuery
+                  ? `현재 "${filterLabel}" 보기에서 "${trimmedSearchQuery}"에 해당하는 강사를 찾을 수 없습니다. 검색어를 변경하거나 필터를 조정해보세요.`
+                  : instructorRoleFilter === 'instructor-only'
+                    ? '강사 권한이 부여된 강사가 없습니다. 전체 강사 목록을 확인하려면 필터를 전환해보세요.'
+                    : '등록된 강사가 없습니다. 새 강사를 추가해보세요.'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : viewType === 'card' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredInstructors.map((instructor) => {
               const instructorCoursesData = getInstructorCourses(instructor.id);
-              
+
               return (
                 <Card key={instructor.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-3 flex-1">
                         <Avatar className="h-12 w-12 flex-shrink-0">
-                          <AvatarImage 
-                            src={instructor.photo_url} 
+                          <AvatarImage
+                            src={instructor.photo_url}
                             alt={instructor.name}
                             className="object-cover"
                           />
@@ -801,7 +841,7 @@ const InstructorManagement = React.forwardRef<{
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-col gap-1">
                         <input
                           type="file"
@@ -824,14 +864,14 @@ const InstructorManagement = React.forwardRef<{
                         </Button>
                       </div>
                     </div>
-                    
+
                     {instructor.bio && (
                       <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                         {instructor.bio}
                       </p>
                     )}
                   </CardHeader>
-                  
+
                   <CardContent className="pt-0 space-y-4">
                     {/* Roles */}
                     <div>
@@ -852,14 +892,14 @@ const InstructorManagement = React.forwardRef<{
                       <div className="flex flex-wrap gap-1">
                         {instructorRoles[instructor.id]?.length > 0 ? (
                           instructorRoles[instructor.id].map((role) => (
-                            <Badge 
-                              key={role} 
-                              variant={role === 'instructor' ? 'default' : 'outline'} 
+                            <Badge
+                              key={role}
+                              variant={role === 'instructor' ? 'default' : 'outline'}
                               className="text-xs"
                             >
-                              {role === 'instructor' ? '강사' : 
-                               role === 'admin' ? '관리자' : 
-                               role === 'director' ? '조직장' : 
+                              {role === 'instructor' ? '강사' :
+                               role === 'admin' ? '관리자' :
+                               role === 'director' ? '조직장' :
                                role === 'operator' ? '운영' : role}
                             </Badge>
                           ))
@@ -868,7 +908,7 @@ const InstructorManagement = React.forwardRef<{
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Courses */}
                     <div>
                       <p className="text-sm font-medium mb-2">담당 과목</p>
@@ -884,7 +924,7 @@ const InstructorManagement = React.forwardRef<{
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Action Buttons */}
                     <div className="flex gap-2 pt-2">
                       <Button
@@ -896,7 +936,7 @@ const InstructorManagement = React.forwardRef<{
                         <Edit className="h-3 w-3 mr-1" />
                         수정
                       </Button>
-                      
+
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -944,14 +984,14 @@ const InstructorManagement = React.forwardRef<{
                   <tbody>
                     {filteredInstructors.map((instructor) => {
                       const instructorCoursesData = getInstructorCourses(instructor.id);
-                      
+
                       return (
                         <tr key={instructor.id} className="border-b hover:bg-muted/50">
                           <td className="p-4">
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-10 w-10 flex-shrink-0">
-                                <AvatarImage 
-                                  src={instructor.photo_url} 
+                                <AvatarImage
+                                  src={instructor.photo_url}
                                   alt={instructor.name}
                                   className="object-cover"
                                 />
@@ -972,14 +1012,14 @@ const InstructorManagement = React.forwardRef<{
                             <div className="flex flex-wrap gap-1">
                               {instructorRoles[instructor.id]?.length > 0 ? (
                                 instructorRoles[instructor.id].map((role) => (
-                                  <Badge 
-                                    key={role} 
-                                    variant={role === 'instructor' ? 'default' : 'outline'} 
+                                  <Badge
+                                    key={role}
+                                    variant={role === 'instructor' ? 'default' : 'outline'}
                                     className="text-xs"
                                   >
-                                    {role === 'instructor' ? '강사' : 
-                                     role === 'admin' ? '관리자' : 
-                                     role === 'director' ? '조직장' : 
+                                    {role === 'instructor' ? '강사' :
+                                     role === 'admin' ? '관리자' :
+                                     role === 'director' ? '조직장' :
                                      role === 'operator' ? '운영' : role}
                                   </Badge>
                                 ))
@@ -1015,7 +1055,7 @@ const InstructorManagement = React.forwardRef<{
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              
+
                               {canEditRoles() && (
                                 <Button
                                   variant="ghost"
@@ -1025,7 +1065,7 @@ const InstructorManagement = React.forwardRef<{
                                   <UserPlus className="h-4 w-4" />
                                 </Button>
                               )}
-                              
+
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
