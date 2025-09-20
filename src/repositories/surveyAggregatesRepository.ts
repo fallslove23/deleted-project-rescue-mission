@@ -83,6 +83,21 @@ const matchesInstructor = (aggregate: SurveyAggregate, instructorId: string | nu
   return aggregate.instructor_ids.some((id) => id.trim() === normalizedInstructor);
 };
 
+const courseNamesMatch = (left: string | null | undefined, right: string | null | undefined): boolean => {
+  if (!left || !right) {
+    return !left && !right;
+  }
+
+  const normalizedLeft = left.trim();
+  const normalizedRight = right.trim();
+
+  if (!normalizedLeft || !normalizedRight) {
+    return normalizedLeft === normalizedRight;
+  }
+
+  return normalizedLeft.localeCompare(normalizedRight, 'ko', { sensitivity: 'base' }) === 0;
+};
+
 const filterAggregatesList = (
   aggregates: SurveyAggregate[],
   { year, round, courseName, instructorId, includeTestData }: NormalizedFilters,
@@ -96,11 +111,8 @@ const filterAggregatesList = (
       return false;
     }
 
-    if (courseName) {
-      const normalizedCourse = aggregate.course_name?.trim();
-      if (!normalizedCourse || normalizedCourse !== courseName) {
-        return false;
-      }
+    if (courseName && !courseNamesMatch(aggregate.course_name, courseName)) {
+      return false;
     }
 
     if (!matchesInstructor(aggregate, instructorId)) {
@@ -271,27 +283,22 @@ export const SurveyAggregatesRepository = {
       usedLegacyFallback = true;
     }
 
+    if (!usedLegacyFallback && aggregates.length === 0) {
+      console.warn('get_survey_analysis RPC returned no aggregates, verifying via survey_aggregates view');
+      aggregates = await fetchAggregatesFromLegacyView(filters);
+      usedLegacyFallback = true;
+    }
+
     const hasMeaningfulFilter =
       filters.year !== null
       || filters.round !== null
       || Boolean(filters.courseName)
       || Boolean(filters.instructorId);
 
-    if (!usedLegacyFallback && aggregates.length === 0 && hasMeaningfulFilter) {
-      console.warn('get_survey_analysis returned no rows, retrying with legacy survey_aggregates view');
-      aggregates = await fetchAggregatesFromLegacyView(filters);
-      usedLegacyFallback = true;
-    }
-
     let filteredAggregates = filterAggregatesList(aggregates, filters);
 
-    if (
-      !usedLegacyFallback
-      && filteredAggregates.length === 0
-      && Boolean(filters.instructorId)
-      && !rpcInstructorId
-    ) {
-      console.warn('Instructor filter lacks UUID, retrying aggregate fetch via legacy view for client-side filtering');
+    if (!usedLegacyFallback && filteredAggregates.length === 0 && hasMeaningfulFilter) {
+      console.warn('Filtered aggregates empty after RPC call, retrying via survey_aggregates view');
       const legacyAggregates = await fetchAggregatesFromLegacyView(filters);
       filteredAggregates = filterAggregatesList(legacyAggregates, filters);
       usedLegacyFallback = true;

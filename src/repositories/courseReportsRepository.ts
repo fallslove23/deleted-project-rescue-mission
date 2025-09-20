@@ -98,7 +98,21 @@ export const CourseReportsRepository = {
       return data;
     };
 
+    const isEmptyResult = (value: unknown): boolean => {
+      if (value === null || value === undefined) {
+        return true;
+      }
+      if (Array.isArray(value)) {
+        return value.length === 0;
+      }
+      if (typeof value === 'object') {
+        return Object.keys(value as Record<string, unknown>).length === 0;
+      }
+      return false;
+    };
+
     let data: unknown;
+    let usedLegacyFallback = false;
 
     try {
       data = await invokeCourseReportRpc('course_report_statistics');
@@ -107,8 +121,20 @@ export const CourseReportsRepository = {
 
       try {
         data = await invokeCourseReportRpc('get_course_statistics');
+        usedLegacyFallback = true;
       } catch (fallbackError) {
         console.error('Failed to execute both course report RPC variants', fallbackError);
+        throw fallbackError;
+      }
+    }
+
+    if (!usedLegacyFallback && isEmptyResult(data)) {
+      console.warn('course_report_statistics returned an empty payload, retrying get_course_statistics');
+      try {
+        data = await invokeCourseReportRpc('get_course_statistics');
+        usedLegacyFallback = true;
+      } catch (fallbackError) {
+        console.error('Failed to fetch course report statistics via legacy RPC', fallbackError);
         throw fallbackError;
       }
     }
