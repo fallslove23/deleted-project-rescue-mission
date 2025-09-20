@@ -25,27 +25,50 @@ import {
 } from '@/utils/csvExport';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { TestDataToggle } from '@/components/TestDataToggle';
+import {
+  EMPTY_SURVEY_AGGREGATE_SUMMARY,
+  SurveyAggregate,
+  SurveyAggregateSummary,
+  SurveyAggregatesRepository,
+} from '@/repositories/surveyAggregatesRepository';
 
 const RESPONSES_PAGE_SIZE = 20;
+const COURSE_KEY_SEPARATOR = '::';
 
-interface SurveyAggregate {
-  survey_id: string;
-  title: string;
-  education_year: number;
-  education_round: number;
-  course_name: string | null;
-  status: string;
-  instructor_id: string | null;
-  instructor_name: string | null;
-  expected_participants: number | null;
-  is_test: boolean | null;
-  response_count: number;
-  last_response_at: string | null;
-  avg_overall_satisfaction: number | null;
-  avg_course_satisfaction: number | null;
-  avg_instructor_satisfaction: number | null;
-  avg_operation_satisfaction: number | null;
+interface ParsedCourseKey {
+  year: number | null;
+  round: number | null;
+  courseName: string | null;
 }
+
+const buildCourseKey = (year: number | null, round: number | null, courseName: string | null) => {
+  const yearPart = year !== null && year !== undefined ? String(year) : 'null';
+  const roundPart = round !== null && round !== undefined ? String(round) : 'null';
+  const coursePart = courseName ? encodeURIComponent(courseName) : '';
+  return [yearPart, roundPart, coursePart].join(COURSE_KEY_SEPARATOR);
+};
+
+const parseCourseKey = (key: string): ParsedCourseKey | null => {
+  if (!key || key === 'all') {
+    return null;
+  }
+
+  const parts = key.split(COURSE_KEY_SEPARATOR);
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [yearPart, roundPart, coursePart] = parts;
+  const year = yearPart === 'null' || yearPart === '' ? null : Number(yearPart);
+  const round = roundPart === 'null' || roundPart === '' ? null : Number(roundPart);
+  const courseName = coursePart ? decodeURIComponent(coursePart) : null;
+
+  return {
+    year: Number.isNaN(year) ? null : year,
+    round: Number.isNaN(round) ? null : round,
+    courseName,
+  };
+};
 
 interface Profile {
   role: string;
@@ -105,8 +128,12 @@ const SurveyResults = () => {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [allAggregates, setAllAggregates] = useState<SurveyAggregate[]>([]);
   const [aggregates, setAggregates] = useState<SurveyAggregate[]>([]);
   const [aggregatesLoading, setAggregatesLoading] = useState(true);
+  const [baseSummary, setBaseSummary] = useState<SurveyAggregateSummary>(EMPTY_SURVEY_AGGREGATE_SUMMARY);
+  const [summary, setSummary] = useState<SurveyAggregateSummary>(EMPTY_SURVEY_AGGREGATE_SUMMARY);
+  const [hasBaseAggregates, setHasBaseAggregates] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
@@ -123,6 +150,21 @@ const SurveyResults = () => {
     [userRoles],
   );
   const isInstructor = useMemo(() => userRoles.includes('instructor'), [userRoles]);
+
+  const filtersApplied = useMemo(
+    () =>
+      selectedYear !== 'all' ||
+      selectedRound !== 'all' ||
+      selectedCourse !== 'all' ||
+      (canViewAll && selectedInstructor !== 'all'),
+    [canViewAll, selectedCourse, selectedInstructor, selectedRound, selectedYear],
+  );
+
+  const filtersAppliedRef = useRef(filtersApplied);
+
+  useEffect(() => {
+    filtersAppliedRef.current = filtersApplied;
+  }, [filtersApplied]);
 
   const appliedSearchSurvey = useRef(false);
 
@@ -176,98 +218,122 @@ const SurveyResults = () => {
   }, [toast, user]);
 
   useEffect(() => {
-    const fetchAggregatedResults = async () => {
-      if (profileLoading) return;
+    if (profileLoading) return;
 
-      setAggregatesLoading(true);
+    const restrictToInstructorId = !canViewAll && isInstructor ? profile?.instructor_id ?? null : null;
+
+    const fetchBaseAggregates = async () => {
       try {
-        // Query surveys with aggregated response data
-        let surveyQuery = supabase
-          .from('surveys')
-          .select(`
-            id,
-            title,
-            education_year,
-            education_round,
-            course_name,
-            status,
-            instructor_id,
-            expected_participants,
-            is_test,
-            instructors!inner(name)
-          `)
-          .order('education_year', { ascending: false })
-          .order('education_round', { ascending: false });
-
-        if (!testDataOptions.includeTestData) {
-          surveyQuery = surveyQuery.or('is_test.is.null,is_test.eq.false');
-        }
-
-        if (isInstructor && profile?.instructor_id && !canViewAll) {
-          surveyQuery = surveyQuery.eq('instructor_id', profile.instructor_id);
-        }
-
-        const { data: surveyData, error: surveyError } = await surveyQuery;
-
-        if (surveyError) {
-          throw surveyError;
-        }
-
-        // Get response counts and satisfaction averages for each survey
-        const aggregatedData: SurveyAggregate[] = [];
-        
-        for (const survey of surveyData || []) {
-          let responseQuery = supabase
-            .from('survey_responses')
-            .select('id, submitted_at')
-            .eq('survey_id', survey.id);
-
-          if (!testDataOptions.includeTestData) {
-            responseQuery = responseQuery.or('is_test.is.null,is_test.eq.false');
-          }
-
-          const { data: responses } = await responseQuery;
-          
-          const responseCount = responses?.length || 0;
-          const lastResponseAt = responses?.length > 0 
-            ? responses.sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())[0].submitted_at
-            : null;
-
-          aggregatedData.push({
-            survey_id: survey.id,
-            title: survey.title,
-            education_year: survey.education_year,
-            education_round: survey.education_round,
-            course_name: survey.course_name,
-            status: survey.status,
-            instructor_id: survey.instructor_id,
-            instructor_name: (survey.instructors as any)?.name || null,
-            expected_participants: survey.expected_participants,
-            is_test: survey.is_test,
-            response_count: responseCount,
-            last_response_at: lastResponseAt,
-            avg_overall_satisfaction: null, // Could be calculated with more complex query
-            avg_course_satisfaction: null,
-            avg_instructor_satisfaction: null,
-            avg_operation_satisfaction: null,
+        const { aggregates: baseAggregates, summary: baseSummaryResult } =
+          await SurveyAggregatesRepository.fetchAggregates({
+            includeTestData: testDataOptions.includeTestData,
+            restrictToInstructorId,
           });
-        }
 
-        setAggregates(aggregatedData);
+        setAllAggregates(baseAggregates);
+        setBaseSummary(baseSummaryResult);
       } catch (error) {
         console.error('Failed to load aggregated survey results', error);
-        toast({
-          title: '데이터 조회 실패',
-          description: '설문 집계 데이터를 불러오는데 실패했습니다.',
-          variant: 'destructive',
-        });
+        setAllAggregates([]);
+        setBaseSummary(EMPTY_SURVEY_AGGREGATE_SUMMARY);
+        if (!filtersAppliedRef.current) {
+          toast({
+            title: '데이터 조회 실패',
+            description: '설문 집계 데이터를 불러오는데 실패했습니다.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        setHasBaseAggregates(true);
+      }
+    };
+
+    setHasBaseAggregates(false);
+    fetchBaseAggregates();
+  }, [
+    canViewAll,
+    isInstructor,
+    profile?.instructor_id,
+    profileLoading,
+    testDataOptions.includeTestData,
+    toast,
+  ]);
+
+  useEffect(() => {
+    if (profileLoading) return;
+
+    const restrictToInstructorId = !canViewAll && isInstructor ? profile?.instructor_id ?? null : null;
+    const courseFilters = parseCourseKey(selectedCourse);
+    const selectedYearNumber = selectedYear !== 'all' ? Number(selectedYear) : null;
+    const selectedRoundNumber = selectedRound !== 'all' ? Number(selectedRound) : null;
+    const yearFilter = selectedYearNumber ?? courseFilters?.year ?? null;
+    const roundFilter = selectedRoundNumber ?? courseFilters?.round ?? null;
+    const courseNameFilter = courseFilters?.courseName ?? null;
+    const instructorFilter = canViewAll && selectedInstructor !== 'all' ? selectedInstructor : null;
+
+    const noFiltersApplied =
+      yearFilter === null &&
+      roundFilter === null &&
+      courseNameFilter === null &&
+      (instructorFilter === null || instructorFilter === undefined);
+
+    if (noFiltersApplied) {
+      if (hasBaseAggregates) {
+        setAggregates(allAggregates);
+        setSummary(baseSummary);
+        setAggregatesLoading(false);
+      } else {
+        setAggregatesLoading(true);
+      }
+      return;
+    }
+
+    const fetchFilteredAggregates = async () => {
+      setAggregatesLoading(true);
+      try {
+        const { aggregates: filteredAggregates, summary: filteredSummary } =
+          await SurveyAggregatesRepository.fetchAggregates({
+            year: yearFilter,
+            round: roundFilter,
+            courseName: courseNameFilter,
+            instructorId: instructorFilter,
+            restrictToInstructorId,
+            includeTestData: testDataOptions.includeTestData,
+          });
+        setAggregates(filteredAggregates);
+        setSummary(filteredSummary);
+      } catch (error) {
+        console.error('Failed to load aggregated survey results', error);
+        if (!noFiltersApplied) {
+          toast({
+            title: '데이터 조회 실패',
+            description: '설문 집계 데이터를 불러오는데 실패했습니다.',
+            variant: 'destructive',
+          });
+        }
+        setAggregates([]);
+        setSummary(EMPTY_SURVEY_AGGREGATE_SUMMARY);
       } finally {
         setAggregatesLoading(false);
       }
     };
 
-    fetchAggregatedResults();
-  }, [canViewAll, isInstructor, profile?.instructor_id, profileLoading, testDataOptions.includeTestData, toast]);
+    fetchFilteredAggregates();
+  }, [
+    allAggregates,
+    baseSummary,
+    canViewAll,
+    hasBaseAggregates,
+    isInstructor,
+    profile?.instructor_id,
+    profileLoading,
+    selectedCourse,
+    selectedInstructor,
+    selectedRound,
+    selectedYear,
+    testDataOptions.includeTestData,
+    toast,
+  ]);
 
   useEffect(() => {
     if (aggregates.length === 0) return;
@@ -283,21 +349,21 @@ const SurveyResults = () => {
 
   const years = useMemo(() => {
     const unique = new Set<number>();
-    aggregates.forEach((item) => unique.add(item.education_year));
+    allAggregates.forEach((item) => unique.add(item.education_year));
     return Array.from(unique).sort((a, b) => b - a);
-  }, [aggregates]);
+  }, [allAggregates]);
 
   const rounds = useMemo(() => {
     const base = selectedYear === 'all'
-      ? aggregates
-      : aggregates.filter((item) => item.education_year.toString() === selectedYear);
+      ? allAggregates
+      : allAggregates.filter((item) => item.education_year.toString() === selectedYear);
     const unique = new Set<number>();
     base.forEach((item) => unique.add(item.education_round));
     return Array.from(unique).sort((a, b) => b - a);
-  }, [aggregates, selectedYear]);
+  }, [allAggregates, selectedYear]);
 
   const courses = useMemo(() => {
-    let base = aggregates;
+    let base = allAggregates;
     if (selectedYear !== 'all') {
       base = base.filter((item) => item.education_year.toString() === selectedYear);
     }
@@ -306,7 +372,7 @@ const SurveyResults = () => {
     }
     const map = new Map<string, { key: string; label: string }>();
     base.forEach((item) => {
-      const key = `${item.education_year}-${item.education_round}-${item.course_name ?? '미정'}`;
+      const key = buildCourseKey(item.education_year, item.education_round, item.course_name);
       if (!map.has(key)) {
         map.set(key, {
           key,
@@ -315,63 +381,35 @@ const SurveyResults = () => {
       }
     });
     return Array.from(map.values()).sort((a, b) => b.label.localeCompare(a.label, 'ko'));
-  }, [aggregates, selectedRound, selectedYear]);
+  }, [allAggregates, selectedRound, selectedYear]);
 
   const instructors = useMemo(() => {
     const map = new Map<string, string>();
-    aggregates.forEach((item) => {
+    allAggregates.forEach((item) => {
       if (item.instructor_id && item.instructor_name) {
         map.set(item.instructor_id, item.instructor_name);
       }
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  }, [aggregates]);
-
-  const filteredAggregates = useMemo(() => {
-    let data = aggregates;
-
-    if (selectedYear !== 'all') {
-      data = data.filter((item) => item.education_year.toString() === selectedYear);
-    }
-
-    if (selectedRound !== 'all') {
-      data = data.filter((item) => item.education_round.toString() === selectedRound);
-    }
-
-    if (selectedCourse !== 'all') {
-      data = data.filter((item) => {
-        const key = `${item.education_year}-${item.education_round}-${item.course_name ?? '미정'}`;
-        return key === selectedCourse;
-      });
-    }
-
-    if (selectedInstructor !== 'all') {
-      data = data.filter((item) => item.instructor_id === selectedInstructor);
-    }
-
-    return [...data].sort((a, b) => {
-      if (a.education_year !== b.education_year) {
-        return b.education_year - a.education_year;
-      }
-      if (a.education_round !== b.education_round) {
-        return b.education_round - a.education_round;
-      }
-      const aCourse = a.course_name ?? '';
-      const bCourse = b.course_name ?? '';
-      return aCourse.localeCompare(bCourse, 'ko');
-    });
-  }, [aggregates, selectedCourse, selectedInstructor, selectedRound, selectedYear]);
+  }, [allAggregates]);
 
   useEffect(() => {
-    if (filteredAggregates.length === 0) {
+    if (selectedCourse === 'all') return;
+    if (!courses.some((course) => course.key === selectedCourse)) {
+      setSelectedCourse('all');
+    }
+  }, [courses, selectedCourse]);
+
+  useEffect(() => {
+    if (aggregates.length === 0) {
       setSelectedSurveyId(null);
       return;
     }
 
-    if (!selectedSurveyId || !filteredAggregates.some((item) => item.survey_id === selectedSurveyId)) {
-      setSelectedSurveyId(filteredAggregates[0].survey_id);
+    if (!selectedSurveyId || !aggregates.some((item) => item.survey_id === selectedSurveyId)) {
+      setSelectedSurveyId(aggregates[0].survey_id);
     }
-  }, [filteredAggregates, selectedSurveyId]);
+  }, [aggregates, selectedSurveyId]);
 
   useEffect(() => {
     if (!selectedSurveyId) return;
@@ -428,44 +466,9 @@ const SurveyResults = () => {
   }, [responsePage, selectedSurveyId, testDataOptions.includeTestData, toast]);
 
   const selectedSurvey = useMemo(
-    () => filteredAggregates.find((item) => item.survey_id === selectedSurveyId) ?? null,
-    [filteredAggregates, selectedSurveyId],
+    () => aggregates.find((item) => item.survey_id === selectedSurveyId) ?? null,
+    [aggregates, selectedSurveyId],
   );
-
-  const summary = useMemo(() => {
-    const totalSurveys = filteredAggregates.length;
-    const totalResponses = filteredAggregates.reduce((sum, item) => sum + (item.response_count ?? 0), 0);
-    const activeSurveys = filteredAggregates.filter((item) => item.status === 'active').length;
-    const completedSurveys = filteredAggregates.filter((item) => item.status === 'completed').length;
-
-    const weightedAverage = (key: keyof SurveyAggregate) => {
-      let numerator = 0;
-      let denominator = 0;
-      filteredAggregates.forEach((item) => {
-        const value = item[key] as number | null | undefined;
-        if (value !== null && value !== undefined && !Number.isNaN(value)) {
-          const weight = item.response_count > 0 ? item.response_count : 1;
-          numerator += value * weight;
-          denominator += weight;
-        }
-      });
-      if (denominator === 0) {
-        return null;
-      }
-      return numerator / denominator;
-    };
-
-    return {
-      totalSurveys,
-      totalResponses,
-      activeSurveys,
-      completedSurveys,
-      avgOverall: weightedAverage('avg_overall_satisfaction'),
-      avgCourse: weightedAverage('avg_course_satisfaction'),
-      avgInstructor: weightedAverage('avg_instructor_satisfaction'),
-      avgOperation: weightedAverage('avg_operation_satisfaction'),
-    };
-  }, [filteredAggregates]);
 
   const totalResponsePages = useMemo(() => {
     if (responseTotal === 0) return 0;
@@ -783,7 +786,7 @@ const SurveyResults = () => {
           <CardContent className="overflow-x-auto">
             {aggregatesLoading ? (
               <div className="py-12 text-center text-muted-foreground">집계 데이터를 불러오는 중입니다...</div>
-            ) : filteredAggregates.length === 0 ? (
+            ) : aggregates.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">조건에 맞는 설문이 없습니다.</div>
             ) : (
               <Table>
@@ -802,7 +805,7 @@ const SurveyResults = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAggregates.map((item) => (
+                  {aggregates.map((item) => (
                     <TableRow
                       key={item.survey_id}
                       className={item.survey_id === selectedSurveyId ? 'bg-muted/40' : ''}
