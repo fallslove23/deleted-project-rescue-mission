@@ -2330,6 +2330,16 @@ export type Database = {
         Args: { admin_email: string; admin_password: string }
         Returns: undefined
       }
+      course_report_statistics: {
+        Args: {
+          year: number
+          course_name?: string | null
+          round?: number | null
+          instructor_id?: string | null
+          include_test?: boolean
+        }
+        Returns: Json
+      }
       create_instructor_account: {
         Args: {
           instructor_email: string

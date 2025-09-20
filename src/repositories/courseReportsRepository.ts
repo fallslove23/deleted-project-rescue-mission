@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeCourseName } from '@/utils/surveyStats';
 
 export interface CourseReportFilters {
   year: number;
@@ -56,33 +57,142 @@ export interface CourseReportStatisticsResponse {
 
 export const CourseReportsRepository = {
   async fetchStatistics(filters: CourseReportFilters): Promise<CourseReportStatisticsResponse | null> {
-    // Temporarily return mock data until proper RPC function is implemented
-    console.log('Course report filters:', filters);
+    const normalizedCourseName = normalizeCourseName(filters.courseName ?? null);
 
-    const summary = {
-      educationYear: filters.year,
-      courseName: filters.courseName,
-      normalizedCourseName: filters.courseName,
-      educationRound: filters.round,
-      instructorId: filters.instructorId,
-      availableRounds: [],
-      totalSurveys: 0,
-      totalResponses: 0,
-      avgInstructorSatisfaction: null,
-      avgCourseSatisfaction: null,
-      avgOperationSatisfaction: null,
-      instructorCount: 0,
-    } satisfies CourseReportSummary;
+    const { data, error } = await supabase.rpc('course_report_statistics', {
+      year: filters.year,
+      course_name: normalizedCourseName,
+      round: filters.round ?? null,
+      instructor_id: filters.instructorId ?? null,
+      include_test: filters.includeTestData ?? false,
+    });
 
-    const trend: CourseTrendPoint[] = [];
+    if (error) {
+      console.error('Failed to execute course_report_statistics RPC', error);
+      throw error;
+    }
 
-    const instructorStats: CourseInstructorStat[] = [];
+    if (!data) {
+      return null;
+    }
 
-    const textualResponses: string[] = [];
+    const toNumberOrNull = (value: unknown): number | null => {
+      if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+      }
+      if (typeof value === 'string' && value.trim() !== '') {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      if (typeof value === 'bigint') {
+        return Number(value);
+      }
+      return null;
+    };
 
-    const availableCourses: CourseOption[] = [];
+    const toNumberWithDefault = (value: unknown, defaultValue: number): number => {
+      const parsed = toNumberOrNull(value);
+      return parsed ?? defaultValue;
+    };
 
-    const availableInstructors = [];
+    const toNumberArray = (value: unknown): number[] => {
+      if (!Array.isArray(value)) {
+        return [];
+      }
+      return value
+        .map((item) => toNumberOrNull(item))
+        .filter((item): item is number => item !== null);
+    };
+
+    const toStringOrNull = (value: unknown): string | null => {
+      if (value === null || value === undefined) {
+        return null;
+      }
+      if (typeof value === 'string') {
+        return value;
+      }
+      return String(value);
+    };
+
+    const rawData = data as Record<string, unknown>;
+    const rawSummary = (rawData.summary as Record<string, unknown> | undefined) ?? {};
+
+    const summary: CourseReportSummary = {
+      educationYear: toNumberWithDefault(rawSummary.educationYear, filters.year),
+      courseName: toStringOrNull(rawSummary.courseName),
+      normalizedCourseName:
+        toStringOrNull(rawSummary.normalizedCourseName) ?? normalizedCourseName,
+      educationRound: toNumberOrNull(rawSummary.educationRound),
+      instructorId: toStringOrNull(rawSummary.instructorId),
+      availableRounds: toNumberArray(rawSummary.availableRounds),
+      totalSurveys: toNumberWithDefault(rawSummary.totalSurveys, 0),
+      totalResponses: toNumberWithDefault(rawSummary.totalResponses, 0),
+      avgInstructorSatisfaction: toNumberOrNull(rawSummary.avgInstructorSatisfaction),
+      avgCourseSatisfaction: toNumberOrNull(rawSummary.avgCourseSatisfaction),
+      avgOperationSatisfaction: toNumberOrNull(rawSummary.avgOperationSatisfaction),
+      instructorCount: toNumberWithDefault(rawSummary.instructorCount, 0),
+    };
+
+    const rawTrend = Array.isArray(rawData.trend) ? rawData.trend : [];
+    const trend: CourseTrendPoint[] = rawTrend.map((item) => {
+      const point = (item as Record<string, unknown>) ?? {};
+      return {
+        educationRound: toNumberOrNull(point.educationRound),
+        avgInstructorSatisfaction: toNumberOrNull(point.avgInstructorSatisfaction),
+        avgCourseSatisfaction: toNumberOrNull(point.avgCourseSatisfaction),
+        avgOperationSatisfaction: toNumberOrNull(point.avgOperationSatisfaction),
+        responseCount: toNumberWithDefault(point.responseCount, 0),
+      };
+    });
+
+    const rawInstructorStats = Array.isArray(rawData.instructorStats)
+      ? rawData.instructorStats
+      : [];
+    const instructorStats: CourseInstructorStat[] = rawInstructorStats.map((item) => {
+      const stat = (item as Record<string, unknown>) ?? {};
+      return {
+        instructorId: toStringOrNull(stat.instructorId),
+        instructorName: toStringOrNull(stat.instructorName) ?? '강사 정보 없음',
+        surveyCount: toNumberWithDefault(stat.surveyCount, 0),
+        responseCount: toNumberWithDefault(stat.responseCount, 0),
+        avgSatisfaction: toNumberOrNull(stat.avgSatisfaction),
+      };
+    });
+
+    const rawTextualResponses = Array.isArray(rawData.textualResponses)
+      ? rawData.textualResponses
+      : [];
+    const textualResponses: string[] = rawTextualResponses
+      .map((item) => toStringOrNull(item))
+      .filter((item): item is string => item !== null);
+
+    const rawAvailableCourses = Array.isArray(rawData.availableCourses)
+      ? rawData.availableCourses
+      : [];
+    const availableCourses: CourseOption[] = rawAvailableCourses
+      .map((item) => {
+        const course = (item as Record<string, unknown>) ?? {};
+        const normalizedName = toStringOrNull(course.normalizedName) ?? '';
+        return {
+          normalizedName,
+          displayName: toStringOrNull(course.displayName) ?? normalizedName,
+          rounds: toNumberArray(course.rounds),
+        };
+      })
+      .filter((course) => course.normalizedName.length > 0 || course.displayName.length > 0);
+
+    const rawAvailableInstructors = Array.isArray(rawData.availableInstructors)
+      ? rawData.availableInstructors
+      : [];
+    const availableInstructors = rawAvailableInstructors
+      .map((item) => {
+        const instructor = (item as Record<string, unknown>) ?? {};
+        return {
+          id: toStringOrNull(instructor.id) ?? '',
+          name: toStringOrNull(instructor.name) ?? '',
+        };
+      })
+      .filter((instructor) => instructor.id.length > 0);
 
     return {
       summary,
