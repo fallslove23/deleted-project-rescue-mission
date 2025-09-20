@@ -40,7 +40,7 @@ AS $$
     JOIN public.surveys s ON s.id = sa.survey_id
     WHERE (p_year IS NULL OR sa.education_year = p_year)
       AND (p_round IS NULL OR sa.education_round = p_round)
-      AND (p_course_name IS NULL OR sa.course_name = p_course_name)
+      AND (p_course_name IS NULL OR TRIM(sa.course_name) = TRIM(p_course_name))
       AND (p_include_test OR COALESCE(sa.is_test, false) = false)
   ),
   instructor_links AS (

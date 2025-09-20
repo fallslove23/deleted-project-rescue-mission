@@ -133,7 +133,13 @@ const toStringArray = (value: unknown): string[] => {
   if (!value) return [];
   if (Array.isArray(value)) {
     return value
-      .map((item) => (typeof item === 'string' ? item : null))
+      .map((item) => {
+        if (typeof item !== 'string') {
+          return null;
+        }
+        const trimmed = item.trim();
+        return trimmed.length > 0 ? trimmed : null;
+      })
       .filter((item): item is string => item !== null);
   }
   if (typeof value === 'string') {
@@ -143,7 +149,13 @@ const toStringArray = (value: unknown): string[] => {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
           return parsed
-            .map((item) => (typeof item === 'string' ? item : null))
+            .map((item) => {
+              if (typeof item !== 'string') {
+                return null;
+              }
+              const parsedTrimmed = item.trim();
+              return parsedTrimmed.length > 0 ? parsedTrimmed : null;
+            })
             .filter((item): item is string => item !== null);
         }
       } catch (error) {

@@ -137,6 +137,9 @@ const toNumber = (value: unknown, fallback = 0): number => {
   if (typeof value === 'number') {
     return Number.isNaN(value) ? fallback : value;
   }
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
   if (typeof value === 'string' && value.trim().length > 0) {
     const parsed = Number(value);
     return Number.isNaN(parsed) ? fallback : parsed;
@@ -151,9 +154,26 @@ const toNullableNumber = (value: unknown): number | null => {
   if (typeof value === 'number') {
     return Number.isNaN(value) ? null : value;
   }
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
   if (typeof value === 'string' && value.trim().length > 0) {
     const parsed = Number(value);
     return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
+const toNullableString = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
   }
   return null;
 };
@@ -162,7 +182,13 @@ const toStringArray = (value: unknown): string[] => {
   if (!value) return [];
   if (Array.isArray(value)) {
     return value
-      .map((item) => (typeof item === 'string' ? item : null))
+      .map((item) => {
+        if (typeof item !== 'string') {
+          return null;
+        }
+        const trimmed = item.trim();
+        return trimmed.length > 0 ? trimmed : null;
+      })
       .filter((item): item is string => item !== null);
   }
   if (typeof value === 'string') {
@@ -172,7 +198,13 @@ const toStringArray = (value: unknown): string[] => {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
           return parsed
-            .map((item) => (typeof item === 'string' ? item : null))
+            .map((item) => {
+              if (typeof item !== 'string') {
+                return null;
+              }
+              const parsedTrimmed = item.trim();
+              return parsedTrimmed.length > 0 ? parsedTrimmed : null;
+            })
             .filter((item): item is string => item !== null);
         }
       } catch (error) {
@@ -209,17 +241,13 @@ const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =
         })
       : [];
 
-    const surveyId = typeof row.survey_id === 'string' ? row.survey_id : '';
-    const title = typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : '제목 없음';
-    const description = typeof row.description === 'string' && row.description.trim().length > 0 ? row.description : null;
-    const courseName = typeof row.course_name === 'string' && row.course_name.trim().length > 0 ? row.course_name : null;
-    const status = typeof row.status === 'string' && row.status.trim().length > 0 ? row.status : null;
-    const instructorId = typeof row.instructor_id === 'string' && row.instructor_id.trim().length > 0
-      ? row.instructor_id
-      : null;
-    const instructorName = typeof row.instructor_name === 'string' && row.instructor_name.trim().length > 0
-      ? row.instructor_name
-      : null;
+    const surveyId = toNullableString(row.survey_id) ?? '';
+    const title = toNullableString(row.title) ?? '제목 없음';
+    const description = toNullableString(row.description);
+    const courseName = toNullableString(row.course_name);
+    const status = toNullableString(row.status);
+    const instructorId = toNullableString(row.instructor_id);
+    const instructorName = toNullableString(row.instructor_name);
     const instructorIds = toStringArray((row as Record<string, unknown>).instructor_ids);
     const instructorNames = toStringArray((row as Record<string, unknown>).instructor_names);
     const isTest = typeof row.is_test === 'boolean' ? row.is_test : null;
@@ -247,7 +275,7 @@ const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =
       expected_participants: toNullableNumber(row.expected_participants),
       is_test: isTest,
       response_count: toNumber(row.response_count),
-      last_response_at: typeof row.last_response_at === 'string' ? row.last_response_at : null,
+      last_response_at: toNullableString(row.last_response_at),
       avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
       avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
       avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
