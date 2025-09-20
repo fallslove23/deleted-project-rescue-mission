@@ -365,34 +365,52 @@ const SurveyResults = () => {
 
   const years = useMemo(() => {
     const unique = new Set<number>();
-    allAggregates.forEach((item) => unique.add(item.education_year));
+    allAggregates.forEach((item) => {
+      if (typeof item.education_year === 'number' && !Number.isNaN(item.education_year)) {
+        unique.add(item.education_year);
+      }
+    });
     return Array.from(unique).sort((a, b) => b - a);
   }, [allAggregates]);
 
   const rounds = useMemo(() => {
     const base = selectedYear === 'all'
       ? allAggregates
-      : allAggregates.filter((item) => item.education_year.toString() === selectedYear);
+      : allAggregates.filter((item) => (
+        typeof item.education_year === 'number' && item.education_year.toString() === selectedYear
+      ));
     const unique = new Set<number>();
-    base.forEach((item) => unique.add(item.education_round));
+    base.forEach((item) => {
+      if (typeof item.education_round === 'number' && !Number.isNaN(item.education_round)) {
+        unique.add(item.education_round);
+      }
+    });
     return Array.from(unique).sort((a, b) => b - a);
   }, [allAggregates, selectedYear]);
 
   const courses = useMemo(() => {
     let base = allAggregates;
     if (selectedYear !== 'all') {
-      base = base.filter((item) => item.education_year.toString() === selectedYear);
+      base = base.filter((item) => (
+        typeof item.education_year === 'number' && item.education_year.toString() === selectedYear
+      ));
     }
     if (selectedRound !== 'all') {
-      base = base.filter((item) => item.education_round.toString() === selectedRound);
+      base = base.filter((item) => (
+        typeof item.education_round === 'number' && item.education_round.toString() === selectedRound
+      ));
     }
     const map = new Map<string, { key: string; label: string }>();
     base.forEach((item) => {
-      const key = buildCourseKey(item.education_year, item.education_round, item.course_name);
+      const normalizedYear = typeof item.education_year === 'number' ? item.education_year : null;
+      const normalizedRound = typeof item.education_round === 'number' ? item.education_round : null;
+      const key = buildCourseKey(normalizedYear, normalizedRound, item.course_name);
+      const yearLabel = normalizedYear !== null ? `${normalizedYear}년` : '연도 미정';
+      const roundLabel = normalizedRound !== null ? `${normalizedRound}차` : '차수 미정';
       if (!map.has(key)) {
         map.set(key, {
           key,
-          label: `${item.education_year}년 ${item.education_round}차 ${item.course_name ?? '과정 미정'}`,
+          label: `${yearLabel} ${roundLabel} ${item.course_name ?? '과정 미정'}`.trim(),
         });
       }
     });
@@ -840,8 +858,12 @@ const SurveyResults = () => {
                           <span className="text-sm text-muted-foreground">{item.course_name ?? '과정 미정'}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">{item.education_year}</TableCell>
-                      <TableCell className="text-center">{item.education_round}</TableCell>
+                      <TableCell className="text-center">
+                        {typeof item.education_year === 'number' ? item.education_year : '-'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {typeof item.education_round === 'number' ? item.education_round : '-'}
+                      </TableCell>
                       <TableCell>{formatInstructorNames(item) ?? '-'}</TableCell>
                       <TableCell className="text-center">{formatNumber(item.response_count)}</TableCell>
                       <TableCell className="text-center">{formatSatisfaction(item.avg_overall_satisfaction)}</TableCell>

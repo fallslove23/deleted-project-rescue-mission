@@ -4,8 +4,8 @@ export interface SurveyResultData {
   survey: {
     id: string;
     title: string;
-    education_year: number;
-    education_round: number;
+    education_year: number | null;
+    education_round: number | null;
     instructor_name?: string;
     course_title?: string;
   };
@@ -30,12 +30,12 @@ export interface SurveyResultData {
 
 // CSV 파일명 생성
 export const generateCSVFilename = (survey: SurveyResultData['survey'], type: 'responses' | 'summary') => {
-  const year = survey.education_year;
-  const round = survey.education_round;
+  const yearLabel = typeof survey.education_year === 'number' ? `${survey.education_year}` : '미정';
+  const roundLabel = typeof survey.education_round === 'number' ? `${survey.education_round}` : '미정';
   const title = survey.title.replace(/[^\w\s가-힣]/g, '').trim();
   const timestamp = new Date().toISOString().slice(0, 10);
 
-  return `설문결과_${title}_${year}년_${round}차_${type}_${timestamp}.csv`;
+  return `설문결과_${title}_${yearLabel}년_${roundLabel}차_${type}_${timestamp}.csv`;
 };
 
 // 숫자형 응답 값을 안전하게 파싱
@@ -134,11 +134,14 @@ export const exportResponsesAsCSV = (data: SurveyResultData): string => {
   });
   
   // CSV 문자열 생성
+  const yearLabel = typeof survey.education_year === 'number' ? `${survey.education_year}` : '미정';
+  const roundLabel = typeof survey.education_round === 'number' ? `${survey.education_round}` : '미정';
+
   const csvContent = [
     // 메타데이터
     [`설문 제목: ${survey.title}`],
-    [`교육년도: ${survey.education_year}년`],
-    [`교육차수: ${survey.education_round}차`],
+    [`교육년도: ${yearLabel}년`],
+    [`교육차수: ${roundLabel}차`],
     survey.instructor_name ? [`강사명: ${survey.instructor_name}`] : [],
     survey.course_title ? [`강의명: ${survey.course_title}`] : [],
     [`총 응답 수: ${responses.length}건`],
@@ -161,11 +164,14 @@ export const exportSummaryAsCSV = (data: SurveyResultData): string => {
   
   const sortedQuestions = [...questions].sort((a, b) => a.order_index - b.order_index);
   
+  const summaryYearLabel = typeof survey.education_year === 'number' ? `${survey.education_year}` : '미정';
+  const summaryRoundLabel = typeof survey.education_round === 'number' ? `${survey.education_round}` : '미정';
+
   const summaryRows: string[][] = [
     // 메타데이터
     [`설문 제목: ${survey.title}`],
-    [`교육년도: ${survey.education_year}년`],
-    [`교육차수: ${survey.education_round}차`],
+    [`교육년도: ${summaryYearLabel}년`],
+    [`교육차수: ${summaryRoundLabel}차`],
     survey.instructor_name ? [`강사명: ${survey.instructor_name}`] : [],
     survey.course_title ? [`강의명: ${survey.course_title}`] : [],
     [`총 응답 수: ${responses.length}건`],

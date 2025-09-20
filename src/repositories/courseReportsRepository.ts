@@ -61,7 +61,10 @@ export const CourseReportsRepository = {
     const normalizedCourseName = normalizeCourseName(filters.courseName ?? null);
     const normalizedInstructorId = normalizeUuid(filters.instructorId ?? null);
 
-    const payload: Record<string, unknown> = { p_year: filters.year };
+    const payload: Record<string, unknown> = {
+      p_year: filters.year,
+      p_include_test: filters.includeTestData ?? false,
+    };
 
     if (normalizedCourseName) {
       payload.p_course_name = normalizedCourseName;
@@ -73,10 +76,6 @@ export const CourseReportsRepository = {
 
     if (normalizedInstructorId) {
       payload.p_instructor_id = normalizedInstructorId;
-    }
-
-    if (filters.includeTestData) {
-      payload.p_include_test = true;
     }
 
     const { data, error } = await supabase.rpc('course_report_statistics', payload);

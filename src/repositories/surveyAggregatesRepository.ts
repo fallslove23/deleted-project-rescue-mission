@@ -8,8 +8,8 @@ export interface SurveyAggregate {
   survey_id: string;
   title: string;
   description: string | null;
-  education_year: number;
-  education_round: number;
+  education_year: number | null;
+  education_round: number | null;
   course_name: string | null;
   status: string | null;
   instructor_id: string | null;
@@ -186,17 +186,21 @@ const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefine
     const instructorIds = toStringArray(row.instructor_ids);
     const instructorNames = toStringArray(row.instructor_names);
     const description = toNullableString(row.description);
+    const educationYear = toNullableNumber(row.education_year);
+    const educationRound = toNullableNumber(row.education_round);
+    const resolvedInstructorName = instructorName
+      ?? (instructorIds.length > 0 ? '강사 정보 없음' : null);
 
     return {
       survey_id: typeof row.survey_id === 'string' && row.survey_id.trim().length > 0 ? row.survey_id : '',
       title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : '제목 없음',
       description,
-      education_year: toNumber(row.education_year),
-      education_round: toNumber(row.education_round),
+      education_year: educationYear,
+      education_round: educationRound,
       course_name: courseName,
       status,
       instructor_id: instructorId,
-      instructor_name: instructorName,
+      instructor_name: resolvedInstructorName,
       instructor_ids: instructorIds.length > 0
         ? instructorIds
         : instructorId
@@ -220,11 +224,15 @@ const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefine
   });
 
   return normalized.sort((a, b) => {
-    if (a.education_year !== b.education_year) {
-      return b.education_year - a.education_year;
+    const aYear = a.education_year ?? -Infinity;
+    const bYear = b.education_year ?? -Infinity;
+    if (aYear !== bYear) {
+      return bYear - aYear;
     }
-    if (a.education_round !== b.education_round) {
-      return b.education_round - a.education_round;
+    const aRound = a.education_round ?? -Infinity;
+    const bRound = b.education_round ?? -Infinity;
+    if (aRound !== bRound) {
+      return bRound - aRound;
     }
     const aCourse = a.course_name ?? '';
     const bCourse = b.course_name ?? '';
@@ -293,13 +301,27 @@ export const SurveyAggregatesRepository = {
     const sanitizedRestrictedInstructor = normalizeUuid(restrictToInstructorId ?? null);
     const instructorFilter = sanitizedRestrictedInstructor ?? sanitizedInstructorFilter;
 
-    const { data, error } = await supabase.rpc('get_survey_analysis', {
-      p_year: year ?? null,
-      p_round: round ?? null,
-      p_course_name: sanitizedCourseFilter,
-      p_instructor_id: instructorFilter,
+    const payload: Database['public']['Functions']['get_survey_analysis']['Args'] = {
       p_include_test: includeTestData,
-    });
+    };
+
+    if (year !== null && year !== undefined) {
+      payload.p_year = year;
+    }
+
+    if (round !== null && round !== undefined) {
+      payload.p_round = round;
+    }
+
+    if (sanitizedCourseFilter) {
+      payload.p_course_name = sanitizedCourseFilter;
+    }
+
+    if (instructorFilter) {
+      payload.p_instructor_id = instructorFilter;
+    }
+
+    const { data, error } = await supabase.rpc('get_survey_analysis', payload);
 
     if (error) {
       console.error('Failed to execute get_survey_analysis RPC', error);

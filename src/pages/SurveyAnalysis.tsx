@@ -440,13 +440,15 @@ const SurveyAnalysis = () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
       const instructorIdForQuery = normalizeUuid(instructorFilter ?? null);
-      const { data, error } = await supabase.rpc('get_survey_analysis', {
-        p_year: null,
-        p_round: null,
-        p_course_name: null,
-        p_instructor_id: instructorIdForQuery,
+      const payload: Database['public']['Functions']['get_survey_analysis']['Args'] = {
         p_include_test: includeTestData,
-      });
+      };
+
+      if (instructorIdForQuery) {
+        payload.p_instructor_id = instructorIdForQuery;
+      }
+
+      const { data, error } = await supabase.rpc('get_survey_analysis', payload);
       if (error) throw error;
       setAllSummaries(normalizeSummaries(data));
     } catch (error) {
@@ -472,13 +474,27 @@ const SurveyAnalysis = () => {
       const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;
       const normalizedCourse = normalizeFilterString(courseFilter);
 
-      const { data, error } = await supabase.rpc('get_survey_analysis', {
-        p_year: normalizedYear,
-        p_round: normalizedRound,
-        p_course_name: normalizedCourse,
-        p_instructor_id: instructorIdForQuery,
+      const payload: Database['public']['Functions']['get_survey_analysis']['Args'] = {
         p_include_test: includeTestData,
-      });
+      };
+
+      if (normalizedYear !== null) {
+        payload.p_year = normalizedYear;
+      }
+
+      if (normalizedRound !== null) {
+        payload.p_round = normalizedRound;
+      }
+
+      if (normalizedCourse) {
+        payload.p_course_name = normalizedCourse;
+      }
+
+      if (instructorIdForQuery) {
+        payload.p_instructor_id = instructorIdForQuery;
+      }
+
+      const { data, error } = await supabase.rpc('get_survey_analysis', payload);
       if (error) throw error;
       const summaries = normalizeSummaries(data);
       setSurveySummaries(summaries);
