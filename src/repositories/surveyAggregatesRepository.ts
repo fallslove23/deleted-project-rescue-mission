@@ -235,20 +235,20 @@ export const SurveyAggregatesRepository = {
     restrictToInstructorId = null,
   }: SurveyAggregateFilters): Promise<SurveyAggregateResult> {
     const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
-    const normalizedCourseFilter = typeof courseName === 'string' ? courseName.trim() : courseName;
-    const normalizedInstructorFilter = typeof instructorFilter === 'string'
-      ? instructorFilter.trim()
-      : instructorFilter;
+
+    const rawCourseFilter = typeof courseName === 'string' ? courseName.trim() : courseName;
+    const normalizedCourseFilter =
+      typeof rawCourseFilter === 'string' && rawCourseFilter.length > 0 ? rawCourseFilter : null;
+
+    const rawInstructorFilter = typeof instructorFilter === 'string' ? instructorFilter.trim() : instructorFilter;
+    const normalizedInstructorFilter =
+      typeof rawInstructorFilter === 'string' && rawInstructorFilter.length > 0 ? rawInstructorFilter : null;
 
     const { data, error } = await supabase.rpc('get_survey_analysis', {
       p_year: year,
       p_round: round,
-      p_course_name: typeof normalizedCourseFilter === 'string' && normalizedCourseFilter.length > 0
-        ? normalizedCourseFilter
-        : null,
-      p_instructor_id: typeof normalizedInstructorFilter === 'string' && normalizedInstructorFilter.length > 0
-        ? normalizedInstructorFilter
-        : null,
+      p_course_name: normalizedCourseFilter,
+      p_instructor_id: normalizedInstructorFilter,
       p_include_test: includeTestData,
     });
 
@@ -266,11 +266,7 @@ export const SurveyAggregatesRepository = {
       if (round !== null && round !== undefined && aggregate.education_round !== round) {
         return false;
       }
-      if (
-        normalizedCourseFilter !== null &&
-        normalizedCourseFilter !== undefined &&
-        aggregate.course_name !== normalizedCourseFilter
-      ) {
+      if (normalizedCourseFilter && aggregate.course_name !== normalizedCourseFilter) {
         return false;
       }
       if (normalizedInstructorFilter && aggregate.instructor_id !== normalizedInstructorFilter) {
