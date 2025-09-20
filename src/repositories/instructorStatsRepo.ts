@@ -183,12 +183,12 @@ interface FetchParams {
 
 export const InstructorStatsRepository = {
   async fetchStats(params: FetchParams = {}): Promise<InstructorStatsRecord[]> {
-    let query = supabase
+    let query = (supabase as any)
       .from('instructor_survey_stats')
       .select('*')
       .order('education_year', { ascending: false })
       .order('education_round', { ascending: false })
-      .order('course_name', { ascending: true, nullsFirst: true });
+      .order('course_name', { ascending: true });
 
     if (params.instructorId) {
       query = query.eq('instructor_id', params.instructorId);

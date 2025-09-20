@@ -175,7 +175,7 @@ const PersonalDashboard: FC = () => {
   }, [isPreviewingInstructor, previewResolvedInstructorId, profile?.instructor_id]);
 
   const filters = useMemo(() => ({
-    year: selectedYear === 'all' ? 'all' : Number(selectedYear),
+    year: selectedYear === 'all' ? 'all' as const : Number(selectedYear),
     round:
       selectedRound === 'all' || selectedRound === 'latest'
         ? (selectedRound as 'all' | 'latest')

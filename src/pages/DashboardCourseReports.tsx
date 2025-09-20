@@ -267,7 +267,7 @@ const DashboardCourseReports: React.FC = () => {
 
   return (
     <DashboardLayout
-      title="대시보드 과정 보고"
+      title="과정별 결과 보고"
       subtitle="조직 전체의 과정 운영 현황을 빠르게 파악하세요"
       icon={<BarChart3 className="h-5 w-5 text-white" />}
       actions={

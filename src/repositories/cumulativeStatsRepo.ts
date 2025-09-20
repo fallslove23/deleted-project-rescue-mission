@@ -1,9 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
-export type SurveyCumulativeRow = Database['public']['Views']['survey_cumulative_stats']['Row'];
+export type SurveyCumulativeRow = any; // TODO: Update when survey_cumulative_stats view is available
 
-type SurveyCumulativeQueryBuilder = ReturnType<typeof supabase.from<'survey_cumulative_stats'>>;
+type SurveyCumulativeQueryBuilder = any;
 
 export interface CumulativeStatsQuery {
   page: number;
@@ -86,9 +86,9 @@ export async function fetchCumulativeStats({
   let query = supabase
     .from('survey_cumulative_stats')
     .select('*', { count: 'exact' })
-    .order('education_year', { ascending: false, nullsLast: true })
-    .order('education_round', { ascending: false, nullsLast: true })
-    .order('title', { ascending: true, nullsLast: true });
+    .order('education_year', { ascending: false })
+    .order('education_round', { ascending: false })
+    .order('title', { ascending: true });
 
   query = applyFilters(query, {
     searchTerm,
@@ -136,8 +136,8 @@ export async function fetchCumulativeFilters(includeTestData: boolean): Promise<
   let query = supabase
     .from('survey_cumulative_stats')
     .select('education_year, course_name, survey_is_test')
-    .order('education_year', { ascending: false, nullsLast: true })
-    .order('course_name', { ascending: true, nullsLast: true });
+    .order('education_year', { ascending: false })
+    .order('course_name', { ascending: true });
 
   if (!includeTestData) {
     query = query.or('survey_is_test.is.false,survey_is_test.is.null');
