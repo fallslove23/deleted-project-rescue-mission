@@ -266,6 +266,7 @@ export const useCourseReportsData = (
             id,
             answer_value,
             answer_text,
+            instructor_id,
             survey_questions (satisfaction_type, question_type, session_id)
           )
           )
