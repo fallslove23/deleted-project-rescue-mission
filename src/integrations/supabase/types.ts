@@ -2446,7 +2446,12 @@ export type Database = {
         }[]
       }
       get_survey_cumulative_summary: {
-        Args: Record<PropertyKey, never>
+        Args: {
+          search_term?: string | null
+          education_year?: number | null
+          course_name?: string | null
+          include_test_data?: boolean | null
+        }
         Returns: {
           average_satisfaction: number
           courses_in_progress: number

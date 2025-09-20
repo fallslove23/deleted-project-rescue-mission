@@ -98,9 +98,19 @@ export async function fetchCumulativeStats({
   };
 }
 
-export async function fetchCumulativeSummary(): Promise<CumulativeSummary | null> {
+export async function fetchCumulativeSummary({
+  searchTerm,
+  educationYear,
+  courseName,
+  includeTestData,
+}: Pick<CumulativeStatsQuery, 'searchTerm' | 'educationYear' | 'courseName' | 'includeTestData'>): Promise<CumulativeSummary | null> {
   try {
-    const { data, error } = await supabase.rpc('get_survey_cumulative_summary');
+    const { data, error } = await supabase.rpc('get_survey_cumulative_summary', {
+      search_term: searchTerm ?? null,
+      education_year: educationYear ?? null,
+      course_name: courseName ?? null,
+      include_test_data: includeTestData,
+    });
 
     if (error) {
       console.error('Error fetching cumulative summary:', error);
