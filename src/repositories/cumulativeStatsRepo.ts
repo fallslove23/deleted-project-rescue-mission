@@ -43,7 +43,7 @@ function applyFilters(
   let filtered = query;
 
   if (!includeTestData) {
-    filtered = filtered.or('is_test.is.false,is_test.is.null');
+    filtered = filtered.or('is_test.eq.false,is_test.is.null');
   }
 
   if (educationYear !== null && educationYear !== undefined) {
@@ -140,7 +140,7 @@ export async function fetchCumulativeFilters(includeTestData: boolean): Promise<
       .order('course_name', { ascending: true });
 
     if (!includeTestData) {
-      query = query.or('is_test.is.false,is_test.is.null');
+      query = query.or('is_test.eq.false,is_test.is.null');
     }
 
     const { data, error } = await query;
