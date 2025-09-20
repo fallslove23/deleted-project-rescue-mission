@@ -94,6 +94,11 @@ const normalizeInstructorId = (id: string | number | null | undefined) => {
   return String(id);
 };
 
+const normalizeSessionId = (id: string | number | null | undefined) => {
+  if (id === null || id === undefined) return null;
+  return String(id);
+};
+
 export const useCourseReportsData = (
   selectedYear: number, 
   selectedCourse: string, 
@@ -440,6 +445,9 @@ export const useCourseReportsData = (
           survey.survey_sessions.forEach((session: any) => {
             if (!session?.id || !session?.instructor_id) return;
 
+            const sessionKey = normalizeSessionId(session.id);
+            if (!sessionKey) return;
+
             const sessionInstructorName =
               session?.instructors?.name ??
               instructorNameMap.get(normalizeInstructorId(session.instructor_id) ?? '') ??
@@ -450,7 +458,7 @@ export const useCourseReportsData = (
 
             ensureInstructorEntry(session.instructor_id, sessionInstructorName);
 
-            sessionInstructorMap.set(session.id, {
+            sessionInstructorMap.set(sessionKey, {
               instructorId: normalizeInstructorId(session.instructor_id)!,
               instructorName:
                 session?.instructors?.name ??
@@ -488,10 +496,12 @@ export const useCourseReportsData = (
               if (answer.survey_questions.satisfaction_type === 'instructor') {
                 const targetInstructorIds: string[] = [];
 
-                const responseSessionId = response?.session_id as string | undefined;
-                const questionSessionId = answer.survey_questions?.session_id as string | undefined;
+                const responseSessionId = normalizeSessionId(response?.session_id);
+                const questionSessionId = normalizeSessionId(answer.survey_questions?.session_id);
 
-                const sessionIdsToCheck = [questionSessionId, responseSessionId].filter(Boolean) as string[];
+                const sessionIdsToCheck = [questionSessionId, responseSessionId].filter(
+                  (sessionId): sessionId is string => Boolean(sessionId)
+                );
                 sessionIdsToCheck.forEach(sessionId => {
                   const sessionInstructor = sessionInstructorMap.get(sessionId);
                   if (sessionInstructor?.instructorId) {
