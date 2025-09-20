@@ -137,7 +137,7 @@ const SurveyPreview = () => {
 
       setSurvey(surveyData);
 
-      // 강의 평가 템플릿 여부 확인
+      // 과목 평가 템플릿 여부 확인
       const isCourseEval = surveyData.survey_templates?.is_course_evaluation;
       setIsCourseEvaluation(!!isCourseEval);
 

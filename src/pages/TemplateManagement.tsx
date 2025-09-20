@@ -339,7 +339,7 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
                       checked={templateForm.is_course_evaluation}
                       onCheckedChange={(checked) => setTemplateForm(prev => ({ ...prev, is_course_evaluation: checked }))}
                     />
-                    <Label htmlFor="is_course_evaluation" className="break-words">강의평가용 템플릿</Label>
+                    <Label htmlFor="is_course_evaluation" className="break-words">과목 평가용 템플릿</Label>
                   </div>
 
                   <div className="flex flex-col sm:flex-row justify-end gap-2">
@@ -364,9 +364,9 @@ const TemplateManagement = ({ showPageHeader = true }: { showPageHeader?: boolea
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                           <CardTitle className="text-base sm:text-lg break-words line-clamp-2">{template.name}</CardTitle>
-                          {template.is_course_evaluation && (
-                            <Badge>강의평가</Badge>
-                          )}
+                          <Badge variant={template.is_course_evaluation ? 'default' : 'secondary'}>
+                            {template.is_course_evaluation ? '과목 평가' : '일반 평가'}
+                          </Badge>
                         </div>
                         {template.description && (
                           <p className="text-sm text-muted-foreground break-words line-clamp-2">

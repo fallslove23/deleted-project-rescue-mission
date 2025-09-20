@@ -147,7 +147,7 @@ const DashboardTemplateManagement = () => {
                     )}
                   </div>
                   <Badge variant={template.is_course_evaluation ? "default" : "secondary"}>
-                    {template.is_course_evaluation ? "과정평가" : "일반"}
+                    {template.is_course_evaluation ? "과목 평가" : "일반 평가"}
                   </Badge>
                 </div>
               </CardHeader>

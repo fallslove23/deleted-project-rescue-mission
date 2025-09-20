@@ -851,11 +851,11 @@ export default function SurveyBuilder() {
     
     // 강사 평가 템플릿
     if (name.includes('이론') && name.includes('실습')) {
-      return { type: 'theory-practice', template }; // 이론+실습 과정
+      return { type: 'theory-practice', template }; // 이론+실습 과목
     } else if (name.includes('이론')) {
-      return { type: 'theory', template }; // 이론 과정
+      return { type: 'theory', template }; // 이론 과목
     } else if (name.includes('실습')) {
-      return { type: 'practice', template }; // 실습 과정
+      return { type: 'practice', template }; // 실습 과목
     }
     
     return { type: 'instructor', template }; // 기본 강사 평가 템플릿
@@ -903,20 +903,20 @@ export default function SurveyBuilder() {
         // 4. 강사 평가가 아닌 템플릿 - 전체 설문에 한 번만 적용
         appliedLogic = '강사 평가가 아닌 템플릿';
         await applyNonInstructorTemplate(tq, ts);
-        
+
       } else if (templateType === 'theory') {
-        // 1. 이론 과정 템플릿
-        appliedLogic = '이론 과정 템플릿';
+        // 1. 이론 과목 템플릿
+        appliedLogic = '이론 과목 템플릿';
         await applyTheoryTemplate(tq, ts);
-        
+
       } else if (templateType === 'practice') {
-        // 2. 실습과정 템플릿 (이론과 실습 강사가 다른 경우)
-        appliedLogic = '실습 과정 템플릿';
+        // 2. 실습 과목 템플릿 (이론과 실습 강사가 다른 경우)
+        appliedLogic = '실습 과목 템플릿';
         await applyPracticeTemplate(tq, ts, sessionAnalysis);
-        
+
       } else if (templateType === 'theory-practice') {
-        // 3. 이론+실습 과정 템플릿 (강사가 같은 경우)
-        appliedLogic = '이론+실습 과정 템플릿';
+        // 3. 이론+실습 과목 템플릿 (강사가 같은 경우)
+        appliedLogic = '이론+실습 과목 템플릿';
         await applyTheoryPracticeTemplate(tq, ts, sessionAnalysis);
         
       } else {
@@ -940,12 +940,12 @@ export default function SurveyBuilder() {
     }
   };
 
-  // 1. 이론 과정 템플릿 적용
+  // 1. 이론 과목 템플릿 적용
   const applyTheoryTemplate = async (tq: any[], ts: any[]) => {
     for (const session of sessions) {
       const sectionMapping: Record<string, string> = {};
-      
-      // 이론 과정용 섹션 생성
+
+      // 이론 과목용 섹션 생성
       if (ts?.length) {
         for (const templateSection of ts) {
           const sectionName = `이론 - ${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
@@ -964,7 +964,7 @@ export default function SurveyBuilder() {
         }
       }
 
-      // 이론 과정용 질문 생성
+      // 이론 과목용 질문 생성
       if (tq?.length) {
         const sessionQuestions = tq.map((q: any) => ({
           survey_id: surveyId,
@@ -984,7 +984,7 @@ export default function SurveyBuilder() {
     }
   };
 
-  // 2. 실습과정 템플릿 적용 (이론과 실습 강사가 다른 경우)
+  // 2. 실습 과목 템플릿 적용 (이론과 실습 강사가 다른 경우)
   const applyPracticeTemplate = async (tq: any[], ts: any[], sessionAnalysis: any) => {
     // 실습 세션만 필터링 (세션명에 '실습'이 포함되거나 실습 관련 과목)
     const practiceSessions = sessions.filter(session => 
@@ -1034,7 +1034,7 @@ export default function SurveyBuilder() {
     }
   };
 
-  // 3. 이론+실습 과정 템플릿 적용 (강사가 같은 경우)
+  // 3. 이론+실습 과목 템플릿 적용 (강사가 같은 경우)
   const applyTheoryPracticeTemplate = async (tq: any[], ts: any[], sessionAnalysis: any) => {
     if (sessionAnalysis.hasSameInstructor) {
       // 강사가 같은 경우 - 통합 평가
