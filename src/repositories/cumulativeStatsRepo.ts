@@ -51,7 +51,10 @@ function applyFilters(
   }
 
   if (courseName !== null && courseName !== undefined) {
-    filtered = filtered.eq('course_name', courseName);
+    const normalizedCourseName = typeof courseName === 'string' ? courseName.trim() : courseName;
+    if (normalizedCourseName !== null && normalizedCourseName !== undefined && normalizedCourseName !== '') {
+      filtered = filtered.eq('course_name', normalizedCourseName);
+    }
   }
 
   if (searchTerm && searchTerm.trim()) {

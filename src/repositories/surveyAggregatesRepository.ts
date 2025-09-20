@@ -329,36 +329,10 @@ export const SurveyAggregatesRepository = {
     }
 
     const aggregates = normalizeSurveyAnalysisRows(data);
-
-    const filteredAggregates = aggregates.filter((aggregate) => {
-      if (year !== null && year !== undefined && aggregate.education_year !== year) {
-        return false;
-      }
-      if (round !== null && round !== undefined && aggregate.education_round !== round) {
-        return false;
-      }
-      if (
-        sanitizedCourseFilter !== null &&
-        aggregate.course_name !== sanitizedCourseFilter
-      ) {
-        return false;
-      }
-      if (
-        instructorFilter &&
-        !(aggregate.instructor_ids.includes(instructorFilter) || aggregate.instructor_id === instructorFilter)
-      ) {
-        return false;
-      }
-      if (!includeTestData && aggregate.is_test === true) {
-        return false;
-      }
-      return true;
-    });
-
-    const summary = calculateSummary(filteredAggregates);
+    const summary = calculateSummary(aggregates);
 
     return {
-      aggregates: filteredAggregates,
+      aggregates,
       summary,
     };
   },
