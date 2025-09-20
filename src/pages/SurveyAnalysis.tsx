@@ -209,13 +209,6 @@ const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =
   });
 };
 
-const normalizeFilterString = (value: string | null | undefined): string | null => {
-  if (typeof value !== 'string') {
-    return value ?? null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
 const SurveyAnalysis = () => {
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
@@ -366,7 +359,7 @@ const SurveyAnalysis = () => {
   const fetchAvailableSummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
-      const instructorIdForQuery = normalizeFilterString(instructorFilter);
+      const instructorIdForQuery = instructorFilter ?? null;
       const { data, error } = await supabase.rpc('get_survey_analysis', {
         p_year: null,
         p_round: null,
@@ -392,9 +385,8 @@ const SurveyAnalysis = () => {
     try {
       const yearFilter = selectedYear !== 'all' ? Number(selectedYear) : null;
       const roundFilter = selectedRound !== 'all' ? Number(selectedRound) : null;
-      const rawCourseFilter = selectedCourse !== 'all' ? selectedCourse : null;
-      const courseFilter = normalizeFilterString(rawCourseFilter);
-      const instructorIdForQuery = normalizeFilterString(instructorFilter);
+      const courseFilter = selectedCourse !== 'all' ? selectedCourse : null;
+      const instructorIdForQuery = instructorFilter ?? null;
 
       const normalizedYear = yearFilter !== null && !Number.isNaN(yearFilter) ? yearFilter : null;
       const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;

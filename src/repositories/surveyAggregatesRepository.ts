@@ -125,43 +125,122 @@ const toNullableBoolean = (value: unknown): boolean | null => {
   return null;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+);
+
+const getFromRecord = (record: Record<string, unknown> | null, key: string): unknown => {
+  if (!record) {
+    return undefined;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(record, key)) {
+    return record[key];
+  }
+
+  return undefined;
+};
+
 const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefined): SurveyAggregate[] => {
   if (!rows) return [];
 
   const normalized = rows.map((row) => {
-    const courseName = typeof row.course_name === 'string' && row.course_name.trim().length > 0
-      ? row.course_name
+    const rowRecord = isRecord(row) ? row : {};
+    const surveyInfoRaw = getFromRecord(rowRecord, 'survey_info');
+    const surveyInfo = isRecord(surveyInfoRaw) ? surveyInfoRaw : null;
+    const satisfactionScoresRaw = getFromRecord(rowRecord, 'satisfaction_scores');
+    const satisfactionScores = isRecord(satisfactionScoresRaw) ? satisfactionScoresRaw : null;
+
+    const getFromRowOrInfo = (primaryKey: string, alternateKeys: string[] = []): unknown => {
+      const keys = [primaryKey, ...alternateKeys];
+      for (const key of keys) {
+        const rowValue = getFromRecord(rowRecord, key);
+        if (rowValue !== undefined && rowValue !== null) {
+          return rowValue;
+        }
+        const infoValue = getFromRecord(surveyInfo, key);
+        if (infoValue !== undefined && infoValue !== null) {
+          return infoValue;
+        }
+      }
+      return undefined;
+    };
+
+    const getSatisfactionValue = (modernKey: string, legacyKey: string): unknown => {
+      const direct = getFromRowOrInfo(modernKey);
+      if (direct !== undefined && direct !== null) {
+        return direct;
+      }
+      const legacy = getFromRecord(satisfactionScores, legacyKey);
+      return legacy !== undefined && legacy !== null ? legacy : undefined;
+    };
+
+    const surveyIdRaw = getFromRowOrInfo('survey_id', ['id']);
+    const titleRaw = getFromRowOrInfo('title');
+    const descriptionRaw = getFromRowOrInfo('description');
+    const educationYearRaw = getFromRowOrInfo('education_year');
+    const educationRoundRaw = getFromRowOrInfo('education_round');
+    const courseNameRaw = getFromRowOrInfo('course_name');
+    const statusRaw = getFromRowOrInfo('status');
+    const instructorIdRaw = getFromRowOrInfo('instructor_id');
+    const instructorNameRaw = getFromRowOrInfo('instructor_name');
+    const expectedParticipantsRaw = getFromRowOrInfo('expected_participants');
+    const isTestRaw = getFromRowOrInfo('is_test');
+    const lastResponseRaw = getFromRowOrInfo('last_response_at');
+    const responseCountRaw = getFromRowOrInfo('response_count');
+    const questionCountRaw = getFromRowOrInfo('question_count');
+
+    const courseName = typeof courseNameRaw === 'string' && courseNameRaw.trim().length > 0
+      ? courseNameRaw
       : null;
-    const status = typeof row.status === 'string' && row.status.trim().length > 0 ? row.status : null;
-    const instructorId = typeof row.instructor_id === 'string' && row.instructor_id.trim().length > 0
-      ? row.instructor_id
+    const status = typeof statusRaw === 'string' && statusRaw.trim().length > 0 ? statusRaw : null;
+    const instructorId = typeof instructorIdRaw === 'string' && instructorIdRaw.trim().length > 0
+      ? instructorIdRaw
       : null;
-    const instructorName = typeof row.instructor_name === 'string' && row.instructor_name.trim().length > 0
-      ? row.instructor_name
+    const resolvedInstructorName = typeof instructorNameRaw === 'string' && instructorNameRaw.trim().length > 0
+      ? instructorNameRaw
       : null;
-    const description = typeof row.description === 'string' && row.description.trim().length > 0
-      ? row.description
+    const description = typeof descriptionRaw === 'string' && descriptionRaw.trim().length > 0
+      ? descriptionRaw
       : null;
 
+    const avgCourseRaw = getSatisfactionValue('avg_course_satisfaction', 'course_satisfaction');
+    const avgInstructorRaw = getSatisfactionValue('avg_instructor_satisfaction', 'instructor_satisfaction');
+    const avgOperationRaw = getSatisfactionValue('avg_operation_satisfaction', 'operation_satisfaction');
+
+    const avgCourse = toNullableNumber(avgCourseRaw);
+    const avgInstructor = toNullableNumber(avgInstructorRaw);
+    const avgOperation = toNullableNumber(avgOperationRaw);
+
+    const avgOverallCandidate = getFromRowOrInfo('avg_overall_satisfaction');
+    const avgOverallLegacy = getFromRecord(satisfactionScores, 'overall_satisfaction');
+    let avgOverall = toNullableNumber(avgOverallCandidate ?? avgOverallLegacy ?? null);
+    if (avgOverall === null) {
+      const components = [avgCourse, avgInstructor, avgOperation].filter((value): value is number => value !== null);
+      if (components.length > 0) {
+        avgOverall = components.reduce((sum, value) => sum + value, 0) / components.length;
+      }
+    }
+
     return {
-      survey_id: typeof row.survey_id === 'string' ? row.survey_id : '',
-      title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : '제목 없음',
+      survey_id: typeof surveyIdRaw === 'string' && surveyIdRaw.trim().length > 0 ? surveyIdRaw : '',
+      title: typeof titleRaw === 'string' && titleRaw.trim().length > 0 ? titleRaw : '제목 없음',
       description,
-      education_year: toNumber(row.education_year),
-      education_round: toNumber(row.education_round),
+      education_year: toNumber(educationYearRaw),
+      education_round: toNumber(educationRoundRaw),
       course_name: courseName,
       status,
       instructor_id: instructorId,
-      instructor_name: instructorName,
-      expected_participants: toNullableNumber(row.expected_participants),
-      is_test: toNullableBoolean(row.is_test),
-      response_count: toNumber(row.response_count),
-      last_response_at: toNullableString(row.last_response_at),
-      avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
-      avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
-      avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
-      avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
-      question_count: toNumber(row.question_count, 0),
+      instructor_name: resolvedInstructorName ?? (instructorId ? '강사 정보 없음' : null),
+      expected_participants: toNullableNumber(expectedParticipantsRaw),
+      is_test: toNullableBoolean(isTestRaw),
+      response_count: toNumber(responseCountRaw),
+      last_response_at: toNullableString(lastResponseRaw),
+      avg_overall_satisfaction: avgOverall,
+      avg_course_satisfaction: avgCourse,
+      avg_instructor_satisfaction: avgInstructor,
+      avg_operation_satisfaction: avgOperation,
+      question_count: toNumber(questionCountRaw, 0),
     } satisfies SurveyAggregate;
   });
 

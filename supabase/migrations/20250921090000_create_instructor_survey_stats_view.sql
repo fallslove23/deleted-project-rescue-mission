@@ -4,16 +4,36 @@
 DROP VIEW IF EXISTS public.instructor_survey_stats;
 
 CREATE VIEW public.instructor_survey_stats AS
-WITH base_answers AS (
+WITH base_surveys AS (
+  SELECT s.*
+  FROM public.surveys s
+  WHERE s.status IN ('completed', 'active')
+),
+instructor_links AS (
+  SELECT s.id AS survey_id, s.instructor_id
+  FROM base_surveys s
+  WHERE s.instructor_id IS NOT NULL
+  UNION
+  SELECT si.survey_id, si.instructor_id
+  FROM public.survey_instructors si
+  JOIN base_surveys s ON s.id = si.survey_id
+  WHERE si.instructor_id IS NOT NULL
+  UNION
+  SELECT ss.survey_id, ss.instructor_id
+  FROM public.survey_sessions ss
+  JOIN base_surveys s ON s.id = ss.survey_id
+  WHERE ss.instructor_id IS NOT NULL
+),
+base_answers AS (
   SELECT
-    s.instructor_id,
-    i.name AS instructor_name,
-    s.education_year,
-    s.education_round,
-    s.course_name,
-    s.status,
-    s.id AS survey_id,
-    s.is_test,
+    il.instructor_id,
+    COALESCE(i.name, '강사 정보 없음') AS instructor_name,
+    bs.education_year,
+    bs.education_round,
+    bs.course_name,
+    bs.status,
+    bs.id AS survey_id,
+    bs.is_test,
     sr.id AS response_id,
     sr.submitted_at,
     sq.id AS question_id,
@@ -50,13 +70,12 @@ WITH base_answers AS (
         )
       ELSE NULL
     END AS rounded_rating
-  FROM public.surveys s
-  LEFT JOIN public.instructors i ON i.id = s.instructor_id
-  LEFT JOIN public.survey_responses sr ON sr.survey_id = s.id
+  FROM instructor_links il
+  JOIN base_surveys bs ON bs.id = il.survey_id
+  LEFT JOIN public.instructors i ON i.id = il.instructor_id
+  LEFT JOIN public.survey_responses sr ON sr.survey_id = bs.id
   LEFT JOIN public.question_answers qa ON qa.response_id = sr.id
   LEFT JOIN public.survey_questions sq ON sq.id = qa.question_id
-  WHERE s.status IN ('completed', 'active')
-    AND s.instructor_id IS NOT NULL
 ),
 aggregated AS (
   SELECT
