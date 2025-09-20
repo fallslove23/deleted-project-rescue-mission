@@ -1,7 +1,130 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type SurveyCumulativeRow = any;
-type SurveyCumulativeQueryBuilder = any;
+type NumericLike = number | string | null;
+
+interface RawSurveyCumulativeRow {
+  survey_id: string;
+  title: string | null;
+  education_year: NumericLike;
+  education_round: NumericLike;
+  course_name: string | null;
+  status: string | null;
+  expected_participants: NumericLike;
+  created_at: string | null;
+  last_response_at: string | null;
+  survey_is_test: boolean | null;
+  instructor_names: string[] | null;
+  instructor_names_text: string | null;
+  instructor_count: NumericLike;
+  total_response_count: NumericLike;
+  real_response_count: NumericLike;
+  test_response_count: NumericLike;
+  avg_satisfaction_total: NumericLike;
+  avg_satisfaction_real: NumericLike;
+  avg_satisfaction_test: NumericLike;
+  avg_course_satisfaction_total: NumericLike;
+  avg_course_satisfaction_real: NumericLike;
+  avg_course_satisfaction_test: NumericLike;
+  avg_instructor_satisfaction_total: NumericLike;
+  avg_instructor_satisfaction_real: NumericLike;
+  avg_instructor_satisfaction_test: NumericLike;
+  avg_operation_satisfaction_total: NumericLike;
+  avg_operation_satisfaction_real: NumericLike;
+  avg_operation_satisfaction_test: NumericLike;
+  weighted_satisfaction_total: NumericLike;
+  weighted_satisfaction_real: NumericLike;
+  weighted_satisfaction_test: NumericLike;
+}
+
+export interface SurveyCumulativeRow {
+  id: string;
+  survey_id: string;
+  title: string | null;
+  education_year: number | null;
+  education_round: number | null;
+  course_name: string | null;
+  status: string | null;
+  expected_participants: number | null;
+  created_at: string | null;
+  last_response_at: string | null;
+  survey_is_test: boolean | null;
+  instructor_names: string[];
+  instructor_names_text: string | null;
+  instructor_count: number | null;
+  total_response_count: number | null;
+  real_response_count: number | null;
+  test_response_count: number | null;
+  avg_satisfaction_total: number | null;
+  avg_satisfaction_real: number | null;
+  avg_satisfaction_test: number | null;
+  avg_course_satisfaction_total: number | null;
+  avg_course_satisfaction_real: number | null;
+  avg_course_satisfaction_test: number | null;
+  avg_instructor_satisfaction_total: number | null;
+  avg_instructor_satisfaction_real: number | null;
+  avg_instructor_satisfaction_test: number | null;
+  avg_operation_satisfaction_total: number | null;
+  avg_operation_satisfaction_real: number | null;
+  avg_operation_satisfaction_test: number | null;
+  weighted_satisfaction_total: number | null;
+  weighted_satisfaction_real: number | null;
+  weighted_satisfaction_test: number | null;
+}
+
+const parseNullableNumber = (value: NumericLike): number | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const parseNullableBoolean = (value: boolean | string | null | undefined): boolean | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    if (value.toLowerCase() === 'true') return true;
+    if (value.toLowerCase() === 'false') return false;
+  }
+  return null;
+};
+
+const normalizeSurveyRow = (row: RawSurveyCumulativeRow): SurveyCumulativeRow => ({
+  id: row.survey_id,
+  survey_id: row.survey_id,
+  title: row.title ?? null,
+  education_year: parseNullableNumber(row.education_year),
+  education_round: parseNullableNumber(row.education_round),
+  course_name: row.course_name ?? null,
+  status: row.status ?? null,
+  expected_participants: parseNullableNumber(row.expected_participants),
+  created_at: row.created_at ?? null,
+  last_response_at: row.last_response_at ?? null,
+  survey_is_test: parseNullableBoolean(row.survey_is_test),
+  instructor_names: Array.isArray(row.instructor_names)
+    ? row.instructor_names.filter((name): name is string => typeof name === 'string')
+    : [],
+  instructor_names_text: row.instructor_names_text ?? null,
+  instructor_count: parseNullableNumber(row.instructor_count),
+  total_response_count: parseNullableNumber(row.total_response_count),
+  real_response_count: parseNullableNumber(row.real_response_count),
+  test_response_count: parseNullableNumber(row.test_response_count),
+  avg_satisfaction_total: parseNullableNumber(row.avg_satisfaction_total),
+  avg_satisfaction_real: parseNullableNumber(row.avg_satisfaction_real),
+  avg_satisfaction_test: parseNullableNumber(row.avg_satisfaction_test),
+  avg_course_satisfaction_total: parseNullableNumber(row.avg_course_satisfaction_total),
+  avg_course_satisfaction_real: parseNullableNumber(row.avg_course_satisfaction_real),
+  avg_course_satisfaction_test: parseNullableNumber(row.avg_course_satisfaction_test),
+  avg_instructor_satisfaction_total: parseNullableNumber(row.avg_instructor_satisfaction_total),
+  avg_instructor_satisfaction_real: parseNullableNumber(row.avg_instructor_satisfaction_real),
+  avg_instructor_satisfaction_test: parseNullableNumber(row.avg_instructor_satisfaction_test),
+  avg_operation_satisfaction_total: parseNullableNumber(row.avg_operation_satisfaction_total),
+  avg_operation_satisfaction_real: parseNullableNumber(row.avg_operation_satisfaction_real),
+  avg_operation_satisfaction_test: parseNullableNumber(row.avg_operation_satisfaction_test),
+  weighted_satisfaction_total: parseNullableNumber(row.weighted_satisfaction_total),
+  weighted_satisfaction_real: parseNullableNumber(row.weighted_satisfaction_real),
+  weighted_satisfaction_test: parseNullableNumber(row.weighted_satisfaction_test),
+});
 
 export interface CumulativeStatsQuery {
   page: number;
@@ -43,7 +166,7 @@ function applyFilters(
   let filtered = query;
 
   if (!includeTestData) {
-    filtered = filtered.or('is_test.eq.false,is_test.is.null');
+    filtered = filtered.or('survey_is_test.eq.false,survey_is_test.is.null');
   }
 
   if (educationYear !== null && educationYear !== undefined) {
@@ -56,7 +179,9 @@ function applyFilters(
 
   if (searchTerm && searchTerm.trim()) {
     const like = `%${searchTerm.trim()}%`;
-    filtered = filtered.or(`title.ilike.${like},course_name.ilike.${like}`);
+    filtered = filtered.or(
+      `title.ilike.${like},course_name.ilike.${like},instructor_names_text.ilike.${like}`
+    );
   }
 
   return filtered;
@@ -76,8 +201,18 @@ export async function fetchCumulativeStats({
   const to = from + safePageSize - 1;
 
   let query = supabase
-    .from('surveys')
-    .select('id, title, education_year, education_round, course_name, created_at, updated_at', { count: 'exact' })
+    .from('survey_cumulative_stats')
+    .select(
+      `survey_id, title, education_year, education_round, course_name, status, expected_participants, created_at, last_response_at,
+      survey_is_test, instructor_names, instructor_names_text, instructor_count,
+      total_response_count, real_response_count, test_response_count,
+      avg_satisfaction_total, avg_satisfaction_real, avg_satisfaction_test,
+      avg_course_satisfaction_total, avg_course_satisfaction_real, avg_course_satisfaction_test,
+      avg_instructor_satisfaction_total, avg_instructor_satisfaction_real, avg_instructor_satisfaction_test,
+      avg_operation_satisfaction_total, avg_operation_satisfaction_real, avg_operation_satisfaction_test,
+      weighted_satisfaction_total, weighted_satisfaction_real, weighted_satisfaction_test`,
+      { count: 'exact' }
+    )
     .order('education_year', { ascending: false })
     .order('education_round', { ascending: false })
     .order('title', { ascending: true });
@@ -93,7 +228,7 @@ export async function fetchCumulativeStats({
   if (error) throw error;
 
   return {
-    data: data ?? [],
+    data: (data ?? []).map((row) => normalizeSurveyRow(row as RawSurveyCumulativeRow)),
     count: count ?? 0,
   };
 }
@@ -144,13 +279,13 @@ export async function fetchCumulativeSummary({
 export async function fetchCumulativeFilters(includeTestData: boolean): Promise<CumulativeFilterResult> {
   try {
     let query = supabase
-      .from('surveys')
-      .select('education_year, course_name, is_test')
+      .from('survey_cumulative_stats')
+      .select('education_year, course_name, survey_is_test, instructor_names_text')
       .order('education_year', { ascending: false })
       .order('course_name', { ascending: true });
 
     if (!includeTestData) {
-      query = query.or('is_test.eq.false,is_test.is.null');
+      query = query.or('survey_is_test.eq.false,survey_is_test.is.null');
     }
 
     const { data, error } = await query;
@@ -161,19 +296,22 @@ export async function fetchCumulativeFilters(includeTestData: boolean): Promise<
     const allCoursesSet = new Set<string>();
 
     (data ?? []).forEach((row: any) => {
-      if (row.education_year !== null && row.education_year !== undefined) {
-        yearSet.add(row.education_year);
-        if (!courseMap.has(row.education_year)) {
-          courseMap.set(row.education_year, new Set<string>());
+      const year = parseNullableNumber(row.education_year);
+      const course = typeof row.course_name === 'string' ? row.course_name : null;
+
+      if (year !== null) {
+        yearSet.add(year);
+        if (!courseMap.has(year)) {
+          courseMap.set(year, new Set<string>());
         }
 
-        if (row.course_name) {
-          courseMap.get(row.education_year)?.add(row.course_name);
+        if (course) {
+          courseMap.get(year)?.add(course);
         }
       }
 
-      if (row.course_name) {
-        allCoursesSet.add(row.course_name);
+      if (course) {
+        allCoursesSet.add(course);
       }
     });
 
