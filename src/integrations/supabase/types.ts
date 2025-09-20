@@ -2429,6 +2429,25 @@ export type Database = {
           total_responses: number
         }[]
       }
+      get_survey_analysis: {
+        Args: { survey_id_param: string }
+        Returns: {
+          feedback_text: Json
+          response_count: number
+          satisfaction_scores: Json
+          survey_info: Json
+        }[]
+      }
+      get_survey_cumulative_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          average_satisfaction: number
+          courses_in_progress: number
+          participating_instructors: number
+          total_responses: number
+          total_surveys: number
+        }[]
+      }
       get_survey_responses_by_date_range: {
         Args: { end_date?: string; start_date?: string }
         Returns: {

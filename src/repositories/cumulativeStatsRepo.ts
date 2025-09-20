@@ -1,8 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
 
-export type SurveyCumulativeRow = any; // TODO: Update when survey_cumulative_stats view is available
-
+export type SurveyCumulativeRow = any;
 type SurveyCumulativeQueryBuilder = any;
 
 export interface CumulativeStatsQuery {
@@ -34,7 +32,7 @@ export interface CumulativeFilterResult {
 }
 
 function applyFilters(
-  query: SurveyCumulativeQueryBuilder,
+  query: any,
   {
     searchTerm,
     educationYear,
@@ -45,7 +43,7 @@ function applyFilters(
   let filtered = query;
 
   if (!includeTestData) {
-    filtered = filtered.or('survey_is_test.is.false,survey_is_test.is.null');
+    filtered = filtered.or('is_test.is.false,is_test.is.null');
   }
 
   if (educationYear !== null && educationYear !== undefined) {
@@ -58,13 +56,7 @@ function applyFilters(
 
   if (searchTerm && searchTerm.trim()) {
     const like = `%${searchTerm.trim()}%`;
-    filtered = filtered.or(
-      [
-        `title.ilike.${like}`,
-        `course_name.ilike.${like}`,
-        `instructor_names_text.ilike.${like}`,
-      ].join(',')
-    );
+    filtered = filtered.or(`title.ilike.${like},course_name.ilike.${like}`);
   }
 
   return filtered;
@@ -84,8 +76,8 @@ export async function fetchCumulativeStats({
   const to = from + safePageSize - 1;
 
   let query = supabase
-    .from('survey_cumulative_stats')
-    .select('*', { count: 'exact' })
+    .from('surveys')
+    .select('id, title, education_year, education_round, course_name, created_at, updated_at', { count: 'exact' })
     .order('education_year', { ascending: false })
     .order('education_round', { ascending: false })
     .order('title', { ascending: true });
@@ -106,77 +98,93 @@ export async function fetchCumulativeStats({
   };
 }
 
-export async function fetchCumulativeSummary({
-  searchTerm,
-  educationYear,
-  courseName,
-  includeTestData,
-}: Omit<CumulativeStatsQuery, 'page' | 'pageSize'>): Promise<CumulativeSummary> {
-  const { data, error } = await supabase.rpc('get_survey_cumulative_summary', {
-    search_term: searchTerm?.trim() || null,
-    education_year: educationYear ?? null,
-    course_name: courseName ?? null,
-    include_test_data: includeTestData,
-  });
+export async function fetchCumulativeSummary(): Promise<CumulativeSummary | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_survey_cumulative_summary' as any);
 
-  if (error) throw error;
+    if (error) {
+      console.error('Error fetching cumulative summary:', error);
+      return null;
+    }
 
-  const summary = Array.isArray(data) ? data[0] : data;
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return {
+        totalSurveys: 0,
+        totalResponses: 0,
+        averageSatisfaction: null,
+        participatingInstructors: 0,
+        coursesInProgress: 0,
+      };
+    }
 
-  return {
-    totalSurveys: summary?.total_surveys ?? 0,
-    totalResponses: summary?.total_responses ?? 0,
-    averageSatisfaction: summary?.average_satisfaction ?? null,
-    participatingInstructors: summary?.participating_instructors ?? 0,
-    coursesInProgress: summary?.courses_in_progress ?? 0,
-  };
+    const summaryData = data[0] as any;
+    return {
+      totalSurveys: summaryData?.total_surveys || 0,
+      totalResponses: summaryData?.total_responses || 0,
+      averageSatisfaction: summaryData?.average_satisfaction || null,
+      participatingInstructors: summaryData?.participating_instructors || 0,
+      coursesInProgress: summaryData?.courses_in_progress || 0,
+    };
+  } catch (error) {
+    console.error('Error in fetchCumulativeSummary:', error);
+    return null;
+  }
 }
 
 export async function fetchCumulativeFilters(includeTestData: boolean): Promise<CumulativeFilterResult> {
-  let query = supabase
-    .from('survey_cumulative_stats')
-    .select('education_year, course_name, survey_is_test')
-    .order('education_year', { ascending: false })
-    .order('course_name', { ascending: true });
+  try {
+    let query = supabase
+      .from('surveys')
+      .select('education_year, course_name, is_test')
+      .order('education_year', { ascending: false })
+      .order('course_name', { ascending: true });
 
-  if (!includeTestData) {
-    query = query.or('survey_is_test.is.false,survey_is_test.is.null');
-  }
+    if (!includeTestData) {
+      query = query.or('is_test.is.false,is_test.is.null');
+    }
 
-  const { data, error } = await query;
-  if (error) throw error;
+    const { data, error } = await query;
+    if (error) throw error;
 
-  const yearSet = new Set<number>();
-  const courseMap = new Map<number, Set<string>>();
-  const allCoursesSet = new Set<string>();
+    const yearSet = new Set<number>();
+    const courseMap = new Map<number, Set<string>>();
+    const allCoursesSet = new Set<string>();
 
-  (data ?? []).forEach((row) => {
-    if (row.education_year !== null && row.education_year !== undefined) {
-      yearSet.add(row.education_year);
-      if (!courseMap.has(row.education_year)) {
-        courseMap.set(row.education_year, new Set<string>());
+    (data ?? []).forEach((row: any) => {
+      if (row.education_year !== null && row.education_year !== undefined) {
+        yearSet.add(row.education_year);
+        if (!courseMap.has(row.education_year)) {
+          courseMap.set(row.education_year, new Set<string>());
+        }
+
+        if (row.course_name) {
+          courseMap.get(row.education_year)?.add(row.course_name);
+        }
       }
 
       if (row.course_name) {
-        courseMap.get(row.education_year)?.add(row.course_name);
+        allCoursesSet.add(row.course_name);
       }
-    }
+    });
 
-    if (row.course_name) {
-      allCoursesSet.add(row.course_name);
-    }
-  });
+    const coursesByYear: Record<number, string[]> = {};
+    courseMap.forEach((courses, year) => {
+      coursesByYear[year] = Array.from(courses).sort((a, b) => a.localeCompare(b));
+    });
 
-  const coursesByYear: Record<number, string[]> = {};
-  courseMap.forEach((courses, year) => {
-    coursesByYear[year] = Array.from(courses).sort((a, b) => a.localeCompare(b));
-  });
-
-  return {
-    years: Array.from(yearSet).sort((a, b) => b - a),
-    allCourses: Array.from(allCoursesSet).sort((a, b) => a.localeCompare(b)),
-    coursesByYear,
-  };
+    return {
+      years: Array.from(yearSet).sort((a, b) => b - a),
+      allCourses: Array.from(allCoursesSet).sort((a, b) => a.localeCompare(b)),
+      coursesByYear,
+    };
+  } catch (error) {
+    console.error('Error in fetchCumulativeFilters:', error);
+    return {
+      years: [],
+      allCourses: [],
+      coursesByYear: {},
+    };
+  }
 }
 
 export async function fetchCumulativeExportData(

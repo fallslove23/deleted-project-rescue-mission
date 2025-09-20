@@ -19,7 +19,30 @@ import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { Database } from '@/integrations/supabase/types';
 
-type SurveyAnalysisRow = Database["public"]["Functions"]["get_survey_analysis"]["Returns"][number];
+type SurveyAnalysisRow = {
+  survey_info: any;
+  response_count: number;
+  satisfaction_scores: any;
+  feedback_text: any;
+  survey_id?: string;
+  title?: string;
+  description?: string;
+  education_year?: number;
+  education_round?: number;
+  course_name?: string;
+  status?: string;
+  instructor_id?: string;
+  instructor_name?: string;
+  expected_participants?: number;
+  is_test?: boolean;
+  last_response_at?: string;
+  avg_overall_satisfaction?: number;
+  avg_course_satisfaction?: number;
+  avg_instructor_satisfaction?: number;
+  avg_operation_satisfaction?: number;
+  question_count?: number;
+  question_type_distribution?: Record<string, number>;
+};
 
 interface SurveyResponse {
   id: string;
