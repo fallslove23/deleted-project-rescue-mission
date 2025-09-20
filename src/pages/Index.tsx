@@ -450,16 +450,27 @@ const Index = () => {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold text-primary font-display">BS/SS 교육과정 설문 피드백</h1>
-              {!authLoading && !authUser && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/auth')}
-                  className="font-sans"
-                >
-                  로그인
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {authUser ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/default-redirect')}
+                    className="font-sans"
+                  >
+                    대시보드
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/auth')}
+                    className="font-sans"
+                  >
+                    로그인
+                  </Button>
+                )}
+              </div>
             </div>
             {filterSummaryBadges.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
