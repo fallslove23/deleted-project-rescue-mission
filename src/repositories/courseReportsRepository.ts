@@ -58,7 +58,12 @@ export interface CourseReportStatisticsResponse {
 
 export const CourseReportsRepository = {
   async fetchStatistics(filters: CourseReportFilters): Promise<CourseReportStatisticsResponse | null> {
-    const normalizedCourseName = normalizeCourseName(filters.courseName ?? null);
+    const rawCourseName = filters.courseName ?? null;
+    const sanitizedCourseName =
+      typeof rawCourseName === 'string' && rawCourseName.trim().length > 0
+        ? rawCourseName.trim()
+        : null;
+    const normalizedCourseName = normalizeCourseName(rawCourseName);
     const normalizedInstructorId = normalizeUuid(filters.instructorId ?? null);
 
     const payload: Record<string, unknown> = {
@@ -66,8 +71,8 @@ export const CourseReportsRepository = {
       p_include_test: filters.includeTestData ?? false,
     };
 
-    if (normalizedCourseName) {
-      payload.p_course_name = normalizedCourseName;
+    if (sanitizedCourseName) {
+      payload.p_course_name = sanitizedCourseName;
     }
 
     if (filters.round !== null && filters.round !== undefined) {

@@ -243,6 +243,101 @@ const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefine
   });
 };
 
+interface NormalizedFilters {
+  year: number | null;
+  round: number | null;
+  courseName: string | null;
+  instructorId: string | null;
+  includeTestData: boolean;
+}
+
+const matchesInstructor = (aggregate: SurveyAggregate, instructorId: string | null): boolean => {
+  if (!instructorId) {
+    return true;
+  }
+
+  const normalizedInstructor = instructorId.trim();
+  if (normalizedInstructor.length === 0) {
+    return true;
+  }
+
+  if (aggregate.instructor_id && aggregate.instructor_id.trim() === normalizedInstructor) {
+    return true;
+  }
+
+  return aggregate.instructor_ids.some((id) => id.trim() === normalizedInstructor);
+};
+
+const filterAggregatesList = (
+  aggregates: SurveyAggregate[],
+  { year, round, courseName, instructorId, includeTestData }: NormalizedFilters,
+): SurveyAggregate[] =>
+  aggregates.filter((aggregate) => {
+    if (year !== null && aggregate.education_year !== year) {
+      return false;
+    }
+
+    if (round !== null && aggregate.education_round !== round) {
+      return false;
+    }
+
+    if (courseName) {
+      const normalizedCourse = aggregate.course_name?.trim();
+      if (!normalizedCourse || normalizedCourse !== courseName) {
+        return false;
+      }
+    }
+
+    if (!matchesInstructor(aggregate, instructorId)) {
+      return false;
+    }
+
+    if (!includeTestData && aggregate.is_test === true) {
+      return false;
+    }
+
+    return true;
+  });
+
+const fetchAggregatesFromLegacyView = async ({
+  year,
+  round,
+  courseName,
+  includeTestData,
+}: NormalizedFilters): Promise<SurveyAggregate[]> => {
+  let query = supabase
+    .from('survey_aggregates')
+    .select(
+      `survey_id, title, education_year, education_round, course_name, status, instructor_id, instructor_name, expected_participants, is_test, response_count, last_response_at, avg_overall_satisfaction, avg_course_satisfaction, avg_instructor_satisfaction, avg_operation_satisfaction`,
+    )
+    .order('education_year', { ascending: false })
+    .order('education_round', { ascending: false })
+    .order('title', { ascending: true });
+
+  if (year !== null) {
+    query = query.eq('education_year', year);
+  }
+
+  if (round !== null) {
+    query = query.eq('education_round', round);
+  }
+
+  if (courseName) {
+    query = query.eq('course_name', courseName);
+  }
+
+  if (!includeTestData) {
+    query = query.or('is_test.eq.false,is_test.is.null');
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw error;
+  }
+
+  return normalizeSurveyAnalysisRows(data as SurveyAnalysisRow[]);
+};
+
 const calculateSummary = (aggregates: SurveyAggregate[]): SurveyAggregateSummary => {
   if (aggregates.length === 0) {
     return { ...EMPTY_SURVEY_AGGREGATE_SUMMARY };
@@ -296,21 +391,31 @@ export const SurveyAggregatesRepository = {
     includeTestData,
     restrictToInstructorId = null,
   }: SurveyAggregateFilters): Promise<SurveyAggregateResult> {
+    const normalizedYear = typeof year === 'number' && !Number.isNaN(year) ? year : null;
+    const normalizedRound = typeof round === 'number' && !Number.isNaN(round) ? round : null;
     const sanitizedCourseFilter = normalizeFilterString(courseName);
     const sanitizedInstructorFilter = normalizeUuid(instructorId ?? null);
     const sanitizedRestrictedInstructor = normalizeUuid(restrictToInstructorId ?? null);
     const instructorFilter = sanitizedRestrictedInstructor ?? sanitizedInstructorFilter;
 
+    const filters: NormalizedFilters = {
+      year: normalizedYear,
+      round: normalizedRound,
+      courseName: sanitizedCourseFilter,
+      instructorId: instructorFilter,
+      includeTestData,
+    };
+
     const payload: Database['public']['Functions']['get_survey_analysis']['Args'] = {
       p_include_test: includeTestData,
     };
 
-    if (year !== null && year !== undefined) {
-      payload.p_year = year;
+    if (normalizedYear !== null) {
+      payload.p_year = normalizedYear;
     }
 
-    if (round !== null && round !== undefined) {
-      payload.p_round = round;
+    if (normalizedRound !== null) {
+      payload.p_round = normalizedRound;
     }
 
     if (sanitizedCourseFilter) {
@@ -321,18 +426,26 @@ export const SurveyAggregatesRepository = {
       payload.p_instructor_id = instructorFilter;
     }
 
-    const { data, error } = await supabase.rpc('get_survey_analysis', payload);
+    let aggregates: SurveyAggregate[] = [];
 
-    if (error) {
-      console.error('Failed to execute get_survey_analysis RPC', error);
-      throw error;
+    try {
+      const { data, error } = await supabase.rpc('get_survey_analysis', payload);
+
+      if (error) {
+        throw error;
+      }
+
+      aggregates = normalizeSurveyAnalysisRows(data);
+    } catch (rpcError) {
+      console.error('Failed to execute get_survey_analysis RPC, falling back to survey_aggregates view', rpcError);
+      aggregates = await fetchAggregatesFromLegacyView(filters);
     }
 
-    const aggregates = normalizeSurveyAnalysisRows(data);
-    const summary = calculateSummary(aggregates);
+    const filteredAggregates = filterAggregatesList(aggregates, filters);
+    const summary = calculateSummary(filteredAggregates);
 
     return {
-      aggregates,
+      aggregates: filteredAggregates,
       summary,
     };
   },
