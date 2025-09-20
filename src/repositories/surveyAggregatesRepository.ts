@@ -5,6 +5,7 @@ import {
   type NormalizedSurveyAnalysisRow,
   type SurveyAnalysisRow,
 } from '@/utils/surveyAnalysisNormalization';
+import { normalizeCourseName } from '@/utils/surveyStats';
 import { normalizeUuid } from '@/utils/uuid';
 
 export type SurveyAggregate = Omit<NormalizedSurveyAnalysisRow, 'question_type_distribution'>;
@@ -83,16 +84,30 @@ const matchesInstructor = (aggregate: SurveyAggregate, instructorId: string | nu
   return aggregate.instructor_ids.some((id) => id.trim() === normalizedInstructor);
 };
 
-const courseNamesMatch = (left: string | null | undefined, right: string | null | undefined): boolean => {
-  if (!left || !right) {
-    return !left && !right;
+const normalizeCourseFilter = (value: string | null | undefined): string | null => {
+  if (typeof value !== 'string') {
+    return null;
   }
 
-  const normalizedLeft = left.trim();
-  const normalizedRight = right.trim();
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
 
-  if (!normalizedLeft || !normalizedRight) {
-    return normalizedLeft === normalizedRight;
+  const normalized = normalizeCourseName(trimmed);
+  return (normalized ?? trimmed) || null;
+};
+
+const courseNamesMatch = (left: string | null | undefined, right: string | null | undefined): boolean => {
+  const normalizedLeft = normalizeCourseFilter(left);
+  const normalizedRight = normalizeCourseFilter(right);
+
+  if (normalizedLeft === null || normalizedLeft === undefined) {
+    return normalizedRight === null || normalizedRight === undefined;
+  }
+
+  if (normalizedRight === null || normalizedRight === undefined) {
+    return false;
   }
 
   return normalizedLeft.localeCompare(normalizedRight, 'ko', { sensitivity: 'base' }) === 0;
