@@ -2433,6 +2433,30 @@ export type Database = {
           total_surveys: number
         }[]
       }
+      get_survey_detail_stats: {
+        Args: {
+          p_survey_id: string
+          p_include_test?: boolean | null
+          p_response_cursor?: number | null
+          p_response_limit?: number | null
+          p_distribution_cursor?: number | null
+          p_distribution_limit?: number | null
+          p_text_cursor?: number | null
+          p_text_limit?: number | null
+        }
+        Returns: {
+          distribution_next_cursor: number | null
+          distribution_total_count: number
+          question_distributions: Json
+          response_next_cursor: number | null
+          response_total_count: number
+          responses: Json
+          summary: Json
+          text_answers: Json
+          text_next_cursor: number | null
+          text_total_count: number
+        }[]
+      }
       get_session_statistics: {
         Args: { session_id_param?: string; survey_id_param?: string }
         Returns: {
