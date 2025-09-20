@@ -13,6 +13,8 @@ export interface SurveyAggregate {
   status: string | null;
   instructor_id: string | null;
   instructor_name: string | null;
+  instructor_ids: string[];
+  instructor_names: string[];
   expected_participants: number | null;
   is_test: boolean | null;
   response_count: number;
@@ -126,6 +128,32 @@ const toNullableBoolean = (value: unknown): boolean | null => {
   return null;
 };
 
+const toStringArray = (value: unknown): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? item : null))
+      .filter((item): item is string => item !== null);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => (typeof item === 'string' ? item : null))
+            .filter((item): item is string => item !== null);
+        }
+      } catch (error) {
+        console.warn('Failed to parse instructor_ids array', error, value);
+      }
+    }
+    return trimmed.length > 0 ? [trimmed] : [];
+  }
+  return [];
+};
+
 const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefined): SurveyAggregate[] => {
   if (!rows) return [];
 
@@ -134,6 +162,8 @@ const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefine
     const status = toNullableString(row.status);
     const instructorId = toNullableString(row.instructor_id);
     const instructorName = toNullableString(row.instructor_name);
+    const instructorIds = toStringArray(row.instructor_ids);
+    const instructorNames = toStringArray(row.instructor_names);
     const description = toNullableString(row.description);
 
     return {
@@ -146,6 +176,16 @@ const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefine
       status,
       instructor_id: instructorId,
       instructor_name: instructorName,
+      instructor_ids: instructorIds.length > 0
+        ? instructorIds
+        : instructorId
+          ? [instructorId]
+          : [],
+      instructor_names: instructorNames.length > 0
+        ? instructorNames
+        : instructorName
+          ? [instructorName]
+          : [],
       expected_participants: toNullableNumber(row.expected_participants),
       is_test: toNullableBoolean(row.is_test),
       response_count: toNumber(row.response_count),
@@ -254,7 +294,10 @@ export const SurveyAggregatesRepository = {
       if (courseName !== null && courseName !== undefined && aggregate.course_name !== courseName) {
         return false;
       }
-      if (instructorFilter && aggregate.instructor_id !== instructorFilter) {
+      if (
+        instructorFilter &&
+        !aggregate.instructor_ids.includes(instructorFilter)
+      ) {
         return false;
       }
       if (!includeTestData && aggregate.is_test === true) {

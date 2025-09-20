@@ -2435,6 +2435,8 @@ export type Database = {
           expected_participants: number | null
           instructor_id: string | null
           instructor_name: string | null
+          instructor_ids: string[] | null
+          instructor_names: string[] | null
           is_test: boolean | null
           last_response_at: string | null
           question_count: number | null

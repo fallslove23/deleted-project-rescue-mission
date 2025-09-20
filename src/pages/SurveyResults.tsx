@@ -120,6 +120,22 @@ const formatSatisfaction = (value: number | null | undefined) => {
   return value.toFixed(1);
 };
 
+const formatInstructorNames = (
+  aggregate?: Pick<SurveyAggregate, 'instructor_name' | 'instructor_names'> | null,
+): string | null => {
+  if (!aggregate) return null;
+  const names = (aggregate.instructor_names ?? [])
+    .map((name) => (typeof name === 'string' ? name.trim() : ''))
+    .filter((name) => name.length > 0);
+
+  if (names.length > 0) {
+    return Array.from(new Set(names)).join(', ');
+  }
+
+  const fallback = aggregate.instructor_name?.trim();
+  return fallback && fallback.length > 0 ? fallback : null;
+};
+
 const SurveyResults = () => {
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
@@ -386,7 +402,14 @@ const SurveyResults = () => {
   const instructors = useMemo(() => {
     const map = new Map<string, string>();
     allAggregates.forEach((item) => {
-      if (item.instructor_id && item.instructor_name) {
+      item.instructor_ids.forEach((id, index) => {
+        if (!id) return;
+        const name = item.instructor_names[index] ?? item.instructor_name ?? '강사 정보 없음';
+        if (name) {
+          map.set(id, name);
+        }
+      });
+      if (item.instructor_id && item.instructor_name && !map.has(item.instructor_id)) {
         map.set(item.instructor_id, item.instructor_name);
       }
     });
@@ -595,7 +618,7 @@ const SurveyResults = () => {
         title: selectedSurvey.title,
         education_year: selectedSurvey.education_year,
         education_round: selectedSurvey.education_round,
-        instructor_name: selectedSurvey.instructor_name ?? undefined,
+        instructor_name: formatInstructorNames(selectedSurvey) ?? undefined,
         course_title: selectedSurvey.course_name ?? undefined,
       };
 
@@ -819,7 +842,7 @@ const SurveyResults = () => {
                       </TableCell>
                       <TableCell className="text-center">{item.education_year}</TableCell>
                       <TableCell className="text-center">{item.education_round}</TableCell>
-                      <TableCell>{item.instructor_name ?? '-'}</TableCell>
+                      <TableCell>{formatInstructorNames(item) ?? '-'}</TableCell>
                       <TableCell className="text-center">{formatNumber(item.response_count)}</TableCell>
                       <TableCell className="text-center">{formatSatisfaction(item.avg_overall_satisfaction)}</TableCell>
                       <TableCell className="text-center">{formatSatisfaction(item.avg_course_satisfaction)}</TableCell>

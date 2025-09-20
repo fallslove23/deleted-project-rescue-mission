@@ -75,6 +75,8 @@ interface SurveySummary {
   status: string | null;
   instructor_id: string | null;
   instructor_name: string | null;
+  instructor_ids: string[];
+  instructor_names: string[];
   expected_participants: number | null;
   is_test: boolean | null;
   response_count: number;
@@ -155,6 +157,32 @@ const toNullableNumber = (value: unknown): number | null => {
   return null;
 };
 
+const toStringArray = (value: unknown): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? item : null))
+      .filter((item): item is string => item !== null);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => (typeof item === 'string' ? item : null))
+            .filter((item): item is string => item !== null);
+        }
+      } catch (error) {
+        console.warn('Failed to parse instructor_ids array', error, value);
+      }
+    }
+    return trimmed.length > 0 ? [trimmed] : [];
+  }
+  return [];
+};
+
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
   if (!rows) return [];
   return rows.map((row) => {
@@ -183,6 +211,8 @@ const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =
     const instructorName = typeof row.instructor_name === 'string' && row.instructor_name.trim().length > 0
       ? row.instructor_name
       : null;
+    const instructorIds = toStringArray((row as Record<string, unknown>).instructor_ids);
+    const instructorNames = toStringArray((row as Record<string, unknown>).instructor_names);
     const isTest = typeof row.is_test === 'boolean' ? row.is_test : null;
 
     return {
@@ -195,6 +225,16 @@ const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =
       status,
       instructor_id: instructorId,
       instructor_name: instructorName,
+      instructor_ids: instructorIds.length > 0
+        ? instructorIds
+        : instructorId
+          ? [instructorId]
+          : [],
+      instructor_names: instructorNames.length > 0
+        ? instructorNames
+        : instructorName
+          ? [instructorName]
+          : [],
       expected_participants: toNullableNumber(row.expected_participants),
       is_test: isTest,
       response_count: toNumber(row.response_count),
@@ -271,7 +311,7 @@ const SurveyAnalysis = () => {
 
   const availableYears = useMemo(() => {
     const filtered = allSummaries.filter((summary) => {
-      if (instructorFilter && summary.instructor_id !== instructorFilter) return false;
+      if (instructorFilter && !summary.instructor_ids.includes(instructorFilter)) return false;
       return true;
     });
     const years = Array.from(new Set(filtered.map((summary) => summary.education_year)));
@@ -281,7 +321,7 @@ const SurveyAnalysis = () => {
   const availableRounds = useMemo(() => {
     let filtered = allSummaries;
     if (instructorFilter) {
-      filtered = filtered.filter((summary) => summary.instructor_id === instructorFilter);
+      filtered = filtered.filter((summary) => summary.instructor_ids.includes(instructorFilter));
     }
     if (selectedYear !== 'all') {
       const year = Number(selectedYear);
@@ -294,7 +334,7 @@ const SurveyAnalysis = () => {
   const availableCourses = useMemo(() => {
     let filtered = allSummaries;
     if (instructorFilter) {
-      filtered = filtered.filter((summary) => summary.instructor_id === instructorFilter);
+      filtered = filtered.filter((summary) => summary.instructor_ids.includes(instructorFilter));
     }
     if (selectedYear !== 'all') {
       filtered = filtered.filter((summary) => summary.education_year === Number(selectedYear));
