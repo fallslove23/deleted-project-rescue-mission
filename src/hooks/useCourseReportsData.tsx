@@ -37,14 +37,32 @@ export const useCourseReportsData = (
   const isInstructor = userRoles.includes('instructor');
 
   const [instructorId, setInstructorId] = useState<string | null>(null);
+  const [instructorIdLoaded, setInstructorIdLoaded] = useState(false);
   const { data, loading, fetchStatistics } = useCourseReportStatistics();
   const [previousData, setPreviousData] = useState<CourseReportStatisticsResponse | null>(null);
 
   // Load instructor id for instructor role
   useEffect(() => {
+    let isActive = true;
+
     const fetchInstructorId = async () => {
-      if (!isInstructor || !user?.email) {
-        setInstructorId(null);
+      if (!isInstructor) {
+        if (isActive) {
+          setInstructorId(null);
+          setInstructorIdLoaded(true);
+        }
+        return;
+      }
+
+      if (isActive) {
+        setInstructorIdLoaded(false);
+      }
+
+      if (!user?.email) {
+        if (isActive) {
+          setInstructorId(null);
+          setInstructorIdLoaded(true);
+        }
         return;
       }
 
@@ -54,6 +72,8 @@ export const useCourseReportsData = (
         .eq('email', user.email)
         .maybeSingle();
 
+      if (!isActive) return;
+
       if (error) {
         console.error('Failed to fetch instructor id', error);
         toast({
@@ -61,20 +81,26 @@ export const useCourseReportsData = (
           description: '강사 정보를 불러오는 중 오류가 발생했습니다.',
           variant: 'destructive',
         });
-        return;
+        setInstructorId(null);
+      } else {
+        setInstructorId(instructor?.id ?? null);
       }
 
-      setInstructorId(instructor?.id ?? null);
+      setInstructorIdLoaded(true);
     };
 
     fetchInstructorId();
+
+    return () => {
+      isActive = false;
+    };
   }, [isInstructor, user?.email, toast]);
 
   const instructorFilter = isInstructor ? instructorId : (selectedInstructor || null);
 
   const refetch = useCallback(async () => {
     if (!selectedYear) return null;
-    if (isInstructor && !instructorId) return null; // wait until instructor id is known
+    if (isInstructor && !instructorIdLoaded) return null; // wait until instructor id lookup completes
 
     try {
       const current = await fetchStatistics({
@@ -119,6 +145,7 @@ export const useCourseReportsData = (
     instructorFilter,
     instructorId,
     isInstructor,
+    instructorIdLoaded,
     selectedCourse,
     selectedRound,
     selectedYear,
@@ -127,7 +154,7 @@ export const useCourseReportsData = (
 
   useEffect(() => {
     if (!selectedYear) return;
-    if (isInstructor && !instructorId) return;
+    if (isInstructor && !instructorIdLoaded) return;
     refetch();
   }, [
     refetch,
@@ -138,6 +165,7 @@ export const useCourseReportsData = (
     includeTestData,
     isInstructor,
     instructorId,
+    instructorIdLoaded,
   ]);
 
   const availableCourses = data?.availableCourses ?? [];
