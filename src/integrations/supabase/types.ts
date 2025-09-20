@@ -2160,42 +2160,6 @@ export type Database = {
         }
         Relationships: []
       }
-      survey_cumulative_stats: {
-        Row: {
-          avg_course_satisfaction_real: number | null
-          avg_course_satisfaction_test: number | null
-          avg_course_satisfaction_total: number | null
-          avg_instructor_satisfaction_real: number | null
-          avg_instructor_satisfaction_test: number | null
-          avg_instructor_satisfaction_total: number | null
-          avg_operation_satisfaction_real: number | null
-          avg_operation_satisfaction_test: number | null
-          avg_operation_satisfaction_total: number | null
-          avg_satisfaction_real: number | null
-          avg_satisfaction_test: number | null
-          avg_satisfaction_total: number | null
-          course_name: string | null
-          created_at: string | null
-          education_round: number | null
-          education_year: number | null
-          expected_participants: number | null
-          instructor_count: number | null
-          instructor_names: string[] | null
-          instructor_names_text: string | null
-          last_response_at: string | null
-          real_response_count: number | null
-          status: string | null
-          survey_id: string | null
-          survey_is_test: boolean | null
-          test_response_count: number | null
-          title: string | null
-          total_response_count: number | null
-          weighted_satisfaction_real: number | null
-          weighted_satisfaction_test: number | null
-          weighted_satisfaction_total: number | null
-        }
-        Relationships: []
-      }
       surveys_list_v1: {
         Row: {
           combined_round_end: number | null
@@ -2345,6 +2309,23 @@ export type Database = {
         Args: { new_role: string; old_role: string; user_id: string }
         Returns: boolean
       }
+      course_report_statistics: {
+        Args: {
+          p_course_name?: string
+          p_include_test?: boolean
+          p_instructor_id?: string
+          p_round?: number
+          p_year: number
+        }
+        Returns: {
+          available_courses: Json
+          available_instructors: Json
+          instructor_stats: Json
+          summary: Json
+          textual_responses: Json
+          trend: Json
+        }[]
+      }
       create_admin_user: {
         Args: { admin_email: string; admin_password: string }
         Returns: undefined
@@ -2375,6 +2356,23 @@ export type Database = {
           instructor_id: string
           role: string
           updated_at: string
+        }[]
+      }
+      get_course_statistics: {
+        Args: {
+          p_course_name?: string
+          p_include_test?: boolean
+          p_instructor_id?: string
+          p_round?: number
+          p_year: number
+        }
+        Returns: {
+          available_courses: Json
+          available_instructors: Json
+          instructor_stats: Json
+          summary: Json
+          textual_responses: Json
+          trend: Json
         }[]
       }
       get_current_user_role: {
@@ -2418,45 +2416,6 @@ export type Database = {
           with_check: string
         }[]
       }
-      get_survey_cumulative_summary: {
-        Args: {
-          search_term?: string | null
-          education_year?: number | null
-          course_name?: string | null
-          include_test_data?: boolean | null
-        }
-        Returns: {
-          average_satisfaction: number | null
-          courses_in_progress: number
-          participating_instructors: number
-          total_responses: number
-          total_surveys: number
-        }[]
-      }
-      get_survey_detail_stats: {
-        Args: {
-          p_survey_id: string
-          p_include_test?: boolean | null
-          p_response_cursor?: number | null
-          p_response_limit?: number | null
-          p_distribution_cursor?: number | null
-          p_distribution_limit?: number | null
-          p_text_cursor?: number | null
-          p_text_limit?: number | null
-        }
-        Returns: {
-          distribution_next_cursor: number | null
-          distribution_total_count: number
-          question_distributions: Json
-          response_next_cursor: number | null
-          response_total_count: number
-          responses: Json
-          summary: Json
-          text_answers: Json
-          text_next_cursor: number | null
-          text_total_count: number
-        }[]
-      }
       get_session_statistics: {
         Args: { session_id_param?: string; survey_id_param?: string }
         Returns: {
@@ -2468,36 +2427,6 @@ export type Database = {
           session_id: string
           session_name: string
           total_responses: number
-        }[]
-      }
-      get_survey_analysis: {
-        Args: {
-          p_year?: number | null
-          p_round?: number | null
-          p_course_name?: string | null
-          p_instructor_id?: string | null
-          p_include_test?: boolean | null
-        }
-        Returns: {
-          survey_id: string
-          title: string
-          description: string | null
-          education_year: number
-          education_round: number
-          course_name: string | null
-          status: string | null
-          instructor_id: string | null
-          instructor_name: string | null
-          expected_participants: number | null
-          is_test: boolean | null
-          response_count: number
-          last_response_at: string | null
-          avg_overall_satisfaction: number | null
-          avg_course_satisfaction: number | null
-          avg_instructor_satisfaction: number | null
-          avg_operation_satisfaction: number | null
-          question_count: number
-          question_type_distribution: Json
         }[]
       }
       get_survey_responses_by_date_range: {
