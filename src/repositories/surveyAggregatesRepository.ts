@@ -138,14 +138,6 @@ const fetchAggregatesFromLegacyView = async ({
     query = query.eq('education_round', round);
   }
 
-  if (courseName) {
-    query = query.eq('course_name', courseName);
-  }
-
-  if (instructorId) {
-    query = query.eq('instructor_id', instructorId);
-  }
-
   if (!includeTestData) {
     query = query.or('is_test.eq.false,is_test.is.null');
   }
@@ -250,6 +242,7 @@ export const SurveyAggregatesRepository = {
     }
 
     let aggregates: SurveyAggregate[] = [];
+    let usedLegacyFallback = false;
 
     try {
       const { data, error } = await supabase.rpc('get_survey_analysis', payload);
@@ -263,6 +256,19 @@ export const SurveyAggregatesRepository = {
     } catch (rpcError) {
       console.error('Failed to execute get_survey_analysis RPC, falling back to survey_aggregates view', rpcError);
       aggregates = await fetchAggregatesFromLegacyView(filters);
+      usedLegacyFallback = true;
+    }
+
+    const hasMeaningfulFilter =
+      filters.year !== null
+      || filters.round !== null
+      || Boolean(filters.courseName)
+      || Boolean(filters.instructorId);
+
+    if (!usedLegacyFallback && aggregates.length === 0 && hasMeaningfulFilter) {
+      console.warn('get_survey_analysis returned no rows, retrying with legacy survey_aggregates view');
+      aggregates = await fetchAggregatesFromLegacyView(filters);
+      usedLegacyFallback = true;
     }
 
     const filteredAggregates = filterAggregatesList(aggregates, filters);

@@ -37,6 +37,29 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const getFromRecord = (record: Record<string, unknown> | null | undefined, key: string): unknown =>
   record && Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined;
 
+const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
+  if (isRecord(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    return isRecord(parsed) ? parsed : null;
+  } catch (error) {
+    console.warn('Failed to parse JSON object field', error, value);
+    return null;
+  }
+};
+
 const toNumber = (value: unknown, fallback = 0): number => {
   if (typeof value === 'number') {
     return Number.isNaN(value) ? fallback : value;
@@ -309,8 +332,8 @@ export const normalizeSurveyAnalysisRows = (
 
   const normalized = rows.map((row) => {
     const rowRecord = isRecord(row) ? row : {};
-    const surveyInfoRaw = getFromRecord(rowRecord, 'survey_info');
-    const surveyInfo = isRecord(surveyInfoRaw) ? surveyInfoRaw : null;
+    const surveyInfo = parseJsonObject(getFromRecord(rowRecord, 'survey_info'));
+    const satisfactionScores = parseJsonObject(getFromRecord(rowRecord, 'satisfaction_scores'));
 
     const pickValue = (key: string): unknown => {
       const direct = getFromRecord(rowRecord, key);
@@ -343,6 +366,15 @@ export const normalizeSurveyAnalysisRows = (
     const avgOperation = toNullableNumber(pickValue('avg_operation_satisfaction'));
 
     let avgOverall = toNullableNumber(pickValue('avg_overall_satisfaction'));
+    if (avgOverall === null) {
+      const legacyOverall = toNullableNumber(
+        getFromRecord(satisfactionScores, 'overall_satisfaction'),
+      );
+      if (legacyOverall !== null) {
+        avgOverall = legacyOverall;
+      }
+    }
+
     if (avgOverall === null) {
       const components = [avgCourse, avgInstructor, avgOperation].filter(
         (value): value is number => value !== null,

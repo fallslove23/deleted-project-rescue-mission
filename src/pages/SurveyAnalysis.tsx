@@ -228,6 +228,9 @@ const SurveyAnalysis = () => {
       try {
         const { data, error } = await supabase.rpc('get_survey_analysis', payload);
         if (error) throw error;
+        if (!data) {
+          throw new Error('get_survey_analysis returned no data');
+        }
         return normalizeSummaries(data);
       } catch (rpcError) {
         console.warn('get_survey_analysis RPC unavailable, falling back to survey_aggregates view', rpcError);
