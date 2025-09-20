@@ -118,6 +118,7 @@ const fetchAggregatesFromLegacyView = async ({
   year,
   round,
   courseName,
+  instructorId,
   includeTestData,
 }: NormalizedFilters): Promise<SurveyAggregate[]> => {
   let query = supabase
@@ -139,6 +140,10 @@ const fetchAggregatesFromLegacyView = async ({
 
   if (courseName) {
     query = query.eq('course_name', courseName);
+  }
+
+  if (instructorId) {
+    query = query.eq('instructor_id', instructorId);
   }
 
   if (!includeTestData) {
@@ -210,15 +215,17 @@ export const SurveyAggregatesRepository = {
     const normalizedYear = typeof year === 'number' && !Number.isNaN(year) ? year : null;
     const normalizedRound = typeof round === 'number' && !Number.isNaN(round) ? round : null;
     const sanitizedCourseFilter = normalizeFilterString(courseName);
-    const sanitizedInstructorFilter = normalizeUuid(instructorId ?? null);
-    const sanitizedRestrictedInstructor = normalizeUuid(restrictToInstructorId ?? null);
-    const instructorFilter = sanitizedRestrictedInstructor ?? sanitizedInstructorFilter;
+
+    const rawInstructorFilter = normalizeFilterString(instructorId);
+    const rawRestrictedInstructor = normalizeFilterString(restrictToInstructorId);
+    const filterInstructorId = rawRestrictedInstructor ?? rawInstructorFilter;
+    const rpcInstructorId = normalizeUuid(filterInstructorId ?? null) ?? normalizeUuid(rawInstructorFilter ?? null);
 
     const filters: NormalizedFilters = {
       year: normalizedYear,
       round: normalizedRound,
       courseName: sanitizedCourseFilter,
-      instructorId: instructorFilter,
+      instructorId: filterInstructorId,
       includeTestData,
     };
 
@@ -238,8 +245,8 @@ export const SurveyAggregatesRepository = {
       payload.p_course_name = sanitizedCourseFilter;
     }
 
-    if (instructorFilter) {
-      payload.p_instructor_id = instructorFilter;
+    if (rpcInstructorId) {
+      payload.p_instructor_id = rpcInstructorId;
     }
 
     let aggregates: SurveyAggregate[] = [];

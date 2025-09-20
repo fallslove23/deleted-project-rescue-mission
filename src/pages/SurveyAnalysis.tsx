@@ -117,6 +117,17 @@ const normalizeFilterString = (value: string | null | undefined): string | null 
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =>
   normalizeSurveyAnalysisRows(rows);
 
+const resolveInstructorFilters = (
+  rawValue: string | null,
+): { rpcInstructorId: string | null; filterInstructorId: string | null } => {
+  const trimmed = normalizeFilterString(rawValue);
+  const rpcInstructorId = normalizeUuid(trimmed ?? null);
+  return {
+    rpcInstructorId,
+    filterInstructorId: trimmed,
+  };
+};
+
 const SurveyAnalysis = () => {
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
@@ -355,13 +366,13 @@ const SurveyAnalysis = () => {
   const fetchAvailableSummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
-      const instructorIdForQuery = normalizeUuid(instructorFilter ?? null);
+      const { rpcInstructorId, filterInstructorId } = resolveInstructorFilters(instructorFilter ?? null);
       const payload: Database['public']['Functions']['get_survey_analysis']['Args'] = {
         p_include_test: includeTestData,
       };
 
-      if (instructorIdForQuery) {
-        payload.p_instructor_id = instructorIdForQuery;
+      if (rpcInstructorId) {
+        payload.p_instructor_id = rpcInstructorId;
       }
 
       const summaries = await fetchSummariesWithFallback(payload, {
@@ -369,7 +380,7 @@ const SurveyAnalysis = () => {
         round: null,
         courseName: null,
         includeTestData,
-        instructorId: instructorIdForQuery,
+        instructorId: filterInstructorId,
       });
       setAllSummaries(summaries);
     } catch (error) {
@@ -396,7 +407,7 @@ const SurveyAnalysis = () => {
       const yearFilter = selectedYear !== 'all' ? Number(selectedYear) : null;
       const roundFilter = selectedRound !== 'all' ? Number(selectedRound) : null;
       const courseFilter = selectedCourse !== 'all' ? selectedCourse : null;
-      const instructorIdForQuery = normalizeUuid(instructorFilter ?? null);
+      const { rpcInstructorId, filterInstructorId } = resolveInstructorFilters(instructorFilter ?? null);
 
       const normalizedYear = yearFilter !== null && !Number.isNaN(yearFilter) ? yearFilter : null;
       const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;
@@ -418,8 +429,8 @@ const SurveyAnalysis = () => {
         payload.p_course_name = normalizedCourse;
       }
 
-      if (instructorIdForQuery) {
-        payload.p_instructor_id = instructorIdForQuery;
+      if (rpcInstructorId) {
+        payload.p_instructor_id = rpcInstructorId;
       }
 
       const summaries = await fetchSummariesWithFallback(payload, {
@@ -427,7 +438,7 @@ const SurveyAnalysis = () => {
         round: normalizedRound,
         courseName: normalizedCourse,
         includeTestData,
-        instructorId: instructorIdForQuery,
+        instructorId: filterInstructorId,
       });
       setSurveySummaries(summaries);
 
