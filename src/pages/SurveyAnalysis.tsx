@@ -156,6 +156,76 @@ const SurveyAnalysis = () => {
     return selectedInstructor !== 'all' ? selectedInstructor : null;
   }, [canViewAll, profile?.instructor_id, selectedInstructor]);
 
+  const fetchLegacySummaries = useCallback(
+    async (
+      filters: {
+        year: number | null;
+        round: number | null;
+        courseName: string | null;
+        includeTestData: boolean;
+        instructorId: string | null;
+      },
+    ) => {
+      let query = supabase
+        .from('survey_aggregates')
+        .select(
+          `survey_id, title, education_year, education_round, course_name, status, instructor_id, instructor_name, expected_participants, is_test, response_count, last_response_at, avg_overall_satisfaction, avg_course_satisfaction, avg_instructor_satisfaction, avg_operation_satisfaction`,
+        )
+        .order('education_year', { ascending: false })
+        .order('education_round', { ascending: false })
+        .order('title', { ascending: true });
+
+      if (filters.year !== null) {
+        query = query.eq('education_year', filters.year);
+      }
+
+      if (filters.round !== null) {
+        query = query.eq('education_round', filters.round);
+      }
+
+      if (filters.courseName) {
+        query = query.eq('course_name', filters.courseName);
+      }
+
+      if (filters.instructorId) {
+        query = query.eq('instructor_id', filters.instructorId);
+      }
+
+      if (!filters.includeTestData) {
+        query = query.or('is_test.eq.false,is_test.is.null');
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return normalizeSummaries(data as SurveyAnalysisRow[]);
+    },
+    [],
+  );
+
+  const fetchSummariesWithFallback = useCallback(
+    async (
+      payload: Database['public']['Functions']['get_survey_analysis']['Args'],
+      filters: {
+        year: number | null;
+        round: number | null;
+        courseName: string | null;
+        includeTestData: boolean;
+        instructorId: string | null;
+      },
+    ) => {
+      try {
+        const { data, error } = await supabase.rpc('get_survey_analysis', payload);
+        if (error) throw error;
+        return normalizeSummaries(data);
+      } catch (rpcError) {
+        console.warn('get_survey_analysis RPC unavailable, falling back to survey_aggregates view', rpcError);
+        return fetchLegacySummaries(filters);
+      }
+    },
+    [fetchLegacySummaries],
+  );
+
   const selectedSurveyData = useMemo(
     () => surveySummaries.find((summary) => summary.survey_id === selectedSurvey) || null,
     [surveySummaries, selectedSurvey]
@@ -294,9 +364,14 @@ const SurveyAnalysis = () => {
         payload.p_instructor_id = instructorIdForQuery;
       }
 
-      const { data, error } = await supabase.rpc('get_survey_analysis', payload);
-      if (error) throw error;
-      setAllSummaries(normalizeSummaries(data));
+      const summaries = await fetchSummariesWithFallback(payload, {
+        year: null,
+        round: null,
+        courseName: null,
+        includeTestData,
+        instructorId: instructorIdForQuery,
+      });
+      setAllSummaries(summaries);
     } catch (error) {
       console.error('Error fetching available survey summaries:', error);
       toast({
@@ -305,7 +380,14 @@ const SurveyAnalysis = () => {
         variant: 'destructive',
       });
     }
-  }, [canViewAll, profile?.instructor_id, instructorFilter, includeTestData, toast]);
+  }, [
+    canViewAll,
+    profile?.instructor_id,
+    instructorFilter,
+    includeTestData,
+    fetchSummariesWithFallback,
+    toast,
+  ]);
 
   const fetchSurveySummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
@@ -340,9 +422,13 @@ const SurveyAnalysis = () => {
         payload.p_instructor_id = instructorIdForQuery;
       }
 
-      const { data, error } = await supabase.rpc('get_survey_analysis', payload);
-      if (error) throw error;
-      const summaries = normalizeSummaries(data);
+      const summaries = await fetchSummariesWithFallback(payload, {
+        year: normalizedYear,
+        round: normalizedRound,
+        courseName: normalizedCourse,
+        includeTestData,
+        instructorId: instructorIdForQuery,
+      });
       setSurveySummaries(summaries);
 
       if (summaries.length === 0) {
@@ -361,7 +447,18 @@ const SurveyAnalysis = () => {
       setSummaryLoading(false);
       setLoading(false);
     }
-  }, [canViewAll, profile?.instructor_id, instructorFilter, includeTestData, selectedYear, selectedRound, selectedCourse, selectedSurvey, toast]);
+  }, [
+    canViewAll,
+    profile?.instructor_id,
+    instructorFilter,
+    includeTestData,
+    selectedYear,
+    selectedRound,
+    selectedCourse,
+    selectedSurvey,
+    fetchSummariesWithFallback,
+    toast,
+  ]);
 
   const fetchSurveyQuestions = useCallback(async (surveyId: string) => {
     try {

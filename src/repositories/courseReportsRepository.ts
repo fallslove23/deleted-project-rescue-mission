@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { normalizeCourseName } from '@/utils/surveyStats';
 import { normalizeUuid } from '@/utils/uuid';
 
@@ -66,7 +67,9 @@ export const CourseReportsRepository = {
     const normalizedCourseName = normalizeCourseName(rawCourseName);
     const normalizedInstructorId = normalizeUuid(filters.instructorId ?? null);
 
-    const payload: Record<string, unknown> = {
+    type CourseReportArgs = Database['public']['Functions']['course_report_statistics']['Args'];
+
+    const payload: CourseReportArgs = {
       p_year: filters.year,
       p_include_test: filters.includeTestData ?? false,
     };
@@ -83,15 +86,31 @@ export const CourseReportsRepository = {
       payload.p_instructor_id = normalizedInstructorId;
     }
 
-    const { data, error } = await supabase.rpc('course_report_statistics', payload);
+    const invokeCourseReportRpc = async (
+      functionName: 'course_report_statistics' | 'get_course_statistics',
+    ) => {
+      const { data, error } = await supabase.rpc(functionName, payload);
 
-    if (error) {
-      console.error('Failed to execute course_report_statistics RPC', error);
-      throw error;
-    }
+      if (error) {
+        throw error;
+      }
 
-    if (!data) {
-      return null;
+      return data;
+    };
+
+    let data: unknown;
+
+    try {
+      data = await invokeCourseReportRpc('course_report_statistics');
+    } catch (primaryError) {
+      console.warn('course_report_statistics RPC unavailable, attempting legacy get_course_statistics', primaryError);
+
+      try {
+        data = await invokeCourseReportRpc('get_course_statistics');
+      } catch (fallbackError) {
+        console.error('Failed to execute both course report RPC variants', fallbackError);
+        throw fallbackError;
+      }
     }
 
     const toNumberOrNull = (value: unknown): number | null => {
