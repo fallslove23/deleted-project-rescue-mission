@@ -29,6 +29,8 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
 AS $$
   WITH filtered AS (
     SELECT sa.*, s.description
