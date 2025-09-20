@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeCourseName } from '@/utils/surveyStats';
-import { normalizeUuid } from '@/utils/uuid';
 
 export interface CourseReportFilters {
   year: number;
@@ -70,9 +69,8 @@ export const CourseReportsRepository = {
       payload.p_round = filters.round;
     }
 
-    const normalizedInstructorId = normalizeUuid(filters.instructorId ?? null);
-    if (normalizedInstructorId) {
-      payload.p_instructor_id = normalizedInstructorId;
+    if (filters.instructorId) {
+      payload.p_instructor_id = filters.instructorId;
     }
 
     if (filters.includeTestData) {

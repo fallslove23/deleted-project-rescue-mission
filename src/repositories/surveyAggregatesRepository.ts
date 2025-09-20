@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { normalizeUuid } from '@/utils/uuid';
 
 export type SurveyAnalysisRow = Database['public']['Functions']['get_survey_analysis']['Returns'][number];
 
@@ -127,14 +126,6 @@ const toNullableBoolean = (value: unknown): boolean | null => {
   return null;
 };
 
-const normalizeCourseFilter = (value: string | null | undefined): string | null => {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
-
 const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefined): SurveyAggregate[] => {
   if (!rows) return [];
 
@@ -154,7 +145,7 @@ const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefine
       course_name: courseName,
       status,
       instructor_id: instructorId,
-      instructor_name: instructorName ?? (instructorId ? '강사 정보 없음' : null),
+      instructor_name: instructorName,
       expected_participants: toNullableNumber(row.expected_participants),
       is_test: toNullableBoolean(row.is_test),
       response_count: toNumber(row.response_count),
@@ -238,14 +229,11 @@ export const SurveyAggregatesRepository = {
   }: SurveyAggregateFilters): Promise<SurveyAggregateResult> {
     const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
 
-    const normalizedCourseFilter = normalizeCourseFilter(courseName);
-    const normalizedInstructorFilter = normalizeUuid(instructorFilter);
-
     const { data, error } = await supabase.rpc('get_survey_analysis', {
       p_year: year ?? null,
       p_round: round ?? null,
-      p_course_name: normalizedCourseFilter,
-      p_instructor_id: normalizedInstructorFilter,
+      p_course_name: courseName ?? null,
+      p_instructor_id: instructorFilter ?? null,
       p_include_test: includeTestData,
     });
 
@@ -263,10 +251,10 @@ export const SurveyAggregatesRepository = {
       if (round !== null && round !== undefined && aggregate.education_round !== round) {
         return false;
       }
-      if (normalizedCourseFilter && aggregate.course_name !== normalizedCourseFilter) {
+      if (courseName !== null && courseName !== undefined && aggregate.course_name !== courseName) {
         return false;
       }
-      if (normalizedInstructorFilter && aggregate.instructor_id !== normalizedInstructorFilter) {
+      if (instructorFilter && aggregate.instructor_id !== instructorFilter) {
         return false;
       }
       if (!includeTestData && aggregate.is_test === true) {
