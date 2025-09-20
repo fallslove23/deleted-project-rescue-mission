@@ -44,7 +44,7 @@ const CourseStatisticsManagement = () => {
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
   const { toast } = useToast();
 
-  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i + 1);
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
   const statusOptions = ['완료', '진행 중', '진행 예정', '취소'];
   const statusSet = new Set(statusOptions);
 
