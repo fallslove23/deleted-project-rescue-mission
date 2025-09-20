@@ -19,30 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { Database } from '@/integrations/supabase/types';
 
-type SurveyAnalysisRow = {
-  survey_info: any;
-  response_count: number;
-  satisfaction_scores: any;
-  feedback_text: any;
-  survey_id?: string;
-  title?: string;
-  description?: string;
-  education_year?: number;
-  education_round?: number;
-  course_name?: string;
-  status?: string;
-  instructor_id?: string;
-  instructor_name?: string;
-  expected_participants?: number;
-  is_test?: boolean;
-  last_response_at?: string;
-  avg_overall_satisfaction?: number;
-  avg_course_satisfaction?: number;
-  avg_instructor_satisfaction?: number;
-  avg_operation_satisfaction?: number;
-  question_count?: number;
-  question_type_distribution?: Record<string, number>;
-};
+type SurveyAnalysisRow = Database['public']['Functions']['get_survey_analysis']['Returns'][number];
 
 interface SurveyResponse {
   id: string;
@@ -150,10 +127,38 @@ const parseOptions = (options: unknown): string[] => {
   return [];
 };
 
+const toNumber = (value: unknown, fallback = 0): number => {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? fallback : value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? fallback : parsed;
+  }
+  return fallback;
+};
+
+const toNullableNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? null : value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
   if (!rows) return [];
   return rows.map((row) => {
-    const distributionRaw = row.question_type_distribution;
+    const distributionRaw = row.question_type_distribution as unknown;
     const distribution: QuestionTypeDistributionItem[] = Array.isArray(distributionRaw)
       ? distributionRaw.map((item) => {
           if (item && typeof item === 'object') {
@@ -167,25 +172,38 @@ const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =
         })
       : [];
 
+    const surveyId = typeof row.survey_id === 'string' ? row.survey_id : '';
+    const title = typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : '제목 없음';
+    const description = typeof row.description === 'string' && row.description.trim().length > 0 ? row.description : null;
+    const courseName = typeof row.course_name === 'string' && row.course_name.trim().length > 0 ? row.course_name : null;
+    const status = typeof row.status === 'string' && row.status.trim().length > 0 ? row.status : null;
+    const instructorId = typeof row.instructor_id === 'string' && row.instructor_id.trim().length > 0
+      ? row.instructor_id
+      : null;
+    const instructorName = typeof row.instructor_name === 'string' && row.instructor_name.trim().length > 0
+      ? row.instructor_name
+      : null;
+    const isTest = typeof row.is_test === 'boolean' ? row.is_test : null;
+
     return {
-      survey_id: row.survey_id,
-      title: row.title,
-      description: row.description ?? null,
-      education_year: row.education_year,
-      education_round: row.education_round,
-      course_name: row.course_name ?? null,
-      status: row.status ?? null,
-      instructor_id: row.instructor_id ?? null,
-      instructor_name: row.instructor_name ?? null,
-      expected_participants: row.expected_participants ?? null,
-      is_test: row.is_test ?? null,
-      response_count: Number(row.response_count ?? 0),
-      last_response_at: row.last_response_at ?? null,
-      avg_overall_satisfaction: row.avg_overall_satisfaction ?? null,
-      avg_course_satisfaction: row.avg_course_satisfaction ?? null,
-      avg_instructor_satisfaction: row.avg_instructor_satisfaction ?? null,
-      avg_operation_satisfaction: row.avg_operation_satisfaction ?? null,
-      question_count: Number(row.question_count ?? 0),
+      survey_id: surveyId,
+      title,
+      description,
+      education_year: toNumber(row.education_year),
+      education_round: toNumber(row.education_round),
+      course_name: courseName,
+      status,
+      instructor_id: instructorId,
+      instructor_name: instructorName,
+      expected_participants: toNullableNumber(row.expected_participants),
+      is_test: isTest,
+      response_count: toNumber(row.response_count),
+      last_response_at: typeof row.last_response_at === 'string' ? row.last_response_at : null,
+      avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
+      avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
+      avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
+      avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
+      question_count: toNumber(row.question_count),
       question_type_distribution: distribution,
     };
   });
@@ -340,8 +358,13 @@ const SurveyAnalysis = () => {
   const fetchAvailableSummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
+      const instructorIdForQuery = instructorFilter ?? null;
       const { data, error } = await supabase.rpc('get_survey_analysis', {
-        survey_id_param: '00000000-0000-0000-0000-000000000000' // Placeholder for getting all surveys
+        p_year: null,
+        p_round: null,
+        p_course_name: null,
+        p_instructor_id: instructorIdForQuery,
+        p_include_test: includeTestData,
       });
       if (error) throw error;
       setAllSummaries(normalizeSummaries(data));
@@ -359,8 +382,20 @@ const SurveyAnalysis = () => {
     if (!canViewAll && !profile?.instructor_id) return;
     setSummaryLoading(true);
     try {
+      const yearFilter = selectedYear !== 'all' ? Number(selectedYear) : null;
+      const roundFilter = selectedRound !== 'all' ? Number(selectedRound) : null;
+      const courseFilter = selectedCourse !== 'all' ? selectedCourse : null;
+      const instructorIdForQuery = instructorFilter ?? null;
+
+      const normalizedYear = yearFilter !== null && !Number.isNaN(yearFilter) ? yearFilter : null;
+      const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;
+
       const { data, error } = await supabase.rpc('get_survey_analysis', {
-        survey_id_param: '00000000-0000-0000-0000-000000000000' // Placeholder for getting filtered surveys
+        p_year: normalizedYear,
+        p_round: normalizedRound,
+        p_course_name: courseFilter,
+        p_instructor_id: instructorIdForQuery,
+        p_include_test: includeTestData,
       });
       if (error) throw error;
       const summaries = normalizeSummaries(data);
