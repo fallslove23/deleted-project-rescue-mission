@@ -29,6 +29,8 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
 AS $$
   WITH filtered AS (
     SELECT sa.*, s.description
@@ -87,6 +89,14 @@ AS $$
   LEFT JOIN distributions d ON d.survey_id = f.survey_id
   ORDER BY f.education_year DESC, f.education_round DESC, f.course_name NULLS LAST, f.title;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_survey_analysis(
+  integer,
+  integer,
+  text,
+  uuid,
+  boolean
+) TO authenticated, anon;
 
 COMMENT ON FUNCTION public.get_survey_analysis(integer, integer, text, uuid, boolean)
 IS 'Returns aggregated survey metrics with question type distributions filtered by year, round, course, instructor, and optional test data inclusion.';
