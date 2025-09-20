@@ -40,8 +40,8 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
 
   // 만족도 구간별 색상 설정
   const getBarColor = (satisfaction: number) => {
-    if (satisfaction >= 4.0) return 'hsl(142, 71%, 45%)'; // 녹색 (우수)
-    if (satisfaction >= 3.5) return 'hsl(47, 96%, 53%)';  // 노란색 (보통)
+    if (satisfaction >= 8.0) return 'hsl(142, 71%, 45%)'; // 녹색 (우수)
+    if (satisfaction >= 6.5) return 'hsl(47, 96%, 53%)';  // 노란색 (보통)
     return 'hsl(346, 87%, 43%)'; // 빨간색 (개선필요)
   };
 
@@ -77,7 +77,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                 margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" domain={[0, 5]} />
+                <XAxis type="number" domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} />
                 <YAxis 
                   type="category" 
                   dataKey="name" 
