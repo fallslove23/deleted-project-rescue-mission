@@ -114,8 +114,46 @@ export const CourseReportsRepository = {
       return String(value);
     };
 
-    const rawData = (Array.isArray(data) && data.length > 0 ? data[0] : {}) as Record<string, unknown>;
-    const rawSummary = (rawData.summary as Record<string, unknown> | undefined) ?? {};
+    const ensureObject = (value: unknown): Record<string, unknown> => {
+      if (Array.isArray(value)) {
+        if (value.length === 0) {
+          return {};
+        }
+        return ensureObject(value[0]);
+      }
+      if (value && typeof value === 'object') {
+        return value as Record<string, unknown>;
+      }
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return parsed as Record<string, unknown>;
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse JSON object field from course report statistics', parseError, value);
+        }
+      }
+      return {};
+    };
+
+    const ensureArray = (value: unknown): unknown[] => {
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (parseError) {
+          console.warn('Failed to parse JSON array field from course report statistics', parseError, value);
+        }
+      }
+      return [];
+    };
+
+    const rawData = ensureObject(data ?? {});
+    const rawSummary = ensureObject(rawData.summary);
 
     const summary: CourseReportSummary = {
       educationYear: toNumberWithDefault(rawSummary.educationYear, filters.year),
@@ -124,7 +162,7 @@ export const CourseReportsRepository = {
         toStringOrNull(rawSummary.normalizedCourseName) ?? normalizedCourseName,
       educationRound: toNumberOrNull(rawSummary.educationRound),
       instructorId: toStringOrNull(rawSummary.instructorId),
-      availableRounds: toNumberArray(rawSummary.availableRounds),
+      availableRounds: toNumberArray(ensureArray(rawSummary.availableRounds)),
       totalSurveys: toNumberWithDefault(rawSummary.totalSurveys, 0),
       totalResponses: toNumberWithDefault(rawSummary.totalResponses, 0),
       avgInstructorSatisfaction: toNumberOrNull(rawSummary.avgInstructorSatisfaction),
@@ -133,7 +171,7 @@ export const CourseReportsRepository = {
       instructorCount: toNumberWithDefault(rawSummary.instructorCount, 0),
     };
 
-    const rawTrend = Array.isArray(rawData.trend) ? rawData.trend : [];
+    const rawTrend = ensureArray(rawData.trend);
     const trend: CourseTrendPoint[] = rawTrend.map((item) => {
       const point = (item as Record<string, unknown>) ?? {};
       return {
@@ -145,9 +183,7 @@ export const CourseReportsRepository = {
       };
     });
 
-    const rawInstructorStats = Array.isArray(rawData.instructorStats)
-      ? rawData.instructorStats
-      : [];
+    const rawInstructorStats = ensureArray(rawData.instructorStats);
     const instructorStats: CourseInstructorStat[] = rawInstructorStats.map((item) => {
       const stat = (item as Record<string, unknown>) ?? {};
       return {
@@ -159,16 +195,12 @@ export const CourseReportsRepository = {
       };
     });
 
-    const rawTextualResponses = Array.isArray(rawData.textualResponses)
-      ? rawData.textualResponses
-      : [];
+    const rawTextualResponses = ensureArray(rawData.textualResponses);
     const textualResponses: string[] = rawTextualResponses
       .map((item) => toStringOrNull(item))
       .filter((item): item is string => item !== null);
 
-    const rawAvailableCourses = Array.isArray(rawData.availableCourses)
-      ? rawData.availableCourses
-      : [];
+    const rawAvailableCourses = ensureArray(rawData.availableCourses);
     const availableCourses: CourseOption[] = rawAvailableCourses
       .map((item) => {
         const course = (item as Record<string, unknown>) ?? {};
@@ -176,14 +208,12 @@ export const CourseReportsRepository = {
         return {
           normalizedName,
           displayName: toStringOrNull(course.displayName) ?? normalizedName,
-          rounds: toNumberArray(course.rounds),
+          rounds: toNumberArray(ensureArray(course.rounds)),
         };
       })
       .filter((course) => course.normalizedName.length > 0 || course.displayName.length > 0);
 
-    const rawAvailableInstructors = Array.isArray(rawData.availableInstructors)
-      ? rawData.availableInstructors
-      : [];
+    const rawAvailableInstructors = ensureArray(rawData.availableInstructors);
     const availableInstructors = rawAvailableInstructors
       .map((item) => {
         const instructor = (item as Record<string, unknown>) ?? {};
