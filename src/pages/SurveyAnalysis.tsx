@@ -70,8 +70,8 @@ interface SurveySummary {
   survey_id: string;
   title: string;
   description: string | null;
-  education_year: number;
-  education_round: number;
+  education_year: number | null;
+  education_round: number | null;
   course_name: string | null;
   status: string | null;
   instructor_id: string | null;
@@ -130,6 +130,28 @@ const parseOptions = (options: unknown): string[] => {
   return [];
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const getFromRecord = (record: Record<string, unknown> | null | undefined, key: string): unknown =>
+  record && Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined;
+
+const pickValue = (
+  keys: string[],
+  records: Array<Record<string, unknown> | null | undefined>,
+): unknown => {
+  for (const record of records) {
+    if (!record) continue;
+    for (const key of keys) {
+      const value = getFromRecord(record, key);
+      if (value !== undefined && value !== null) {
+        return value;
+      }
+    }
+  }
+  return undefined;
+};
+
 const toNumber = (value: unknown, fallback = 0): number => {
   if (value === null || value === undefined) {
     return fallback;
@@ -164,6 +186,29 @@ const toNullableNumber = (value: unknown): number | null => {
   return null;
 };
 
+const toNullableBoolean = (value: unknown): boolean | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', 't', '1', 'yes', 'y'].includes(normalized)) {
+      return true;
+    }
+    if (['false', 'f', '0', 'no', 'n'].includes(normalized)) {
+      return false;
+    }
+  }
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+  return null;
+};
+
 const toNullableString = (value: unknown): string | null => {
   if (value === null || value === undefined) {
     return null;
@@ -183,11 +228,14 @@ const toStringArray = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     return value
       .map((item) => {
-        if (typeof item !== 'string') {
-          return null;
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed.length > 0 ? trimmed : null;
         }
-        const trimmed = item.trim();
-        return trimmed.length > 0 ? trimmed : null;
+        if (isRecord(item)) {
+          return toNullableString(item.id) ?? toNullableString(item.name);
+        }
+        return null;
       })
       .filter((item): item is string => item !== null);
   }
@@ -199,11 +247,14 @@ const toStringArray = (value: unknown): string[] => {
         if (Array.isArray(parsed)) {
           return parsed
             .map((item) => {
-              if (typeof item !== 'string') {
-                return null;
+              if (typeof item === 'string') {
+                const parsedTrimmed = item.trim();
+                return parsedTrimmed.length > 0 ? parsedTrimmed : null;
               }
-              const parsedTrimmed = item.trim();
-              return parsedTrimmed.length > 0 ? parsedTrimmed : null;
+              if (isRecord(item)) {
+                return toNullableString(item.id) ?? toNullableString(item.name);
+              }
+              return null;
             })
             .filter((item): item is string => item !== null);
         }
@@ -227,61 +278,232 @@ const normalizeFilterString = (value: string | null | undefined): string | null 
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
   if (!rows) return [];
   return rows.map((row) => {
-    const distributionRaw = row.question_type_distribution as unknown;
-    const distribution: QuestionTypeDistributionItem[] = Array.isArray(distributionRaw)
-      ? distributionRaw.map((item) => {
-          if (item && typeof item === 'object') {
-            const { question_type, response_count } = item as Record<string, unknown>;
-            return {
-              question_type: typeof question_type === 'string' ? question_type : 'unknown',
-              response_count: Number(response_count ?? 0),
-            };
-          }
-          return { question_type: 'unknown', response_count: 0 };
-        })
-      : [];
+    const rowRecord = isRecord(row) ? row : {};
+    const surveyInfoRaw = getFromRecord(rowRecord, 'survey_info');
+    const surveyInfo = isRecord(surveyInfoRaw) ? surveyInfoRaw : null;
+    const satisfactionScoresRaw = getFromRecord(rowRecord, 'satisfaction_scores');
+    const satisfactionScores = isRecord(satisfactionScoresRaw) ? satisfactionScoresRaw : null;
+    const metricsRaw = getFromRecord(rowRecord, 'metrics');
+    const metrics = isRecord(metricsRaw) ? metricsRaw : null;
+    const responseStatsRaw = getFromRecord(rowRecord, 'response_statistics');
+    const responseStats = isRecord(responseStatsRaw) ? responseStatsRaw : null;
+    const questionStatsRaw = getFromRecord(rowRecord, 'question_stats');
+    const questionStats = isRecord(questionStatsRaw) ? questionStatsRaw : null;
+    const instructorInfoRaw = getFromRecord(rowRecord, 'instructor_info');
+    const instructorInfo = isRecord(instructorInfoRaw) ? instructorInfoRaw : null;
+    const instructorsRaw = getFromRecord(rowRecord, 'instructors');
 
-    const surveyId = toNullableString(row.survey_id) ?? '';
-    const title = toNullableString(row.title) ?? '제목 없음';
-    const description = toNullableString(row.description);
-    const courseName = toNullableString(row.course_name);
-    const status = toNullableString(row.status);
-    const instructorId = toNullableString(row.instructor_id);
-    const instructorName = toNullableString(row.instructor_name);
-    const instructorIds = toStringArray((row as Record<string, unknown>).instructor_ids);
-    const instructorNames = toStringArray((row as Record<string, unknown>).instructor_names);
-    const isTest = typeof row.is_test === 'boolean' ? row.is_test : null;
+    const pick = (keys: string[], extraRecords: Array<Record<string, unknown> | null | undefined> = []) =>
+      pickValue(keys, [rowRecord, surveyInfo, metrics, ...extraRecords]);
+
+    const surveyIdRaw = pick(['survey_id', 'id']);
+    const titleRaw = pick(['title', 'survey_title']);
+    const descriptionRaw = pick(['description']);
+    const educationYearRaw = pick(['education_year', 'year']);
+    const educationRoundRaw = pick(['education_round', 'round']);
+    const courseNameRaw = pick(['course_name', 'course']);
+    const statusRaw = pick(['status']);
+    const instructorIdRaw = pick(['instructor_id', 'primary_instructor_id'], [instructorInfo]);
+    const instructorNameRaw = pick(['instructor_name', 'primary_instructor_name'], [instructorInfo]);
+    const expectedParticipantsRaw = pick(['expected_participants']);
+    const isTestRaw = pick(['is_test', 'test']);
+    const lastResponseRaw = pick(['last_response_at', 'last_response'], [responseStats]);
+    const responseCountRaw = pick(
+      ['response_count', 'responses_count', 'total_responses'],
+      [responseStats],
+    );
+    const questionCountRaw = pick(
+      ['question_count', 'questions_count', 'total_questions'],
+      [questionStats],
+    );
+
+    const getSatisfactionValue = (modernKey: string, legacyKey: string) => {
+      const direct = pick([modernKey], [metrics]);
+      if (direct !== undefined && direct !== null) {
+        return direct;
+      }
+      const legacy = getFromRecord(satisfactionScores, legacyKey);
+      return legacy !== undefined && legacy !== null ? legacy : undefined;
+    };
+
+    const avgCourseRaw = getSatisfactionValue('avg_course_satisfaction', 'course_satisfaction');
+    const avgInstructorRaw = getSatisfactionValue('avg_instructor_satisfaction', 'instructor_satisfaction');
+    const avgOperationRaw = getSatisfactionValue('avg_operation_satisfaction', 'operation_satisfaction');
+    const avgOverallCandidate = pick(['avg_overall_satisfaction'], [metrics]);
+    const avgOverallLegacy = getFromRecord(satisfactionScores, 'overall_satisfaction');
+
+    const baseInstructorIds = toStringArray(pick(['instructor_ids'], [instructorInfo]));
+    const baseInstructorNames = toStringArray(pick(['instructor_names'], [instructorInfo]));
+
+    const instructorIds = new Set<string>();
+    const instructorNamesMap = new Map<string, string>();
+    const fallbackNames: string[] = [];
+
+    const addInstructor = (id: string | null, name: string | null) => {
+      const trimmedId = id?.trim();
+      const trimmedName = name?.trim() ?? null;
+      if (trimmedId) {
+        instructorIds.add(trimmedId);
+        if (trimmedName) {
+          instructorNamesMap.set(trimmedId, trimmedName);
+        }
+      } else if (trimmedName) {
+        fallbackNames.push(trimmedName);
+      }
+    };
+
+    const appendIds = (values: string[]) => {
+      values.forEach((value) => {
+        const trimmed = value.trim();
+        if (trimmed.length > 0) {
+          instructorIds.add(trimmed);
+        }
+      });
+    };
+
+    appendIds(toStringArray(rowRecord.instructor_ids));
+    appendIds(baseInstructorIds);
+
+    const instructorNameList = toStringArray(rowRecord.instructor_names);
+    const combinedNameList = instructorNameList.length > 0 ? instructorNameList : baseInstructorNames;
+
+    combinedNameList.forEach((name, index) => {
+      const relatedId = Array.from(instructorIds)[index] ?? null;
+      addInstructor(relatedId, name);
+    });
+
+    if (Array.isArray(instructorsRaw)) {
+      instructorsRaw.forEach((item) => {
+        if (isRecord(item)) {
+          const id = toNullableString(item.id);
+          const name = toNullableString(item.name);
+          addInstructor(id, name);
+        }
+      });
+    }
+
+    const instructorId = toNullableString(instructorIdRaw) ?? Array.from(instructorIds)[0] ?? null;
+    const primaryInstructorName = toNullableString(instructorNameRaw);
+
+    if (primaryInstructorName && instructorId) {
+      instructorNamesMap.set(instructorId, primaryInstructorName);
+    }
+
+    const sortedInstructorIds = Array.from(instructorIds);
+    const instructorNames = sortedInstructorIds.map(
+      (id) => instructorNamesMap.get(id) ?? primaryInstructorName ?? '강사 정보 없음',
+    );
+
+    if (sortedInstructorIds.length === 0 && combinedNameList.length > 0) {
+      fallbackNames.push(...combinedNameList);
+    }
+
+    const resolvedInstructorName = primaryInstructorName
+      ?? (sortedInstructorIds.length > 0
+        ? instructorNamesMap.get(sortedInstructorIds[0]) ?? '강사 정보 없음'
+        : fallbackNames[0] ?? null);
+
+    const instructorNamesFinal = sortedInstructorIds.length > 0
+      ? instructorNames
+      : fallbackNames;
+
+    let avgOverall = toNullableNumber(avgOverallCandidate ?? avgOverallLegacy ?? null);
+    const avgCourse = toNullableNumber(avgCourseRaw);
+    const avgInstructor = toNullableNumber(avgInstructorRaw);
+    const avgOperation = toNullableNumber(avgOperationRaw);
+    if (avgOverall === null) {
+      const components = [avgCourse, avgInstructor, avgOperation].filter(
+        (value): value is number => value !== null,
+      );
+      if (components.length > 0) {
+        avgOverall = components.reduce((sum, value) => sum + value, 0) / components.length;
+      }
+    }
+
+    const distributionCandidates = [
+      getFromRecord(rowRecord, 'question_type_distribution'),
+      getFromRecord(surveyInfo, 'question_type_distribution'),
+      getFromRecord(questionStats, 'question_type_distribution'),
+      getFromRecord(questionStats, 'by_type'),
+      getFromRecord(questionStats, 'counts'),
+    ];
+
+    const toDistribution = (value: unknown): QuestionTypeDistributionItem[] => {
+      if (!value) return [];
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => {
+            if (isRecord(item)) {
+              const type = toNullableString(item.question_type) ?? toNullableString(item.type);
+              const count = toNumber(item.response_count ?? item.count ?? item.total ?? 0, 0);
+              return { question_type: type ?? 'unknown', response_count: count };
+            }
+            if (typeof item === 'string') {
+              return { question_type: item, response_count: 0 };
+            }
+            return null;
+          })
+          .filter((item): item is QuestionTypeDistributionItem => item !== null);
+      }
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          return toDistribution(parsed);
+        } catch (error) {
+          return [];
+        }
+      }
+      if (isRecord(value)) {
+        return Object.entries(value).map(([key, val]) => ({
+          question_type: key,
+          response_count: toNumber(val, 0),
+        }));
+      }
+      return [];
+    };
+
+    let questionTypeDistribution: QuestionTypeDistributionItem[] = [];
+    for (const candidate of distributionCandidates) {
+      const distribution = toDistribution(candidate);
+      if (distribution.length > 0) {
+        questionTypeDistribution = distribution;
+        break;
+      }
+    }
+
+    const surveyId = typeof surveyIdRaw === 'string' && surveyIdRaw.trim().length > 0 ? surveyIdRaw : '';
+    const title = typeof titleRaw === 'string' && titleRaw.trim().length > 0 ? titleRaw : '제목 없음';
 
     return {
       survey_id: surveyId,
       title,
-      description,
-      education_year: toNumber(row.education_year),
-      education_round: toNumber(row.education_round),
-      course_name: courseName,
-      status,
+      description: toNullableString(descriptionRaw),
+      education_year: toNullableNumber(educationYearRaw),
+      education_round: toNullableNumber(educationRoundRaw),
+      course_name: toNullableString(courseNameRaw),
+      status: toNullableString(statusRaw),
       instructor_id: instructorId,
-      instructor_name: instructorName,
-      instructor_ids: instructorIds.length > 0
-        ? instructorIds
+      instructor_name: resolvedInstructorName,
+      instructor_ids: sortedInstructorIds.length > 0
+        ? sortedInstructorIds
         : instructorId
           ? [instructorId]
           : [],
-      instructor_names: instructorNames.length > 0
-        ? instructorNames
-        : instructorName
-          ? [instructorName]
+      instructor_names: instructorNamesFinal.length > 0
+        ? instructorNamesFinal
+        : resolvedInstructorName
+          ? [resolvedInstructorName]
           : [],
-      expected_participants: toNullableNumber(row.expected_participants),
-      is_test: isTest,
-      response_count: toNumber(row.response_count),
-      last_response_at: toNullableString(row.last_response_at),
-      avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
-      avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
-      avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
-      avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
-      question_count: toNumber(row.question_count),
-      question_type_distribution: distribution,
+      expected_participants: toNullableNumber(expectedParticipantsRaw),
+      is_test: toNullableBoolean(isTestRaw),
+      response_count: toNumber(responseCountRaw, 0),
+      last_response_at: toNullableString(lastResponseRaw),
+      avg_overall_satisfaction: avgOverall,
+      avg_course_satisfaction: avgCourse,
+      avg_instructor_satisfaction: avgInstructor,
+      avg_operation_satisfaction: avgOperation,
+      question_count: toNumber(questionCountRaw, questionTypeDistribution.length),
+      question_type_distribution: questionTypeDistribution,
     };
   });
 };
@@ -320,12 +542,9 @@ const SurveyAnalysis = () => {
 
   const instructorFilter = useMemo(() => {
     if (!canViewAll) {
-      return normalizeUuid(profile?.instructor_id ?? null);
+      return profile?.instructor_id ?? null;
     }
-    if (selectedInstructor !== 'all') {
-      return normalizeUuid(selectedInstructor);
-    }
-    return null;
+    return selectedInstructor !== 'all' ? selectedInstructor : null;
   }, [canViewAll, profile?.instructor_id, selectedInstructor]);
 
   const selectedSurveyData = useMemo(
@@ -346,12 +565,24 @@ const SurveyAnalysis = () => {
     }));
   }, [selectedSurveyData]);
 
+  const formatYearLabel = (year: number | null) =>
+    typeof year === 'number' && !Number.isNaN(year) ? `${year}년` : '년도 미정';
+
+  const formatRoundLabel = (round: number | null) =>
+    typeof round === 'number' && !Number.isNaN(round) ? `${round}차` : '차수 미정';
+
   const availableYears = useMemo(() => {
     const filtered = allSummaries.filter((summary) => {
       if (instructorFilter && !summary.instructor_ids.includes(instructorFilter)) return false;
       return true;
     });
-    const years = Array.from(new Set(filtered.map((summary) => summary.education_year)));
+    const years = Array.from(
+      new Set(
+        filtered
+          .map((summary) => summary.education_year)
+          .filter((year): year is number => typeof year === 'number' && !Number.isNaN(year)),
+      ),
+    );
     return years.sort((a, b) => b - a);
   }, [allSummaries, instructorFilter]);
 
@@ -364,7 +595,13 @@ const SurveyAnalysis = () => {
       const year = Number(selectedYear);
       filtered = filtered.filter((summary) => summary.education_year === year);
     }
-    const rounds = Array.from(new Set(filtered.map((summary) => summary.education_round)));
+    const rounds = Array.from(
+      new Set(
+        filtered
+          .map((summary) => summary.education_round)
+          .filter((round): round is number => typeof round === 'number' && !Number.isNaN(round)),
+      ),
+    );
     return rounds.sort((a, b) => b - a);
   }, [allSummaries, instructorFilter, selectedYear]);
 
@@ -853,7 +1090,15 @@ const SurveyAnalysis = () => {
     const link = document.createElement('a');
     link.href = url;
     const safeTitle = selectedSurveyData.title.replace(/[^a-zA-Z0-9가-힣-_]+/g, '_');
-    link.download = `${selectedSurveyData.education_year}년_${selectedSurveyData.education_round}차_${safeTitle}_요약.json`;
+    const yearSegment = typeof selectedSurveyData.education_year === 'number'
+      && !Number.isNaN(selectedSurveyData.education_year)
+      ? `${selectedSurveyData.education_year}년`
+      : '년도미정';
+    const roundSegment = typeof selectedSurveyData.education_round === 'number'
+      && !Number.isNaN(selectedSurveyData.education_round)
+      ? `${selectedSurveyData.education_round}차`
+      : '차수미정';
+    link.download = `${yearSegment}_${roundSegment}_${safeTitle}_요약.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1003,7 +1248,7 @@ const SurveyAnalysis = () => {
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>
-                          {survey.education_year}년 {survey.education_round}차
+                          {formatYearLabel(survey.education_year)} {formatRoundLabel(survey.education_round)}
                         </span>
                         <Badge variant={survey.status === 'active' ? 'default' : 'secondary'}>
                           {survey.status === 'active' ? '활성' : survey.status === 'completed' ? '완료' : survey.status || '대기'}
@@ -1035,7 +1280,7 @@ const SurveyAnalysis = () => {
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                   <span>
-                    {selectedSurveyData.education_year}년 {selectedSurveyData.education_round}차
+                    {formatYearLabel(selectedSurveyData.education_year)} {formatRoundLabel(selectedSurveyData.education_round)}
                   </span>
                   <Badge variant={selectedSurveyData.status === 'active' ? 'default' : 'secondary'}>
                     {selectedSurveyData.status === 'active'

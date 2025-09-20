@@ -63,6 +63,28 @@ export const EMPTY_SURVEY_AGGREGATE_SUMMARY: SurveyAggregateSummary = {
   avgOperation: null,
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const getFromRecord = (record: Record<string, unknown> | null | undefined, key: string): unknown =>
+  record && Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined;
+
+const pickValue = (
+  keys: string[],
+  records: Array<Record<string, unknown> | null | undefined>,
+): unknown => {
+  for (const record of records) {
+    if (!record) continue;
+    for (const key of keys) {
+      const value = getFromRecord(record, key);
+      if (value !== undefined && value !== null) {
+        return value;
+      }
+    }
+  }
+  return undefined;
+};
+
 const toNumber = (value: unknown, fallback = 0): number => {
   if (typeof value === 'number') return Number.isNaN(value) ? fallback : value;
   if (typeof value === 'bigint') return Number(value);
@@ -134,11 +156,15 @@ const toStringArray = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     return value
       .map((item) => {
-        if (typeof item !== 'string') {
-          return null;
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed.length > 0 ? trimmed : null;
         }
-        const trimmed = item.trim();
-        return trimmed.length > 0 ? trimmed : null;
+        if (isRecord(item)) {
+          const id = toNullableString(item.id);
+          return id;
+        }
+        return null;
       })
       .filter((item): item is string => item !== null);
   }
@@ -150,11 +176,15 @@ const toStringArray = (value: unknown): string[] => {
         if (Array.isArray(parsed)) {
           return parsed
             .map((item) => {
-              if (typeof item !== 'string') {
-                return null;
+              if (typeof item === 'string') {
+                const parsedTrimmed = item.trim();
+                return parsedTrimmed.length > 0 ? parsedTrimmed : null;
               }
-              const parsedTrimmed = item.trim();
-              return parsedTrimmed.length > 0 ? parsedTrimmed : null;
+              if (isRecord(item)) {
+                const id = toNullableString(item.id);
+                return id;
+              }
+              return null;
             })
             .filter((item): item is string => item !== null);
         }
@@ -179,47 +209,183 @@ const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefine
   if (!rows) return [];
 
   const normalized = rows.map((row) => {
-    const courseName = toNullableString(row.course_name);
-    const status = toNullableString(row.status);
-    const instructorId = toNullableString(row.instructor_id);
-    const instructorName = toNullableString(row.instructor_name);
-    const instructorIds = toStringArray(row.instructor_ids);
-    const instructorNames = toStringArray(row.instructor_names);
-    const description = toNullableString(row.description);
-    const educationYear = toNullableNumber(row.education_year);
-    const educationRound = toNullableNumber(row.education_round);
-    const resolvedInstructorName = instructorName
-      ?? (instructorIds.length > 0 ? '강사 정보 없음' : null);
+    const rowRecord = isRecord(row) ? row : {};
+    const surveyInfoRaw = getFromRecord(rowRecord, 'survey_info');
+    const surveyInfo = isRecord(surveyInfoRaw) ? surveyInfoRaw : null;
+    const satisfactionScoresRaw = getFromRecord(rowRecord, 'satisfaction_scores');
+    const satisfactionScores = isRecord(satisfactionScoresRaw) ? satisfactionScoresRaw : null;
+    const metricsRaw = getFromRecord(rowRecord, 'metrics');
+    const metrics = isRecord(metricsRaw) ? metricsRaw : null;
+    const responseStatsRaw = getFromRecord(rowRecord, 'response_statistics');
+    const responseStats = isRecord(responseStatsRaw) ? responseStatsRaw : null;
+    const questionStatsRaw = getFromRecord(rowRecord, 'question_stats');
+    const questionStats = isRecord(questionStatsRaw) ? questionStatsRaw : null;
+    const instructorInfoRaw = getFromRecord(rowRecord, 'instructor_info');
+    const instructorInfo = isRecord(instructorInfoRaw) ? instructorInfoRaw : null;
+    const instructorsRaw = getFromRecord(rowRecord, 'instructors');
+
+    const pick = (keys: string[], extraRecords: Array<Record<string, unknown> | null | undefined> = []) =>
+      pickValue(keys, [rowRecord, surveyInfo, metrics, ...extraRecords]);
+
+    const surveyIdRaw = pick(['survey_id', 'id']);
+    const titleRaw = pick(['title', 'survey_title']);
+    const descriptionRaw = pick(['description']);
+    const educationYearRaw = pick(['education_year', 'year']);
+    const educationRoundRaw = pick(['education_round', 'round']);
+    const courseNameRaw = pick(['course_name', 'course']);
+    const statusRaw = pick(['status']);
+    const instructorIdRaw = pick(['instructor_id', 'primary_instructor_id'], [instructorInfo]);
+    const instructorNameRaw = pick(['instructor_name', 'primary_instructor_name'], [instructorInfo]);
+    const expectedParticipantsRaw = pick(['expected_participants']);
+    const isTestRaw = pick(['is_test', 'test']);
+    const lastResponseRaw = pick(['last_response_at', 'last_response'], [responseStats]);
+    const questionCountCandidate = pick(
+      ['question_count', 'questions_count', 'total_questions'],
+      [questionStats],
+    );
+
+    const responseCountCandidate = pick(
+      ['response_count', 'responses_count', 'total_responses'],
+      [responseStats],
+    );
+
+    const getSatisfactionValue = (modernKey: string, legacyKey: string) => {
+      const direct = pick([modernKey], [metrics]);
+      if (direct !== undefined && direct !== null) {
+        return direct;
+      }
+      const legacy = getFromRecord(satisfactionScores, legacyKey);
+      return legacy !== undefined && legacy !== null ? legacy : undefined;
+    };
+
+    const avgCourseRaw = getSatisfactionValue('avg_course_satisfaction', 'course_satisfaction');
+    const avgInstructorRaw = getSatisfactionValue('avg_instructor_satisfaction', 'instructor_satisfaction');
+    const avgOperationRaw = getSatisfactionValue('avg_operation_satisfaction', 'operation_satisfaction');
+
+    const avgOverallCandidate = pick(['avg_overall_satisfaction'], [metrics]);
+    const avgOverallLegacy = getFromRecord(satisfactionScores, 'overall_satisfaction');
+
+    const baseInstructorIds = toStringArray(pick(['instructor_ids'], [instructorInfo]));
+    const baseInstructorNames = toStringArray(pick(['instructor_names'], [instructorInfo]));
+
+    const instructorIds = new Set<string>();
+    const instructorNamesMap = new Map<string, string>();
+    const fallbackNames: string[] = [];
+
+    const addInstructor = (id: string | null, name: string | null) => {
+      const trimmedId = id?.trim();
+      const trimmedName = name?.trim() ?? null;
+      if (trimmedId) {
+        if (!instructorIds.has(trimmedId)) {
+          instructorIds.add(trimmedId);
+        }
+        if (trimmedName) {
+          instructorNamesMap.set(trimmedId, trimmedName);
+        }
+      } else if (trimmedName) {
+        fallbackNames.push(trimmedName);
+      }
+    };
+
+    const appendIdList = (values: string[]) => {
+      values.forEach((value) => {
+        if (value.trim().length > 0) {
+          instructorIds.add(value.trim());
+        }
+      });
+    };
+
+    appendIdList(toStringArray(rowRecord.instructor_ids));
+    appendIdList(baseInstructorIds);
+
+    const instructorNameList = toStringArray(rowRecord.instructor_names);
+    const combinedNameList = instructorNameList.length > 0 ? instructorNameList : baseInstructorNames;
+
+    combinedNameList.forEach((name, index) => {
+      const relatedId = Array.from(instructorIds)[index] ?? null;
+      addInstructor(relatedId, name);
+    });
+
+    if (Array.isArray(instructorsRaw)) {
+      instructorsRaw.forEach((item) => {
+        if (isRecord(item)) {
+          const id = toNullableString(item.id);
+          const name = toNullableString(item.name);
+          addInstructor(id, name);
+        }
+      });
+    }
+
+    const instructorId = toNullableString(instructorIdRaw) ?? Array.from(instructorIds)[0] ?? null;
+    const primaryInstructorName = toNullableString(instructorNameRaw);
+
+    if (primaryInstructorName && instructorId) {
+      instructorNamesMap.set(instructorId, primaryInstructorName);
+    }
+
+    const sortedInstructorIds = Array.from(instructorIds);
+    const instructorNames = sortedInstructorIds.map(
+      (id) => instructorNamesMap.get(id) ?? primaryInstructorName ?? '강사 정보 없음',
+    );
+
+    if (sortedInstructorIds.length === 0 && combinedNameList.length > 0) {
+      fallbackNames.push(...combinedNameList);
+    }
+
+    const resolvedInstructorName = primaryInstructorName
+      ?? (sortedInstructorIds.length > 0
+        ? instructorNamesMap.get(sortedInstructorIds[0]) ?? '강사 정보 없음'
+        : fallbackNames[0] ?? null);
+
+    const instructorNamesFinal = sortedInstructorIds.length > 0
+      ? instructorNames
+      : fallbackNames;
+
+    let avgOverall = toNullableNumber(avgOverallCandidate ?? avgOverallLegacy ?? null);
+    const avgCourse = toNullableNumber(avgCourseRaw);
+    const avgInstructor = toNullableNumber(avgInstructorRaw);
+    const avgOperation = toNullableNumber(avgOperationRaw);
+    if (avgOverall === null) {
+      const components = [avgCourse, avgInstructor, avgOperation].filter(
+        (value): value is number => value !== null,
+      );
+      if (components.length > 0) {
+        avgOverall = components.reduce((sum, value) => sum + value, 0) / components.length;
+      }
+    }
+
+    const responseCount = toNumber(responseCountCandidate, 0);
+    const questionCount = toNumber(questionCountCandidate, 0);
 
     return {
-      survey_id: typeof row.survey_id === 'string' && row.survey_id.trim().length > 0 ? row.survey_id : '',
-      title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : '제목 없음',
-      description,
-      education_year: educationYear,
-      education_round: educationRound,
-      course_name: courseName,
-      status,
+      survey_id: typeof surveyIdRaw === 'string' && surveyIdRaw.trim().length > 0 ? surveyIdRaw : '',
+      title: typeof titleRaw === 'string' && titleRaw.trim().length > 0 ? titleRaw : '제목 없음',
+      description: toNullableString(descriptionRaw),
+      education_year: toNullableNumber(educationYearRaw),
+      education_round: toNullableNumber(educationRoundRaw),
+      course_name: toNullableString(courseNameRaw),
+      status: toNullableString(statusRaw),
       instructor_id: instructorId,
       instructor_name: resolvedInstructorName,
-      instructor_ids: instructorIds.length > 0
-        ? instructorIds
+      instructor_ids: sortedInstructorIds.length > 0
+        ? sortedInstructorIds
         : instructorId
           ? [instructorId]
           : [],
-      instructor_names: instructorNames.length > 0
-        ? instructorNames
-        : instructorName
-          ? [instructorName]
+      instructor_names: instructorNamesFinal.length > 0
+        ? instructorNamesFinal
+        : resolvedInstructorName
+          ? [resolvedInstructorName]
           : [],
-      expected_participants: toNullableNumber(row.expected_participants),
-      is_test: toNullableBoolean(row.is_test),
-      response_count: toNumber(row.response_count),
-      last_response_at: toNullableString(row.last_response_at),
-      avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
-      avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
-      avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
-      avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
-      question_count: toNumber(row.question_count, 0),
+      expected_participants: toNullableNumber(expectedParticipantsRaw),
+      is_test: toNullableBoolean(isTestRaw),
+      response_count: responseCount,
+      last_response_at: toNullableString(lastResponseRaw),
+      avg_overall_satisfaction: avgOverall,
+      avg_course_satisfaction: avgCourse,
+      avg_instructor_satisfaction: avgInstructor,
+      avg_operation_satisfaction: avgOperation,
+      question_count: questionCount,
     } satisfies SurveyAggregate;
   });
 
