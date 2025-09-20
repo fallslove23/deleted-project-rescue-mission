@@ -18,6 +18,7 @@ import { ChartEmptyState } from '@/components/charts';
 import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import type { Database } from '@/integrations/supabase/types';
+import { normalizeUuid } from '@/utils/uuid';
 
 type SurveyAnalysisRow = Database['public']['Functions']['get_survey_analysis']['Returns'][number];
 
@@ -183,6 +184,14 @@ const toStringArray = (value: unknown): string[] => {
   return [];
 };
 
+const normalizeFilterString = (value: string | null | undefined): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
   if (!rows) return [];
   return rows.map((row) => {
@@ -283,10 +292,10 @@ const SurveyAnalysis = () => {
 
   const instructorFilter = useMemo(() => {
     if (!canViewAll) {
-      return profile?.instructor_id ?? null;
+      return normalizeUuid(profile?.instructor_id ?? null);
     }
     if (selectedInstructor !== 'all') {
-      return selectedInstructor;
+      return normalizeUuid(selectedInstructor);
     }
     return null;
   }, [canViewAll, profile?.instructor_id, selectedInstructor]);
@@ -402,7 +411,7 @@ const SurveyAnalysis = () => {
   const fetchAvailableSummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
-      const instructorIdForQuery = instructorFilter ?? null;
+      const instructorIdForQuery = normalizeUuid(instructorFilter ?? null);
       const { data, error } = await supabase.rpc('get_survey_analysis', {
         p_year: null,
         p_round: null,
@@ -429,15 +438,16 @@ const SurveyAnalysis = () => {
       const yearFilter = selectedYear !== 'all' ? Number(selectedYear) : null;
       const roundFilter = selectedRound !== 'all' ? Number(selectedRound) : null;
       const courseFilter = selectedCourse !== 'all' ? selectedCourse : null;
-      const instructorIdForQuery = instructorFilter ?? null;
+      const instructorIdForQuery = normalizeUuid(instructorFilter ?? null);
 
       const normalizedYear = yearFilter !== null && !Number.isNaN(yearFilter) ? yearFilter : null;
       const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;
+      const normalizedCourse = normalizeFilterString(courseFilter);
 
       const { data, error } = await supabase.rpc('get_survey_analysis', {
         p_year: normalizedYear,
         p_round: normalizedRound,
-        p_course_name: courseFilter,
+        p_course_name: normalizedCourse,
         p_instructor_id: instructorIdForQuery,
         p_include_test: includeTestData,
       });

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { normalizeUuid } from '@/utils/uuid';
 
 export type SurveyAnalysisRow = Database['public']['Functions']['get_survey_analysis']['Returns'][number];
 
@@ -154,6 +155,14 @@ const toStringArray = (value: unknown): string[] => {
   return [];
 };
 
+const normalizeFilterString = (value: string | null | undefined): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefined): SurveyAggregate[] => {
   if (!rows) return [];
 
@@ -267,13 +276,16 @@ export const SurveyAggregatesRepository = {
     includeTestData,
     restrictToInstructorId = null,
   }: SurveyAggregateFilters): Promise<SurveyAggregateResult> {
-    const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
+    const sanitizedCourseFilter = normalizeFilterString(courseName);
+    const sanitizedInstructorFilter = normalizeUuid(instructorId ?? null);
+    const sanitizedRestrictedInstructor = normalizeUuid(restrictToInstructorId ?? null);
+    const instructorFilter = sanitizedRestrictedInstructor ?? sanitizedInstructorFilter;
 
     const { data, error } = await supabase.rpc('get_survey_analysis', {
       p_year: year ?? null,
       p_round: round ?? null,
-      p_course_name: courseName ?? null,
-      p_instructor_id: instructorFilter ?? null,
+      p_course_name: sanitizedCourseFilter,
+      p_instructor_id: instructorFilter,
       p_include_test: includeTestData,
     });
 
@@ -291,12 +303,15 @@ export const SurveyAggregatesRepository = {
       if (round !== null && round !== undefined && aggregate.education_round !== round) {
         return false;
       }
-      if (courseName !== null && courseName !== undefined && aggregate.course_name !== courseName) {
+      if (
+        sanitizedCourseFilter !== null &&
+        aggregate.course_name !== sanitizedCourseFilter
+      ) {
         return false;
       }
       if (
         instructorFilter &&
-        !aggregate.instructor_ids.includes(instructorFilter)
+        !(aggregate.instructor_ids.includes(instructorFilter) || aggregate.instructor_id === instructorFilter)
       ) {
         return false;
       }
