@@ -60,11 +60,11 @@ export const CourseReportsRepository = {
     const normalizedCourseName = normalizeCourseName(filters.courseName ?? null);
 
     const { data, error } = await supabase.rpc('course_report_statistics', {
-      year: filters.year,
-      course_name: normalizedCourseName,
-      round: filters.round ?? null,
-      instructor_id: filters.instructorId ?? null,
-      include_test: filters.includeTestData ?? false,
+      p_year: filters.year,
+      p_course_name: normalizedCourseName,
+      p_round: filters.round ?? null,
+      p_instructor_id: filters.instructorId ?? null,
+      p_include_test: filters.includeTestData ?? false,
     });
 
     if (error) {
@@ -114,7 +114,7 @@ export const CourseReportsRepository = {
       return String(value);
     };
 
-    const rawData = data as Record<string, unknown>;
+    const rawData = (Array.isArray(data) && data.length > 0 ? data[0] : {}) as Record<string, unknown>;
     const rawSummary = (rawData.summary as Record<string, unknown> | undefined) ?? {};
 
     const summary: CourseReportSummary = {

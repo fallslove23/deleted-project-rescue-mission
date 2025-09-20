@@ -2330,16 +2330,6 @@ export type Database = {
         Args: { admin_email: string; admin_password: string }
         Returns: undefined
       }
-      course_report_statistics: {
-        Args: {
-          year: number
-          course_name?: string | null
-          round?: number | null
-          instructor_id?: string | null
-          include_test?: boolean
-        }
-        Returns: Json
-      }
       create_instructor_account: {
         Args: {
           instructor_email: string
@@ -2456,6 +2446,30 @@ export type Database = {
           participating_instructors: number
           total_responses: number
           total_surveys: number
+        }[]
+      }
+      get_survey_detail_stats: {
+        Args: {
+          p_distribution_cursor?: number
+          p_distribution_limit?: number
+          p_include_test?: boolean
+          p_response_cursor?: number
+          p_response_limit?: number
+          p_survey_id: string
+          p_text_cursor?: number
+          p_text_limit?: number
+        }
+        Returns: {
+          distribution_next_cursor: number
+          distribution_total_count: number
+          question_distributions: Json
+          response_next_cursor: number
+          response_total_count: number
+          responses: Json
+          summary: Json
+          text_answers: Json
+          text_next_cursor: number
+          text_total_count: number
         }[]
       }
       get_survey_responses_by_date_range: {

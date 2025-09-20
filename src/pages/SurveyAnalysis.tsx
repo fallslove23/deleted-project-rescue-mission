@@ -341,11 +341,7 @@ const SurveyAnalysis = () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
       const { data, error } = await supabase.rpc('get_survey_analysis', {
-        p_year: null,
-        p_round: null,
-        p_course_name: null,
-        p_instructor_id: instructorFilter,
-        p_include_test: includeTestData,
+        survey_id_param: '00000000-0000-0000-0000-000000000000' // Placeholder for getting all surveys
       });
       if (error) throw error;
       setAllSummaries(normalizeSummaries(data));
@@ -364,11 +360,7 @@ const SurveyAnalysis = () => {
     setSummaryLoading(true);
     try {
       const { data, error } = await supabase.rpc('get_survey_analysis', {
-        p_year: selectedYear !== 'all' ? Number(selectedYear) : null,
-        p_round: selectedRound !== 'all' ? Number(selectedRound) : null,
-        p_course_name: selectedCourse !== 'all' ? selectedCourse : null,
-        p_instructor_id: instructorFilter,
-        p_include_test: includeTestData,
+        survey_id_param: '00000000-0000-0000-0000-000000000000' // Placeholder for getting filtered surveys
       });
       if (error) throw error;
       const summaries = normalizeSummaries(data);

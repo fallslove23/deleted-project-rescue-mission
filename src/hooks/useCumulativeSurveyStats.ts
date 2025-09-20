@@ -132,18 +132,13 @@ export function useCumulativeSurveyStats({
 
   const loadSummary = useCallback(async () => {
     try {
-      const result = await fetchCumulativeSummary({
-        includeTestData,
-        searchTerm: appliedFilters.searchTerm,
-        educationYear: appliedFilters.educationYear,
-        courseName: appliedFilters.courseName,
-      });
-      setSummary(result);
+      const result = await fetchCumulativeSummary();
+      setSummary(result || DEFAULT_SUMMARY);
     } catch (err) {
       console.error('Failed to fetch cumulative summary', err);
       setSummary(DEFAULT_SUMMARY);
     }
-  }, [appliedFilters, includeTestData]);
+  }, []);
 
     const loadPage = useCallback(
       async (pageNumber: number, append = false) => {

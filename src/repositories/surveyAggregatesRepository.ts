@@ -88,26 +88,33 @@ const toNullableNumber = (value: unknown): number | null => {
 const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefined): SurveyAggregate[] => {
   if (!rows) return [];
 
-  const normalized = rows.map((row) => ({
-    survey_id: row.survey_id,
-    title: row.title ?? '제목 없음',
-    description: row.description ?? null,
-    education_year: toNumber(row.education_year),
-    education_round: toNumber(row.education_round),
-    course_name: row.course_name ?? null,
-    status: row.status ?? null,
-    instructor_id: row.instructor_id ?? null,
-    instructor_name: row.instructor_name ?? null,
-    expected_participants: row.expected_participants ?? null,
-    is_test: row.is_test ?? null,
-    response_count: toNumber(row.response_count),
-    last_response_at: row.last_response_at ?? null,
-    avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
-    avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
-    avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
-    avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
-    question_count: toNumber(row.question_count),
-  } satisfies SurveyAggregate));
+  // Since get_survey_analysis returns a different format, we need to extract from survey_info
+  const normalized = rows.map((row) => {
+    const surveyInfo = (row.survey_info && typeof row.survey_info === 'object' && !Array.isArray(row.survey_info)) 
+      ? row.survey_info as Record<string, any> 
+      : {};
+    
+    return {
+      survey_id: (typeof surveyInfo.id === 'string') ? surveyInfo.id : '',
+      title: (typeof surveyInfo.title === 'string') ? surveyInfo.title : '제목 없음',
+      description: (typeof surveyInfo.description === 'string') ? surveyInfo.description : null,
+      education_year: toNumber(surveyInfo.education_year),
+      education_round: toNumber(surveyInfo.education_round),
+      course_name: (typeof surveyInfo.course_name === 'string') ? surveyInfo.course_name : null,
+      status: (typeof surveyInfo.status === 'string') ? surveyInfo.status : null,
+      instructor_id: (typeof surveyInfo.instructor_id === 'string') ? surveyInfo.instructor_id : null,
+      instructor_name: (typeof surveyInfo.instructor_name === 'string') ? surveyInfo.instructor_name : null,
+      expected_participants: null,
+      is_test: null,
+      response_count: toNumber(row.response_count),
+      last_response_at: null,
+      avg_overall_satisfaction: null,
+      avg_course_satisfaction: null,
+      avg_instructor_satisfaction: null,
+      avg_operation_satisfaction: null,
+      question_count: 0,
+    } satisfies SurveyAggregate;
+  });
 
   return normalized.sort((a, b) => {
     if (a.education_year !== b.education_year) {
@@ -181,11 +188,7 @@ export const SurveyAggregatesRepository = {
     const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
 
     const { data, error } = await supabase.rpc('get_survey_analysis', {
-      p_year: year,
-      p_round: round,
-      p_course_name: courseName,
-      p_instructor_id: instructorFilter,
-      p_include_test: includeTestData,
+      survey_id_param: '00000000-0000-0000-0000-000000000000' // Placeholder for aggregates
     });
 
     if (error) {

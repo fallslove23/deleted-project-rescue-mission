@@ -100,7 +100,7 @@ export async function fetchCumulativeStats({
 
 export async function fetchCumulativeSummary(): Promise<CumulativeSummary | null> {
   try {
-    const { data, error } = await supabase.rpc('get_survey_cumulative_summary' as any);
+    const { data, error } = await supabase.rpc('get_survey_cumulative_summary');
 
     if (error) {
       console.error('Error fetching cumulative summary:', error);
