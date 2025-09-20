@@ -142,6 +142,14 @@ const fetchAggregatesFromLegacyView = async ({
     query = query.or('is_test.eq.false,is_test.is.null');
   }
 
+  if (courseName) {
+    query = query.eq('course_name', courseName);
+  }
+
+  if (instructorId) {
+    query = query.eq('instructor_id', instructorId);
+  }
+
   const { data, error } = await query;
   if (error) {
     throw error;
@@ -241,18 +249,25 @@ export const SurveyAggregatesRepository = {
       payload.p_instructor_id = rpcInstructorId;
     }
 
+    const shouldForceLegacy = Boolean(filters.instructorId && !rpcInstructorId);
+
     let aggregates: SurveyAggregate[] = [];
     let usedLegacyFallback = false;
 
     try {
-      const { data, error } = await supabase.rpc('get_survey_analysis', payload);
+      if (shouldForceLegacy) {
+        aggregates = await fetchAggregatesFromLegacyView(filters);
+        usedLegacyFallback = true;
+      } else {
+        const { data, error } = await supabase.rpc('get_survey_analysis', payload);
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        const normalized = normalizeSurveyAnalysisRows(data);
+        aggregates = normalized.map(toSurveyAggregate);
       }
-
-      const normalized = normalizeSurveyAnalysisRows(data);
-      aggregates = normalized.map(toSurveyAggregate);
     } catch (rpcError) {
       console.error('Failed to execute get_survey_analysis RPC, falling back to survey_aggregates view', rpcError);
       aggregates = await fetchAggregatesFromLegacyView(filters);

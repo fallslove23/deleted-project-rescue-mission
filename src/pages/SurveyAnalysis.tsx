@@ -378,13 +378,17 @@ const SurveyAnalysis = () => {
         payload.p_instructor_id = rpcInstructorId;
       }
 
-      const summaries = await fetchSummariesWithFallback(payload, {
+      const filters = {
         year: null,
         round: null,
         courseName: null,
         includeTestData,
         instructorId: filterInstructorId,
-      });
+      } as const;
+
+      const summaries = filterInstructorId && !rpcInstructorId
+        ? await fetchLegacySummaries(filters)
+        : await fetchSummariesWithFallback(payload, filters);
       setAllSummaries(summaries);
     } catch (error) {
       console.error('Error fetching available survey summaries:', error);
@@ -436,13 +440,17 @@ const SurveyAnalysis = () => {
         payload.p_instructor_id = rpcInstructorId;
       }
 
-      const summaries = await fetchSummariesWithFallback(payload, {
+      const filters = {
         year: normalizedYear,
         round: normalizedRound,
         courseName: normalizedCourse,
         includeTestData,
         instructorId: filterInstructorId,
-      });
+      } as const;
+
+      const summaries = filterInstructorId && !rpcInstructorId
+        ? await fetchLegacySummaries(filters)
+        : await fetchSummariesWithFallback(payload, filters);
       setSurveySummaries(summaries);
 
       if (summaries.length === 0) {
