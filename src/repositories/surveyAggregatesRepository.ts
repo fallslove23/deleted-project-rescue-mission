@@ -249,25 +249,22 @@ export const SurveyAggregatesRepository = {
       payload.p_instructor_id = rpcInstructorId;
     }
 
-    const shouldForceLegacy = Boolean(filters.instructorId && !rpcInstructorId);
+    const loadAggregatesFromRpc = async (): Promise<SurveyAggregate[]> => {
+      const { data, error } = await supabase.rpc('get_survey_analysis', payload);
+
+      if (error) {
+        throw error;
+      }
+
+      const normalized = normalizeSurveyAnalysisRows(data);
+      return normalized.map(toSurveyAggregate);
+    };
 
     let aggregates: SurveyAggregate[] = [];
     let usedLegacyFallback = false;
 
     try {
-      if (shouldForceLegacy) {
-        aggregates = await fetchAggregatesFromLegacyView(filters);
-        usedLegacyFallback = true;
-      } else {
-        const { data, error } = await supabase.rpc('get_survey_analysis', payload);
-
-        if (error) {
-          throw error;
-        }
-
-        const normalized = normalizeSurveyAnalysisRows(data);
-        aggregates = normalized.map(toSurveyAggregate);
-      }
+      aggregates = await loadAggregatesFromRpc();
     } catch (rpcError) {
       console.error('Failed to execute get_survey_analysis RPC, falling back to survey_aggregates view', rpcError);
       aggregates = await fetchAggregatesFromLegacyView(filters);
@@ -286,7 +283,20 @@ export const SurveyAggregatesRepository = {
       usedLegacyFallback = true;
     }
 
-    const filteredAggregates = filterAggregatesList(aggregates, filters);
+    let filteredAggregates = filterAggregatesList(aggregates, filters);
+
+    if (
+      !usedLegacyFallback
+      && filteredAggregates.length === 0
+      && Boolean(filters.instructorId)
+      && !rpcInstructorId
+    ) {
+      console.warn('Instructor filter lacks UUID, retrying aggregate fetch via legacy view for client-side filtering');
+      const legacyAggregates = await fetchAggregatesFromLegacyView(filters);
+      filteredAggregates = filterAggregatesList(legacyAggregates, filters);
+      usedLegacyFallback = true;
+    }
+
     const summary = calculateSummary(filteredAggregates);
 
     return {

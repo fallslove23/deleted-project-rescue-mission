@@ -102,10 +102,6 @@ export const CourseReportsRepository = {
 
     try {
       data = await invokeCourseReportRpc('course_report_statistics');
-
-      if (data === null || data === undefined) {
-        throw new Error('course_report_statistics returned an empty result');
-      }
     } catch (primaryError) {
       console.warn('course_report_statistics RPC unavailable, attempting legacy get_course_statistics', primaryError);
 
