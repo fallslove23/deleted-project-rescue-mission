@@ -124,50 +124,40 @@ const toNullableBoolean = (value: unknown): boolean | null => {
 const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefined): SurveyAggregate[] => {
   if (!rows) return [];
 
-  // Since get_survey_analysis returns a different format, we need to extract from survey_info
   const normalized = rows.map((row) => {
-    const surveyInfo = (row.survey_info && typeof row.survey_info === 'object' && !Array.isArray(row.survey_info))
-      ? row.survey_info as Record<string, unknown>
-      : {};
-    const rowInfo = row as unknown as Record<string, unknown>;
-
-    const surveyIdRaw = surveyInfo['id'] ?? rowInfo['survey_id'];
-    const titleRaw = surveyInfo['title'] ?? rowInfo['title'];
-    const descriptionRaw = surveyInfo['description'] ?? rowInfo['description'];
-    const educationYearRaw = rowInfo['education_year'] ?? surveyInfo['education_year'];
-    const educationRoundRaw = rowInfo['education_round'] ?? surveyInfo['education_round'];
-    const courseNameRaw = rowInfo['course_name'] ?? surveyInfo['course_name'];
-    const statusRaw = rowInfo['status'] ?? surveyInfo['status'];
-    const instructorIdRaw = rowInfo['instructor_id'] ?? surveyInfo['instructor_id'];
-    const instructorNameRaw = rowInfo['instructor_name'] ?? surveyInfo['instructor_name'];
-    const expectedParticipantsRaw = rowInfo['expected_participants'] ?? surveyInfo['expected_participants'];
-    const isTestRaw = rowInfo['is_test'] ?? surveyInfo['is_test'];
-    const lastResponseRaw = rowInfo['last_response_at'] ?? surveyInfo['last_response_at'];
-    const avgOverallRaw = rowInfo['avg_overall_satisfaction'] ?? surveyInfo['avg_overall_satisfaction'];
-    const avgCourseRaw = rowInfo['avg_course_satisfaction'] ?? surveyInfo['avg_course_satisfaction'];
-    const avgInstructorRaw = rowInfo['avg_instructor_satisfaction'] ?? surveyInfo['avg_instructor_satisfaction'];
-    const avgOperationRaw = rowInfo['avg_operation_satisfaction'] ?? surveyInfo['avg_operation_satisfaction'];
-    const questionCountRaw = rowInfo['question_count'] ?? surveyInfo['question_count'];
+    const courseName = typeof row.course_name === 'string' && row.course_name.trim().length > 0
+      ? row.course_name
+      : null;
+    const status = typeof row.status === 'string' && row.status.trim().length > 0 ? row.status : null;
+    const instructorId = typeof row.instructor_id === 'string' && row.instructor_id.trim().length > 0
+      ? row.instructor_id
+      : null;
+    const instructorName = typeof row.instructor_name === 'string' && row.instructor_name.trim().length > 0
+      ? row.instructor_name
+      : null;
+    const description = typeof row.description === 'string' && row.description.trim().length > 0
+      ? row.description
+      : null;
 
     return {
-      survey_id: (typeof surveyIdRaw === 'string') ? surveyIdRaw : '',
-      title: (typeof titleRaw === 'string') ? titleRaw : '제목 없음',
-      description: (typeof descriptionRaw === 'string') ? descriptionRaw : null,
-      education_year: toNumber(educationYearRaw),
-      education_round: toNumber(educationRoundRaw),
-      course_name: (typeof courseNameRaw === 'string') ? courseNameRaw : null,
-      status: (typeof statusRaw === 'string') ? statusRaw : null,
-      instructor_id: (typeof instructorIdRaw === 'string') ? instructorIdRaw : null,
-      instructor_name: (typeof instructorNameRaw === 'string') ? instructorNameRaw : null,
-      expected_participants: toNullableNumber(expectedParticipantsRaw),
-      is_test: toNullableBoolean(isTestRaw),
+      survey_id: typeof row.survey_id === 'string' ? row.survey_id : '',
+      title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : '제목 없음',
+      description,
+      education_year: toNumber(row.education_year),
+      education_round: toNumber(row.education_round),
+      course_name: courseName,
+      status,
+      instructor_id: instructorId,
+      instructor_name: instructorName,
+      expected_participants: toNullableNumber(row.expected_participants),
+      is_test: toNullableBoolean(row.is_test),
       response_count: toNumber(row.response_count),
-      last_response_at: toNullableString(lastResponseRaw),
-      avg_overall_satisfaction: toNullableNumber(avgOverallRaw),
-      avg_course_satisfaction: toNullableNumber(avgCourseRaw),
-      avg_instructor_satisfaction: toNullableNumber(avgInstructorRaw),
-      avg_operation_satisfaction: toNullableNumber(avgOperationRaw),
-      question_count: toNumber(questionCountRaw, 0),
+      last_response_at: toNullableString(row.last_response_at),
+      avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
+      avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
+      avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
+      avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
+      question_count: toNumber(row.question_count, 0),
     } satisfies SurveyAggregate;
   });
 
@@ -243,7 +233,11 @@ export const SurveyAggregatesRepository = {
     const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
 
     const { data, error } = await supabase.rpc('get_survey_analysis', {
-      survey_id_param: '00000000-0000-0000-0000-000000000000' // Placeholder for aggregates
+      p_year: year,
+      p_round: round,
+      p_course_name: courseName,
+      p_instructor_id: instructorFilter,
+      p_include_test: includeTestData,
     });
 
     if (error) {
