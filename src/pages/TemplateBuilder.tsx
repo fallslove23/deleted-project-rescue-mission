@@ -481,7 +481,7 @@ const TemplateBuilder = () => {
             <CardHeader>
               <CardTitle className="text-center flex items-center justify-center gap-2">
                 {template.name}
-                {template.is_course_evaluation && <Badge>강의평가</Badge>}
+                {template.is_course_evaluation && <Badge>강사 평가</Badge>}
               </CardTitle>
               {template.description && (
                 <p className="text-center text-sm text-muted-foreground">
