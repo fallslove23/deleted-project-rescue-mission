@@ -449,7 +449,7 @@ const Index = () => {
         <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-primary font-display">설문조사 시스템</h1>
+              <h1 className="text-2xl font-bold text-primary font-display">BS/SS 교육과정 설문 피드백</h1>
               {!authLoading && !authUser && (
                 <Button
                   variant="outline"
@@ -477,7 +477,7 @@ const Index = () => {
           <div className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-foreground mb-2 font-display">설문조사 시스템</h2>
+                <h2 className="text-3xl font-bold text-foreground mb-2 font-display">BS/SS 교육과정 설문 피드백</h2>
                 <p className="text-muted-foreground font-sans">
                   참여 가능한 설문조사 목록입니다. 설문조사를 클릭하여 참여해주세요.
                 </p>
