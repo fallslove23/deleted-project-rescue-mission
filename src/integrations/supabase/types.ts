@@ -2317,14 +2317,7 @@ export type Database = {
           p_round?: number
           p_year: number
         }
-        Returns: {
-          available_courses: Json
-          available_instructors: Json
-          instructor_stats: Json
-          summary: Json
-          textual_responses: Json
-          trend: Json
-        }[]
+        Returns: Json
       }
       create_admin_user: {
         Args: { admin_email: string; admin_password: string }
@@ -2366,14 +2359,7 @@ export type Database = {
           p_round?: number
           p_year: number
         }
-        Returns: {
-          available_courses: Json
-          available_instructors: Json
-          instructor_stats: Json
-          summary: Json
-          textual_responses: Json
-          trend: Json
-        }[]
+        Returns: Json
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
