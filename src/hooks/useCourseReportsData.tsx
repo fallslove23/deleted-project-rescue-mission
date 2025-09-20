@@ -515,23 +515,22 @@ export const useCourseReportsData = (
                   targetInstructorIds.push(ensured?.id ?? normalizedAnswerInstructorId);
                 }
 
-                const uniqueTargetInstructorIds = Array.from(new Set(targetInstructorIds.filter(Boolean)));
+                let uniqueTargetInstructorIds = Array.from(new Set(targetInstructorIds.filter(Boolean)));
+
+                if (uniqueTargetInstructorIds.length === 0) {
+                  if (selectedInstructorId) {
+                    if (surveyInstructorIds.has(selectedInstructorId)) {
+                      uniqueTargetInstructorIds = [selectedInstructorId];
+                    }
+                  } else {
+                    uniqueTargetInstructorIds = Array.from(surveyInstructorIds);
+                  }
+                }
 
                 if (selectedInstructorId) {
-                  if (uniqueTargetInstructorIds.length === 0) {
-                    if (surveyInstructorIds.has(selectedInstructorId)) {
-                      uniqueTargetInstructorIds.push(selectedInstructorId);
-                    } else {
-                      return;
-                    }
-                  } else if (!uniqueTargetInstructorIds.includes(selectedInstructorId)) {
-                    return;
-                  }
-                } else if (uniqueTargetInstructorIds.length === 0 && surveyInstructorIds.size === 1) {
-                  const [onlyInstructorId] = Array.from(surveyInstructorIds);
-                  if (onlyInstructorId) {
-                    uniqueTargetInstructorIds.push(onlyInstructorId);
-                  }
+                  uniqueTargetInstructorIds = uniqueTargetInstructorIds.filter(
+                    id => id === selectedInstructorId
+                  );
                 }
 
                 if (uniqueTargetInstructorIds.length === 0) {
