@@ -85,34 +85,89 @@ const toNullableNumber = (value: unknown): number | null => {
   return null;
 };
 
+const toNullableString = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return null;
+};
+
+const toNullableBoolean = (value: unknown): boolean | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 't'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'n', 'f'].includes(normalized)) {
+      return false;
+    }
+  }
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+  return null;
+};
+
 const normalizeSurveyAnalysisRows = (rows: SurveyAnalysisRow[] | null | undefined): SurveyAggregate[] => {
   if (!rows) return [];
 
   // Since get_survey_analysis returns a different format, we need to extract from survey_info
   const normalized = rows.map((row) => {
-    const surveyInfo = (row.survey_info && typeof row.survey_info === 'object' && !Array.isArray(row.survey_info)) 
-      ? row.survey_info as Record<string, any> 
+    const surveyInfo = (row.survey_info && typeof row.survey_info === 'object' && !Array.isArray(row.survey_info))
+      ? row.survey_info as Record<string, unknown>
       : {};
-    
+    const rowInfo = row as unknown as Record<string, unknown>;
+
+    const surveyIdRaw = surveyInfo['id'] ?? rowInfo['survey_id'];
+    const titleRaw = surveyInfo['title'] ?? rowInfo['title'];
+    const descriptionRaw = surveyInfo['description'] ?? rowInfo['description'];
+    const educationYearRaw = rowInfo['education_year'] ?? surveyInfo['education_year'];
+    const educationRoundRaw = rowInfo['education_round'] ?? surveyInfo['education_round'];
+    const courseNameRaw = rowInfo['course_name'] ?? surveyInfo['course_name'];
+    const statusRaw = rowInfo['status'] ?? surveyInfo['status'];
+    const instructorIdRaw = rowInfo['instructor_id'] ?? surveyInfo['instructor_id'];
+    const instructorNameRaw = rowInfo['instructor_name'] ?? surveyInfo['instructor_name'];
+    const expectedParticipantsRaw = rowInfo['expected_participants'] ?? surveyInfo['expected_participants'];
+    const isTestRaw = rowInfo['is_test'] ?? surveyInfo['is_test'];
+    const lastResponseRaw = rowInfo['last_response_at'] ?? surveyInfo['last_response_at'];
+    const avgOverallRaw = rowInfo['avg_overall_satisfaction'] ?? surveyInfo['avg_overall_satisfaction'];
+    const avgCourseRaw = rowInfo['avg_course_satisfaction'] ?? surveyInfo['avg_course_satisfaction'];
+    const avgInstructorRaw = rowInfo['avg_instructor_satisfaction'] ?? surveyInfo['avg_instructor_satisfaction'];
+    const avgOperationRaw = rowInfo['avg_operation_satisfaction'] ?? surveyInfo['avg_operation_satisfaction'];
+    const questionCountRaw = rowInfo['question_count'] ?? surveyInfo['question_count'];
+
     return {
-      survey_id: (typeof surveyInfo.id === 'string') ? surveyInfo.id : '',
-      title: (typeof surveyInfo.title === 'string') ? surveyInfo.title : '제목 없음',
-      description: (typeof surveyInfo.description === 'string') ? surveyInfo.description : null,
-      education_year: toNumber(surveyInfo.education_year),
-      education_round: toNumber(surveyInfo.education_round),
-      course_name: (typeof surveyInfo.course_name === 'string') ? surveyInfo.course_name : null,
-      status: (typeof surveyInfo.status === 'string') ? surveyInfo.status : null,
-      instructor_id: (typeof surveyInfo.instructor_id === 'string') ? surveyInfo.instructor_id : null,
-      instructor_name: (typeof surveyInfo.instructor_name === 'string') ? surveyInfo.instructor_name : null,
-      expected_participants: null,
-      is_test: null,
+      survey_id: (typeof surveyIdRaw === 'string') ? surveyIdRaw : '',
+      title: (typeof titleRaw === 'string') ? titleRaw : '제목 없음',
+      description: (typeof descriptionRaw === 'string') ? descriptionRaw : null,
+      education_year: toNumber(educationYearRaw),
+      education_round: toNumber(educationRoundRaw),
+      course_name: (typeof courseNameRaw === 'string') ? courseNameRaw : null,
+      status: (typeof statusRaw === 'string') ? statusRaw : null,
+      instructor_id: (typeof instructorIdRaw === 'string') ? instructorIdRaw : null,
+      instructor_name: (typeof instructorNameRaw === 'string') ? instructorNameRaw : null,
+      expected_participants: toNullableNumber(expectedParticipantsRaw),
+      is_test: toNullableBoolean(isTestRaw),
       response_count: toNumber(row.response_count),
-      last_response_at: null,
-      avg_overall_satisfaction: null,
-      avg_course_satisfaction: null,
-      avg_instructor_satisfaction: null,
-      avg_operation_satisfaction: null,
-      question_count: 0,
+      last_response_at: toNullableString(lastResponseRaw),
+      avg_overall_satisfaction: toNullableNumber(avgOverallRaw),
+      avg_course_satisfaction: toNullableNumber(avgCourseRaw),
+      avg_instructor_satisfaction: toNullableNumber(avgInstructorRaw),
+      avg_operation_satisfaction: toNullableNumber(avgOperationRaw),
+      question_count: toNumber(questionCountRaw, 0),
     } satisfies SurveyAggregate;
   });
 
@@ -196,10 +251,30 @@ export const SurveyAggregatesRepository = {
     }
 
     const aggregates = normalizeSurveyAnalysisRows(data);
-    const summary = calculateSummary(aggregates);
+
+    const filteredAggregates = aggregates.filter((aggregate) => {
+      if (year !== null && year !== undefined && aggregate.education_year !== year) {
+        return false;
+      }
+      if (round !== null && round !== undefined && aggregate.education_round !== round) {
+        return false;
+      }
+      if (courseName !== null && courseName !== undefined && aggregate.course_name !== courseName) {
+        return false;
+      }
+      if (instructorFilter && aggregate.instructor_id !== instructorFilter) {
+        return false;
+      }
+      if (!includeTestData && aggregate.is_test === true) {
+        return false;
+      }
+      return true;
+    });
+
+    const summary = calculateSummary(filteredAggregates);
 
     return {
-      aggregates,
+      aggregates: filteredAggregates,
       summary,
     };
   },
