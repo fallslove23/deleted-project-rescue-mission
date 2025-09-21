@@ -2224,6 +2224,27 @@ export type Database = {
           },
         ]
       }
+      survey_aggregates: {
+        Row: {
+          avg_course_satisfaction: number | null
+          avg_instructor_satisfaction: number | null
+          avg_operation_satisfaction: number | null
+          avg_overall_satisfaction: number | null
+          course_name: string | null
+          education_round: number | null
+          education_year: number | null
+          expected_participants: number | null
+          instructor_id: string | null
+          instructor_name: string | null
+          is_test: boolean | null
+          last_response_at: string | null
+          response_count: number | null
+          status: string | null
+          survey_id: string | null
+          title: string | null
+        }
+        Relationships: []
+      }
       survey_available_years_v1: {
         Row: {
           education_year: number | null
