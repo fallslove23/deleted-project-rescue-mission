@@ -1,60 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  BarChart as ReBarChart,
-  LineChart as ReLineChart,
-  Bar,
-  Line,
-  Cell,
-} from 'recharts';
-import { BarChart3, BookOpen, Download, Share2, Star, Target, TrendingUp, User, Crown, AlertCircle } from 'lucide-react';
-import { DashboardLayout } from '@/components/layouts';
+  TrendingUp,
+  Download,
+  Share2,
+  Star,
+  Target,
+  BookOpen,
+  BarChart3,
+  Loader2,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import CourseSelector from '@/components/course-reports/CourseSelector';
+import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
+import { DonutChart } from '@/components/charts/DonutChart';
+import { AreaChart } from '@/components/charts/AreaChart';
 import { KeywordCloud } from '@/components/course-reports/KeywordCloud';
-import { DrillDownModal } from '@/components/course-reports/DrillDownModal';
-import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { TestDataToggle } from '@/components/TestDataToggle';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import { TestDataToggle } from '@/components/TestDataToggle';
+import { generateCourseReportPDF } from '@/utils/pdfExport';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
 
 const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
-  if (typeof value !== 'number' || !isFinite(value)) return 0;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
   const rounded = Number(value.toFixed(digits));
-  return isNaN(rounded) ? 0 : rounded;
+  return Number.isNaN(rounded) ? 0 : rounded;
 };
 
 const CourseReports: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
 
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
-  const [drillDownModal, setDrillDownModal] = useState<{
-    isOpen: boolean;
-    type: 'instructor' | 'course' | 'operation';
-    title: string;
-  }>({ isOpen: false, type: 'instructor', title: '' });
-
-  const isInstructor = userRoles.includes('instructor');
-  const isAdmin = userRoles.includes('admin');
 
   const {
     summary,
@@ -67,14 +54,13 @@ const CourseReports: React.FC = () => {
     availableRounds,
     availableInstructors,
     loading,
-    isInstructor: hookIsInstructor,
-    instructorId,
+    isInstructor,
   } = useCourseReportsData(
     selectedYear,
     selectedCourse,
     selectedRound,
     selectedInstructor,
-    testDataOptions.includeTestData
+    testDataOptions.includeTestData,
   );
 
   useEffect(() => {
@@ -104,37 +90,29 @@ const CourseReports: React.FC = () => {
   }, [summary?.courseName, availableCourses, selectedCourse]);
 
   const satisfactionChartData = useMemo(() => {
-    if (!summary) return [];
-    return [
-      {
-        name: '강사 만족도',
-        value: toFixedOrZero(summary.avgInstructorSatisfaction),
-        fill: 'hsl(var(--chart-1))',
-      },
-      {
-        name: '과정 만족도',
-        value: toFixedOrZero(summary.avgCourseSatisfaction),
-        fill: 'hsl(var(--chart-2))',
-      },
-      {
-        name: '운영 만족도',
-        value: toFixedOrZero(summary.avgOperationSatisfaction),
-        fill: 'hsl(var(--chart-3))',
-      },
+    if (!summary) return [] as Array<{ name: string; value: number; color: string }>;
+
+    const data = [
+      { name: '강사 만족도', value: toFixedOrZero(summary.avgInstructorSatisfaction), color: 'hsl(var(--chart-1))' },
+      { name: '과정 만족도', value: toFixedOrZero(summary.avgCourseSatisfaction), color: 'hsl(var(--chart-2))' },
+      { name: '운영 만족도', value: toFixedOrZero(summary.avgOperationSatisfaction), color: 'hsl(var(--chart-3))' },
     ];
+
+    return data.filter((item) => item.value > 0);
   }, [summary]);
 
-  const trendChartData = useMemo(() =>
-    trend
-      .map((point) => ({
-        name: point.educationRound ? `${point.educationRound}차` : '전체',
-        강사만족도: toFixedOrZero(point.avgInstructorSatisfaction),
-        과정만족도: toFixedOrZero(point.avgCourseSatisfaction),
-        운영만족도: toFixedOrZero(point.avgOperationSatisfaction),
+  const trendChartData = useMemo(() => {
+    return trend
+      .map((point, index) => ({
+        name: point.educationRound ? `${point.educationRound}차` : `기준 ${index + 1}`,
+        '강사 만족도': toFixedOrZero(point.avgInstructorSatisfaction),
+        '과정 만족도': toFixedOrZero(point.avgCourseSatisfaction),
+        '운영 만족도': toFixedOrZero(point.avgOperationSatisfaction),
       }))
-      .filter((item) => item.강사만족도 > 0 || item.과정만족도 > 0 || item.운영만족도 > 0),
-    [trend]
-  );
+      .filter((item) =>
+        item['강사 만족도'] > 0 || item['과정 만족도'] > 0 || item['운영 만족도'] > 0,
+      );
+  }, [trend]);
 
   const instructorStatsDisplay = useMemo(
     () =>
@@ -145,7 +123,7 @@ const CourseReports: React.FC = () => {
         response_count: stat.responseCount,
         avg_satisfaction: toFixedOrZero(stat.avgSatisfaction),
       })),
-    [instructorStats]
+    [instructorStats],
   );
 
   const previousInstructorStatsDisplay = useMemo(
@@ -157,41 +135,43 @@ const CourseReports: React.FC = () => {
         response_count: stat.responseCount,
         avg_satisfaction: toFixedOrZero(stat.avgSatisfaction),
       })),
-    [previousInstructorStats]
+    [previousInstructorStats],
   );
 
   const overallSatisfaction = useMemo(() => {
     if (!summary) return 0;
-    const scores = [
-      summary.avgInstructorSatisfaction,
-      summary.avgCourseSatisfaction,
-      summary.avgOperationSatisfaction,
-    ].map((value) => (typeof value === 'number' && isFinite(value) ? value : null));
-    const validScores = scores.filter((value): value is number => typeof value === 'number');
-    if (validScores.length === 0) return 0;
-    const average = validScores.reduce((acc, value) => acc + value, 0) / validScores.length;
+    const values = [summary.avgInstructorSatisfaction, summary.avgCourseSatisfaction, summary.avgOperationSatisfaction]
+      .map((value) => (typeof value === 'number' && Number.isFinite(value) ? value : null))
+      .filter((value): value is number => value !== null);
+
+    if (values.length === 0) return 0;
+    const average = values.reduce((acc, value) => acc + value, 0) / values.length;
     return toFixedOrZero(average);
   }, [summary]);
 
-  const calculateChange = (current?: number, previous?: number) => {
-    if (!current || !previous || previous === 0) return null;
-    const change = current - previous;
-    const percentage = (change / previous) * 100;
-    return { change, percentage };
-  };
+  const previousOverallSatisfaction = useMemo(() => {
+    if (!previousSummary) return 0;
+    const values = [
+      previousSummary.avgInstructorSatisfaction,
+      previousSummary.avgCourseSatisfaction,
+      previousSummary.avgOperationSatisfaction,
+    ]
+      .map((value) => (typeof value === 'number' && Number.isFinite(value) ? value : null))
+      .filter((value): value is number => value !== null);
 
-  const surveyChange = summary && previousSummary
-    ? calculateChange(summary.totalSurveys, previousSummary.totalSurveys)
-    : null;
-  const responseChange = summary && previousSummary
-    ? calculateChange(summary.totalResponses, previousSummary.totalResponses)
-    : null;
-  const instructorChange = summary && previousSummary
-    ? calculateChange(
-        summary.avgInstructorSatisfaction ?? 0,
-        previousSummary.avgInstructorSatisfaction ?? 0
-      )
-    : null;
+    if (values.length === 0) return 0;
+    const average = values.reduce((acc, value) => acc + value, 0) / values.length;
+    return toFixedOrZero(average);
+  }, [previousSummary]);
+
+  const satisfactionChange = useMemo(() => {
+    if (!previousOverallSatisfaction || previousOverallSatisfaction === 0) return null;
+    const diff = overallSatisfaction - previousOverallSatisfaction;
+    return {
+      diff,
+      percent: previousOverallSatisfaction === 0 ? 0 : (diff / previousOverallSatisfaction) * 100,
+    };
+  }, [overallSatisfaction, previousOverallSatisfaction]);
 
   const handleInstructorClick = (instructorIdValue: string) => {
     if (!instructorIdValue) return;
@@ -199,21 +179,38 @@ const CourseReports: React.FC = () => {
   };
 
   const handleShareReport = () => {
-    if (!summary) return;
+    if (!summary) {
+      toast({
+        title: '공유할 데이터가 없습니다.',
+        description: '과정을 선택하여 결과를 불러온 후 다시 시도해 주세요.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const shareData = {
-      title: `${currentCourseName} 과정별 결과 보고서`,
+      title: `${selectedYear}년 ${currentCourseName} 과정별 결과 보고서`,
       text: `${selectedYear}년 ${currentCourseName} 과정의 운영 결과를 확인해보세요.`,
       url: window.location.href,
     };
 
-    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-      navigator.share(shareData).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(window.location.href).then(() => {
-        toast({
-          title: '링크 복사됨',
-          description: '보고서 링크가 클립보드에 복사되었습니다.',
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        navigator.share(shareData);
+      } else {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+          toast({
+            title: '링크 복사 완료',
+            description: '보고서 링크가 클립보드에 복사되었습니다.',
+          });
         });
+      }
+    } catch (error) {
+      console.error('Share report error', error);
+      toast({
+        title: '공유 실패',
+        description: '결과를 공유하는 중 오류가 발생했습니다.',
+        variant: 'destructive',
       });
     }
   };
@@ -221,8 +218,8 @@ const CourseReports: React.FC = () => {
   const handlePDFExport = () => {
     if (!summary) {
       toast({
-        title: '오류',
-        description: '내보낼 데이터가 없습니다.',
+        title: '내보낼 데이터가 없습니다.',
+        description: '과정을 선택하여 결과를 불러온 후 다시 시도해 주세요.',
         variant: 'destructive',
       });
       return;
@@ -230,7 +227,7 @@ const CourseReports: React.FC = () => {
 
     try {
       generateCourseReportPDF({
-        reportTitle: hookIsInstructor ? '개인 과정별 운영 결과 보고서' : '과정별 운영 결과 보고서',
+        reportTitle: isInstructor ? '개인 과정별 운영 결과 보고서' : '과정별 운영 결과 보고서',
         year: summary.educationYear,
         round: summary.educationRound ?? undefined,
         courseName: currentCourseName || '과정 미정',
@@ -249,287 +246,210 @@ const CourseReports: React.FC = () => {
       });
 
       toast({
-        title: '성공',
-        description: 'PDF 파일이 다운로드되었습니다.',
+        title: 'PDF 다운로드 완료',
+        description: '과정 결과 보고서 PDF가 생성되었습니다.',
       });
     } catch (error) {
       console.error('PDF export error', error);
       toast({
-        title: '오류',
-        description: 'PDF 내보내기 중 오류가 발생했습니다.',
+        title: 'PDF 내보내기 실패',
+        description: '보고서를 PDF로 내보내는 중 오류가 발생했습니다.',
         variant: 'destructive',
       });
     }
   };
 
-  const openDrillDown = (type: 'instructor' | 'course' | 'operation') => {
-    const titles = {
-      instructor: '강사 만족도 세부 분석',
-      course: '과정 만족도 세부 분석',
-      operation: '운영 만족도 세부 분석',
-    };
-    setDrillDownModal({ isOpen: true, type, title: titles[type] });
-  };
-
-  const actions = summary ? (
-    <div className="flex items-center gap-2">
-      <Button onClick={handleShareReport} variant="outline" size="sm" className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
-        <Share2 className="h-4 w-4 mr-2" />
-        공유하기
-      </Button>
-      <Button onClick={handlePDFExport} size="sm" className="bg-primary text-white hover:bg-primary/90 shadow-md">
-        <Download className="h-4 w-4 mr-2" />
-        PDF 다운로드
-      </Button>
+  const content = loading ? (
+    <div className="flex items-center justify-center py-16 text-muted-foreground">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" />
+      데이터를 불러오는 중입니다...
     </div>
-  ) : null;
+  ) : summary ? (
+    <>
+      <CourseStatsCards
+        totalSurveys={summary.totalSurveys}
+        totalResponses={summary.totalResponses}
+        instructorCount={summary.instructorCount}
+        avgSatisfaction={overallSatisfaction}
+      />
 
-  const showEmptyState = hookIsInstructor && instructorId && (!summary || summary.totalResponses === 0);
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              영역별 만족도
+            </CardTitle>
+            <CardDescription>강사, 과정, 운영 만족도를 비교해 보세요.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[320px]">
+            <DonutChart data={satisfactionChartData} />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-primary/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-primary" />
+              만족도 요약
+            </CardTitle>
+            <CardDescription>선택한 과정의 핵심 지표를 한눈에 확인하세요.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">과정명</span>
+                <span className="font-semibold">{currentCourseName || '과정 미정'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">교육 연도</span>
+                <span className="font-semibold">{summary.educationYear}년</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">교육 차수</span>
+                <span className="font-semibold">{summary.educationRound ? `${summary.educationRound}차` : '전체'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">총 응답 수</span>
+                <span className="font-semibold">{summary.totalResponses.toLocaleString()}명</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">참여 강사</span>
+                <span className="font-semibold">{summary.instructorCount.toLocaleString()}명</span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">종합 만족도</div>
+                  {satisfactionChange && (
+                    <div
+                      className={`text-xs font-medium ${
+                        satisfactionChange.diff >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {satisfactionChange.diff >= 0 ? '▲' : '▼'} {Math.abs(satisfactionChange.diff).toFixed(1)}점
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-primary">{overallSatisfaction.toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">/ 10점</span>
+                </div>
+              </div>
+              {testDataOptions.includeTestData && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                  테스트 데이터가 포함되어 있어 실제 응답 수와 차이가 있을 수 있습니다.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {trendChartData.length > 0 && (
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              만족도 추이
+            </CardTitle>
+            <CardDescription>차수별 만족도 변화를 확인해 보세요.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-80">
+            <AreaChart
+              data={trendChartData}
+              dataKeys={[
+                { key: '강사 만족도', label: '강사 만족도', color: 'hsl(var(--chart-1))' },
+                { key: '과정 만족도', label: '과정 만족도', color: 'hsl(var(--chart-2))' },
+                { key: '운영 만족도', label: '운영 만족도', color: 'hsl(var(--chart-3))' },
+              ]}
+              xAxisLabel="교육 차수"
+              yAxisLabel="만족도 점수"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {instructorStatsDisplay.length > 0 && (
+        <InstructorStatsSection
+          instructorStats={instructorStatsDisplay}
+          previousStats={previousInstructorStatsDisplay}
+          onInstructorClick={handleInstructorClick}
+        />
+      )}
+
+      {textualResponses.length > 0 && <KeywordCloud textualResponses={textualResponses} />}
+    </>
+  ) : (
+    <Card className="border-dashed text-center">
+      <CardContent className="py-12">
+        <Target className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+        <h3 className="text-lg font-semibold">분석할 설문 데이터가 없습니다.</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {availableCourses.length === 0
+            ? '선택한 연도에 완료된 설문이 없습니다. 다른 연도를 선택해 보세요.'
+            : '과정과 필터를 선택하면 상세 결과를 확인할 수 있습니다.'}
+        </p>
+      </CardContent>
+    </Card>
+  );
 
   return (
-    <DashboardLayout
-      title="과정 결과 보고"
-      subtitle={isInstructor ? '내 담당 과정 결과 분석' : '전체 과정 운영 결과'}
-      icon={<BarChart3 className="h-5 w-5 text-white" />}
-      actions={actions}
-      loading={loading}
-    >
-      <div className="space-y-6">
-        {isInstructor && (
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <User className="h-5 w-5 text-blue-600" />
-                <div>
-                  <h3 className="font-medium text-blue-900">개인 과정 분석</h3>
-                  <p className="text-sm text-blue-700">회원님이 담당하신 과정들의 만족도 결과만 표시됩니다.</p>
-                </div>
+    <div className="space-y-6">
+      <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg">
+                <TrendingUp className="h-6 w-6" />
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {isAdmin && (
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Crown className="h-5 w-5 text-green-600" />
-                <div>
-                  <h3 className="font-medium text-green-900">전체 과정 분석</h3>
-                  <p className="text-sm text-green-700">모든 강사의 과정 결과를 확인하고 비교 분석할 수 있습니다.</p>
-                </div>
+              <div>
+                <h1 className="text-2xl font-bold text-primary">과정 운영 결과 보고</h1>
+                <p className="text-sm text-muted-foreground">
+                  과정별 종합 만족도와 강사별 통계를 한눈에 확인해 보세요.
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {showEmptyState && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardContent className="p-6 text-center">
-              <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-              <h3 className="font-medium text-orange-900 mb-2">설문 데이터가 없습니다</h3>
-              <p className="text-sm text-orange-700 mb-4">아직 담당하신 과정의 설문 결과가 없습니다.</p>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/dashboard/templates')}
-                className="border-orange-300 text-orange-700 hover:bg-orange-100"
-              >
-                설문 템플릿 관리로 이동
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        <CourseSelector
-          selectedYear={selectedYear}
-          selectedCourse={selectedCourse}
-          selectedRound={selectedRound}
-          selectedInstructor={selectedInstructor}
-          availableCourses={availableCourses}
-          availableRounds={availableRounds}
-          availableInstructors={isInstructor ? [] : availableInstructors}
-          years={YEARS}
-          onYearChange={(value) => setSelectedYear(Number(value))}
-          onCourseChange={setSelectedCourse}
-          onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
-          onInstructorChange={setSelectedInstructor}
-          testDataToggle={<TestDataToggle testDataOptions={testDataOptions} />}
-        />
-
-        {summary && (
-          <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-100 rounded-full">
-                    <Star className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-purple-900">과정 만족도</h3>
-                    <p className="text-sm text-purple-700">강사, 과목, 운영 종합 평가</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-4xl font-bold text-purple-900">{overallSatisfaction.toFixed(1)}</div>
-                  <p className="text-sm text-purple-700">점 / 10점 만점</p>
-                </div>
+            </div>
+            {summary && (
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <span>{summary.educationYear}년 {summary.educationRound ? `${summary.educationRound}차` : '전체'} 과정</span>
+                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                <span>{summary.totalSurveys.toLocaleString()}개 설문</span>
+                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                <span>{summary.totalResponses.toLocaleString()}명 응답</span>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {summary && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card onClick={() => openDrillDown('course')} className="cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">총 설문</CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{summary.totalSurveys}</div>
-                <p className="text-xs text-muted-foreground">진행된 설문 수</p>
-                {surveyChange && (
-                  <p className={`text-xs mt-2 ${surveyChange.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {surveyChange.change >= 0 ? '▲' : '▼'} {Math.abs(surveyChange.percentage).toFixed(1)}%
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card onClick={() => openDrillDown('course')} className="cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">총 응답</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{summary.totalResponses}</div>
-                <p className="text-xs text-muted-foreground">수집된 응답 수</p>
-                {responseChange && (
-                  <p className={`text-xs mt-2 ${responseChange.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {responseChange.change >= 0 ? '▲' : '▼'} {Math.abs(responseChange.percentage).toFixed(1)}%
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card onClick={() => openDrillDown('instructor')} className="cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">강사 만족도</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{toFixedOrZero(summary.avgInstructorSatisfaction).toFixed(1)}</div>
-                <p className="text-xs text-muted-foreground">평균 만족도</p>
-                {instructorChange && (
-                  <p className={`text-xs mt-2 ${instructorChange.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {instructorChange.change >= 0 ? '▲' : '▼'} {Math.abs(instructorChange.percentage).toFixed(1)}%
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card onClick={() => openDrillDown('operation')} className="cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">운영 만족도</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{toFixedOrZero(summary.avgOperationSatisfaction).toFixed(1)}</div>
-                <p className="text-xs text-muted-foreground">평균 만족도</p>
-              </CardContent>
-            </Card>
+            )}
           </div>
-        )}
-
-        {summary && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                영역별 만족도 비교
-              </CardTitle>
-              <CardDescription>강사, 과목, 운영 영역별 현재 만족도 현황</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <ReBarChart data={satisfactionChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
-                  <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
-                  <Tooltip
-                    formatter={(value: number) => [`${value.toFixed(1)}점`, '만족도']}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Bar dataKey="value">
-                    {satisfactionChartData.map((item, index) => (
-                      <Cell key={index} fill={item.fill} />
-                    ))}
-                  </Bar>
-                </ReBarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {trendChartData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                차수별 만족도 추이
-              </CardTitle>
-              <CardDescription>최근 차수별 만족도 흐름을 확인합니다</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <ReLineChart data={trendChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
-                  <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
-                  <Tooltip
-                    formatter={(value: number) => [`${value.toFixed(1)}점`, '만족도']}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="강사만족도" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="과정만족도" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="운영만족도" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={{ r: 4 }} />
-                </ReLineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {instructorStatsDisplay.length > 0 && (
-          <InstructorStatsSection
-            instructorStats={instructorStatsDisplay}
-            previousStats={previousInstructorStatsDisplay}
-            onInstructorClick={handleInstructorClick}
-          />
-        )}
-
-        {textualResponses.length > 0 && <KeywordCloud textualResponses={textualResponses} />}
-
-        <DrillDownModal
-          isOpen={drillDownModal.isOpen}
-          onClose={() => setDrillDownModal((prev) => ({ ...prev, isOpen: false }))}
-          title={drillDownModal.title}
-          type={drillDownModal.type}
-          instructorStats={instructorStatsDisplay}
-          textualResponses={textualResponses}
-        />
+          {summary && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleShareReport} className="bg-white/70">
+                <Share2 className="mr-2 h-4 w-4" /> 공유하기
+              </Button>
+              <Button size="sm" onClick={handlePDFExport} className="bg-primary text-white shadow-md hover:bg-primary/90">
+                <Download className="mr-2 h-4 w-4" /> PDF 다운로드
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
-    </DashboardLayout>
+
+      <CourseSelector
+        selectedYear={selectedYear}
+        selectedCourse={selectedCourse}
+        selectedRound={selectedRound}
+        selectedInstructor={selectedInstructor}
+        availableCourses={availableCourses}
+        availableRounds={availableRounds}
+        availableInstructors={isInstructor ? [] : availableInstructors}
+        years={YEARS}
+        onYearChange={(value) => setSelectedYear(Number(value))}
+        onCourseChange={setSelectedCourse}
+        onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
+        onInstructorChange={setSelectedInstructor}
+        testDataToggle={<TestDataToggle testDataOptions={testDataOptions} />}
+      />
+
+      {content}
+    </div>
   );
 };
 
