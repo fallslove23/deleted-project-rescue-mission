@@ -252,35 +252,46 @@ function mergeTextResponses(questionStats: QuestionStat[], sources: string[][]):
 }
 
 export function getCombinedRecordMetrics(record: InstructorStatsRecord, includeTestData: boolean): CombinedMetrics {
-  const metricSets = includeTestData ? [record.real, record.test] : [record.real];
-  const questionStats = mergeQuestionStatsArrays(metricSets.map(set => set.questionStats));
-  const ratingDistribution = metricSets.reduce((acc, set) => {
-    sumDistributions(acc, set.ratingDistribution);
+  const realSource = {
+    metrics: record.real,
+    responseCount: record.responseCount,
+    surveyCount: record.surveyCount,
+    activeSurveyCount: record.activeSurveyCount,
+    textResponseCount: record.textResponseCount,
+  };
+
+  const sources = includeTestData
+    ? [
+        realSource,
+        {
+          metrics: record.test,
+          responseCount: record.testResponseCount,
+          surveyCount: record.testSurveyCount,
+          activeSurveyCount: record.testActiveSurveyCount,
+          textResponseCount: record.testTextResponseCount,
+        },
+      ]
+    : [realSource];
+
+  const questionStats = mergeQuestionStatsArrays(sources.map(source => source.metrics.questionStats));
+  const ratingDistribution = sources.reduce((acc, source) => {
+    sumDistributions(acc, source.metrics.ratingDistribution);
     return acc;
   }, emptyDistribution());
-  const textResponses = mergeTextResponses(questionStats, metricSets.map(set => set.textResponses));
+  const textResponses = mergeTextResponses(questionStats, sources.map(source => source.metrics.textResponses));
 
   const combineAverage = (selector: (metrics: typeof record.real) => number | null): number | null => {
-    if (!includeTestData) {
-      return selector(record.real);
-    }
-
     return (
-      calculateWeightedAverage([
-        { value: selector(record.real), weight: record.responseCount },
-        { value: selector(record.test), weight: record.testResponseCount },
-      ]) ?? null
+      calculateWeightedAverage(
+        sources.map(source => ({ value: selector(source.metrics), weight: source.responseCount }))
+      ) ?? null
     );
   };
 
-  const responseCount = includeTestData ? record.responseCount + record.testResponseCount : record.responseCount;
-  const surveyCount = includeTestData ? record.surveyCount + record.testSurveyCount : record.surveyCount;
-  const activeSurveyCount = includeTestData
-    ? record.activeSurveyCount + record.testActiveSurveyCount
-    : record.activeSurveyCount;
-  const textResponseCount = includeTestData
-    ? record.textResponseCount + record.testTextResponseCount
-    : record.textResponseCount;
+  const responseCount = sources.reduce((sum, source) => sum + source.responseCount, 0);
+  const surveyCount = sources.reduce((sum, source) => sum + source.surveyCount, 0);
+  const activeSurveyCount = sources.reduce((sum, source) => sum + source.activeSurveyCount, 0);
+  const textResponseCount = sources.reduce((sum, source) => sum + source.textResponseCount, 0);
 
   const hasTestContribution = includeTestData
     ? record.testResponseCount > 0 ||
@@ -466,85 +477,9 @@ export function buildRatingDistribution(records: InstructorStatsRecord[], includ
 }
 
 export function aggregateQuestionStats(records: InstructorStatsRecord[], includeTestData: boolean): QuestionInsights {
-  type Accumulator = {
-    questionId: string;
-    questionText: string;
-    questionType: string;
-    satisfactionType: string | null;
-    orderIndex: number | null;
-    totalAnswers: number;
-    weightedSum: number;
-    weight: number;
-    ratingDistribution: RatingDistribution;
-    textAnswers: Set<string>;
-  };
-
-  const map = new Map<string, Accumulator>();
-
-  records.forEach(record => {
-    const metrics = getCombinedRecordMetrics(record, includeTestData);
-    metrics.questionStats.forEach(question => {
-      const key = `${question.questionText}|${question.questionType}|${question.satisfactionType ?? ''}`;
-      const accumulator = map.get(key) ?? {
-        questionId: question.questionId || key,
-        questionText: question.questionText,
-        questionType: question.questionType,
-        satisfactionType: question.satisfactionType ?? null,
-        orderIndex: question.orderIndex ?? null,
-        totalAnswers: 0,
-        weightedSum: 0,
-        weight: 0,
-        ratingDistribution: emptyDistribution(),
-        textAnswers: new Set<string>(),
-      };
-
-      accumulator.totalAnswers += question.totalAnswers;
-      if (question.average !== null && question.totalAnswers > 0) {
-        accumulator.weightedSum += question.average * question.totalAnswers;
-        accumulator.weight += question.totalAnswers;
-      }
-      sumDistributions(accumulator.ratingDistribution, question.ratingDistribution);
-      question.textAnswers.forEach(answer => {
-        if (answer) accumulator.textAnswers.add(answer);
-      });
-
-      if (accumulator.orderIndex === null && question.orderIndex !== null) {
-        accumulator.orderIndex = question.orderIndex;
-      } else if (
-        accumulator.orderIndex !== null &&
-        question.orderIndex !== null &&
-        question.orderIndex < accumulator.orderIndex
-      ) {
-        accumulator.orderIndex = question.orderIndex;
-      }
-
-      map.set(key, accumulator);
-    });
-  });
-
-  const questions: AggregatedQuestion[] = Array.from(map.values())
-    .map(item => {
-      const average = item.weight > 0 ? item.weightedSum / item.weight : null;
-      return {
-        questionId: item.questionId,
-        questionText: item.questionText,
-        questionType: item.questionType,
-        satisfactionType: item.satisfactionType,
-        orderIndex: item.orderIndex,
-        totalAnswers: item.totalAnswers,
-        average,
-        ratingDistribution: item.ratingDistribution,
-        textAnswers: Array.from(item.textAnswers),
-      } satisfies AggregatedQuestion;
-    })
-    .sort((a, b) => {
-      const orderA = a.orderIndex ?? 0;
-      const orderB = b.orderIndex ?? 0;
-      if (orderA === orderB) {
-        return a.questionText.localeCompare(b.questionText);
-      }
-      return orderA - orderB;
-    });
+  const metricsList = records.map(record => getCombinedRecordMetrics(record, includeTestData));
+  const questions = mergeQuestionStatsArrays(metricsList.map(metrics => metrics.questionStats)) as AggregatedQuestion[];
+  const textResponses = mergeTextResponses(questions, metricsList.map(metrics => metrics.textResponses));
 
   const categoryBuckets: Record<'subject' | 'instructor' | 'operation', { questions: AggregatedQuestion[]; sum: number; weight: number }> = {
     subject: { questions: [], sum: 0, weight: 0 },
@@ -558,8 +493,6 @@ export function aggregateQuestionStats(records: InstructorStatsRecord[], include
     return 'subject';
   };
 
-  const textResponses = new Set<string>();
-
   questions.forEach(question => {
     const category = mapCategory(question.satisfactionType);
     categoryBuckets[category].questions.push(question);
@@ -567,7 +500,6 @@ export function aggregateQuestionStats(records: InstructorStatsRecord[], include
       categoryBuckets[category].sum += question.average * question.totalAnswers;
       categoryBuckets[category].weight += question.totalAnswers;
     }
-    question.textAnswers.forEach(answer => textResponses.add(answer));
   });
 
   const buildCategorySummary = (category: 'subject' | 'instructor' | 'operation'): CategorySummary => {
@@ -586,6 +518,6 @@ export function aggregateQuestionStats(records: InstructorStatsRecord[], include
       instructor: buildCategorySummary('instructor'),
       operation: buildCategorySummary('operation'),
     },
-    textResponses: Array.from(textResponses),
+    textResponses,
   } satisfies QuestionInsights;
 }
