@@ -59,7 +59,7 @@ interface SurveyAggregateResult {
   summary: SurveyAggregateSummary;
 }
 
-type SurveyAggregatesViewRow = Database['public']['Views']['survey_aggregates']['Row'];
+type SurveyAggregatesFunctionRow = Database['public']['Functions']['get_survey_aggregates']['Returns'][number];
 type SurveyDescriptionRow = Pick<Database['public']['Tables']['surveys']['Row'], 'id' | 'description'>;
 
 export type {
@@ -198,41 +198,15 @@ export const SurveyAggregatesRepository = {
   }: SurveyAggregateFilters): Promise<SurveyAggregateResult> {
     const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
 
-    let query = supabase
-      .from('survey_aggregates')
-      .select(
-        `
-        survey_id,
-        title,
-        education_year,
-        education_round,
-        course_name,
-        status,
-        instructor_id,
-        instructor_name,
-        expected_participants,
-        is_test,
-        question_count,
-        response_count,
-        last_response_at,
-        avg_overall_satisfaction,
-        avg_course_satisfaction,
-        avg_instructor_satisfaction,
-        avg_operation_satisfaction
-      `,
-      )
-      .returns<SurveyAggregatesViewRow[]>();
-
-    if (year) query = query.eq('education_year', year);
-    if (round) query = query.eq('education_round', round);
-    if (courseName) query = query.eq('course_name', courseName);
-    if (instructorFilter) query = query.eq('instructor_id', instructorFilter);
-    if (!includeTestData) query = query.neq('is_test', true);
-
-    const { data, error } = await query.order('last_response_at', {
-      ascending: false,
-      nullsFirst: false,
-    });
+    const { data, error } = await supabase
+      .rpc('get_survey_aggregates', {
+        p_year: year ?? null,
+        p_round: round ?? null,
+        p_course_name: courseName ?? null,
+        p_instructor_id: instructorFilter ?? null,
+        p_include_test: includeTestData,
+      })
+      .returns<SurveyAggregatesFunctionRow[]>();
 
     if (error) {
       console.error('Error fetching survey aggregates:', error);
