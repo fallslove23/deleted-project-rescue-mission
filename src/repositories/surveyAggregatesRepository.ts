@@ -200,7 +200,8 @@ export const SurveyAggregatesRepository = {
 
     let query = supabase
       .from('survey_aggregates')
-      .select(`
+      .select(
+        `
         survey_id,
         title,
         education_year,
@@ -218,7 +219,9 @@ export const SurveyAggregatesRepository = {
         avg_course_satisfaction,
         avg_instructor_satisfaction,
         avg_operation_satisfaction
-      `);
+      `,
+      )
+      .returns<SurveyAggregatesViewRow[]>();
 
     if (year) query = query.eq('education_year', year);
     if (round) query = query.eq('education_round', round);
@@ -226,14 +229,17 @@ export const SurveyAggregatesRepository = {
     if (instructorFilter) query = query.eq('instructor_id', instructorFilter);
     if (!includeTestData) query = query.neq('is_test', true);
 
-    const { data, error } = await query.order('last_response_at', { ascending: false });
+    const { data, error } = await query.order('last_response_at', {
+      ascending: false,
+      nullsFirst: false,
+    });
 
     if (error) {
       console.error('Error fetching survey aggregates:', error);
       throw error;
     }
 
-    const aggregatesData = (data ?? []) as SurveyAggregatesViewRow[];
+    const aggregatesData = data ?? [];
 
     const surveyIds = aggregatesData
       .map((item) => item?.survey_id)
@@ -247,12 +253,13 @@ export const SurveyAggregatesRepository = {
       const { data: surveyDetails, error: surveyError } = await supabase
         .from('surveys')
         .select('id, description')
-        .in('id', uniqueSurveyIds);
+        .in('id', uniqueSurveyIds)
+        .returns<SurveyDescriptionRow[]>();
 
       if (surveyError) {
         console.error('Error fetching survey descriptions:', surveyError);
       } else {
-        (surveyDetails as SurveyDescriptionRow[] | null)?.forEach((survey) => {
+        surveyDetails?.forEach((survey) => {
           if (survey.id) {
             descriptionMap.set(survey.id, toNullableString(survey.description));
           }
