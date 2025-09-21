@@ -158,53 +158,37 @@ const toNullableNumber = (value: unknown): number | null => {
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
   if (!rows) return [];
   return rows.map((row) => {
-    const distributionRaw = row.question_type_distribution as unknown;
-    const distribution: QuestionTypeDistributionItem[] = Array.isArray(distributionRaw)
-      ? distributionRaw.map((item) => {
-          if (item && typeof item === 'object') {
-            const { question_type, response_count } = item as Record<string, unknown>;
-            return {
-              question_type: typeof question_type === 'string' ? question_type : 'unknown',
-              response_count: Number(response_count ?? 0),
-            };
-          }
-          return { question_type: 'unknown', response_count: 0 };
-        })
-      : [];
-
-    const surveyId = typeof row.survey_id === 'string' ? row.survey_id : '';
-    const title = typeof row.title === 'string' && row.title.trim().length > 0 ? row.title : '제목 없음';
-    const description = typeof row.description === 'string' && row.description.trim().length > 0 ? row.description : null;
-    const courseName = typeof row.course_name === 'string' && row.course_name.trim().length > 0 ? row.course_name : null;
-    const status = typeof row.status === 'string' && row.status.trim().length > 0 ? row.status : null;
-    const instructorId = typeof row.instructor_id === 'string' && row.instructor_id.trim().length > 0
-      ? row.instructor_id
-      : null;
-    const instructorName = typeof row.instructor_name === 'string' && row.instructor_name.trim().length > 0
-      ? row.instructor_name
-      : null;
-    const isTest = typeof row.is_test === 'boolean' ? row.is_test : null;
+    // Extract survey info from the nested jsonb structure
+    const surveyInfo = row.survey_info as any;
+    const satisfactionScores = row.satisfaction_scores as any;
+    
+    const surveyId = typeof surveyInfo?.id === 'string' ? surveyInfo.id : '';
+    const title = typeof surveyInfo?.title === 'string' && surveyInfo.title.trim().length > 0 ? surveyInfo.title : '제목 없음';
+    const description = typeof surveyInfo?.description === 'string' && surveyInfo.description.trim().length > 0 ? surveyInfo.description : null;
+    const courseName = typeof surveyInfo?.course_name === 'string' && surveyInfo.course_name.trim().length > 0 ? surveyInfo.course_name : null;
+    const status = typeof surveyInfo?.status === 'string' && surveyInfo.status.trim().length > 0 ? surveyInfo.status : null;
+    const instructorName = typeof surveyInfo?.instructor_name === 'string' && surveyInfo.instructor_name.trim().length > 0 ? surveyInfo.instructor_name : null;
 
     return {
       survey_id: surveyId,
       title,
       description,
-      education_year: toNumber(row.education_year),
-      education_round: toNumber(row.education_round),
+      education_year: toNumber(surveyInfo?.education_year),
+      education_round: toNumber(surveyInfo?.education_round),
       course_name: courseName,
       status,
-      instructor_id: instructorId,
+      instructor_id: null,
       instructor_name: instructorName,
-      expected_participants: toNullableNumber(row.expected_participants),
-      is_test: isTest,
+      expected_participants: null,
+      is_test: null,
       response_count: toNumber(row.response_count),
-      last_response_at: typeof row.last_response_at === 'string' ? row.last_response_at : null,
-      avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
-      avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
-      avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
-      avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
-      question_count: toNumber(row.question_count),
-      question_type_distribution: distribution,
+      last_response_at: null,
+      avg_overall_satisfaction: toNullableNumber(satisfactionScores?.instructor_satisfaction),
+      avg_course_satisfaction: toNullableNumber(satisfactionScores?.course_satisfaction),
+      avg_instructor_satisfaction: toNullableNumber(satisfactionScores?.instructor_satisfaction),
+      avg_operation_satisfaction: toNullableNumber(satisfactionScores?.operation_satisfaction),
+      question_count: 0,
+      question_type_distribution: [],
     };
   });
 };
@@ -358,16 +342,41 @@ const SurveyAnalysis = () => {
   const fetchAvailableSummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
-      const instructorIdForQuery = instructorFilter ?? null;
-      const { data, error } = await supabase.rpc('get_survey_analysis', {
-        p_year: null,
-        p_round: null,
-        p_course_name: null,
-        p_instructor_id: instructorIdForQuery,
-        p_include_test: includeTestData,
-      });
+      // For now, we'll use surveys table directly since get_survey_analysis is for single surveys
+      const { data, error } = await supabase
+        .from('surveys')
+        .select(`
+          *,
+          instructors(name)
+        `)
+        .order('created_at', { ascending: false });
+      
       if (error) throw error;
-      setAllSummaries(normalizeSummaries(data));
+      
+      // Convert to expected format
+      const summaryData = data?.map(survey => ({
+        survey_id: survey.id,
+        title: survey.title || '제목 없음',
+        description: survey.description,
+        education_year: survey.education_year,
+        education_round: survey.education_round,
+        course_name: survey.course_name,
+        status: survey.status,
+        instructor_id: survey.instructor_id,
+        instructor_name: survey.instructors?.name || null,
+        expected_participants: survey.expected_participants,
+        is_test: survey.is_test,
+        response_count: 0,
+        last_response_at: null,
+        avg_overall_satisfaction: null,
+        avg_course_satisfaction: null,
+        avg_instructor_satisfaction: null,
+        avg_operation_satisfaction: null,
+        question_count: 0,
+        question_type_distribution: [],
+      })) || [];
+      
+      setAllSummaries(summaryData);
     } catch (error) {
       console.error('Error fetching available survey summaries:', error);
       toast({
@@ -390,15 +399,56 @@ const SurveyAnalysis = () => {
       const normalizedYear = yearFilter !== null && !Number.isNaN(yearFilter) ? yearFilter : null;
       const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;
 
-      const { data, error } = await supabase.rpc('get_survey_analysis', {
-        p_year: normalizedYear,
-        p_round: normalizedRound,
-        p_course_name: courseFilter,
-        p_instructor_id: instructorIdForQuery,
-        p_include_test: includeTestData,
-      });
+      // Use surveys table with filters
+      let query = supabase
+        .from('surveys')
+        .select(`
+          *,
+          instructors(name)
+        `);
+      
+      if (normalizedYear) {
+        query = query.eq('education_year', normalizedYear);
+      }
+      if (normalizedRound) {
+        query = query.eq('education_round', normalizedRound);
+      }
+      if (courseFilter) {
+        query = query.eq('course_name', courseFilter);
+      }
+      if (instructorIdForQuery) {
+        query = query.eq('instructor_id', instructorIdForQuery);
+      }
+      if (!includeTestData) {
+        query = query.neq('is_test', true);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
-      const summaries = normalizeSummaries(data);
+      
+      // Convert to expected format directly
+      const summaries = data?.map(survey => ({
+        survey_id: survey.id,
+        title: survey.title || '제목 없음',
+        description: survey.description,
+        education_year: survey.education_year,
+        education_round: survey.education_round,
+        course_name: survey.course_name,
+        status: survey.status,
+        instructor_id: survey.instructor_id,
+        instructor_name: survey.instructors?.name || null,
+        expected_participants: survey.expected_participants,
+        is_test: survey.is_test,
+        response_count: 0,
+        last_response_at: null,
+        avg_overall_satisfaction: null,
+        avg_course_satisfaction: null,
+        avg_instructor_satisfaction: null,
+        avg_operation_satisfaction: null,
+        question_count: 0,
+        question_type_distribution: [],
+      })) || [];
+      
       setSurveySummaries(summaries);
 
       if (summaries.length === 0) {
