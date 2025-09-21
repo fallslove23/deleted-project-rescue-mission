@@ -155,13 +155,35 @@ const toNullableNumber = (value: unknown): number | null => {
   return null;
 };
 
+const getSatisfactionScores = (satisfactionScores: any) => {
+  const overallScore = toNullableNumber(satisfactionScores?.overall_satisfaction);
+  const courseScore = toNullableNumber(satisfactionScores?.course_satisfaction);
+  const instructorScore = toNullableNumber(satisfactionScores?.instructor_satisfaction);
+  const operationScore = toNullableNumber(satisfactionScores?.operation_satisfaction);
+
+  const scoreValues = [courseScore, instructorScore, operationScore].filter(
+    (score): score is number => typeof score === 'number' && Number.isFinite(score)
+  );
+
+  const computedOverall = scoreValues.length > 0
+    ? scoreValues.reduce((sum, score) => sum + score, 0) / scoreValues.length
+    : null;
+
+  return {
+    overall: overallScore ?? computedOverall,
+    course: courseScore,
+    instructor: instructorScore,
+    operation: operationScore,
+  };
+};
+
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
   if (!rows) return [];
   return rows.map((row) => {
     // Extract survey info from the nested jsonb structure
     const surveyInfo = row.survey_info as any;
-    const satisfactionScores = row.satisfaction_scores as any;
-    
+    const satisfactionScores = getSatisfactionScores(row.satisfaction_scores as any);
+
     const surveyId = typeof surveyInfo?.id === 'string' ? surveyInfo.id : '';
     const title = typeof surveyInfo?.title === 'string' && surveyInfo.title.trim().length > 0 ? surveyInfo.title : '제목 없음';
     const description = typeof surveyInfo?.description === 'string' && surveyInfo.description.trim().length > 0 ? surveyInfo.description : null;
@@ -183,10 +205,10 @@ const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] =
       is_test: null,
       response_count: toNumber(row.response_count),
       last_response_at: null,
-      avg_overall_satisfaction: toNullableNumber(satisfactionScores?.instructor_satisfaction),
-      avg_course_satisfaction: toNullableNumber(satisfactionScores?.course_satisfaction),
-      avg_instructor_satisfaction: toNullableNumber(satisfactionScores?.instructor_satisfaction),
-      avg_operation_satisfaction: toNullableNumber(satisfactionScores?.operation_satisfaction),
+      avg_overall_satisfaction: satisfactionScores.overall,
+      avg_course_satisfaction: satisfactionScores.course,
+      avg_instructor_satisfaction: satisfactionScores.instructor,
+      avg_operation_satisfaction: satisfactionScores.operation,
       question_count: 0,
       question_type_distribution: [],
     };
