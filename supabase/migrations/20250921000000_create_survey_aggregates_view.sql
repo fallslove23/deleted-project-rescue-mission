@@ -94,3 +94,5 @@ GROUP BY
   s.is_test;
 
 COMMENT ON VIEW public.survey_aggregates IS 'Aggregated survey metrics including response counts and satisfaction averages';
+GRANT SELECT ON public.survey_aggregates TO anon, authenticated;
+
