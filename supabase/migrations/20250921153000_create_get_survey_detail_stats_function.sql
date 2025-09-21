@@ -25,6 +25,8 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path TO 'public'
 AS $$
   WITH filtered_responses AS (
     SELECT
@@ -335,3 +337,5 @@ $$;
 
 COMMENT ON FUNCTION public.get_survey_detail_stats(uuid, boolean, integer, integer, integer, integer, integer, integer)
 IS 'Returns paginated survey responses with aggregated question statistics for detailed analysis dashboards.';
+
+GRANT EXECUTE ON FUNCTION public.get_survey_detail_stats(uuid, boolean, integer, integer, integer, integer, integer, integer) TO anon, authenticated;
