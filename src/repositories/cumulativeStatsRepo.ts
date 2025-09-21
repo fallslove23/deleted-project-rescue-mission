@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 type NumericLike = number | string | null;
 
@@ -200,89 +201,107 @@ export async function fetchCumulativeStats({
   const from = (safePage - 1) * safePageSize;
   const to = from + safePageSize - 1;
 
-  // Query from surveys with joined data instead of cumulative stats view
+  type SurveyCumulativeStatsRow = Database['public']['Views']['survey_cumulative_stats']['Row'];
+
   let query = supabase
-    .from('surveys')
-    .select(`
-      id,
-      title,
-      education_year,
-      education_round,
-      course_name,
-      status,
-      expected_participants,
-      created_at,
-      is_test,
-      instructor_id,
-      instructors(name)
-    `, { count: 'exact' })
+    .from('survey_cumulative_stats')
+    .select(
+      `
+        survey_id,
+        title,
+        education_year,
+        education_round,
+        course_name,
+        status,
+        expected_participants,
+        created_at,
+        last_response_at,
+        survey_is_test,
+        instructor_names,
+        instructor_names_text,
+        instructor_count,
+        total_response_count,
+        real_response_count,
+        test_response_count,
+        avg_satisfaction_total,
+        avg_satisfaction_real,
+        avg_satisfaction_test,
+        avg_course_satisfaction_total,
+        avg_course_satisfaction_real,
+        avg_course_satisfaction_test,
+        avg_instructor_satisfaction_total,
+        avg_instructor_satisfaction_real,
+        avg_instructor_satisfaction_test,
+        avg_operation_satisfaction_total,
+        avg_operation_satisfaction_real,
+        avg_operation_satisfaction_test,
+        weighted_satisfaction_total,
+        weighted_satisfaction_real,
+        weighted_satisfaction_test
+      `,
+      { count: 'exact' }
+    )
     .order('education_year', { ascending: false })
     .order('education_round', { ascending: false })
     .order('title', { ascending: true });
 
-  // Apply filters
-  if (!includeTestData) {
-    query = query.or('is_test.eq.false,is_test.is.null');
-  }
-
-  if (educationYear !== null && educationYear !== undefined) {
-    query = query.eq('education_year', educationYear);
-  }
-
-  if (courseName !== null && courseName !== undefined) {
-    query = query.eq('course_name', courseName);
-  }
-
-  if (searchTerm && searchTerm.trim()) {
-    const like = `%${searchTerm.trim()}%`;
-    query = query.or(
-      `title.ilike.${like},course_name.ilike.${like}`
-    );
-  }
+  query = applyFilters(query, {
+    searchTerm,
+    educationYear,
+    courseName,
+    includeTestData,
+  });
 
   const { data, error, count } = await query.range(from, to);
   if (error) throw error;
 
-  // Transform survey data to match expected format
-  const transformedData = (data ?? []).map((survey: any) => {
-    const instructorName = survey.instructors?.name || 'Unknown';
-    return {
-      survey_id: survey.id,
-      title: survey.title,
-      education_year: survey.education_year,
-      education_round: survey.education_round,
-      course_name: survey.course_name,
-      status: survey.status,
-      expected_participants: survey.expected_participants,
-      created_at: survey.created_at,
-      last_response_at: null, // Will be calculated separately if needed
-      survey_is_test: survey.is_test,
-      instructor_names: [instructorName],
-      instructor_names_text: instructorName,
-      instructor_count: survey.instructor_id ? 1 : 0,
-      total_response_count: 0, // Simplified for now
-      real_response_count: 0,
-      test_response_count: 0,
-      avg_satisfaction_total: null,
-      avg_satisfaction_real: null,
-      avg_satisfaction_test: null,
-      avg_course_satisfaction_total: null,
-      avg_course_satisfaction_real: null,
-      avg_course_satisfaction_test: null,
-      avg_instructor_satisfaction_total: null,
-      avg_instructor_satisfaction_real: null,
-      avg_instructor_satisfaction_test: null,
-      avg_operation_satisfaction_total: null,
-      avg_operation_satisfaction_real: null,
-      avg_operation_satisfaction_test: null,
-      weighted_satisfaction_total: null,
-      weighted_satisfaction_real: null,
-      weighted_satisfaction_test: null,
+  const transformedData = (data ?? []).reduce<SurveyCumulativeRow[]>((acc, row) => {
+    const statsRow = row as SurveyCumulativeStatsRow;
+
+    if (!statsRow?.survey_id) {
+      return acc;
+    }
+
+    const rawRow: RawSurveyCumulativeRow = {
+      survey_id: statsRow.survey_id,
+      title: statsRow.title,
+      education_year: statsRow.education_year,
+      education_round: statsRow.education_round,
+      course_name: statsRow.course_name,
+      status: statsRow.status,
+      expected_participants: statsRow.expected_participants,
+      created_at: statsRow.created_at,
+      last_response_at: statsRow.last_response_at,
+      survey_is_test: statsRow.survey_is_test,
+      instructor_names: statsRow.instructor_names ?? [],
+      instructor_names_text: statsRow.instructor_names_text || null,
+      instructor_count: statsRow.instructor_count,
+      total_response_count: statsRow.total_response_count,
+      real_response_count: statsRow.real_response_count,
+      test_response_count: statsRow.test_response_count,
+      avg_satisfaction_total: statsRow.avg_satisfaction_total,
+      avg_satisfaction_real: statsRow.avg_satisfaction_real,
+      avg_satisfaction_test: statsRow.avg_satisfaction_test,
+      avg_course_satisfaction_total: statsRow.avg_course_satisfaction_total,
+      avg_course_satisfaction_real: statsRow.avg_course_satisfaction_real,
+      avg_course_satisfaction_test: statsRow.avg_course_satisfaction_test,
+      avg_instructor_satisfaction_total: statsRow.avg_instructor_satisfaction_total,
+      avg_instructor_satisfaction_real: statsRow.avg_instructor_satisfaction_real,
+      avg_instructor_satisfaction_test: statsRow.avg_instructor_satisfaction_test,
+      avg_operation_satisfaction_total: statsRow.avg_operation_satisfaction_total,
+      avg_operation_satisfaction_real: statsRow.avg_operation_satisfaction_real,
+      avg_operation_satisfaction_test: statsRow.avg_operation_satisfaction_test,
+      weighted_satisfaction_total: statsRow.weighted_satisfaction_total,
+      weighted_satisfaction_real: statsRow.weighted_satisfaction_real,
+      weighted_satisfaction_test: statsRow.weighted_satisfaction_test,
     };
-  });
+
+    acc.push(normalizeSurveyRow(rawRow));
+    return acc;
+  }, []);
 
   return {
-    data: transformedData.map((row) => normalizeSurveyRow(row as RawSurveyCumulativeRow)),
+    data: transformedData,
     count: count ?? 0,
   };
 }
