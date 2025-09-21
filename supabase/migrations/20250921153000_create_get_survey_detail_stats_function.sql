@@ -1,6 +1,7 @@
 -- Stored procedure returning paginated survey responses with aggregated question metrics
 -- so the application can progressively render detailed analysis without downloading
--- every answer at once.
+DROP FUNCTION IF EXISTS public.get_survey_detail_stats(uuid, boolean, integer, integer, integer, integer, integer, integer);
+
 CREATE OR REPLACE FUNCTION public.get_survey_detail_stats(
   p_survey_id uuid,
   p_include_test boolean DEFAULT false,
