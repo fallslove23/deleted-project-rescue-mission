@@ -167,7 +167,7 @@ function applyFilters(
   let filtered = query;
 
   if (!includeTestData) {
-    filtered = filtered.or('survey_is_test.eq.false,survey_is_test.is.null');
+    filtered = filtered.or('is_test.eq.false,is_test.is.null');
   }
 
   if (educationYear !== null && educationYear !== undefined) {
@@ -181,7 +181,11 @@ function applyFilters(
   if (searchTerm && searchTerm.trim()) {
     const like = `%${searchTerm.trim()}%`;
     filtered = filtered.or(
-      `title.ilike.${like},course_name.ilike.${like},instructor_names_text.ilike.${like}`
+      [
+        `title.ilike.${like}`,
+        `course_name.ilike.${like}`,
+        `survey_cumulative_stats.instructor_names_text.ilike.${like}`,
+      ].join(',')
     );
   }
 
@@ -201,13 +205,17 @@ export async function fetchCumulativeStats({
   const from = (safePage - 1) * safePageSize;
   const to = from + safePageSize - 1;
 
+  type SurveyRow = Database['public']['Tables']['surveys']['Row'];
   type SurveyCumulativeStatsRow = Database['public']['Views']['survey_cumulative_stats']['Row'];
+  type SurveyWithStatsRow = SurveyRow & {
+    survey_cumulative_stats: SurveyCumulativeStatsRow | null;
+  };
 
   let query = supabase
-    .from('survey_cumulative_stats')
+    .from('surveys')
     .select(
       `
-        survey_id,
+        id,
         title,
         education_year,
         education_round,
@@ -215,32 +223,37 @@ export async function fetchCumulativeStats({
         status,
         expected_participants,
         created_at,
-        last_response_at,
-        survey_is_test,
-        instructor_names,
-        instructor_names_text,
-        instructor_count,
-        total_response_count,
-        real_response_count,
-        test_response_count,
-        avg_satisfaction_total,
-        avg_satisfaction_real,
-        avg_satisfaction_test,
-        avg_course_satisfaction_total,
-        avg_course_satisfaction_real,
-        avg_course_satisfaction_test,
-        avg_instructor_satisfaction_total,
-        avg_instructor_satisfaction_real,
-        avg_instructor_satisfaction_test,
-        avg_operation_satisfaction_total,
-        avg_operation_satisfaction_real,
-        avg_operation_satisfaction_test,
-        weighted_satisfaction_total,
-        weighted_satisfaction_real,
-        weighted_satisfaction_test
+        is_test,
+        survey_cumulative_stats:survey_cumulative_stats!inner(
+          survey_id,
+          last_response_at,
+          survey_is_test,
+          instructor_names,
+          instructor_names_text,
+          instructor_count,
+          total_response_count,
+          real_response_count,
+          test_response_count,
+          avg_satisfaction_total,
+          avg_satisfaction_real,
+          avg_satisfaction_test,
+          avg_course_satisfaction_total,
+          avg_course_satisfaction_real,
+          avg_course_satisfaction_test,
+          avg_instructor_satisfaction_total,
+          avg_instructor_satisfaction_real,
+          avg_instructor_satisfaction_test,
+          avg_operation_satisfaction_total,
+          avg_operation_satisfaction_real,
+          avg_operation_satisfaction_test,
+          weighted_satisfaction_total,
+          weighted_satisfaction_real,
+          weighted_satisfaction_test
+        )
       `,
       { count: 'exact' }
     )
+    .in('status', ['completed', 'active'])
     .order('education_year', { ascending: false })
     .order('education_round', { ascending: false })
     .order('title', { ascending: true });
@@ -256,44 +269,45 @@ export async function fetchCumulativeStats({
   if (error) throw error;
 
   const transformedData = (data ?? []).reduce<SurveyCumulativeRow[]>((acc, row) => {
-    const statsRow = row as SurveyCumulativeStatsRow;
+    const surveyRow = row as unknown as SurveyWithStatsRow;
+    const statsRow = surveyRow?.survey_cumulative_stats ?? null;
 
-    if (!statsRow?.survey_id) {
+    if (!surveyRow?.id || !statsRow?.survey_id) {
       return acc;
     }
 
     const rawRow: RawSurveyCumulativeRow = {
-      survey_id: statsRow.survey_id,
-      title: statsRow.title,
-      education_year: statsRow.education_year,
-      education_round: statsRow.education_round,
-      course_name: statsRow.course_name,
-      status: statsRow.status,
-      expected_participants: statsRow.expected_participants,
-      created_at: statsRow.created_at,
-      last_response_at: statsRow.last_response_at,
-      survey_is_test: statsRow.survey_is_test,
-      instructor_names: statsRow.instructor_names ?? [],
-      instructor_names_text: statsRow.instructor_names_text || null,
-      instructor_count: statsRow.instructor_count,
-      total_response_count: statsRow.total_response_count,
-      real_response_count: statsRow.real_response_count,
-      test_response_count: statsRow.test_response_count,
-      avg_satisfaction_total: statsRow.avg_satisfaction_total,
-      avg_satisfaction_real: statsRow.avg_satisfaction_real,
-      avg_satisfaction_test: statsRow.avg_satisfaction_test,
-      avg_course_satisfaction_total: statsRow.avg_course_satisfaction_total,
-      avg_course_satisfaction_real: statsRow.avg_course_satisfaction_real,
-      avg_course_satisfaction_test: statsRow.avg_course_satisfaction_test,
-      avg_instructor_satisfaction_total: statsRow.avg_instructor_satisfaction_total,
-      avg_instructor_satisfaction_real: statsRow.avg_instructor_satisfaction_real,
-      avg_instructor_satisfaction_test: statsRow.avg_instructor_satisfaction_test,
-      avg_operation_satisfaction_total: statsRow.avg_operation_satisfaction_total,
-      avg_operation_satisfaction_real: statsRow.avg_operation_satisfaction_real,
-      avg_operation_satisfaction_test: statsRow.avg_operation_satisfaction_test,
-      weighted_satisfaction_total: statsRow.weighted_satisfaction_total,
-      weighted_satisfaction_real: statsRow.weighted_satisfaction_real,
-      weighted_satisfaction_test: statsRow.weighted_satisfaction_test,
+      survey_id: surveyRow.id,
+      title: surveyRow.title ?? null,
+      education_year: surveyRow.education_year,
+      education_round: surveyRow.education_round,
+      course_name: surveyRow.course_name ?? null,
+      status: surveyRow.status ?? null,
+      expected_participants: surveyRow.expected_participants,
+      created_at: surveyRow.created_at ?? null,
+      last_response_at: statsRow.last_response_at ?? null,
+      survey_is_test: statsRow.survey_is_test ?? surveyRow.is_test,
+      instructor_names: statsRow.instructor_names ?? null,
+      instructor_names_text: statsRow.instructor_names_text ?? null,
+      instructor_count: statsRow.instructor_count ?? null,
+      total_response_count: statsRow.total_response_count ?? null,
+      real_response_count: statsRow.real_response_count ?? null,
+      test_response_count: statsRow.test_response_count ?? null,
+      avg_satisfaction_total: statsRow.avg_satisfaction_total ?? null,
+      avg_satisfaction_real: statsRow.avg_satisfaction_real ?? null,
+      avg_satisfaction_test: statsRow.avg_satisfaction_test ?? null,
+      avg_course_satisfaction_total: statsRow.avg_course_satisfaction_total ?? null,
+      avg_course_satisfaction_real: statsRow.avg_course_satisfaction_real ?? null,
+      avg_course_satisfaction_test: statsRow.avg_course_satisfaction_test ?? null,
+      avg_instructor_satisfaction_total: statsRow.avg_instructor_satisfaction_total ?? null,
+      avg_instructor_satisfaction_real: statsRow.avg_instructor_satisfaction_real ?? null,
+      avg_instructor_satisfaction_test: statsRow.avg_instructor_satisfaction_test ?? null,
+      avg_operation_satisfaction_total: statsRow.avg_operation_satisfaction_total ?? null,
+      avg_operation_satisfaction_real: statsRow.avg_operation_satisfaction_real ?? null,
+      avg_operation_satisfaction_test: statsRow.avg_operation_satisfaction_test ?? null,
+      weighted_satisfaction_total: statsRow.weighted_satisfaction_total ?? null,
+      weighted_satisfaction_real: statsRow.weighted_satisfaction_real ?? null,
+      weighted_satisfaction_test: statsRow.weighted_satisfaction_test ?? null,
     };
 
     acc.push(normalizeSurveyRow(rawRow));
