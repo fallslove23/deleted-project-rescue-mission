@@ -60,8 +60,8 @@ interface SurveyAggregateResult {
 }
 
 type SurveyAggregatesViewRow = Database['public']['Views']['survey_aggregates']['Row'];
-type SurveyAggregatesRpcRow = Database['public']['Functions']['get_survey_aggregates']['Returns'][number];
-type SurveyAggregatesRow = SurveyAggregatesViewRow & SurveyAggregatesRpcRow;
+type SurveyAggregatesFunctionRow =
+  Database['public']['Functions']['get_survey_aggregates']['Returns'][number];
 type SurveyDescriptionRow = Pick<Database['public']['Tables']['surveys']['Row'], 'id' | 'description'>;
 
 export type {
@@ -71,6 +71,7 @@ export type {
   SurveyAggregateFilters,
   SurveyAggregateResult,
   SurveyAggregatesViewRow,
+  SurveyAggregatesFunctionRow,
 };
 
 export const EMPTY_SURVEY_AGGREGATE_SUMMARY: SurveyAggregateSummary = {
@@ -209,15 +210,14 @@ export const SurveyAggregatesRepository = {
         p_instructor_id: instructorFilter ?? null,
         p_include_test: includeTestData,
       })
-      .returns<SurveyAggregatesRow[]>();
+      .returns<SurveyAggregatesFunctionRow[]>();
 
     if (error) {
       console.error('Error fetching survey aggregates:', error);
       throw error;
     }
 
-    const rpcResult = data ?? [];
-    const aggregatesData: SurveyAggregatesViewRow[] = rpcResult;
+    const aggregatesData: SurveyAggregatesFunctionRow[] = data ?? [];
 
     const surveyIds = aggregatesData
       .map((item) => item?.survey_id)
