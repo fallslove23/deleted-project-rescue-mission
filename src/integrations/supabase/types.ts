@@ -747,6 +747,13 @@ export type Database = {
             foreignKeyName: "short_urls_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "short_urls_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -811,6 +818,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_analysis_comments_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -891,6 +905,13 @@ export type Database = {
             foreignKeyName: "fk_survey_completions_survey_id"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "fk_survey_completions_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -956,6 +977,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -1064,6 +1092,13 @@ export type Database = {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -1144,6 +1179,13 @@ export type Database = {
             foreignKeyName: "survey_responses_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -1211,6 +1253,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_sections_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -1301,6 +1350,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -1408,6 +1464,13 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "fk_survey_tokens_survey_id"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -1933,6 +1996,13 @@ export type Database = {
             foreignKeyName: "survey_responses_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -2157,6 +2227,42 @@ export type Database = {
       survey_available_years_v1: {
         Row: {
           education_year: number | null
+        }
+        Relationships: []
+      }
+      survey_cumulative_stats: {
+        Row: {
+          avg_course_satisfaction_real: number | null
+          avg_course_satisfaction_test: number | null
+          avg_course_satisfaction_total: number | null
+          avg_instructor_satisfaction_real: number | null
+          avg_instructor_satisfaction_test: number | null
+          avg_instructor_satisfaction_total: number | null
+          avg_operation_satisfaction_real: number | null
+          avg_operation_satisfaction_test: number | null
+          avg_operation_satisfaction_total: number | null
+          avg_satisfaction_real: number | null
+          avg_satisfaction_test: number | null
+          avg_satisfaction_total: number | null
+          course_name: string | null
+          created_at: string | null
+          education_round: number | null
+          education_year: number | null
+          expected_participants: number | null
+          instructor_count: number | null
+          instructor_names: string[] | null
+          instructor_names_text: string | null
+          last_response_at: string | null
+          real_response_count: number | null
+          status: string | null
+          survey_id: string | null
+          survey_is_test: boolean | null
+          test_response_count: number | null
+          title: string | null
+          total_response_count: number | null
+          weighted_satisfaction_real: number | null
+          weighted_satisfaction_test: number | null
+          weighted_satisfaction_total: number | null
         }
         Relationships: []
       }
@@ -2533,6 +2639,10 @@ export type Database = {
       refresh_dashboard_materialized_views: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      safe_numeric_convert: {
+        Args: { input_text: string }
+        Returns: number
       }
       save_answers_bulk: {
         Args: { p_answers: Json }
