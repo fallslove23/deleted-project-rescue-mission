@@ -33,7 +33,42 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
   WITH filtered AS (
-    SELECT sa.*, s.description
+    SELECT
+      sa.survey_id,
+      sa.title,
+      s.description,
+      sa.education_year,
+      sa.education_round,
+      sa.course_name,
+      sa.status,
+      sa.instructor_id,
+      sa.instructor_name,
+      sa.expected_participants,
+      sa.is_test,
+      CASE
+        WHEN p_include_test THEN sa.response_count
+        ELSE COALESCE(sa.response_count_real, 0)
+      END AS response_count,
+      CASE
+        WHEN p_include_test THEN sa.last_response_at
+        ELSE sa.last_response_at_real
+      END AS last_response_at,
+      CASE
+        WHEN p_include_test THEN sa.avg_overall_satisfaction
+        ELSE sa.avg_overall_satisfaction_real
+      END AS avg_overall_satisfaction,
+      CASE
+        WHEN p_include_test THEN sa.avg_course_satisfaction
+        ELSE sa.avg_course_satisfaction_real
+      END AS avg_course_satisfaction,
+      CASE
+        WHEN p_include_test THEN sa.avg_instructor_satisfaction
+        ELSE sa.avg_instructor_satisfaction_real
+      END AS avg_instructor_satisfaction,
+      CASE
+        WHEN p_include_test THEN sa.avg_operation_satisfaction
+        ELSE sa.avg_operation_satisfaction_real
+      END AS avg_operation_satisfaction
     FROM public.survey_aggregates sa
     JOIN public.surveys s ON s.id = sa.survey_id
     WHERE (p_year IS NULL OR sa.education_year = p_year)
@@ -56,11 +91,15 @@ AS $$
       jsonb_agg(
         jsonb_build_object(
           'question_type', sq.question_type,
-          'response_count', COUNT(qa.id)
+          'response_count', COUNT(qa.id) FILTER (
+            WHERE p_include_test
+              OR COALESCE(sr.is_test, false) = false
+          )
         ) ORDER BY sq.question_type
       ) AS question_type_distribution
     FROM public.survey_questions sq
     LEFT JOIN public.question_answers qa ON qa.question_id = sq.id
+    LEFT JOIN public.survey_responses sr ON sr.id = qa.response_id
     JOIN filtered f ON f.survey_id = sq.survey_id
     GROUP BY sq.survey_id
   )
