@@ -211,6 +211,7 @@ export const SurveyAggregatesRepository = {
         instructor_name,
         expected_participants,
         is_test,
+        question_count,
         response_count,
         last_response_at,
         avg_overall_satisfaction,
@@ -279,13 +280,13 @@ export const SurveyAggregatesRepository = {
           instructor_name: toNullableString(survey.instructor_name),
           expected_participants: toNullableNumber(survey.expected_participants),
           is_test: toNullableBoolean(survey.is_test),
+          question_count: toNumber(survey.question_count, 0),
           response_count: toNumber(survey.response_count, 0),
           last_response_at: toNullableString(survey.last_response_at),
           avg_overall_satisfaction: toNullableNumber(survey.avg_overall_satisfaction),
           avg_course_satisfaction: toNullableNumber(survey.avg_course_satisfaction),
           avg_instructor_satisfaction: toNullableNumber(survey.avg_instructor_satisfaction),
           avg_operation_satisfaction: toNullableNumber(survey.avg_operation_satisfaction),
-          question_count: 0,
         };
       })
       .filter((aggregate): aggregate is SurveyAggregate => aggregate !== null);
