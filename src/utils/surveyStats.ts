@@ -128,23 +128,183 @@ function distributionTotal(distribution: RatingDistribution): number {
   return SCORE_RANGE.reduce((sum, score) => sum + (distribution[score] ?? 0), 0);
 }
 
+function buildQuestionKey(question: QuestionStat): string {
+  if (question.questionId && question.questionId.trim().length > 0) {
+    return question.questionId;
+  }
+  return `${question.questionText}|${question.questionType}|${question.satisfactionType ?? ''}`;
+}
+
+interface QuestionAccumulator {
+  key: string;
+  questionId: string;
+  questionText: string;
+  questionType: string;
+  satisfactionType: string | null;
+  orderIndex: number | null;
+  totalAnswers: number;
+  weightedSum: number;
+  weight: number;
+  ratingDistribution: RatingDistribution;
+  textAnswers: Set<string>;
+}
+
+function mergeQuestionStatsArrays(groups: QuestionStat[][]): QuestionStat[] {
+  const map = new Map<string, QuestionAccumulator>();
+
+  groups.forEach(stats => {
+    stats.forEach(question => {
+      const key = buildQuestionKey(question);
+      let accumulator = map.get(key);
+
+      if (!accumulator) {
+        accumulator = {
+          key,
+          questionId: question.questionId && question.questionId.trim().length > 0 ? question.questionId : key,
+          questionText: question.questionText,
+          questionType: question.questionType,
+          satisfactionType: question.satisfactionType ?? null,
+          orderIndex: question.orderIndex ?? null,
+          totalAnswers: 0,
+          weightedSum: 0,
+          weight: 0,
+          ratingDistribution: emptyDistribution(),
+          textAnswers: new Set<string>(),
+        } satisfies QuestionAccumulator;
+        map.set(key, accumulator);
+      } else {
+        if (accumulator.questionId === accumulator.key && question.questionId && question.questionId.trim().length > 0) {
+          accumulator.questionId = question.questionId;
+        }
+        if (!accumulator.questionText && question.questionText) {
+          accumulator.questionText = question.questionText;
+        }
+        if (!accumulator.questionType && question.questionType) {
+          accumulator.questionType = question.questionType;
+        }
+        if (accumulator.satisfactionType === null && question.satisfactionType !== null) {
+          accumulator.satisfactionType = question.satisfactionType;
+        }
+        if (question.orderIndex !== null) {
+          if (accumulator.orderIndex === null || question.orderIndex < accumulator.orderIndex) {
+            accumulator.orderIndex = question.orderIndex;
+          }
+        }
+      }
+
+      accumulator.totalAnswers += question.totalAnswers;
+      if (question.average !== null && question.totalAnswers > 0) {
+        accumulator.weightedSum += question.average * question.totalAnswers;
+        accumulator.weight += question.totalAnswers;
+      }
+      sumDistributions(accumulator.ratingDistribution, question.ratingDistribution);
+      question.textAnswers.forEach(answer => {
+        if (answer) accumulator.textAnswers.add(answer);
+      });
+    });
+  });
+
+  return Array.from(map.values())
+    .map(item => {
+      const average = item.weight > 0 ? item.weightedSum / item.weight : null;
+      return {
+        questionId: item.questionId,
+        questionText: item.questionText,
+        questionType: item.questionType,
+        satisfactionType: item.satisfactionType,
+        orderIndex: item.orderIndex,
+        totalAnswers: item.totalAnswers,
+        average,
+        ratingDistribution: item.ratingDistribution,
+        textAnswers: Array.from(item.textAnswers),
+      } satisfies QuestionStat;
+    })
+    .sort((a, b) => {
+      const orderA = a.orderIndex ?? 0;
+      const orderB = b.orderIndex ?? 0;
+      if (orderA === orderB) {
+        return a.questionText.localeCompare(b.questionText);
+      }
+      return orderA - orderB;
+    });
+}
+
+function mergeTextResponses(questionStats: QuestionStat[], sources: string[][]): string[] {
+  const seen = new Set<string>();
+  const responses: string[] = [];
+
+  const addResponse = (value: string | null | undefined) => {
+    if (!value) return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    responses.push(value);
+  };
+
+  questionStats.forEach(question => {
+    question.textAnswers.forEach(answer => addResponse(answer));
+  });
+
+  sources.forEach(list => {
+    list.forEach(answer => addResponse(answer));
+  });
+
+  return responses;
+}
+
 export function getCombinedRecordMetrics(record: InstructorStatsRecord, includeTestData: boolean): CombinedMetrics {
-  const shouldUseTest = includeTestData && record.responseCount === 0 && record.testResponseCount > 0;
-  const metrics = shouldUseTest ? record.test : record.real;
+  const metricSets = includeTestData ? [record.real, record.test] : [record.real];
+  const questionStats = mergeQuestionStatsArrays(metricSets.map(set => set.questionStats));
+  const ratingDistribution = metricSets.reduce((acc, set) => {
+    sumDistributions(acc, set.ratingDistribution);
+    return acc;
+  }, emptyDistribution());
+  const textResponses = mergeTextResponses(questionStats, metricSets.map(set => set.textResponses));
+
+  const combineAverage = (selector: (metrics: typeof record.real) => number | null): number | null => {
+    if (!includeTestData) {
+      return selector(record.real);
+    }
+
+    return (
+      calculateWeightedAverage([
+        { value: selector(record.real), weight: record.responseCount },
+        { value: selector(record.test), weight: record.testResponseCount },
+      ]) ?? null
+    );
+  };
+
+  const responseCount = includeTestData ? record.responseCount + record.testResponseCount : record.responseCount;
+  const surveyCount = includeTestData ? record.surveyCount + record.testSurveyCount : record.surveyCount;
+  const activeSurveyCount = includeTestData
+    ? record.activeSurveyCount + record.testActiveSurveyCount
+    : record.activeSurveyCount;
+  const textResponseCount = includeTestData
+    ? record.textResponseCount + record.testTextResponseCount
+    : record.textResponseCount;
+
+  const hasTestContribution = includeTestData
+    ? record.testResponseCount > 0 ||
+      record.testSurveyCount > 0 ||
+      record.testActiveSurveyCount > 0 ||
+      record.testTextResponseCount > 0 ||
+      record.test.questionStats.length > 0 ||
+      record.test.textResponses.length > 0 ||
+      distributionTotal(record.test.ratingDistribution) > 0
+    : false;
 
   return {
-    source: shouldUseTest ? 'test' : 'real',
-    responseCount: shouldUseTest ? record.testResponseCount : record.responseCount,
-    surveyCount: shouldUseTest ? record.testSurveyCount : record.surveyCount,
-    activeSurveyCount: shouldUseTest ? record.testActiveSurveyCount : record.activeSurveyCount,
-    avgOverall: metrics.avgOverall,
-    avgCourse: metrics.avgCourse,
-    avgInstructor: metrics.avgInstructor,
-    avgOperation: metrics.avgOperation,
-    ratingDistribution: metrics.ratingDistribution,
-    questionStats: metrics.questionStats,
-    textResponses: metrics.textResponses,
-    textResponseCount: shouldUseTest ? record.testTextResponseCount : record.textResponseCount,
+    source: hasTestContribution ? 'test' : 'real',
+    responseCount,
+    surveyCount,
+    activeSurveyCount,
+    avgOverall: combineAverage(metrics => metrics.avgOverall),
+    avgCourse: combineAverage(metrics => metrics.avgCourse),
+    avgInstructor: combineAverage(metrics => metrics.avgInstructor),
+    avgOperation: combineAverage(metrics => metrics.avgOperation),
+    ratingDistribution,
+    questionStats,
+    textResponses,
+    textResponseCount,
     educationYear: record.educationYear,
     educationRound: record.educationRound,
     courseName: record.courseName,
