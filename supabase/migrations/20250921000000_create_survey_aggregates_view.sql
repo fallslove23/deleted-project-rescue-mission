@@ -80,7 +80,7 @@ LEFT JOIN public.instructors i ON i.id = s.instructor_id
 LEFT JOIN public.survey_responses sr ON sr.survey_id = s.id
 LEFT JOIN public.question_answers qa ON qa.response_id = sr.id
 LEFT JOIN public.survey_questions sq ON sq.id = qa.question_id
-WHERE s.status IN ('completed', 'active')
+WHERE s.status IN ('completed', 'active', 'public')
 GROUP BY
   s.id,
   s.title,
