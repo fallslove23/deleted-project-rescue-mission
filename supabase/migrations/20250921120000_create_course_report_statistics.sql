@@ -35,6 +35,8 @@ CREATE OR REPLACE FUNCTION public.course_report_statistics(
 )
 RETURNS jsonb
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
 AS $$
 DECLARE
   result jsonb;
@@ -351,5 +353,7 @@ BEGIN
   ));
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.course_report_statistics(integer, text, integer, uuid, boolean) TO anon, authenticated;
 
 COMMENT ON FUNCTION public.course_report_statistics IS 'Returns aggregated course report metrics (responses, satisfaction scores, instructor stats, trend, text responses) for a given set of filters.';
