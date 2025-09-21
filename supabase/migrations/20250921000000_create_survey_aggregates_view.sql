@@ -14,6 +14,14 @@ SELECT
   i.name AS instructor_name,
   s.expected_participants,
   s.is_test,
+  COALESCE(
+    (
+      SELECT COUNT(*)
+      FROM public.survey_questions sq_all
+      WHERE sq_all.survey_id = s.id
+    ),
+    0
+  ) AS question_count,
   COUNT(DISTINCT sr.id) AS response_count,
   MAX(sr.submitted_at) AS last_response_at,
   AVG(

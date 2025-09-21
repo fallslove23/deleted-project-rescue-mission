@@ -2238,6 +2238,7 @@ export type Database = {
           instructor_name: string | null
           is_test: boolean | null
           last_response_at: string | null
+          question_count: number | null
           response_count: number | null
           status: string | null
           survey_id: string | null
