@@ -214,11 +214,17 @@ export const SurveyAggregatesRepository = {
         is_test,
         question_count,
         response_count,
+        response_count_real,
         last_response_at,
+        last_response_at_real,
         avg_overall_satisfaction,
+        avg_overall_satisfaction_real,
         avg_course_satisfaction,
+        avg_course_satisfaction_real,
         avg_instructor_satisfaction,
-        avg_operation_satisfaction
+        avg_instructor_satisfaction_real,
+        avg_operation_satisfaction,
+        avg_operation_satisfaction_real
       `,
       )
       .returns<SurveyAggregatesViewRow[]>();
@@ -229,7 +235,9 @@ export const SurveyAggregatesRepository = {
     if (instructorFilter) query = query.eq('instructor_id', instructorFilter);
     if (!includeTestData) query = query.neq('is_test', true);
 
-    const { data, error } = await query.order('last_response_at', {
+    const orderColumn = includeTestData ? 'last_response_at' : 'last_response_at_real';
+
+    const { data, error } = await query.order(orderColumn, {
       ascending: false,
       nullsFirst: false,
     });
@@ -288,12 +296,33 @@ export const SurveyAggregatesRepository = {
           expected_participants: toNullableNumber(survey.expected_participants),
           is_test: toNullableBoolean(survey.is_test),
           question_count: toNumber(survey.question_count, 0),
-          response_count: toNumber(survey.response_count, 0),
-          last_response_at: toNullableString(survey.last_response_at),
-          avg_overall_satisfaction: toNullableNumber(survey.avg_overall_satisfaction),
-          avg_course_satisfaction: toNullableNumber(survey.avg_course_satisfaction),
-          avg_instructor_satisfaction: toNullableNumber(survey.avg_instructor_satisfaction),
-          avg_operation_satisfaction: toNullableNumber(survey.avg_operation_satisfaction),
+          response_count: toNumber(
+            includeTestData ? survey.response_count : survey.response_count_real,
+            0,
+          ),
+          last_response_at: toNullableString(
+            includeTestData ? survey.last_response_at : survey.last_response_at_real,
+          ),
+          avg_overall_satisfaction: toNullableNumber(
+            includeTestData
+              ? survey.avg_overall_satisfaction
+              : survey.avg_overall_satisfaction_real,
+          ),
+          avg_course_satisfaction: toNullableNumber(
+            includeTestData
+              ? survey.avg_course_satisfaction
+              : survey.avg_course_satisfaction_real,
+          ),
+          avg_instructor_satisfaction: toNullableNumber(
+            includeTestData
+              ? survey.avg_instructor_satisfaction
+              : survey.avg_instructor_satisfaction_real,
+          ),
+          avg_operation_satisfaction: toNullableNumber(
+            includeTestData
+              ? survey.avg_operation_satisfaction
+              : survey.avg_operation_satisfaction_real,
+          ),
         };
       })
       .filter((aggregate): aggregate is SurveyAggregate => aggregate !== null);

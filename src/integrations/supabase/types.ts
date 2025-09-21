@@ -2227,9 +2227,13 @@ export type Database = {
       survey_aggregates: {
         Row: {
           avg_course_satisfaction: number | null
+          avg_course_satisfaction_real: number | null
           avg_instructor_satisfaction: number | null
+          avg_instructor_satisfaction_real: number | null
           avg_operation_satisfaction: number | null
+          avg_operation_satisfaction_real: number | null
           avg_overall_satisfaction: number | null
+          avg_overall_satisfaction_real: number | null
           course_name: string | null
           education_round: number | null
           education_year: number | null
@@ -2238,8 +2242,10 @@ export type Database = {
           instructor_name: string | null
           is_test: boolean | null
           last_response_at: string | null
+          last_response_at_real: string | null
           question_count: number | null
           response_count: number | null
+          response_count_real: number | null
           status: string | null
           survey_id: string | null
           title: string | null
