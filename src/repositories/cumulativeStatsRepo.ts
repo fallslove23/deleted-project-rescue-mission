@@ -200,8 +200,8 @@ export async function fetchCumulativeStats({
   const from = (safePage - 1) * safePageSize;
   const to = from + safePageSize - 1;
 
-  // Query from surveys with joined data
-  const { data: surveyData, error: surveyError, count } = await supabase
+  // Query from surveys with joined data instead of cumulative stats view
+  let query = supabase
     .from('surveys')
     .select(`
       id,
@@ -218,13 +218,34 @@ export async function fetchCumulativeStats({
     `, { count: 'exact' })
     .order('education_year', { ascending: false })
     .order('education_round', { ascending: false })
-    .order('title', { ascending: true })
-    .range(from, to);
+    .order('title', { ascending: true });
 
-  if (surveyError) throw surveyError;
+  // Apply filters
+  if (!includeTestData) {
+    query = query.or('is_test.eq.false,is_test.is.null');
+  }
+
+  if (educationYear !== null && educationYear !== undefined) {
+    query = query.eq('education_year', educationYear);
+  }
+
+  if (courseName !== null && courseName !== undefined) {
+    query = query.eq('course_name', courseName);
+  }
+
+  if (searchTerm && searchTerm.trim()) {
+    const like = `%${searchTerm.trim()}%`;
+    query = query.or(
+      `title.ilike.${like},course_name.ilike.${like}`
+    );
+  }
+
+  const { data, error, count } = await query.range(from, to);
+  if (error) throw error;
 
   // Transform survey data to match expected format
-  const transformedData = (surveyData ?? []).map((survey: any) => {
+  const transformedData = (data ?? []).map((survey: any) => {
+    const instructorName = survey.instructors?.name || 'Unknown';
     return {
       survey_id: survey.id,
       title: survey.title,
@@ -236,10 +257,10 @@ export async function fetchCumulativeStats({
       created_at: survey.created_at,
       last_response_at: null, // Will be calculated separately if needed
       survey_is_test: survey.is_test,
-      instructor_names: survey.instructors ? [survey.instructors.name] : [],
-      instructor_names_text: survey.instructors?.name || null,
+      instructor_names: [instructorName],
+      instructor_names_text: instructorName,
       instructor_count: survey.instructor_id ? 1 : 0,
-      total_response_count: 0, // Will be calculated
+      total_response_count: 0, // Simplified for now
       real_response_count: 0,
       test_response_count: 0,
       avg_satisfaction_total: null,
