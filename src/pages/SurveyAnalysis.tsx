@@ -155,42 +155,97 @@ const toNullableNumber = (value: unknown): number | null => {
   return null;
 };
 
+const toNullableString = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  return null;
+};
+
+const toNullableBoolean = (value: unknown): boolean | null => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  return null;
+};
+
+const parseQuestionTypeDistribution = (value: unknown): QuestionTypeDistributionItem[] => {
+  if (!value) return [];
+
+  const distributionArray: unknown[] | null = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : null;
+          } catch (error) {
+            return null;
+          }
+        })()
+      : null;
+
+  if (!distributionArray) {
+    return [];
+  }
+
+  return distributionArray
+    .map((item) => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const entry = item as Record<string, unknown>;
+      const questionType = toNullableString(entry.question_type);
+
+      if (!questionType) {
+        return null;
+      }
+
+      return {
+        question_type: questionType,
+        response_count: toNumber(entry.response_count),
+      } satisfies QuestionTypeDistributionItem;
+    })
+    .filter((item): item is QuestionTypeDistributionItem => item !== null);
+};
+
 const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
   if (!rows) return [];
-  return rows.map((row) => {
-    // Extract survey info from the nested jsonb structure
-    const surveyInfo = row.survey_info as any;
-    const satisfactionScores = row.satisfaction_scores as any;
-    
-    const surveyId = typeof surveyInfo?.id === 'string' ? surveyInfo.id : '';
-    const title = typeof surveyInfo?.title === 'string' && surveyInfo.title.trim().length > 0 ? surveyInfo.title : '제목 없음';
-    const description = typeof surveyInfo?.description === 'string' && surveyInfo.description.trim().length > 0 ? surveyInfo.description : null;
-    const courseName = typeof surveyInfo?.course_name === 'string' && surveyInfo.course_name.trim().length > 0 ? surveyInfo.course_name : null;
-    const status = typeof surveyInfo?.status === 'string' && surveyInfo.status.trim().length > 0 ? surveyInfo.status : null;
-    const instructorName = typeof surveyInfo?.instructor_name === 'string' && surveyInfo.instructor_name.trim().length > 0 ? surveyInfo.instructor_name : null;
+  return rows
+    .map((row) => {
+      const surveyId = typeof row.survey_id === 'string' ? row.survey_id : null;
 
-    return {
-      survey_id: surveyId,
-      title,
-      description,
-      education_year: toNumber(surveyInfo?.education_year),
-      education_round: toNumber(surveyInfo?.education_round),
-      course_name: courseName,
-      status,
-      instructor_id: null,
-      instructor_name: instructorName,
-      expected_participants: null,
-      is_test: null,
-      response_count: toNumber(row.response_count),
-      last_response_at: null,
-      avg_overall_satisfaction: toNullableNumber(satisfactionScores?.instructor_satisfaction),
-      avg_course_satisfaction: toNullableNumber(satisfactionScores?.course_satisfaction),
-      avg_instructor_satisfaction: toNullableNumber(satisfactionScores?.instructor_satisfaction),
-      avg_operation_satisfaction: toNullableNumber(satisfactionScores?.operation_satisfaction),
-      question_count: 0,
-      question_type_distribution: [],
-    };
-  });
+      if (!surveyId) {
+        return null;
+      }
+
+      const title = toNullableString(row.title) ?? '제목 없음';
+
+      return {
+        survey_id: surveyId,
+        title,
+        description: toNullableString(row.description),
+        education_year: toNumber(row.education_year),
+        education_round: toNumber(row.education_round),
+        course_name: toNullableString(row.course_name),
+        status: toNullableString(row.status),
+        instructor_id: toNullableString(row.instructor_id),
+        instructor_name: toNullableString(row.instructor_name),
+        expected_participants: toNullableNumber(row.expected_participants),
+        is_test: toNullableBoolean(row.is_test),
+        response_count: toNumber(row.response_count),
+        last_response_at: toNullableString(row.last_response_at),
+        avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
+        avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
+        avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
+        avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
+        question_count: toNumber(row.question_count),
+        question_type_distribution: parseQuestionTypeDistribution(row.question_type_distribution),
+      };
+    })
+    .filter((summary): summary is SurveySummary => summary !== null);
 };
 const SurveyAnalysis = () => {
   const { user, userRoles } = useAuth();
@@ -342,41 +397,16 @@ const SurveyAnalysis = () => {
   const fetchAvailableSummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
-      // For now, we'll use surveys table directly since get_survey_analysis is for single surveys
       const { data, error } = await supabase
-        .from('surveys')
-        .select(`
-          *,
-          instructors(name)
-        `)
-        .order('created_at', { ascending: false });
-      
+        .rpc('get_survey_analysis', {
+          p_instructor_id: instructorFilter ?? null,
+          p_include_test: includeTestData,
+        })
+        .returns<SurveyAnalysisRow[]>();
+
       if (error) throw error;
-      
-      // Convert to expected format
-      const summaryData = data?.map(survey => ({
-        survey_id: survey.id,
-        title: survey.title || '제목 없음',
-        description: survey.description,
-        education_year: survey.education_year,
-        education_round: survey.education_round,
-        course_name: survey.course_name,
-        status: survey.status,
-        instructor_id: survey.instructor_id,
-        instructor_name: survey.instructors?.name || null,
-        expected_participants: survey.expected_participants,
-        is_test: survey.is_test,
-        response_count: 0,
-        last_response_at: null,
-        avg_overall_satisfaction: null,
-        avg_course_satisfaction: null,
-        avg_instructor_satisfaction: null,
-        avg_operation_satisfaction: null,
-        question_count: 0,
-        question_type_distribution: [],
-      })) || [];
-      
-      setAllSummaries(summaryData);
+
+      setAllSummaries(normalizeSummaries(data));
     } catch (error) {
       console.error('Error fetching available survey summaries:', error);
       toast({
@@ -399,56 +429,31 @@ const SurveyAnalysis = () => {
       const normalizedYear = yearFilter !== null && !Number.isNaN(yearFilter) ? yearFilter : null;
       const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;
 
-      // Use surveys table with filters
-      let query = supabase
-        .from('surveys')
-        .select(`
-          *,
-          instructors(name)
-        `);
-      
-      if (normalizedYear) {
-        query = query.eq('education_year', normalizedYear);
+      const rpcParams: Database['public']['Functions']['get_survey_analysis']['Args'] = {
+        p_include_test: includeTestData,
+      };
+
+      if (normalizedYear !== null) {
+        rpcParams.p_year = normalizedYear;
       }
-      if (normalizedRound) {
-        query = query.eq('education_round', normalizedRound);
+      if (normalizedRound !== null) {
+        rpcParams.p_round = normalizedRound;
       }
       if (courseFilter) {
-        query = query.eq('course_name', courseFilter);
+        rpcParams.p_course_name = courseFilter;
       }
       if (instructorIdForQuery) {
-        query = query.eq('instructor_id', instructorIdForQuery);
+        rpcParams.p_instructor_id = instructorIdForQuery;
       }
-      if (!includeTestData) {
-        query = query.neq('is_test', true);
-      }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
+
+      const { data, error } = await supabase
+        .rpc('get_survey_analysis', rpcParams)
+        .returns<SurveyAnalysisRow[]>();
+
       if (error) throw error;
-      
-      // Convert to expected format directly
-      const summaries = data?.map(survey => ({
-        survey_id: survey.id,
-        title: survey.title || '제목 없음',
-        description: survey.description,
-        education_year: survey.education_year,
-        education_round: survey.education_round,
-        course_name: survey.course_name,
-        status: survey.status,
-        instructor_id: survey.instructor_id,
-        instructor_name: survey.instructors?.name || null,
-        expected_participants: survey.expected_participants,
-        is_test: survey.is_test,
-        response_count: 0,
-        last_response_at: null,
-        avg_overall_satisfaction: null,
-        avg_course_satisfaction: null,
-        avg_instructor_satisfaction: null,
-        avg_operation_satisfaction: null,
-        question_count: 0,
-        question_type_distribution: [],
-      })) || [];
-      
+
+      const summaries = normalizeSummaries(data);
+
       setSurveySummaries(summaries);
 
       if (summaries.length === 0) {
