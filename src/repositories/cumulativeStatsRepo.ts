@@ -200,35 +200,68 @@ export async function fetchCumulativeStats({
   const from = (safePage - 1) * safePageSize;
   const to = from + safePageSize - 1;
 
-  let query = supabase
-    .from('survey_cumulative_stats')
-    .select(
-      `survey_id, title, education_year, education_round, course_name, status, expected_participants, created_at, last_response_at,
-      survey_is_test, instructor_names, instructor_names_text, instructor_count,
-      total_response_count, real_response_count, test_response_count,
-      avg_satisfaction_total, avg_satisfaction_real, avg_satisfaction_test,
-      avg_course_satisfaction_total, avg_course_satisfaction_real, avg_course_satisfaction_test,
-      avg_instructor_satisfaction_total, avg_instructor_satisfaction_real, avg_instructor_satisfaction_test,
-      avg_operation_satisfaction_total, avg_operation_satisfaction_real, avg_operation_satisfaction_test,
-      weighted_satisfaction_total, weighted_satisfaction_real, weighted_satisfaction_test`,
-      { count: 'exact' }
-    )
+  // Query from surveys with joined data
+  const { data: surveyData, error: surveyError, count } = await supabase
+    .from('surveys')
+    .select(`
+      id,
+      title,
+      education_year,
+      education_round,
+      course_name,
+      status,
+      expected_participants,
+      created_at,
+      is_test,
+      instructor_id,
+      instructors(name)
+    `, { count: 'exact' })
     .order('education_year', { ascending: false })
     .order('education_round', { ascending: false })
-    .order('title', { ascending: true });
+    .order('title', { ascending: true })
+    .range(from, to);
 
-  query = applyFilters(query, {
-    searchTerm,
-    educationYear,
-    courseName,
-    includeTestData,
+  if (surveyError) throw surveyError;
+
+  // Transform survey data to match expected format
+  const transformedData = (surveyData ?? []).map((survey: any) => {
+    return {
+      survey_id: survey.id,
+      title: survey.title,
+      education_year: survey.education_year,
+      education_round: survey.education_round,
+      course_name: survey.course_name,
+      status: survey.status,
+      expected_participants: survey.expected_participants,
+      created_at: survey.created_at,
+      last_response_at: null, // Will be calculated separately if needed
+      survey_is_test: survey.is_test,
+      instructor_names: survey.instructors ? [survey.instructors.name] : [],
+      instructor_names_text: survey.instructors?.name || null,
+      instructor_count: survey.instructor_id ? 1 : 0,
+      total_response_count: 0, // Will be calculated
+      real_response_count: 0,
+      test_response_count: 0,
+      avg_satisfaction_total: null,
+      avg_satisfaction_real: null,
+      avg_satisfaction_test: null,
+      avg_course_satisfaction_total: null,
+      avg_course_satisfaction_real: null,
+      avg_course_satisfaction_test: null,
+      avg_instructor_satisfaction_total: null,
+      avg_instructor_satisfaction_real: null,
+      avg_instructor_satisfaction_test: null,
+      avg_operation_satisfaction_total: null,
+      avg_operation_satisfaction_real: null,
+      avg_operation_satisfaction_test: null,
+      weighted_satisfaction_total: null,
+      weighted_satisfaction_real: null,
+      weighted_satisfaction_test: null,
+    };
   });
 
-  const { data, error, count } = await query.range(from, to);
-  if (error) throw error;
-
   return {
-    data: (data ?? []).map((row) => normalizeSurveyRow(row as RawSurveyCumulativeRow)),
+    data: transformedData.map((row) => normalizeSurveyRow(row as RawSurveyCumulativeRow)),
     count: count ?? 0,
   };
 }
@@ -279,13 +312,13 @@ export async function fetchCumulativeSummary({
 export async function fetchCumulativeFilters(includeTestData: boolean): Promise<CumulativeFilterResult> {
   try {
     let query = supabase
-      .from('survey_cumulative_stats')
-      .select('education_year, course_name, survey_is_test, instructor_names_text')
+      .from('surveys')
+      .select('education_year, course_name, is_test, instructors(name)')
       .order('education_year', { ascending: false })
       .order('course_name', { ascending: true });
 
     if (!includeTestData) {
-      query = query.or('survey_is_test.eq.false,survey_is_test.is.null');
+      query = query.or('is_test.eq.false,is_test.is.null');
     }
 
     const { data, error } = await query;
