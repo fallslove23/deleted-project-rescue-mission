@@ -2317,7 +2317,14 @@ export type Database = {
           p_round?: number
           p_year: number
         }
-        Returns: Json
+        Returns: {
+          available_courses: Json
+          available_instructors: Json
+          instructor_stats: Json
+          summary: Json
+          textual_responses: Json
+          trend: Json
+        }[]
       }
       create_admin_user: {
         Args: { admin_email: string; admin_password: string }
@@ -2359,7 +2366,14 @@ export type Database = {
           p_round?: number
           p_year: number
         }
-        Returns: Json
+        Returns: {
+          available_courses: Json
+          available_instructors: Json
+          instructor_stats: Json
+          summary: Json
+          textual_responses: Json
+          trend: Json
+        }[]
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
@@ -2416,42 +2430,23 @@ export type Database = {
         }[]
       }
       get_survey_analysis: {
-        Args: {
-          p_course_name?: string | null
-          p_include_test?: boolean | null
-          p_instructor_id?: string | null
-          p_round?: number | null
-          p_year?: number | null
-        }
+        Args: { survey_id_param: string }
         Returns: {
-          avg_course_satisfaction: number | null
-          avg_instructor_satisfaction: number | null
-          avg_operation_satisfaction: number | null
-          avg_overall_satisfaction: number | null
-          course_name: string | null
-          description: string | null
-          education_round: number | null
-          education_year: number | null
-          expected_participants: number | null
-          instructor_id: string | null
-          instructor_name: string | null
-          is_test: boolean | null
-          last_response_at: string | null
-          question_count: number | null
-          question_type_distribution: Json | null
-          response_count: number | null
-          status: string | null
-          survey_id: string | null
-          title: string | null
+          feedback_text: Json
+          response_count: number
+          satisfaction_scores: Json
+          survey_info: Json
         }[]
       }
       get_survey_cumulative_summary: {
-        Args: {
-          search_term?: string | null
-          education_year?: number | null
-          course_name?: string | null
-          include_test_data?: boolean | null
-        }
+        Args:
+          | Record<PropertyKey, never>
+          | {
+              course_name?: string
+              education_year?: number
+              include_test_data?: boolean
+              search_term?: string
+            }
         Returns: {
           average_satisfaction: number
           courses_in_progress: number
