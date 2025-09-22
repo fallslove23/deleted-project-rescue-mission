@@ -146,6 +146,7 @@ const [searchParams, setSearchParams] = useSearchParams();
   const [responsePage, setResponsePage] = useState(0);
   const [responsesLoading, setResponsesLoading] = useState(false);
   const [downloadJob, setDownloadJob] = useState<DownloadJob | null>(null);
+  const [allInstructorsList, setAllInstructorsList] = useState<Array<{ id: string; name: string }>>([]);
 
   const canViewAll = useMemo(
     () => userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director'),
@@ -170,6 +171,7 @@ const [searchParams, setSearchParams] = useSearchParams();
 
   const appliedSearchSurvey = useRef(false);
 
+  // 프로필 정보 로드 (역할/강사 연결)
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) {
@@ -218,6 +220,24 @@ const [searchParams, setSearchParams] = useSearchParams();
 
     fetchProfile();
   }, [toast, user]);
+
+  // 관리자/운영/디렉터: 전체 강사 목록 로드
+  useEffect(() => {
+    const fetchAllInstructors = async () => {
+      if (!canViewAll) return;
+      const { data, error } = await supabase
+        .from('instructors')
+        .select('id, name')
+        .order('name');
+      if (!error) {
+        setAllInstructorsList((data || []).map((i) => ({ id: i.id as string, name: i.name as string })));
+      } else {
+        console.error('Failed to load instructors list', error);
+        setAllInstructorsList([]);
+      }
+    };
+    fetchAllInstructors();
+  }, [canViewAll]);
 
   useEffect(() => {
     if (profileLoading) return;
@@ -393,14 +413,8 @@ const [searchParams, setSearchParams] = useSearchParams();
   }, [courses]);
 
   const instructors = useMemo(() => {
-    const map = new Map<string, string>();
-    allAggregates.forEach((item) => {
-      if (item.instructor_id && item.instructor_name) {
-        map.set(item.instructor_id, item.instructor_name);
-      }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-  }, [allAggregates]);
+    return allInstructorsList;
+  }, [allInstructorsList]);
 
   useEffect(() => {
     if (selectedCourse === 'all') return;
