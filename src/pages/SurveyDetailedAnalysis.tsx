@@ -16,6 +16,7 @@ import { ArrowLeft, Download, Mail, Printer, Loader2, ChevronDown } from 'lucide
 
 import { supabase } from '@/integrations/supabase/client';
 import { SurveyDetailRepository } from '@/repositories/surveyDetailRepository';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -114,8 +115,23 @@ const SurveyDetailedAnalysis = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { user, userRoles } = useAuth();
 
   const testDataOptions = useTestDataToggle();
+  
+  // 사용자 권한 관련
+  const [profile, setProfile] = useState<{ instructor_id: string | null } | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  
+  const canViewAll = useMemo(
+    () => userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director'),
+    [userRoles]
+  );
+  
+  const isInstructor = useMemo(
+    () => userRoles.includes('instructor'),
+    [userRoles]
+  );
   
   // 데이터 상태
   const [detailStats, setDetailStats] = useState<any>(null);
@@ -133,6 +149,38 @@ const SurveyDetailedAnalysis = () => {
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
+
+  // 프로필 정보 로드
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) {
+        setProfileLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('instructor_id')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+        setProfile(data);
+      } catch (error) {
+        console.error('Failed to load profile', error);
+        toast({
+          title: '프로필 조회 실패',
+          description: '사용자 정보를 불러오는데 실패했습니다.',
+          variant: 'destructive',
+        });
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [toast, user]);
 
   const loadSurvey = useCallback(async () => {
     if (!surveyId) return;
@@ -172,6 +220,9 @@ const SurveyDetailedAnalysis = () => {
   const loadInstructorOptions = useCallback(async () => {
     if (!surveyId) return;
     try {
+      // 강사 사용자의 경우 자신의 데이터만 필터링
+      const restrictToInstructorId = !canViewAll && isInstructor ? profile?.instructor_id ?? null : null;
+      
       // 해당 설문의 질문들에서 고유한 강사 정보 추출
       const { data: questionsData, error: questionsError } = await supabase
         .from('survey_questions')
@@ -188,8 +239,13 @@ const SurveyDetailedAnalysis = () => {
       const instructorMap = new Map<string, { name: string; course: string }>();
 
       for (const question of questionsData || []) {
-        if ((question as any).survey_sessions?.instructor_id) {
-          uniqueInstructors.add((question as any).survey_sessions.instructor_id);
+        const instructorId = (question as any).survey_sessions?.instructor_id;
+        if (instructorId) {
+          // 강사 사용자의 경우 자신의 데이터만 포함
+          if (restrictToInstructorId && instructorId !== restrictToInstructorId) {
+            continue;
+          }
+          uniqueInstructors.add(instructorId);
         }
       }
 
@@ -223,12 +279,15 @@ const SurveyDetailedAnalysis = () => {
       console.error('Error loading instructor options:', err);
       setInstructorOptions([]);
     }
-  }, [surveyId]);
+  }, [surveyId, canViewAll, isInstructor, profile?.instructor_id]);
 
   // 과목(강사-과목) 옵션 로드
   const loadSessions = useCallback(async () => {
     if (!surveyId) return;
     try {
+      // 강사 사용자의 경우 자신의 데이터만 필터링
+      const restrictToInstructorId = !canViewAll && isInstructor ? profile?.instructor_id ?? null : null;
+      
       const { data: sessData, error: sessError } = await supabase
         .from('survey_sessions')
         .select('id, session_name, instructor_id, course_id')
@@ -236,7 +295,12 @@ const SurveyDetailedAnalysis = () => {
         .order('session_order', { ascending: true });
 
       if (sessError) throw sessError;
-      const raw = (sessData || []).filter((s: any) => s.instructor_id && s.course_id);
+      let raw = (sessData || []).filter((s: any) => s.instructor_id && s.course_id);
+      
+      // 강사 사용자의 경우 자신의 세션만 필터링
+      if (restrictToInstructorId) {
+        raw = raw.filter((s: any) => s.instructor_id === restrictToInstructorId);
+      }
 
       const instructorIds = Array.from(new Set(raw.map((s: any) => s.instructor_id)));
       let nameMap = new Map<string, string>();
@@ -282,7 +346,7 @@ const SurveyDetailedAnalysis = () => {
       console.error('Error loading sessions:', err);
       setSubjectOptions([]);
     }
-  }, [surveyId, survey?.operator_name]);
+  }, [surveyId, survey?.operator_name, canViewAll, isInstructor, profile?.instructor_id]);
 
   // 설문 상세 분석 데이터 로드
   const loadDetailStats = useCallback(async () => {
@@ -316,11 +380,11 @@ const SurveyDetailedAnalysis = () => {
   }, [surveyId]);
 
   useEffect(() => {
-    if (surveyId) {
+    if (surveyId && !profileLoading) {
       loadInstructorOptions();
       loadSessions();
     }
-  }, [surveyId, loadInstructorOptions, loadSessions]);
+  }, [surveyId, loadInstructorOptions, loadSessions, profileLoading]);
 
   useEffect(() => {
     if (surveyId && testDataOptions?.includeTestData !== undefined) {
@@ -608,7 +672,14 @@ const SurveyDetailedAnalysis = () => {
       {subjectOptions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>과목별 분석</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              과목별 분석
+              {!canViewAll && isInstructor && (
+                <Badge variant="secondary" className="text-xs">
+                  내 데이터만 표시
+                </Badge>
+              )}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
               강사-과목을 선택하여 상세 분석을 확인하세요.
             </p>
