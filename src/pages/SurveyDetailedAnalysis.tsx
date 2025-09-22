@@ -384,28 +384,28 @@ const SurveyDetailedAnalysis = () => {
     return subjectOptions.find((o) => o.key === activeTab)?.sessionIds ?? null;
   }, [activeTab, subjectOptions]);
 
-  // 분포(평점/선다) 항목 필터
+  // 세션 ID 기준 필터링 - 분포 데이터
   const filteredQuestions = useMemo(() => {
     const items = detailStats?.distributions?.items || [];
     if (!selectedSessionIds) return items;
-    const set = new Set(selectedSessionIds);
-    return items.filter((q: any) => !q.sessionId || set.has(q.sessionId));
+    const sessionSet = new Set(selectedSessionIds);
+    return items.filter((q: any) => !q.sessionId || sessionSet.has(q.sessionId));
   }, [detailStats, selectedSessionIds]);
 
-  // 텍스트 답변 필터
+  // 세션 ID 기준 필터링 - 텍스트 데이터
   const filteredTextAnswers = useMemo(() => {
     const items = detailStats?.textAnswers?.items || [];
     if (!selectedSessionIds) return items;
-    const set = new Set(selectedSessionIds);
-    return items.filter((a: any) => !a.sessionId || set.has(a.sessionId));
+    const sessionSet = new Set(selectedSessionIds);
+    return items.filter((a: any) => !a.sessionId || sessionSet.has(a.sessionId));
   }, [detailStats, selectedSessionIds]);
 
-  // 응답 목록 필터
+  // 세션 ID 기준 필터링 - 응답 데이터
   const filteredResponses = useMemo(() => {
     const items = detailStats?.responses?.items || [];
     if (!selectedSessionIds) return items;
-    const set = new Set(selectedSessionIds);
-    return items.filter((r: any) => !r.sessionId || set.has(r.sessionId));
+    const sessionSet = new Set(selectedSessionIds);
+    return items.filter((r: any) => !r.sessionId || sessionSet.has(r.sessionId));
   }, [detailStats, selectedSessionIds]);
 
   // 텍스트 피드백 그룹핑
@@ -603,7 +603,7 @@ const SurveyDetailedAnalysis = () => {
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="전체" />
               </SelectTrigger>
-              <SelectContent className="bg-popover border shadow-lg z-50">
+              <SelectContent className="bg-background border shadow-lg z-50">
                 <SelectItem value="all">전체</SelectItem>
                 {subjectOptions.map((option) => (
                   <SelectItem key={option.key} value={option.key}>
