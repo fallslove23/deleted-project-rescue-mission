@@ -383,6 +383,13 @@ const SurveyResults = () => {
     return Array.from(map.values()).sort((a, b) => b.label.localeCompare(a.label, 'ko'));
   }, [allAggregates, selectedRound, selectedYear]);
 
+  const courseIncludesRound = useMemo(() => {
+    return courses.some((course) => {
+      const parsed = parseCourseKey(course.key);
+      return parsed?.round !== null && parsed?.round !== undefined;
+    });
+  }, [courses]);
+
   const instructors = useMemo(() => {
     const map = new Map<string, string>();
     allAggregates.forEach((item) => {
@@ -399,6 +406,13 @@ const SurveyResults = () => {
       setSelectedCourse('all');
     }
   }, [courses, selectedCourse]);
+
+  // 과정 키에 차수가 포함되어 있으면 별도 차수 필터를 초기화하여 중복 필터링을 방지
+  useEffect(() => {
+    if (courseIncludesRound && selectedRound !== 'all') {
+      setSelectedRound('all');
+    }
+  }, [courseIncludesRound, selectedRound]);
 
   useEffect(() => {
     if (aggregates.length === 0) {
@@ -649,7 +663,7 @@ const SurveyResults = () => {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold">설문 결과</h1>
+          <h1 className="text-3xl font-bold">설문 결과 분석</h1>
           <p className="text-muted-foreground">
             설문 응답의 주요 지표를 서버에서 집계한 데이터로 빠르게 확인할 수 있습니다.
           </p>
@@ -677,22 +691,24 @@ const SurveyResults = () => {
               </Select>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <span className="text-sm text-muted-foreground">차수</span>
-              <Select value={selectedRound} onValueChange={setSelectedRound}>
-                <SelectTrigger>
-                  <SelectValue placeholder="전체 차수" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 차수</SelectItem>
-                  {rounds.map((round) => (
-                    <SelectItem key={round} value={round.toString()}>
-                      {round}차
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {(!courseIncludesRound) && (
+              <div className="flex flex-col gap-2">
+                <span className="text-sm text-muted-foreground">차수</span>
+                <Select value={selectedRound} onValueChange={setSelectedRound}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="전체 차수" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 차수</SelectItem>
+                    {rounds.map((round) => (
+                      <SelectItem key={round} value={round.toString()}>
+                        {round}차
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">과정</span>
