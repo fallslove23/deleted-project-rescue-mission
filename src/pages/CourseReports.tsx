@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
+import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
@@ -447,8 +448,9 @@ const CourseReports: React.FC = () => {
         onInstructorChange={setSelectedInstructor}
         testDataToggle={<TestDataToggle testDataOptions={testDataOptions} />}
       />
-
-      {content}
+      <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다. 필터를 변경해 다시 시도하세요.">
+        {content}
+      </ChartErrorBoundary>
     </div>
   );
 };
