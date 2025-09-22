@@ -59,7 +59,7 @@ export const CourseReportsRepository = {
   async fetchStatistics(filters: CourseReportFilters): Promise<CourseReportStatisticsResponse | null> {
     const normalizedCourseName = normalizeCourseName(filters.courseName ?? null);
 
-    const { data, error } = await supabase.rpc('course_report_statistics', {
+    const { data, error } = await supabase.rpc('course_report_statistics_v2', {
       p_year: filters.year,
       p_course_name: normalizedCourseName,
       p_round: filters.round ?? null,
