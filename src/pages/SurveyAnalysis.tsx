@@ -211,38 +211,40 @@ const parseQuestionTypeDistribution = (value: unknown): QuestionTypeDistribution
     .filter((item): item is QuestionTypeDistributionItem => item !== null);
 };
 
-const normalizeSummaries = (rows: SurveyAnalysisRow[] | null): SurveySummary[] => {
+const normalizeSummaries = (rows: any[] | null): SurveySummary[] => {
   if (!rows) return [];
   return rows
     .map((row) => {
-      const surveyId = typeof row.survey_id === 'string' ? row.survey_id : null;
+      // get_survey_analysis가 { survey_info, response_count, satisfaction_scores, feedback_text } 형태로 반환
+      const surveyInfo = row.survey_info as any;
+      const surveyId = surveyInfo?.id || surveyInfo?.survey_id;
 
       if (!surveyId) {
         return null;
       }
 
-      const title = toNullableString(row.title) ?? '제목 없음';
+      const title = surveyInfo?.title || '제목 없음';
 
       return {
         survey_id: surveyId,
         title,
-        description: toNullableString(row.description),
-        education_year: toNumber(row.education_year),
-        education_round: toNumber(row.education_round),
-        course_name: toNullableString(row.course_name),
-        status: toNullableString(row.status),
-        instructor_id: toNullableString(row.instructor_id),
-        instructor_name: toNullableString(row.instructor_name),
-        expected_participants: toNullableNumber(row.expected_participants),
-        is_test: toNullableBoolean(row.is_test),
-        response_count: toNumber(row.response_count),
-        last_response_at: toNullableString(row.last_response_at),
-        avg_overall_satisfaction: toNullableNumber(row.avg_overall_satisfaction),
-        avg_course_satisfaction: toNullableNumber(row.avg_course_satisfaction),
-        avg_instructor_satisfaction: toNullableNumber(row.avg_instructor_satisfaction),
-        avg_operation_satisfaction: toNullableNumber(row.avg_operation_satisfaction),
-        question_count: toNumber(row.question_count),
-        question_type_distribution: parseQuestionTypeDistribution(row.question_type_distribution),
+        description: surveyInfo?.description || null,
+        education_year: surveyInfo?.education_year || 0,
+        education_round: surveyInfo?.education_round || 0,
+        course_name: surveyInfo?.course_name || null,
+        status: surveyInfo?.status || null,
+        instructor_id: surveyInfo?.instructor_id || null,
+        instructor_name: surveyInfo?.instructor_name || null,
+        expected_participants: surveyInfo?.expected_participants || null,
+        is_test: surveyInfo?.is_test || false,
+        response_count: row.response_count || 0,
+        last_response_at: surveyInfo?.last_response_at || null,
+        avg_overall_satisfaction: null, // satisfaction_scores에서 가져와야 함
+        avg_course_satisfaction: null,
+        avg_instructor_satisfaction: null,
+        avg_operation_satisfaction: null,
+        question_count: surveyInfo?.question_count || 0,
+        question_type_distribution: [],
       };
     })
     .filter((summary): summary is SurveySummary => summary !== null);
@@ -397,16 +399,56 @@ const SurveyAnalysis = () => {
   const fetchAvailableSummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
     try {
-      const { data, error } = await supabase
-        .rpc('get_survey_analysis', {
-          p_instructor_id: instructorFilter ?? null,
-          p_include_test: includeTestData,
-        })
-        .returns<SurveyAnalysisRow[]>();
+      // 설문 목록을 가져오기 위해 surveys 테이블에서 직접 조회
+      let query = supabase
+        .from('surveys')
+        .select(`
+          id,
+          title,
+          description,
+          education_year,
+          education_round,
+          course_name,
+          status,
+          instructor_id,
+          expected_participants,
+          is_test,
+          created_at,
+          updated_at
+        `);
+
+      if (!canViewAll && profile?.instructor_id) {
+        query = query.eq('instructor_id', profile.instructor_id);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setAllSummaries(normalizeSummaries(data));
+      // 데이터를 SurveySummary 형태로 변환
+      const summaries = (data || []).map(survey => ({
+        survey_id: survey.id,
+        title: survey.title || '제목 없음',
+        description: survey.description,
+        education_year: survey.education_year || 0,
+        education_round: survey.education_round || 0,
+        course_name: survey.course_name,
+        status: survey.status,
+        instructor_id: survey.instructor_id,
+        instructor_name: null, // 나중에 조인으로 가져올 수 있음
+        expected_participants: survey.expected_participants,
+        is_test: survey.is_test || false,
+        response_count: 0, // 나중에 계산
+        last_response_at: null,
+        avg_overall_satisfaction: null,
+        avg_course_satisfaction: null,
+        avg_instructor_satisfaction: null,
+        avg_operation_satisfaction: null,
+        question_count: 0,
+        question_type_distribution: [],
+      }));
+
+      setAllSummaries(summaries);
     } catch (error) {
       console.error('Error fetching available survey summaries:', error);
       toast({
@@ -415,7 +457,7 @@ const SurveyAnalysis = () => {
         variant: 'destructive',
       });
     }
-  }, [canViewAll, profile?.instructor_id, instructorFilter, includeTestData, toast]);
+  }, [canViewAll, profile?.instructor_id, toast]);
 
   const fetchSurveySummaries = useCallback(async () => {
     if (!canViewAll && !profile?.instructor_id) return;
@@ -429,26 +471,12 @@ const SurveyAnalysis = () => {
       const normalizedYear = yearFilter !== null && !Number.isNaN(yearFilter) ? yearFilter : null;
       const normalizedRound = roundFilter !== null && !Number.isNaN(roundFilter) ? roundFilter : null;
 
-      const rpcParams: Database['public']['Functions']['get_survey_analysis']['Args'] = {
-        p_include_test: includeTestData,
+      const rpcParams = {
+        survey_id_param: selectedSurvey
       };
 
-      if (normalizedYear !== null) {
-        rpcParams.p_year = normalizedYear;
-      }
-      if (normalizedRound !== null) {
-        rpcParams.p_round = normalizedRound;
-      }
-      if (courseFilter) {
-        rpcParams.p_course_name = courseFilter;
-      }
-      if (instructorIdForQuery) {
-        rpcParams.p_instructor_id = instructorIdForQuery;
-      }
-
       const { data, error } = await supabase
-        .rpc('get_survey_analysis', rpcParams)
-        .returns<SurveyAnalysisRow[]>();
+        .rpc('get_survey_analysis', rpcParams);
 
       if (error) throw error;
 
