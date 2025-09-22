@@ -225,9 +225,8 @@ export const SurveyAggregatesRepository = {
         avg_instructor_satisfaction_real,
         avg_operation_satisfaction,
         avg_operation_satisfaction_real
-      `,
-      )
-      .returns<SurveyAggregatesViewRow[]>();
+      `
+      );
 
     if (year) query = query.eq('education_year', year);
     if (round) query = query.eq('education_round', round);
