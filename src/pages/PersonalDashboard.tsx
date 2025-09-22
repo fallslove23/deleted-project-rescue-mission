@@ -48,6 +48,7 @@ interface Profile {
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
 
+// Personal dashboard component for instructor statistics
 const PersonalDashboard: FC = () => {
   const location = useLocation();
   const { user, userRoles } = useAuth();
