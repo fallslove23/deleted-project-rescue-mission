@@ -45,12 +45,21 @@ interface Instructor {
   photo_url?: string | null;
 }
 
-interface SectionItem {
+// DB 섹션 원본 타입
+interface DbSectionItem {
   id: string;
-  name: string;
-  description: string | null;
-  order_index: number;
+  name: string | null;
 }
+
+// 세션 타입(현재 사용 안 함)
+interface SessionItem {
+  id: string;
+  session_name: string | null;
+  instructor_id: string | null;
+  course_id: string | null;
+  label: string;
+}
+
 
 const RATING_QUESTION_TYPES = new Set(['rating', 'scale']);
 const SCORE_RANGE = Array.from({ length: 10 }, (_value, index) => index + 1);
@@ -119,8 +128,8 @@ const SurveyDetailedAnalysis = () => {
   const [loadingSurvey, setLoadingSurvey] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
 
-  // 섹션(일차/과목) 탭 및 현재 선택 상태
-  const [sections, setSections] = useState<SectionItem[]>([]);
+  // 세션(과목·강사) 드롭다운 및 현재 선택 상태
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
 
@@ -158,21 +167,40 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [surveyId]);
 
-  // 일차(섹션/과목) 목록 불러오기
-  const loadSections = useCallback(async () => {
+  // 세션(과목) 목록 불러오기
+  const loadSessions = useCallback(async () => {
     if (!surveyId) return;
     try {
-      const { data, error } = await supabase
-        .from('survey_sections')
-        .select('id, name, description, order_index')
+      const { data: sessData, error: sessError } = await supabase
+        .from('survey_sessions')
+        .select('id, session_name, instructor_id, course_id')
         .eq('survey_id', surveyId)
-        .order('order_index', { ascending: true });
+        .order('session_order', { ascending: true });
 
-      if (error) throw error;
-      setSections((data || []) as SectionItem[]);
+      if (sessError) throw sessError;
+      const raw = (sessData || []).filter((s: any) => s.instructor_id && s.course_id);
+
+      const instructorIds = Array.from(new Set(raw.map((s: any) => s.instructor_id)));
+      let nameMap = new Map<string, string>();
+      if (instructorIds.length) {
+        const { data: instData } = await supabase
+          .from('instructors')
+          .select('id, name')
+          .in('id', instructorIds);
+        instData?.forEach((i: any) => nameMap.set(i.id, i.name || ''));
+      }
+
+      const mapped: SessionItem[] = raw.map((s: any) => ({
+        id: s.id,
+        session_name: s.session_name ?? null,
+        instructor_id: s.instructor_id ?? null,
+        course_id: s.course_id ?? null,
+        label: `${nameMap.get(s.instructor_id) ?? ''}${nameMap.get(s.instructor_id) ? ' - ' : ''}${s.session_name ?? ''}`.trim() || '과목',
+      }));
+      setSessions(mapped);
     } catch (err) {
-      console.error('Error loading sections:', err);
-      setSections([]);
+      console.error('Error loading sessions:', err);
+      setSessions([]);
     }
   }, [surveyId]);
 
@@ -180,10 +208,10 @@ const SurveyDetailedAnalysis = () => {
     loadSurvey();
   }, [loadSurvey]);
 
-  // 섹션도 함께 로드
+  // 세션도 함께 로드
   useEffect(() => {
-    loadSections();
-  }, [loadSections]);
+    loadSessions();
+  }, [loadSessions]);
 
   const handleSendResults = useCallback(async () => {
     if (!surveyId) return;
@@ -275,64 +303,50 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  // 섹션 기반 필터링 (질문의 section_id로 필터링)
+  // 세션 기반 필터링 (질문의 session_id로 필터링)
   const filteredDistributions = useMemo(() => {
     if (activeTab === 'all') return distributions;
     
-    return distributions.filter((d) => d.sectionId === activeTab);
+    return distributions.filter((d) => d.sessionId === activeTab);
   }, [activeTab, distributions]);
 
-  // 선택된 섹션에 따라 요약 통계도 필터링
+  // 선택된 세션에 따라 요약 통계도 필터링
   const filteredSummary = useMemo(() => {
     if (!summary || activeTab === 'all') return summary;
     
-    // 선택된 섹션의 질문들만 가져와서 평균 계산
-    const sectionDistributions = distributions.filter((d) => d.sectionId === activeTab);
-    const sectionResponseCount = sectionDistributions.reduce((acc, d) => acc + d.totalAnswers, 0);
-    
-    const avgOverall = sectionDistributions.length > 0 
-      ? sectionDistributions.reduce((acc, d) => acc + (d.average || 0), 0) / sectionDistributions.length 
-      : null;
-    
-    const avgCourse = sectionDistributions
-      .filter(d => d.satisfactionType === 'course')
-      .reduce((acc, d, _, arr) => arr.length > 0 ? acc + (d.average || 0) : 0, 0) / 
-      Math.max(1, sectionDistributions.filter(d => d.satisfactionType === 'course').length) || null;
-    
-    const avgInstructor = sectionDistributions
-      .filter(d => d.satisfactionType === 'instructor')
-      .reduce((acc, d, _, arr) => arr.length > 0 ? acc + (d.average || 0) : 0, 0) / 
-      Math.max(1, sectionDistributions.filter(d => d.satisfactionType === 'instructor').length) || null;
-    
-    const avgOperation = sectionDistributions
-      .filter(d => d.satisfactionType === 'operation')
-      .reduce((acc, d, _, arr) => arr.length > 0 ? acc + (d.average || 0) : 0, 0) / 
-      Math.max(1, sectionDistributions.filter(d => d.satisfactionType === 'operation').length) || null;
+    // 선택된 세션의 질문들만 가져와서 평균 계산
+    const sessionDists = distributions.filter((d) => d.sessionId === activeTab);
+    const responseCount = sessionDists.reduce((acc, d) => acc + d.totalAnswers, 0);
+
+    const avg = (arr: typeof sessionDists, type?: string | null) => {
+      const items = type ? arr.filter((d) => d.satisfactionType === type) : arr;
+      if (items.length === 0) return null;
+      return items.reduce((acc, d) => acc + (d.average || 0), 0) / items.length;
+    };
     
     return {
       ...summary,
-      responseCount: sectionResponseCount,
-      avgOverall,
-      avgCourse,
-      avgInstructor,
-      avgOperation,
+      responseCount,
+      avgOverall: avg(sessionDists),
+      avgCourse: avg(sessionDists, 'course'),
+      avgInstructor: avg(sessionDists, 'instructor'),
+      avgOperation: avg(sessionDists, 'operation'),
     };
   }, [activeTab, summary, distributions]);
 
-  // 응답 필터링은 섹션별 질문에 대한 응답으로 간접 필터링
   const filteredResponses = useMemo(
-    () => responses, // 섹션별로 응답을 직접 필터링하기보다는 질문 기반으로 필터링
-    [responses],
+    () => (activeTab === 'all' ? responses : responses.filter((r) => r.sessionId === activeTab)),
+    [responses, activeTab],
   );
 
   const filteredTextAnswers = useMemo(() => {
     if (activeTab === 'all') return groupedTextAnswers;
     
-    // 선택된 섹션의 질문들에 대한 텍스트 답변만 필터링
+    // 선택된 세션의 질문들에 대한 텍스트 답변만 필터링
     return groupedTextAnswers
       .map((g) => ({
         ...g,
-        answers: g.answers.filter((a) => a.sectionId === activeTab),
+        answers: g.answers.filter((a) => a.sessionId === activeTab),
       }))
       .filter((g) => g.answers.length > 0);
   }, [activeTab, groupedTextAnswers]);
@@ -575,9 +589,9 @@ const SurveyDetailedAnalysis = () => {
             </SelectTrigger>
             <SelectContent className="z-50 bg-background border shadow-lg">
               <SelectItem value="all">전체</SelectItem>
-              {sections.map((section) => (
-                <SelectItem key={section.id} value={section.id}>
-                  {section.name || '과목'}
+              {sessions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.label}
                 </SelectItem>
               ))}
             </SelectContent>
