@@ -15,6 +15,7 @@ import {
 import { ArrowLeft, Download, Mail, Printer, Loader2, ChevronDown } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
+import { SurveyDetailRepository } from '@/repositories/surveyDetailRepository';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,38 +46,12 @@ interface Instructor {
   photo_url?: string | null;
 }
 
-// 과목(강사+세션명에서 Part/세부 평가명을 제거한 그룹) 옵션
-interface SubjectOption {
-  key: string;        // 드롭다운 value
-  label: string;      // 표시용 "강사 - 과목"
-  sessionIds: string[]; // 이 과목에 속하는 세션 ID들(Part.1/2 등 포함)
-}
-
-interface QuestionData {
-  id: string;
-  question_text: string;
-  question_type: string;
-  satisfaction_type?: string;
-  order_index?: number;
-  session_id?: string;
-}
-
-interface AnswerData {
-  id: string;
-  question_id: string;
-  answer_text?: string;
-  answer_value?: any;
-  response_id: string;
-  created_at: string;
-}
-
-interface ResponseData {
-  id: string;
-  survey_id: string;
-  session_id?: string;
-  submitted_at: string;
-  respondent_email?: string;
-  is_test: boolean;
+// 강사별 필터 옵션
+interface InstructorOption {
+  key: string;
+  label: string;
+  instructorId: string;
+  courseName?: string;
 }
 
 const RATING_QUESTION_TYPES = new Set(['rating', 'scale']);
@@ -121,10 +96,7 @@ const SurveyDetailedAnalysis = () => {
   const testDataOptions = useTestDataToggle();
   
   // 데이터 상태
-  const [analysisData, setAnalysisData] = useState<any>(null);
-  const [questions, setQuestions] = useState<QuestionData[]>([]);
-  const [answers, setAnswers] = useState<AnswerData[]>([]);
-  const [responses, setResponses] = useState<ResponseData[]>([]);
+  const [detailStats, setDetailStats] = useState<any>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,9 +105,9 @@ const SurveyDetailedAnalysis = () => {
   const [loadingSurvey, setLoadingSurvey] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
 
-  // 과목(세션 그룹) 드롭다운 및 현재 선택 상태
-  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
-  const [activeTab, setActiveTab] = useState<string>('all');
+  // 강사별 필터링
+  const [instructorOptions, setInstructorOptions] = useState<InstructorOption[]>([]);
+  const [activeInstructor, setActiveInstructor] = useState<string>('all');
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
 
   const loadSurvey = useCallback(async () => {
@@ -172,141 +144,99 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [surveyId]);
 
-  // 세션(과목) 목록 불러오기
-  const loadSessions = useCallback(async () => {
+  // 강사별 옵션 로드
+  const loadInstructorOptions = useCallback(async () => {
     if (!surveyId) return;
     try {
-      const { data: sessData, error: sessError } = await supabase
-        .from('survey_sessions')
-        .select('id, session_name, instructor_id, course_id')
-        .eq('survey_id', surveyId)
-        .order('session_order', { ascending: true });
+      // 해당 설문의 질문들에서 고유한 강사 정보 추출
+      const { data: questionsData, error: questionsError } = await supabase
+        .from('survey_questions')
+        .select(`
+          session_id,
+          satisfaction_type,
+          survey_sessions!inner(instructor_id, session_name)
+        `)
+        .eq('survey_id', surveyId);
 
-      if (sessError) throw sessError;
-      const raw = (sessData || []).filter((s: any) => s.instructor_id && s.course_id);
+      if (questionsError) throw questionsError;
 
-      const instructorIds = Array.from(new Set(raw.map((s: any) => s.instructor_id)));
-      let nameMap = new Map<string, string>();
-      if (instructorIds.length) {
-        const { data: instData } = await supabase
-          .from('instructors')
-          .select('id, name')
-          .in('id', instructorIds);
-        instData?.forEach((i: any) => nameMap.set(i.id, i.name || ''));
+      const uniqueInstructors = new Set<string>();
+      const instructorMap = new Map<string, { name: string; course: string }>();
+
+      for (const question of questionsData || []) {
+        if (question.survey_sessions?.instructor_id) {
+          uniqueInstructors.add(question.survey_sessions.instructor_id);
+        }
       }
 
-      // 세션명을 과목 단위로 정규화: " - Part.X ..." 및 평가명 접미어 제거
-      const toBase = (name: string | null): string => {
-        if (!name) return '';
-        let s = name.replace(/\s*-\s*Part\.?\s*\d+.*/i, '');
-        s = s.replace(/\s*-\s*(교육|강의|운영).*/i, '');
-        return s.trim();
-      };
+      if (uniqueInstructors.size > 0) {
+        const { data: instructorsData } = await supabase
+          .from('instructors')
+          .select('id, name')
+          .in('id', Array.from(uniqueInstructors));
 
-      // 과목(강사+과목) 라벨로 그룹핑
-      const group = new Map<string, string[]>();
-      raw.forEach((s: any) => {
-        const instr = nameMap.get(s.instructor_id) ?? '';
-        const base = toBase(s.session_name ?? '');
-        
-        // 운영 만족도 세션이고 survey에 operator_name이 있으면 운영자 정보 표시
-        let label = '';
-        if (base.includes('운영') && survey?.operator_name) {
-          label = `${survey.operator_name} - 운영 만족도`;
-        } else {
-          label = (instr ? `${instr} - ${base}` : base) || '과목';
-        }
-        
-        const arr = group.get(label) ?? [];
-        arr.push(s.id);
-        group.set(label, arr);
-      });
+        instructorsData?.forEach((inst: any) => {
+          const sessionName = questionsData?.find(q => 
+            q.survey_sessions?.instructor_id === inst.id
+          )?.survey_sessions?.session_name || '';
+          
+          instructorMap.set(inst.id, {
+            name: inst.name,
+            course: sessionName
+          });
+        });
+      }
 
-      const options: SubjectOption[] = Array.from(group.entries()).map(([label, ids]) => ({
-        key: label,
-        label,
-        sessionIds: ids,
+      const options: InstructorOption[] = Array.from(instructorMap.entries()).map(([id, info]) => ({
+        key: id,
+        label: `${info.name} - ${info.course}`,
+        instructorId: id,
+        courseName: info.course,
       }));
 
-      setSubjectOptions(options);
+      setInstructorOptions(options);
     } catch (err) {
-      console.error('Error loading sessions:', err);
-      setSubjectOptions([]);
+      console.error('Error loading instructor options:', err);
+      setInstructorOptions([]);
     }
-  }, [surveyId, survey?.operator_name]);
+  }, [surveyId]);
 
-  // 설문 분석 데이터 로드
-  const loadAnalysisData = useCallback(async () => {
-    if (!surveyId) return;
+  // 설문 상세 분석 데이터 로드
+  const loadDetailStats = useCallback(async () => {
+    if (!surveyId || !testDataOptions) return;
     
     setInitialLoading(true);
     setError(null);
     
     try {
-      // 1. 기본 분석 데이터
-      const { data: analysisResult, error: rpcError } = await supabase.rpc('get_survey_analysis', {
-        survey_id_param: surveyId
+      const stats = await SurveyDetailRepository.fetchSurveyDetailStats({
+        surveyId,
+        includeTestData: testDataOptions.includeTestData,
+        responseLimit: 100,
+        distributionLimit: 50,
+        textLimit: 100,
       });
       
-      if (rpcError) throw rpcError;
-      
-      if (analysisResult && analysisResult.length > 0) {
-        setAnalysisData(analysisResult[0]);
-      }
-
-      // 2. 질문 데이터
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('survey_questions')
-        .select('id, question_text, question_type, satisfaction_type, order_index, session_id')
-        .eq('survey_id', surveyId)
-        .order('order_index', { ascending: true });
-
-      if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
-
-      // 3. 응답 데이터
-      const { data: responsesData, error: responsesError } = await supabase
-        .from('survey_responses')
-        .select('id, survey_id, session_id, submitted_at, respondent_email, is_test')
-        .eq('survey_id', surveyId)
-        .order('submitted_at', { ascending: false })
-        .limit(100);
-
-      if (responsesError) throw responsesError;
-      setResponses(responsesData || []);
-
-      // 4. 답변 데이터 (상위 200개만)
-      if (responsesData && responsesData.length > 0) {
-        const responseIds = responsesData.slice(0, 50).map(r => r.id);
-        const { data: answersData, error: answersError } = await supabase
-          .from('question_answers')
-          .select('id, question_id, answer_text, answer_value, response_id, created_at')
-          .in('response_id', responseIds)
-          .order('created_at', { ascending: false });
-
-        if (answersError) throw answersError;
-        setAnswers(answersData || []);
-      }
-
+      setDetailStats(stats);
     } catch (err) {
-      console.error('Error loading analysis data:', err);
+      console.error('Error loading detail stats:', err);
       setError('분석 데이터를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setInitialLoading(false);
     }
-  }, [surveyId]);
+  }, [surveyId, testDataOptions]);
 
   useEffect(() => {
     loadSurvey();
   }, [loadSurvey]);
 
   useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+    loadInstructorOptions();
+  }, [loadInstructorOptions]);
 
   useEffect(() => {
-    loadAnalysisData();
-  }, [loadAnalysisData]);
+    loadDetailStats();
+  }, [loadDetailStats]);
 
   const handleSendResults = useCallback(async () => {
     if (!surveyId) return;
@@ -336,28 +266,28 @@ const SurveyDetailedAnalysis = () => {
   }, [surveyId, toast]);
 
   const generateCSV = useCallback(() => {
-    if (!survey || !analysisData) return '';
+    if (!survey || !detailStats) return '';
 
     let csv = '설문 상세 분석 결과\n';
     csv += `설문명: ${survey.title}\n`;
     csv += `교육년도: ${survey.education_year}년\n`;
     csv += `교육차수: ${survey.education_round}차\n`;
-    csv += `총 응답 수: ${analysisData.response_count}\n\n`;
+    csv += `총 응답 수: ${detailStats.summary.responseCount}\n\n`;
 
-    const scores = analysisData.satisfaction_scores || {};
-    csv += `과목 만족도,${formatAverage(scores.course_satisfaction)}/10\n`;
-    csv += `강사 만족도,${formatAverage(scores.instructor_satisfaction)}/10\n`;
-    csv += `운영 만족도,${formatAverage(scores.operation_satisfaction)}/10\n\n`;
+    csv += `전체 만족도,${formatAverage(detailStats.summary.avgOverall)}/10\n`;
+    csv += `과목 만족도,${formatAverage(detailStats.summary.avgCourse)}/10\n`;
+    csv += `강사 만족도,${formatAverage(detailStats.summary.avgInstructor)}/10\n`;
+    csv += `운영 만족도,${formatAverage(detailStats.summary.avgOperation)}/10\n\n`;
 
-    if (analysisData.feedback_text && analysisData.feedback_text.length > 0) {
+    if (detailStats.textAnswers.items.length > 0) {
       csv += '피드백 내용\n';
-      analysisData.feedback_text.forEach((feedback: string, index: number) => {
-        csv += `${index + 1},"${feedback.replace(/"/g, '""')}"\n`;
+      detailStats.textAnswers.items.forEach((answer: any, index: number) => {
+        csv += `${index + 1},"${answer.answerText.replace(/"/g, '""')}"\n`;
       });
     }
 
     return csv;
-  }, [analysisData, survey]);
+  }, [detailStats, survey]);
 
   const handleDownload = useCallback(() => {
     const csv = generateCSV();
@@ -373,106 +303,98 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  // 과목(세션 그룹) 기준 필터링
-  const selectedSessionIds = useMemo(() => {
-    if (activeTab === 'all') return null;
-    return subjectOptions.find((o) => o.key === activeTab)?.sessionIds ?? null;
-  }, [activeTab, subjectOptions]);
-
-  // 필터링된 데이터
+  // 강사별 필터링된 데이터
   const filteredQuestions = useMemo(() => {
-    if (!selectedSessionIds) return questions;
-    const set = new Set(selectedSessionIds);
-    return questions.filter((q) => !q.session_id || set.has(q.session_id));
-  }, [questions, selectedSessionIds]);
+    if (!detailStats?.distributions?.items) return [];
+    
+    if (activeInstructor === 'all') {
+      return detailStats.distributions.items;
+    }
+    
+    // 선택된 강사의 질문들만 필터링
+    const selectedOption = instructorOptions.find(opt => opt.key === activeInstructor);
+    if (!selectedOption) return detailStats.distributions.items;
+    
+    // 강사별 질문 필터링 (sessionId나 다른 식별자 기준)
+    return detailStats.distributions.items.filter((question: any) => {
+      // satisfaction_type이나 question_text에서 강사 관련 질문 식별
+      return question.satisfactionType === 'instructor' || 
+             question.questionText.includes('강사') ||
+             question.questionText.includes('교수');
+    });
+  }, [detailStats, activeInstructor, instructorOptions]);
 
-  const filteredAnswers = useMemo(() => {
-    if (!selectedSessionIds) return answers;
-    const set = new Set(selectedSessionIds);
-    const filteredQuestionIds = new Set(filteredQuestions.map(q => q.id));
-    return answers.filter((a) => filteredQuestionIds.has(a.question_id));
-  }, [answers, filteredQuestions, selectedSessionIds]);
+  const filteredTextAnswers = useMemo(() => {
+    if (!detailStats?.textAnswers?.items) return [];
+    
+    if (activeInstructor === 'all') {
+      return detailStats.textAnswers.items;
+    }
+    
+    // 강사별 텍스트 답변 필터링
+    return detailStats.textAnswers.items.filter((answer: any) => {
+      return answer.satisfactionType === 'instructor' ||
+             answer.questionText.includes('강사') ||
+             answer.questionText.includes('교수');
+    });
+  }, [detailStats, activeInstructor]);
 
   const filteredResponses = useMemo(() => {
-    if (!selectedSessionIds) return responses;
-    const set = new Set(selectedSessionIds);
-    return responses.filter((r) => !r.session_id || set.has(r.session_id));
-  }, [responses, selectedSessionIds]);
+    if (!detailStats?.responses?.items) return [];
+    return detailStats.responses.items;
+  }, [detailStats]);
 
-  // 분석 데이터에서 만족도 점수 추출
-  const satisfactionScores = useMemo(() => {
-    if (!analysisData?.satisfaction_scores) return null;
-    return analysisData.satisfaction_scores;
-  }, [analysisData]);
-
-  // 텍스트 질문별 피드백 추출 (필터링 적용)
+  // 텍스트 피드백 그룹핑
   const textFeedbacks = useMemo(() => {
-    const textQuestions = filteredQuestions.filter(q => 
-      ['text', 'long_text', 'textarea', 'paragraph'].includes(q.question_type)
-    );
-    
-    if (textQuestions.length === 0) return [];
-
-    const questionMap = new Map(textQuestions.map(q => [q.id, q]));
-    const textAnswers = filteredAnswers.filter(a => 
-      questionMap.has(a.question_id) && 
-      a.answer_text && 
-      a.answer_text.trim() !== '' && 
-      a.answer_text.trim() !== '.' && 
-      a.answer_text.trim() !== '없습니다' && 
-      a.answer_text.trim() !== '없음'
-    );
+    if (!filteredTextAnswers.length) return [];
 
     // 질문별로 그룹핑
-    const grouped = textAnswers.reduce((acc, answer) => {
-      const question = questionMap.get(answer.question_id);
-      if (!question) return acc;
-      
-      if (!acc[answer.question_id]) {
-        acc[answer.question_id] = {
-          question,
+    const grouped = filteredTextAnswers.reduce((acc: any, answer: any) => {
+      if (!acc[answer.questionId]) {
+        acc[answer.questionId] = {
+          questionId: answer.questionId,
+          questionText: answer.questionText,
+          satisfactionType: answer.satisfactionType,
+          orderIndex: answer.orderIndex,
           answers: []
         };
       }
-      acc[answer.question_id].answers.push(answer);
+      acc[answer.questionId].answers.push(answer);
       return acc;
-    }, {} as Record<string, { question: QuestionData; answers: AnswerData[] }>);
+    }, {});
 
-    return Object.values(grouped).sort((a, b) => 
-      (a.question.order_index || 0) - (b.question.order_index || 0)
+    return Object.values(grouped).sort((a: any, b: any) => 
+      (a.orderIndex || 0) - (b.orderIndex || 0)
     );
-  }, [filteredQuestions, filteredAnswers]);
+  }, [filteredTextAnswers]);
 
-  // 평점 질문별 분석
+  // 평점 분석
   const ratingAnalysis = useMemo(() => {
-    const ratingQuestions = filteredQuestions.filter(q => RATING_QUESTION_TYPES.has(q.question_type));
-    
-    return ratingQuestions.map(question => {
-      const questionAnswers = filteredAnswers.filter(a => a.question_id === question.id);
-      const ratings = questionAnswers
-        .map(a => {
-          const value = a.answer_value || a.answer_text;
-          const num = typeof value === 'string' ? parseFloat(value) : value;
-          return typeof num === 'number' && !isNaN(num) ? (num <= 5 ? num * 2 : num) : null;
-        })
-        .filter((v): v is number => v !== null);
+    return filteredQuestions
+      .filter((question: any) => RATING_QUESTION_TYPES.has(question.questionType))
+      .map((question: any) => {
+        const chartData = SCORE_RANGE.map((score) => ({
+          name: `${score}점`,
+          value: question.ratingDistribution[score] || 0,
+          percentage: question.totalAnswers > 0 
+            ? Math.round(((question.ratingDistribution[score] || 0) / question.totalAnswers) * 100) 
+            : 0,
+        }));
 
-      const average = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
-      
-      // 분포 계산
-      const distribution = SCORE_RANGE.reduce((acc, score) => {
-        acc[score] = ratings.filter(r => Math.round(r) === score).length;
-        return acc;
-      }, {} as Record<number, number>);
-
-      return {
-        question,
-        average,
-        totalAnswers: ratings.length,
-        distribution
-      };
-    });
-  }, [filteredQuestions, filteredAnswers]);
+        return {
+          question: {
+            id: question.questionId,
+            question_text: question.questionText,
+            satisfaction_type: question.satisfactionType,
+            order_index: question.orderIndex,
+          },
+          average: question.average || 0,
+          totalAnswers: question.totalAnswers,
+          distribution: question.ratingDistribution,
+          chartData
+        };
+      });
+  }, [filteredQuestions]);
 
   if (!surveyId) {
     return (
@@ -603,23 +525,23 @@ const SurveyDetailedAnalysis = () => {
         </div>
       </div>
 
-      {/* 과목별 필터 */}
-      {subjectOptions.length > 0 && (
+      {/* 강사별 필터 */}
+      {instructorOptions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>과목별 분석</CardTitle>
+            <CardTitle>강사별 분석</CardTitle>
             <p className="text-sm text-muted-foreground">
-              강사별 과목을 선택하여 상세 분석을 확인하세요.
+              강사를 선택하여 해당 강사의 평가 결과만 확인하세요.
             </p>
           </CardHeader>
           <CardContent>
-            <Select value={activeTab} onValueChange={setActiveTab}>
+            <Select value={activeInstructor} onValueChange={setActiveInstructor}>
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="전체" />
               </SelectTrigger>
               <SelectContent className="bg-popover border shadow-lg z-50">
                 <SelectItem value="all">전체</SelectItem>
-                {subjectOptions.map((option) => (
+                {instructorOptions.map((option) => (
                   <SelectItem key={option.key} value={option.key}>
                     {option.label}
                   </SelectItem>
@@ -630,7 +552,7 @@ const SurveyDetailedAnalysis = () => {
         </Card>
       )}
 
-      {!analysisData ? (
+      {!detailStats ? (
         <div className="flex items-center justify-center py-12">
           <p className="text-muted-foreground">분석할 데이터가 없습니다.</p>
         </div>
@@ -643,12 +565,36 @@ const SurveyDetailedAnalysis = () => {
                 <CardTitle className="text-sm font-medium">총 응답 수</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{filteredResponses.length || 0}</div>
+                <div className="text-2xl font-bold">{detailStats.summary.responseCount || 0}</div>
               </CardContent>
             </Card>
-            {satisfactionScores && renderSummaryCard('과목 만족도', formatAverage(satisfactionScores.course_satisfaction))}
-            {satisfactionScores && renderSummaryCard('강사 만족도', formatAverage(satisfactionScores.instructor_satisfaction))}
-            {satisfactionScores && renderSummaryCard('운영 만족도', formatAverage(satisfactionScores.operation_satisfaction))}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">전체 만족도</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatAverage(detailStats.summary.avgOverall)}</div>
+                <Progress value={(detailStats.summary.avgOverall || 0) * 10} className="mt-2" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">과목 만족도</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatAverage(detailStats.summary.avgCourse)}</div>
+                <Progress value={(detailStats.summary.avgCourse || 0) * 10} className="mt-2" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">강사 만족도</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatAverage(detailStats.summary.avgInstructor)}</div>
+                <Progress value={(detailStats.summary.avgInstructor || 0) * 10} className="mt-2" />
+              </CardContent>
+            </Card>
           </div>
 
           {/* 평점별 분석 */}
@@ -686,7 +632,22 @@ const SurveyDetailedAnalysis = () => {
                           <div className="text-xs text-muted-foreground">/ 10</div>
                         </div>
                       </div>
-                      {renderRatingChart(analysis)}
+                      <div className="w-full">
+                        <ResponsiveContainer width="100%" height={200}>
+                          <RechartsBarChart data={analysis.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip
+                              formatter={(value: number | string, _name, props) => {
+                                const percentage = props?.payload?.percentage ?? 0;
+                                return [`${value}개 (${percentage}%)`, '응답 수'];
+                              }}
+                            />
+                            <Bar dataKey="value" fill="hsl(var(--chart-1))" />
+                          </RechartsBarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -699,29 +660,31 @@ const SurveyDetailedAnalysis = () => {
             <Card>
               <CardHeader>
                 <CardTitle>텍스트 피드백</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {textFeedbacks.reduce((total, group) => total + group.answers.length, 0)}개의 피드백이 있습니다.
-                  {activeTab !== 'all' && ' (선택된 강사/과목 기준)'}
-                </p>
+                 <p className="text-sm text-muted-foreground">
+                   {(() => {
+                     const feedbackCount = textFeedbacks.reduce((total: number, group: any) => total + (group.answers?.length || 0), 0);
+                     return `${feedbackCount}개의 피드백이 있습니다.${activeInstructor !== 'all' ? ' (선택된 강사 기준)' : ''}`;
+                   })()}
+                 </p>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6 max-h-96 overflow-y-auto">
-                  {textFeedbacks.map((group) => (
-                    <div key={group.question.id} className="space-y-3">
+                  {textFeedbacks.map((group: any) => (
+                    <div key={group.questionId} className="space-y-3">
                       <h4 className="text-sm font-medium text-muted-foreground border-b pb-1">
-                        {group.question.question_text}
-                        {group.question.satisfaction_type && (
+                        {group.questionText}
+                        {group.satisfactionType && (
                           <Badge variant="outline" className="ml-2 text-xs">
-                            {group.question.satisfaction_type.toUpperCase()}
+                            {group.satisfactionType.toUpperCase()}
                           </Badge>
                         )}
                       </h4>
                       <div className="space-y-2">
-                        {group.answers.slice(0, 10).map((answer, index) => (
-                          <div key={answer.id} className="p-3 bg-muted/50 rounded-lg">
-                            <p className="text-sm">{answer.answer_text}</p>
+                        {group.answers.slice(0, 10).map((answer: any, index: number) => (
+                          <div key={answer.answerId} className="p-3 bg-muted/50 rounded-lg">
+                            <p className="text-sm">{answer.answerText}</p>
                             <div className="text-xs text-muted-foreground mt-1">
-                              {formatDateTime(answer.created_at)}
+                              {formatDateTime(answer.createdAt)}
                             </div>
                           </div>
                         ))}
@@ -735,13 +698,16 @@ const SurveyDetailedAnalysis = () => {
                       </div>
                     </div>
                   ))}
-                  {textFeedbacks.reduce((total, group) => total + group.answers.length, 0) > 50 && (
-                    <div className="text-center pt-4">
-                      <p className="text-sm text-muted-foreground">
-                        CSV 다운로드를 통해 전체 피드백을 확인하세요.
-                      </p>
-                    </div>
-                  )}
+                   {(() => {
+                     const totalFeedbacks = textFeedbacks.reduce((total: number, group: any) => total + (group.answers?.length || 0), 0) as number;
+                     return totalFeedbacks > 50 ? (
+                       <div className="text-center pt-4">
+                         <p className="text-sm text-muted-foreground">
+                           CSV 다운로드를 통해 전체 피드백을 확인하세요.
+                         </p>
+                       </div>
+                     ) : null;
+                   })()}
                 </div>
               </CardContent>
             </Card>
@@ -766,17 +732,17 @@ const SurveyDetailedAnalysis = () => {
               <CollapsibleContent>
                 <CardContent>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {filteredResponses.slice(0, 50).map((response) => (
+                    {filteredResponses.slice(0, 50).map((response: any) => (
                       <div key={response.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
                         <div className="flex-1">
                           <div className="text-sm font-medium">
-                            {response.respondent_email || '익명 응답자'}
+                            {response.respondentEmail || '익명 응답자'}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {formatDateTime(response.submitted_at)}
+                            {formatDateTime(response.submittedAt)}
                           </div>
                         </div>
-                        {response.is_test && (
+                        {response.isTest && (
                           <Badge variant="outline" className="text-xs">
                             테스트
                           </Badge>
