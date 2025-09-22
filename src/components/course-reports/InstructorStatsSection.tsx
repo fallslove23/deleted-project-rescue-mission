@@ -39,11 +39,11 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
 
   const hasComparisonData = previousStats.length > 0;
 
-  // 만족도 구간별 색상 설정
+  // 만족도 구간별 색상 설정 (10점 만점 기준)
   const getBarColor = (satisfaction: number) => {
-    if (satisfaction >= 4.0) return 'hsl(142, 71%, 45%)'; // 녹색 (우수)
-    if (satisfaction >= 3.5) return 'hsl(47, 96%, 53%)';  // 노란색 (보통)
-    return 'hsl(346, 87%, 43%)'; // 빨간색 (개선필요)
+    if (satisfaction >= 8.0) return 'hsl(142, 71%, 45%)'; // 우수
+    if (satisfaction >= 6.0) return 'hsl(47, 96%, 53%)';  // 보통
+    return 'hsl(346, 87%, 43%)'; // 개선 필요
   };
 
   return (
