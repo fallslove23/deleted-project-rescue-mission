@@ -77,7 +77,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                 margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" domain={[0, 5]} />
+                <XAxis type="number" domain={[0, 10]} />
                 <YAxis 
                   type="category" 
                   dataKey="name" 

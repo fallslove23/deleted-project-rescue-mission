@@ -57,6 +57,20 @@ export const AreaChart = ({
     );
   }, [data, dataKeys]);
 
+  // Sanitize dataset to prevent NaN from reaching Recharts scales
+  const safeData = useMemo(() => {
+    if (!data) return [] as Array<Record<string, string | number>>;
+    return data.map((row) => {
+      const next: Record<string, string | number> = { ...row };
+      dataKeys.forEach(({ key }) => {
+        const v = next[key];
+        next[key] = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+      });
+      return next;
+    });
+  }, [data, dataKeys]);
+
+
   return (
     <div className="h-full w-full">
       {title && (
@@ -65,7 +79,7 @@ export const AreaChart = ({
       {hasData ? (
         <ResponsiveContainer width="100%" height="100%">
           <RechartsAreaChart
-            data={data}
+            data={safeData}
             margin={{
               top: 10,
               right: 30,
@@ -106,6 +120,7 @@ export const AreaChart = ({
               }
             />
             <YAxis
+              domain={[0, 10]}
               tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
               axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
               label={
