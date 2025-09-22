@@ -19,6 +19,7 @@ import { DonutChart } from '@/components/charts/DonutChart';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { KeywordCloud } from '@/components/course-reports/KeywordCloud';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { TestDataToggle } from '@/components/TestDataToggle';
@@ -37,6 +38,7 @@ const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
 const CourseReports: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
 
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
@@ -57,6 +59,7 @@ const CourseReports: React.FC = () => {
     loading,
     isInstructor,
     instructorId,
+    instructorName,
   } = useCourseReportsData(
     selectedYear,
     selectedCourse,
@@ -67,9 +70,8 @@ const CourseReports: React.FC = () => {
 
   const currentInstructorName = useMemo(() => {
     if (!isInstructor || !instructorId) return null;
-    const instructor = availableInstructors.find(inst => inst.id === instructorId);
-    return instructor?.name || null;
-  }, [isInstructor, instructorId, availableInstructors]);
+    return instructorName || availableInstructors.find(inst => inst.id === instructorId)?.name || null;
+  }, [isInstructor, instructorId, instructorName, availableInstructors]);
 
   useEffect(() => {
     if (availableCourses.length === 0) return;

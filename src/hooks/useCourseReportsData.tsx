@@ -22,6 +22,7 @@ export interface UseCourseReportsDataResult {
   loading: boolean;
   isInstructor: boolean;
   instructorId: string | null;
+  instructorName: string | null;
   refetch: () => Promise<CourseReportStatisticsResponse | null>;
 }
 
@@ -37,6 +38,7 @@ export const useCourseReportsData = (
   const isInstructor = userRoles.includes('instructor');
 
   const [instructorId, setInstructorId] = useState<string | null>(null);
+  const [instructorName, setInstructorName] = useState<string | null>(null);
   const [instructorIdLoaded, setInstructorIdLoaded] = useState(false);
   const { data, loading, fetchStatistics } = useCourseReportStatistics();
   const [previousData, setPreviousData] = useState<CourseReportStatisticsResponse | null>(null);
@@ -68,7 +70,7 @@ export const useCourseReportsData = (
 
       const { data: instructor, error } = await supabase
         .from('instructors')
-        .select('id')
+        .select('id, name')
         .eq('email', user.email)
         .maybeSingle();
 
@@ -84,6 +86,7 @@ export const useCourseReportsData = (
         setInstructorId(null);
       } else {
         setInstructorId(instructor?.id ?? null);
+        setInstructorName(instructor?.name ?? null);
       }
 
       setInstructorIdLoaded(true);
@@ -193,6 +196,7 @@ export const useCourseReportsData = (
     loading,
     isInstructor,
     instructorId,
+    instructorName: instructorName,
     refetch,
   };
 };
