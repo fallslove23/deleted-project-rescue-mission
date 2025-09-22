@@ -94,6 +94,21 @@ function formatDateTime(value: string | null): string {
   }
 }
 
+function formatSatisfactionType(type: string | null): string {
+  if (!type) return '';
+  
+  switch (type.toLowerCase()) {
+    case 'instructor':
+      return '강사';
+    case 'course':
+      return '과목';
+    case 'operation':
+      return '운영';
+    default:
+      return type.toUpperCase();
+  }
+}
+
 const SurveyDetailedAnalysis = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
   const navigate = useNavigate();
@@ -684,7 +699,7 @@ const SurveyDetailedAnalysis = () => {
                             <span>{analysis.totalAnswers}개 응답</span>
                             {analysis.question.satisfaction_type && (
                               <Badge variant="outline" className="text-xs">
-                                {analysis.question.satisfaction_type.toUpperCase()}
+                                {formatSatisfactionType(analysis.question.satisfaction_type)}
                               </Badge>
                             )}
                           </div>
@@ -739,7 +754,7 @@ const SurveyDetailedAnalysis = () => {
                         {group.questionText}
                         {group.satisfactionType && (
                           <Badge variant="outline" className="ml-2 text-xs">
-                            {group.satisfactionType.toUpperCase()}
+                            {formatSatisfactionType(group.satisfactionType)}
                           </Badge>
                         )}
                       </h4>
