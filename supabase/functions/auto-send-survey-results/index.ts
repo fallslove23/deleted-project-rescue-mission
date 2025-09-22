@@ -103,10 +103,13 @@ serve(async (req) => {
     if (logErr) throw logErr;
 
     const hasSuccessfulLog = new Map<string, boolean>();
+    const partialLogCounts = new Map<string, number>();
     logs?.forEach((l) => {
-      // Consider success or partial as already attempted/sent
-      if (l.status === "success" || l.status === "partial") {
-        hasSuccessfulLog.set(l.survey_id as unknown as string, true);
+      const surveyId = String(l.survey_id);
+      if (l.status === "success") {
+        hasSuccessfulLog.set(surveyId, true);
+      } else if (l.status === "partial") {
+        partialLogCounts.set(surveyId, (partialLogCounts.get(surveyId) ?? 0) + 1);
       }
     });
 
@@ -136,6 +139,10 @@ serve(async (req) => {
           processed: 0,
           skipped: dueSurveys.length,
           details: [],
+          partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
+            surveyId,
+            count,
+          })),
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
@@ -161,6 +168,10 @@ serve(async (req) => {
         targets: targets.map((t) => ({ id: t.id, title: t.title, status: t.status, end_date: t.end_date })),
         results,
         dryRun,
+        partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
+          surveyId,
+          count,
+        })),
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
