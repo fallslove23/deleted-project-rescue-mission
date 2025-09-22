@@ -60,19 +60,39 @@ export const AreaChart = ({
 
   // Sanitize dataset to prevent NaN from reaching Recharts scales
   const safeData = useMemo(() => {
-    if (!data) return [] as Array<Record<string, string | number>>;
-    return data.map((row) => {
-      const next: Record<string, string | number> = { ...row };
-      // Ensure categorical x value is a string
-      const nameVal = (row as any)?.name;
-      next.name = typeof nameVal === 'string' ? nameVal : String(nameVal ?? '-');
-      // Force numeric series to finite numbers
-      dataKeys.forEach(({ key }) => {
-        const v = next[key];
-        next[key] = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+    if (!data || !Array.isArray(data)) return [] as Array<Record<string, string | number>>;
+    return data
+      .map((row) => {
+        const next: Record<string, string | number> = { ...row };
+        // Ensure categorical x value is a string
+        const nameVal = (row as any)?.name;
+        next.name = typeof nameVal === 'string' ? nameVal : String(nameVal ?? '-');
+        
+        // Force numeric series to finite numbers with comprehensive NaN checking
+        dataKeys.forEach(({ key }) => {
+          const v = next[key];
+          if (typeof v === 'number') {
+            // Triple check for NaN and infinite values
+            if (Number.isFinite(v) && !Number.isNaN(v)) {
+              next[key] = v;
+            } else {
+              next[key] = 0;
+            }
+          } else {
+            // Try to parse if string, otherwise default to 0
+            const parsed = typeof v === 'string' ? parseFloat(v) : 0;
+            next[key] = Number.isFinite(parsed) && !Number.isNaN(parsed) ? parsed : 0;
+          }
+        });
+        return next;
+      })
+      .filter((row) => {
+        // Only include rows where at least one data key has a valid value > 0
+        return dataKeys.some(({ key }) => {
+          const val = row[key];
+          return typeof val === 'number' && Number.isFinite(val) && !Number.isNaN(val) && val > 0;
+        });
       });
-      return next;
-    });
   }, [data, dataKeys]);
 
 
@@ -127,7 +147,8 @@ export const AreaChart = ({
               }
             />
             <YAxis
-              domain={[0, 10]}
+              type="number"
+              domain={[0, 'dataMax + 1']}
               tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
               axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
               label={

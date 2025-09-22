@@ -74,10 +74,20 @@ export interface SurveyCumulativeRow {
 
 const parseNullableNumber = (value: NumericLike): number | null => {
   if (value === null || value === undefined) return null;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'number') {
+    // Add comprehensive NaN and infinity checks
+    return Number.isFinite(value) && !Number.isNaN(value) ? value : null;
+  }
 
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? null : parsed;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined') return null;
+    
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) && !Number.isNaN(parsed) ? parsed : null;
+  }
+
+  return null;
 };
 
 const parseNullableBoolean = (value: boolean | string | null | undefined): boolean | null => {

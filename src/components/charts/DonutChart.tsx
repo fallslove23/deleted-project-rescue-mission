@@ -29,14 +29,20 @@ export const DonutChart = ({
   emptyState
 }: DonutChartProps) => {
   const dataWithColors = useMemo(
-    () =>
-      data
-        .map((item, index) => ({
-          name: String(item.name ?? '-'),
-          value: Number.isFinite(item.value) ? item.value : 0,
-          color: item.color || COLORS[index % COLORS.length]
-        }))
-        .filter((d) => Number.isFinite(d.value)),
+    () => {
+      if (!data || !Array.isArray(data)) return [];
+      
+      return data
+        .map((item, index) => {
+          const value = typeof item.value === 'number' ? item.value : 0;
+          return {
+            name: String(item.name ?? '-'),
+            value: Number.isFinite(value) && !Number.isNaN(value) && value >= 0 ? value : 0,
+            color: item.color || COLORS[index % COLORS.length]
+          };
+        })
+        .filter((d) => Number.isFinite(d.value) && !Number.isNaN(d.value) && d.value > 0);
+    },
     [data]
   );
 

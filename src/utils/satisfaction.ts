@@ -18,9 +18,11 @@ export function formatSatisfaction(
 ): string {
   const normalized = convert ? convertToTenScale(value) : value;
 
-  if (normalized === null || normalized === undefined || Number.isNaN(normalized)) {
+  if (normalized === null || normalized === undefined || Number.isNaN(normalized) || !Number.isFinite(normalized)) {
     return fallback;
   }
 
-  return Number(normalized).toFixed(digits);
+  const result = Number(normalized).toFixed(digits);
+  // Additional safety check for the result
+  return Number.isFinite(parseFloat(result)) ? result : fallback;
 }

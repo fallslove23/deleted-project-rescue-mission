@@ -30,9 +30,13 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
 
 const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  // Comprehensive NaN/invalid number handling
+  if (value === null || value === undefined) return 0;
+  if (typeof value !== 'number') return 0;
+  if (!Number.isFinite(value) || Number.isNaN(value)) return 0;
+  
   const rounded = Number(value.toFixed(digits));
-  return Number.isNaN(rounded) ? 0 : rounded;
+  return Number.isFinite(rounded) && !Number.isNaN(rounded) ? rounded : 0;
 };
 
 const CourseReports: React.FC = () => {
@@ -108,20 +112,38 @@ const CourseReports: React.FC = () => {
       { name: '운영 만족도', value: toFixedOrZero(summary.avgOperationSatisfaction), color: 'hsl(var(--chart-3))' },
     ];
 
-    return data.filter((item) => item.value > 0);
+    // Double check for valid data and filter out any invalid values
+    return data
+      .filter((item) => Number.isFinite(item.value) && !Number.isNaN(item.value) && item.value > 0)
+      .map(item => ({
+        ...item,
+        value: Number.isFinite(item.value) ? item.value : 0
+      }));
   }, [summary]);
 
   const trendChartData = useMemo(() => {
+    if (!Array.isArray(trend)) return [];
+    
     return trend
-      .map((point, index) => ({
-        name: point.educationRound ? `${point.educationRound}차` : `기준 ${index + 1}`,
-        '강사 만족도': toFixedOrZero(point.avgInstructorSatisfaction),
-        '과정 만족도': toFixedOrZero(point.avgCourseSatisfaction),
-        '운영 만족도': toFixedOrZero(point.avgOperationSatisfaction),
-      }))
-      .filter((item) =>
-        item['강사 만족도'] > 0 || item['과정 만족도'] > 0 || item['운영 만족도'] > 0,
-      );
+      .map((point, index) => {
+        const instructorVal = toFixedOrZero(point.avgInstructorSatisfaction);
+        const courseVal = toFixedOrZero(point.avgCourseSatisfaction);
+        const operationVal = toFixedOrZero(point.avgOperationSatisfaction);
+        
+        return {
+          name: point.educationRound ? `${point.educationRound}차` : `기준 ${index + 1}`,
+          '강사 만족도': Number.isFinite(instructorVal) ? instructorVal : 0,
+          '과정 만족도': Number.isFinite(courseVal) ? courseVal : 0,
+          '운영 만족도': Number.isFinite(operationVal) ? operationVal : 0,
+        };
+      })
+      .filter((item) => {
+        const hasValidData = item['강사 만족도'] > 0 || item['과정 만족도'] > 0 || item['운영 만족도'] > 0;
+        const allValuesFinite = Number.isFinite(item['강사 만족도']) && 
+                                Number.isFinite(item['과정 만족도']) && 
+                                Number.isFinite(item['운영 만족도']);
+        return hasValidData && allValuesFinite;
+      });
   }, [trend]);
 
   const instructorStatsDisplay = useMemo(
@@ -293,7 +315,9 @@ const CourseReports: React.FC = () => {
             <CardDescription>강사, 과정, 운영 만족도를 비교해 보세요.</CardDescription>
           </CardHeader>
           <CardContent className="h-[320px]">
-            <DonutChart data={satisfactionChartData} />
+            <ChartErrorBoundary fallbackDescription="만족도 차트를 표시할 수 없습니다. 데이터를 확인해 주세요.">
+              <DonutChart data={satisfactionChartData} />
+            </ChartErrorBoundary>
           </CardContent>
         </Card>
 
@@ -365,16 +389,18 @@ const CourseReports: React.FC = () => {
             <CardDescription>차수별 만족도 변화를 확인해 보세요.</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
-            <AreaChart
-              data={trendChartData}
-              dataKeys={[
-                { key: '강사 만족도', label: '강사 만족도', color: 'hsl(var(--chart-1))' },
-                { key: '과정 만족도', label: '과정 만족도', color: 'hsl(var(--chart-2))' },
-                { key: '운영 만족도', label: '운영 만족도', color: 'hsl(var(--chart-3))' },
-              ]}
-              xAxisLabel="교육 차수"
-              yAxisLabel="만족도 점수"
-            />
+            <ChartErrorBoundary fallbackDescription="만족도 추이 차트를 표시할 수 없습니다. 데이터를 확인해 주세요.">
+              <AreaChart
+                data={trendChartData}
+                dataKeys={[
+                  { key: '강사 만족도', label: '강사 만족도', color: 'hsl(var(--chart-1))' },
+                  { key: '과정 만족도', label: '과정 만족도', color: 'hsl(var(--chart-2))' },
+                  { key: '운영 만족도', label: '운영 만족도', color: 'hsl(var(--chart-3))' },
+                ]}
+                xAxisLabel="교육 차수"
+                yAxisLabel="만족도 점수"
+              />
+            </ChartErrorBoundary>
           </CardContent>
         </Card>
       )}

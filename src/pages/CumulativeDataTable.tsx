@@ -111,12 +111,20 @@ const CumulativeDataTable = () => {
       minWidth: 140,
       render: (row) => {
         const value = getAverageSatisfactionValue(row, includeTestData);
-        if (value === null) {
+        if (value === null || !Number.isFinite(value)) {
           return <span className="text-muted-foreground">-</span>;
         }
 
-        const badgeVariant = value >= 8 ? 'default' : value >= 6 ? 'secondary' : 'destructive';
-        return <Badge variant={badgeVariant}>{formatSatisfaction(value)}</Badge>;
+        // Ensure finite number for badge variant calculation
+        const safeValue = Number.isFinite(value) && !Number.isNaN(value) ? value : 0;
+        const badgeVariant = safeValue >= 8 ? 'default' : safeValue >= 6 ? 'secondary' : 'destructive';
+        
+        try {
+          return <Badge variant={badgeVariant}>{formatSatisfaction(safeValue)}</Badge>;
+        } catch (error) {
+          console.error('Error formatting satisfaction in table:', error, value);
+          return <Badge variant="secondary">-</Badge>;
+        }
       },
     },
     {
@@ -180,7 +188,14 @@ const CumulativeDataTable = () => {
     }
   }, [getExportData, includeTestData]);
 
-  const averageDisplay = formatSatisfaction(summary.averageSatisfaction, { fallback: '0' });
+  const averageDisplay = useMemo(() => {
+    try {
+      return formatSatisfaction(summary.averageSatisfaction, { fallback: '0' });
+    } catch (error) {
+      console.error('Error formatting satisfaction value:', error, summary.averageSatisfaction);
+      return '0';
+    }
+  }, [summary.averageSatisfaction]);
 
   return (
     <div className="space-y-6">
