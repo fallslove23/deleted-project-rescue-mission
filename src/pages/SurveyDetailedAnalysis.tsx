@@ -54,6 +54,13 @@ interface InstructorOption {
   courseName?: string;
 }
 
+// 과목(강사+세션명에서 Part/세부 평가명을 제거한 그룹) 옵션
+interface SubjectOption {
+  key: string;        // 드롭다운 value
+  label: string;      // 표시용 "강사 - 과목"
+  sessionIds: string[]; // 이 과목에 속하는 세션 ID들(Part.1/2 등 포함)
+}
+
 const RATING_QUESTION_TYPES = new Set(['rating', 'scale']);
 const SCORE_RANGE = Array.from({ length: 10 }, (_value, index) => index + 1);
 const CHART_COLORS = [
@@ -105,9 +112,11 @@ const SurveyDetailedAnalysis = () => {
   const [loadingSurvey, setLoadingSurvey] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
 
-  // 강사별 필터링
+  // 강사별/과목별 필터링 상태
   const [instructorOptions, setInstructorOptions] = useState<InstructorOption[]>([]);
   const [activeInstructor, setActiveInstructor] = useState<string>('all');
+  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
 
   const loadSurvey = useCallback(async () => {
@@ -164,8 +173,8 @@ const SurveyDetailedAnalysis = () => {
       const instructorMap = new Map<string, { name: string; course: string }>();
 
       for (const question of questionsData || []) {
-        if (question.survey_sessions?.instructor_id) {
-          uniqueInstructors.add(question.survey_sessions.instructor_id);
+        if ((question as any).survey_sessions?.instructor_id) {
+          uniqueInstructors.add((question as any).survey_sessions.instructor_id);
         }
       }
 
@@ -176,7 +185,7 @@ const SurveyDetailedAnalysis = () => {
           .in('id', Array.from(uniqueInstructors));
 
         instructorsData?.forEach((inst: any) => {
-          const sessionName = questionsData?.find(q => 
+          const sessionName = (questionsData as any)?.find((q: any) => 
             q.survey_sessions?.instructor_id === inst.id
           )?.survey_sessions?.session_name || '';
           
@@ -200,6 +209,65 @@ const SurveyDetailedAnalysis = () => {
       setInstructorOptions([]);
     }
   }, [surveyId]);
+
+  // 과목(강사-과목) 옵션 로드
+  const loadSessions = useCallback(async () => {
+    if (!surveyId) return;
+    try {
+      const { data: sessData, error: sessError } = await supabase
+        .from('survey_sessions')
+        .select('id, session_name, instructor_id, course_id')
+        .eq('survey_id', surveyId)
+        .order('session_order', { ascending: true });
+
+      if (sessError) throw sessError;
+      const raw = (sessData || []).filter((s: any) => s.instructor_id && s.course_id);
+
+      const instructorIds = Array.from(new Set(raw.map((s: any) => s.instructor_id)));
+      let nameMap = new Map<string, string>();
+      if (instructorIds.length) {
+        const { data: instData } = await supabase
+          .from('instructors')
+          .select('id, name')
+          .in('id', instructorIds);
+        instData?.forEach((i: any) => nameMap.set(i.id, i.name || ''));
+      }
+
+      // 세션명을 과목 단위로 정규화
+      const toBase = (name: string | null): string => {
+        if (!name) return '';
+        let s = name.replace(/\s*-\s*Part\.?\s*\d+.*/i, '');
+        s = s.replace(/\s*-\s*(교육|강의|운영).*/i, '');
+        return s.trim();
+      };
+
+      const group = new Map<string, string[]>();
+      raw.forEach((s: any) => {
+        const instr = nameMap.get(s.instructor_id) ?? '';
+        const base = toBase(s.session_name ?? '');
+        let label = '';
+        if (base.includes('운영') && survey?.operator_name) {
+          label = `${survey.operator_name} - 운영 만족도`;
+        } else {
+          label = (instr ? `${instr} - ${base}` : base) || '과목';
+        }
+        const arr = group.get(label) ?? [];
+        arr.push(s.id);
+        group.set(label, arr);
+      });
+
+      const options: SubjectOption[] = Array.from(group.entries()).map(([label, ids]) => ({
+        key: label,
+        label,
+        sessionIds: ids,
+      }));
+
+      setSubjectOptions(options);
+    } catch (err) {
+      console.error('Error loading sessions:', err);
+      setSubjectOptions([]);
+    }
+  }, [surveyId, survey?.operator_name]);
 
   // 설문 상세 분석 데이터 로드
   const loadDetailStats = useCallback(async () => {
@@ -235,8 +303,9 @@ const SurveyDetailedAnalysis = () => {
   useEffect(() => {
     if (surveyId) {
       loadInstructorOptions();
+      loadSessions();
     }
-  }, [surveyId]);
+  }, [surveyId, loadInstructorOptions, loadSessions]);
 
   useEffect(() => {
     if (surveyId && testDataOptions?.includeTestData !== undefined) {
@@ -309,46 +378,35 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  // 강사별 필터링된 데이터
+  // 과목(강사-과목) 기준 필터링
+  const selectedSessionIds = useMemo(() => {
+    if (activeTab === 'all') return null;
+    return subjectOptions.find((o) => o.key === activeTab)?.sessionIds ?? null;
+  }, [activeTab, subjectOptions]);
+
+  // 분포(평점/선다) 항목 필터
   const filteredQuestions = useMemo(() => {
-    if (!detailStats?.distributions?.items) return [];
-    
-    if (activeInstructor === 'all') {
-      return detailStats.distributions.items;
-    }
-    
-    // 선택된 강사의 질문들만 필터링
-    const selectedOption = instructorOptions.find(opt => opt.key === activeInstructor);
-    if (!selectedOption) return detailStats.distributions.items;
-    
-    // 강사별 질문 필터링 (sessionId나 다른 식별자 기준)
-    return detailStats.distributions.items.filter((question: any) => {
-      // satisfaction_type이나 question_text에서 강사 관련 질문 식별
-      return question.satisfactionType === 'instructor' || 
-             question.questionText.includes('강사') ||
-             question.questionText.includes('교수');
-    });
-  }, [detailStats, activeInstructor, instructorOptions]);
+    const items = detailStats?.distributions?.items || [];
+    if (!selectedSessionIds) return items;
+    const set = new Set(selectedSessionIds);
+    return items.filter((q: any) => !q.sessionId || set.has(q.sessionId));
+  }, [detailStats, selectedSessionIds]);
 
+  // 텍스트 답변 필터
   const filteredTextAnswers = useMemo(() => {
-    if (!detailStats?.textAnswers?.items) return [];
-    
-    if (activeInstructor === 'all') {
-      return detailStats.textAnswers.items;
-    }
-    
-    // 강사별 텍스트 답변 필터링
-    return detailStats.textAnswers.items.filter((answer: any) => {
-      return answer.satisfactionType === 'instructor' ||
-             answer.questionText.includes('강사') ||
-             answer.questionText.includes('교수');
-    });
-  }, [detailStats, activeInstructor]);
+    const items = detailStats?.textAnswers?.items || [];
+    if (!selectedSessionIds) return items;
+    const set = new Set(selectedSessionIds);
+    return items.filter((a: any) => !a.sessionId || set.has(a.sessionId));
+  }, [detailStats, selectedSessionIds]);
 
+  // 응답 목록 필터
   const filteredResponses = useMemo(() => {
-    if (!detailStats?.responses?.items) return [];
-    return detailStats.responses.items;
-  }, [detailStats]);
+    const items = detailStats?.responses?.items || [];
+    if (!selectedSessionIds) return items;
+    const set = new Set(selectedSessionIds);
+    return items.filter((r: any) => !r.sessionId || set.has(r.sessionId));
+  }, [detailStats, selectedSessionIds]);
 
   // 텍스트 피드백 그룹핑
   const textFeedbacks = useMemo(() => {
@@ -531,23 +589,23 @@ const SurveyDetailedAnalysis = () => {
         </div>
       </div>
 
-      {/* 강사별 필터 */}
-      {instructorOptions.length > 0 && (
+      {/* 과목-강사 필터 */}
+      {subjectOptions.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>강사별 분석</CardTitle>
+            <CardTitle>과목별 분석</CardTitle>
             <p className="text-sm text-muted-foreground">
-              강사를 선택하여 해당 강사의 평가 결과만 확인하세요.
+              강사-과목을 선택하여 상세 분석을 확인하세요.
             </p>
           </CardHeader>
           <CardContent>
-            <Select value={activeInstructor} onValueChange={setActiveInstructor}>
+            <Select value={activeTab} onValueChange={setActiveTab}>
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="전체" />
               </SelectTrigger>
               <SelectContent className="bg-popover border shadow-lg z-50">
                 <SelectItem value="all">전체</SelectItem>
-                {instructorOptions.map((option) => (
+                {subjectOptions.map((option) => (
                   <SelectItem key={option.key} value={option.key}>
                     {option.label}
                   </SelectItem>
