@@ -405,13 +405,43 @@ const SurveyDetailedAnalysis = () => {
     return analysisData.satisfaction_scores;
   }, [analysisData]);
 
-  // 피드백 텍스트 추출
-  const feedbackTexts = useMemo(() => {
-    if (!analysisData?.feedback_text) return [];
-    return analysisData.feedback_text.filter((text: string) => 
-      text && text.trim() !== '' && text.trim() !== '.' && text.trim() !== '없습니다' && text.trim() !== '없음'
+  // 텍스트 질문별 피드백 추출 (필터링 적용)
+  const textFeedbacks = useMemo(() => {
+    const textQuestions = filteredQuestions.filter(q => 
+      ['text', 'long_text', 'textarea', 'paragraph'].includes(q.question_type)
     );
-  }, [analysisData]);
+    
+    if (textQuestions.length === 0) return [];
+
+    const questionMap = new Map(textQuestions.map(q => [q.id, q]));
+    const textAnswers = filteredAnswers.filter(a => 
+      questionMap.has(a.question_id) && 
+      a.answer_text && 
+      a.answer_text.trim() !== '' && 
+      a.answer_text.trim() !== '.' && 
+      a.answer_text.trim() !== '없습니다' && 
+      a.answer_text.trim() !== '없음'
+    );
+
+    // 질문별로 그룹핑
+    const grouped = textAnswers.reduce((acc, answer) => {
+      const question = questionMap.get(answer.question_id);
+      if (!question) return acc;
+      
+      if (!acc[answer.question_id]) {
+        acc[answer.question_id] = {
+          question,
+          answers: []
+        };
+      }
+      acc[answer.question_id].answers.push(answer);
+      return acc;
+    }, {} as Record<string, { question: QuestionData; answers: AnswerData[] }>);
+
+    return Object.values(grouped).sort((a, b) => 
+      (a.question.order_index || 0) - (b.question.order_index || 0)
+    );
+  }, [filteredQuestions, filteredAnswers]);
 
   // 평점 질문별 분석
   const ratingAnalysis = useMemo(() => {
@@ -665,25 +695,50 @@ const SurveyDetailedAnalysis = () => {
           )}
 
           {/* 텍스트 피드백 */}
-          {feedbackTexts.length > 0 && (
+          {textFeedbacks.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>텍스트 피드백</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {feedbackTexts.length}개의 피드백이 있습니다.
+                  {textFeedbacks.reduce((total, group) => total + group.answers.length, 0)}개의 피드백이 있습니다.
+                  {activeTab !== 'all' && ' (선택된 강사/과목 기준)'}
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {feedbackTexts.slice(0, 20).map((feedback: string, index: number) => (
-                    <div key={index} className="p-3 bg-muted/50 rounded-lg">
-                      <p className="text-sm">{feedback}</p>
+                <div className="space-y-6 max-h-96 overflow-y-auto">
+                  {textFeedbacks.map((group) => (
+                    <div key={group.question.id} className="space-y-3">
+                      <h4 className="text-sm font-medium text-muted-foreground border-b pb-1">
+                        {group.question.question_text}
+                        {group.question.satisfaction_type && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {group.question.satisfaction_type.toUpperCase()}
+                          </Badge>
+                        )}
+                      </h4>
+                      <div className="space-y-2">
+                        {group.answers.slice(0, 10).map((answer, index) => (
+                          <div key={answer.id} className="p-3 bg-muted/50 rounded-lg">
+                            <p className="text-sm">{answer.answer_text}</p>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formatDateTime(answer.created_at)}
+                            </div>
+                          </div>
+                        ))}
+                        {group.answers.length > 10 && (
+                          <div className="text-center pt-2">
+                            <p className="text-xs text-muted-foreground">
+                              {group.answers.length - 10}개의 추가 답변이 있습니다.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
-                  {feedbackTexts.length > 20 && (
+                  {textFeedbacks.reduce((total, group) => total + group.answers.length, 0) > 50 && (
                     <div className="text-center pt-4">
                       <p className="text-sm text-muted-foreground">
-                        {feedbackTexts.length - 20}개의 추가 피드백이 있습니다. CSV 다운로드를 통해 전체 내용을 확인하세요.
+                        CSV 다운로드를 통해 전체 피드백을 확인하세요.
                       </p>
                     </div>
                   )}
