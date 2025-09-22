@@ -36,6 +36,8 @@ interface Survey {
   status: string;
   course_name?: string | null;
   instructor_id?: string | null;
+  operator_name?: string | null;
+  operator_contact?: string | null;
 }
 
 interface Instructor {
@@ -125,8 +127,6 @@ const SurveyDetailedAnalysis = () => {
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
-  // 호환성: 과거 코드에서 참조하던 sessions 명칭을 subjectOptions로 매핑
-  const sessions = subjectOptions;
 
   const loadSurvey = useCallback(async () => {
     if (!surveyId) return;
@@ -135,7 +135,7 @@ const SurveyDetailedAnalysis = () => {
     try {
       const { data: surveyData, error: surveyError } = await supabase
         .from('surveys')
-        .select('id, title, education_year, education_round, status, course_name, instructor_id')
+        .select('id, title, education_year, education_round, status, course_name, instructor_id, operator_name, operator_contact')
         .eq('id', surveyId)
         .single();
 
@@ -198,7 +198,15 @@ const SurveyDetailedAnalysis = () => {
       raw.forEach((s: any) => {
         const instr = nameMap.get(s.instructor_id) ?? '';
         const base = toBase(s.session_name ?? '');
-        const label = (instr ? `${instr} - ${base}` : base) || '과목';
+        
+        // 운영 만족도 세션이고 survey에 operator_name이 있으면 운영자 정보 표시
+        let label = '';
+        if (base.includes('운영') && survey?.operator_name) {
+          label = `${survey.operator_name} - 운영 만족도`;
+        } else {
+          label = (instr ? `${instr} - ${base}` : base) || '과목';
+        }
+        
         const arr = group.get(label) ?? [];
         arr.push(s.id);
         group.set(label, arr);

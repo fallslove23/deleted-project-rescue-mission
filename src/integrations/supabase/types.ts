@@ -1581,6 +1581,8 @@ export type Database = {
           is_final_survey: boolean
           is_grouped: boolean
           is_test: boolean | null
+          operator_contact: string | null
+          operator_name: string | null
           program_id: string | null
           round_label: string | null
           session_id: string | null
@@ -1611,6 +1613,8 @@ export type Database = {
           is_final_survey?: boolean
           is_grouped?: boolean
           is_test?: boolean | null
+          operator_contact?: string | null
+          operator_name?: string | null
           program_id?: string | null
           round_label?: string | null
           session_id?: string | null
@@ -1641,6 +1645,8 @@ export type Database = {
           is_final_survey?: boolean
           is_grouped?: boolean
           is_test?: boolean | null
+          operator_contact?: string | null
+          operator_name?: string | null
           program_id?: string | null
           round_label?: string | null
           session_id?: string | null

@@ -36,6 +36,10 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     expected_participants: 0,
     is_final_survey: false,
     
+    // 운영자 정보 필드
+    operator_name: "",
+    operator_contact: "",
+    
     // 과정 관련 필드
     program_name: "",
     is_combined: false,
@@ -172,6 +176,10 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
         group_number: form.is_grouped && form.group_number && Number(form.group_number) > 0 ? Number(form.group_number) : null,
         is_grouped: form.is_grouped,
         is_final_survey: form.is_final_survey,
+        
+        // 운영자 정보
+        operator_name: form.operator_name.trim() || null,
+        operator_contact: form.operator_contact.trim() || null,
       };
 
       const { data: survey, error: surveyError } = await supabase
@@ -488,6 +496,26 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
               onChange={(e) => onChange("title", e.target.value)}
               placeholder="자동으로 생성됩니다"
             />
+          </div>
+
+          {/* 운영자 정보 입력 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>운영자 이름</Label>
+              <Input
+                placeholder="운영자 이름을 입력하세요"
+                value={form.operator_name}
+                onChange={(e) => onChange("operator_name", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>운영자 연락처</Label>
+              <Input
+                placeholder="연락처를 입력하세요"
+                value={form.operator_contact}
+                onChange={(e) => onChange("operator_contact", e.target.value)}
+              />
+            </div>
           </div>
 
           {/* 종료 설문 체크박스 */}
