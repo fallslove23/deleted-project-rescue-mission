@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react';
 import {
   CourseReportFilters,
   CourseReportStatisticsResponse,
-  CourseReportsRepository,
-} from '@/repositories/courseReportsRepository';
+} from '@/repositories/courseReportsRepositoryFixed';
+import { CourseReportsRepositoryFixed } from '@/repositories/courseReportsRepositoryFixed';
 
 interface UseCourseReportStatisticsResult {
   data: CourseReportStatisticsResponse | null;
@@ -21,7 +21,7 @@ export function useCourseReportStatistics(): UseCourseReportStatisticsResult {
     setLoading(true);
     setError(null);
     try {
-      const result = await CourseReportsRepository.fetchStatistics(filters);
+      const result = await CourseReportsRepositoryFixed.fetchStatistics(filters);
       setData(result);
       return result;
     } catch (err) {

@@ -2564,6 +2564,16 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_course_reports_working: {
+        Args: {
+          p_course_name?: string
+          p_include_test?: boolean
+          p_instructor_id?: string
+          p_round?: number
+          p_year: number
+        }
+        Returns: Json
+      }
       get_course_statistics: {
         Args: {
           p_course_name?: string

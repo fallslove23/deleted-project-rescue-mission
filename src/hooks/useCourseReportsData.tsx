@@ -5,8 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   CourseOption,
   CourseReportStatisticsResponse,
-  CourseReportsRepository,
-} from '@/repositories/courseReportsRepository';
+} from '@/repositories/courseReportsRepositoryFixed';
+import { CourseReportsRepositoryFixed } from '@/repositories/courseReportsRepositoryFixed';
 import { useCourseReportStatistics } from '@/hooks/useCourseReportStatistics';
 
 export interface UseCourseReportsDataResult {
@@ -113,7 +113,7 @@ export const useCourseReportsData = (
 
       if (current) {
         try {
-          const previous = await CourseReportsRepository.fetchStatistics({
+          const previous = await CourseReportsRepositoryFixed.fetchStatistics({
             year: selectedYear - 1,
             courseName: current.summary.normalizedCourseName ?? (selectedCourse || null),
             round: selectedRound ?? null,
