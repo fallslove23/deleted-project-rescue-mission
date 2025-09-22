@@ -322,7 +322,7 @@ const SurveyDetailedAnalysis = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <TestDataToggle testDataOptions={testDataOptions} />
+          {testDataOptions && <TestDataToggle testDataOptions={testDataOptions} />}
           <Button variant="outline" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" />
             CSV 다운로드
