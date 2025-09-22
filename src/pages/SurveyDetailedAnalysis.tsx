@@ -12,7 +12,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { ArrowLeft, Download, Mail, Printer, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Mail, Printer, Loader2, ChevronDown } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
@@ -121,6 +122,7 @@ const SurveyDetailedAnalysis = () => {
   // 섹션(일차/과목) 탭 및 현재 선택 상태
   const [sections, setSections] = useState<SectionItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [isResponsesOpen, setIsResponsesOpen] = useState(false);
 
   const loadSurvey = useCallback(async () => {
     if (!surveyId) return;
@@ -279,6 +281,43 @@ const SurveyDetailedAnalysis = () => {
     
     return distributions.filter((d) => d.sectionId === activeTab);
   }, [activeTab, distributions]);
+
+  // 선택된 섹션에 따라 요약 통계도 필터링
+  const filteredSummary = useMemo(() => {
+    if (!summary || activeTab === 'all') return summary;
+    
+    // 선택된 섹션의 질문들만 가져와서 평균 계산
+    const sectionDistributions = distributions.filter((d) => d.sectionId === activeTab);
+    const sectionResponseCount = sectionDistributions.reduce((acc, d) => acc + d.totalAnswers, 0);
+    
+    const avgOverall = sectionDistributions.length > 0 
+      ? sectionDistributions.reduce((acc, d) => acc + (d.average || 0), 0) / sectionDistributions.length 
+      : null;
+    
+    const avgCourse = sectionDistributions
+      .filter(d => d.satisfactionType === 'course')
+      .reduce((acc, d, _, arr) => arr.length > 0 ? acc + (d.average || 0) : 0, 0) / 
+      Math.max(1, sectionDistributions.filter(d => d.satisfactionType === 'course').length) || null;
+    
+    const avgInstructor = sectionDistributions
+      .filter(d => d.satisfactionType === 'instructor')
+      .reduce((acc, d, _, arr) => arr.length > 0 ? acc + (d.average || 0) : 0, 0) / 
+      Math.max(1, sectionDistributions.filter(d => d.satisfactionType === 'instructor').length) || null;
+    
+    const avgOperation = sectionDistributions
+      .filter(d => d.satisfactionType === 'operation')
+      .reduce((acc, d, _, arr) => arr.length > 0 ? acc + (d.average || 0) : 0, 0) / 
+      Math.max(1, sectionDistributions.filter(d => d.satisfactionType === 'operation').length) || null;
+    
+    return {
+      ...summary,
+      responseCount: sectionResponseCount,
+      avgOverall,
+      avgCourse,
+      avgInstructor,
+      avgOperation,
+    };
+  }, [activeTab, summary, distributions]);
 
   // 응답 필터링은 섹션별 질문에 대한 응답으로 간접 필터링
   const filteredResponses = useMemo(
@@ -526,29 +565,37 @@ const SurveyDetailedAnalysis = () => {
           </Alert>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="flex flex-wrap gap-2">
-            <TabsTrigger value="all">전체</TabsTrigger>
-            {sections.map((section) => (
-              <TabsTrigger key={section.id} value={section.id}>
-                {section.name || '과목'}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div className="mb-6">
+          <label htmlFor="section-select" className="block text-sm font-medium mb-2">
+            과목별 필터
+          </label>
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="w-full max-w-md">
+              <SelectValue placeholder="전체" />
+            </SelectTrigger>
+            <SelectContent className="z-50 bg-background border shadow-lg">
+              <SelectItem value="all">전체</SelectItem>
+              {sections.map((section) => (
+                <SelectItem key={section.id} value={section.id}>
+                  {section.name || '과목'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">요약 통계</h2>
-          {initialLoading && !summary ? (
+          {initialLoading && !filteredSummary ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {renderSummaryCard('종합 만족도', formatAverage(summary?.avgOverall))}
-              {renderSummaryCard('과목 만족도', formatAverage(summary?.avgCourse))}
-              {renderSummaryCard('강사 만족도', formatAverage(summary?.avgInstructor))}
-              {renderSummaryCard('운영 만족도', formatAverage(summary?.avgOperation))}
+              {renderSummaryCard('종합 만족도', formatAverage(filteredSummary?.avgOverall))}
+              {renderSummaryCard('과목 만족도', formatAverage(filteredSummary?.avgCourse))}
+              {renderSummaryCard('강사 만족도', formatAverage(filteredSummary?.avgInstructor))}
+              {renderSummaryCard('운영 만족도', formatAverage(filteredSummary?.avgOperation))}
             </div>
           )}
         </section>
@@ -728,67 +775,74 @@ const SurveyDetailedAnalysis = () => {
           )}
         </section>
 
-        <section className="space-y-4">
+        <Collapsible open={isResponsesOpen} onOpenChange={setIsResponsesOpen}>
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">응답 목록</h2>
-            <span className="text-sm text-muted-foreground">
-              {responses.length} / {responsesTotal} 응답
-            </span>
-          </div>
-          {initialLoading && responses.length === 0 ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : responses.length === 0 ? (
-            <p className="text-sm text-muted-foreground">등록된 응답이 없습니다.</p>
-          ) : (
-            <Card>
-              <CardContent className="overflow-x-auto p-0">
-                <table className="min-w-full divide-y divide-border text-sm">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium">응답 ID</th>
-                      <th className="px-4 py-3 text-left font-medium">제출일</th>
-                      <th className="px-4 py-3 text-left font-medium">이메일</th>
-                      <th className="px-4 py-3 text-left font-medium">세션</th>
-                      <th className="px-4 py-3 text-left font-medium">테스트</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {responses.map((response) => (
-                      <tr key={response.id}>
-                        <td className="px-4 py-3 font-mono text-xs sm:text-sm">{response.id}</td>
-                        <td className="px-4 py-3">{formatDateTime(response.submittedAt)}</td>
-                        <td className="px-4 py-3">{response.respondentEmail ?? '-'}</td>
-                        <td className="px-4 py-3">{response.sessionId ?? '-'}</td>
-                        <td className="px-4 py-3">
-                          {response.isTest ? (
-                            <Badge variant="outline" className="text-xs text-orange-600">테스트</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">실제</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-          )}
-          {hasMoreResponses && (
-            <div className="flex justify-center">
-              <Button onClick={loadMoreResponses} variant="outline" disabled={responsesLoading}>
-                {responsesLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 불러오는 중...
-                  </>
-                ) : (
-                  '더 보기'
-                )}
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto text-lg font-semibold hover:bg-transparent">
+                <h2>응답 목록</h2>
+                <ChevronDown className={`h-4 w-4 transition-transform ${isResponsesOpen ? 'rotate-180' : ''}`} />
+                <span className="text-sm text-muted-foreground font-normal">
+                  {responses.length} / {responsesTotal} 응답
+                </span>
               </Button>
-            </div>
-          )}
-        </section>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent className="space-y-4 mt-4">
+            {initialLoading && responses.length === 0 ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : responses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">등록된 응답이 없습니다.</p>
+            ) : (
+              <Card>
+                <CardContent className="overflow-x-auto p-0">
+                  <table className="min-w-full divide-y divide-border text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium">응답 ID</th>
+                        <th className="px-4 py-3 text-left font-medium">제출일</th>
+                        <th className="px-4 py-3 text-left font-medium">이메일</th>
+                        <th className="px-4 py-3 text-left font-medium">세션</th>
+                        <th className="px-4 py-3 text-left font-medium">테스트</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {responses.map((response) => (
+                        <tr key={response.id}>
+                          <td className="px-4 py-3 font-mono text-xs sm:text-sm">{response.id}</td>
+                          <td className="px-4 py-3">{formatDateTime(response.submittedAt)}</td>
+                          <td className="px-4 py-3">{response.respondentEmail ?? '-'}</td>
+                          <td className="px-4 py-3">{response.sessionId ?? '-'}</td>
+                          <td className="px-4 py-3">
+                            {response.isTest ? (
+                              <Badge variant="outline" className="text-xs text-orange-600">테스트</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">실제</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
+            {hasMoreResponses && (
+              <div className="flex justify-center">
+                <Button onClick={loadMoreResponses} variant="outline" disabled={responsesLoading}>
+                  {responsesLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 불러오는 중...
+                    </>
+                  ) : (
+                    '더 보기'
+                  )}
+                </Button>
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </main>
     </div>
   );
