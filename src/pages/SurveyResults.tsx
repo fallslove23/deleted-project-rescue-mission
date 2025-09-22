@@ -986,6 +986,35 @@ const SurveyResults = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* 상세 분석 섹션 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>상세 분석</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              설문 응답 데이터를 통한 상세한 분석 결과를 확인할 수 있습니다.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {!selectedSurvey ? (
+              <div className="py-12 text-center text-muted-foreground">
+                상세 분석을 위해 설문을 선택하세요.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <p className="text-sm text-muted-foreground">
+                  선택된 설문: <span className="font-medium">{selectedSurvey.title}</span>
+                </p>
+                <Button
+                  onClick={() => window.open(`/survey-analysis?surveyId=${selectedSurvey.survey_id}`, '_blank')}
+                  className="w-fit"
+                >
+                  상세 분석 보기
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
