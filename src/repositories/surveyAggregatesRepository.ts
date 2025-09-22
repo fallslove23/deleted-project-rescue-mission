@@ -214,17 +214,11 @@ export const SurveyAggregatesRepository = {
         is_test,
         question_count,
         response_count,
-        response_count_real,
         last_response_at,
-        last_response_at_real,
         avg_overall_satisfaction,
-        avg_overall_satisfaction_real,
         avg_course_satisfaction,
-        avg_course_satisfaction_real,
         avg_instructor_satisfaction,
-        avg_instructor_satisfaction_real,
-        avg_operation_satisfaction,
-        avg_operation_satisfaction_real
+        avg_operation_satisfaction
       `
       );
 
@@ -234,7 +228,7 @@ export const SurveyAggregatesRepository = {
     if (instructorFilter) query = query.eq('instructor_id', instructorFilter);
     if (!includeTestData) query = query.neq('is_test', true);
 
-    const orderColumn = includeTestData ? 'last_response_at' : 'last_response_at_real';
+    const orderColumn = 'last_response_at';
 
     const { data, error } = await query.order(orderColumn, {
       ascending: false,
