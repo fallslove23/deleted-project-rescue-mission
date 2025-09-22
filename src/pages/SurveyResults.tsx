@@ -673,14 +673,14 @@ const SurveyResults = () => {
           <CardHeader>
             <CardTitle>필터</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">연도</span>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger>
                   <SelectValue placeholder="전체 연도" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover border shadow-lg z-50">
                   <SelectItem value="all">전체 연도</SelectItem>
                   {years.map((year) => (
                     <SelectItem key={year} value={year.toString()}>
@@ -691,14 +691,14 @@ const SurveyResults = () => {
               </Select>
             </div>
 
-            {(!courseIncludesRound) && (
+            {!courseIncludesRound && (
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">차수</span>
                 <Select value={selectedRound} onValueChange={setSelectedRound}>
                   <SelectTrigger>
                     <SelectValue placeholder="전체 차수" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-popover border shadow-lg z-50">
                     <SelectItem value="all">전체 차수</SelectItem>
                     {rounds.map((round) => (
                       <SelectItem key={round} value={round.toString()}>
@@ -716,7 +716,7 @@ const SurveyResults = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="전체 과정" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover border shadow-lg z-50">
                   <SelectItem value="all">전체 과정</SelectItem>
                   {courses.map((course) => (
                     <SelectItem key={course.key} value={course.key}>
@@ -734,7 +734,7 @@ const SurveyResults = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="전체 강사" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-popover border shadow-lg z-50">
                     <SelectItem value="all">전체 강사</SelectItem>
                     {instructors.map((instructor) => (
                       <SelectItem key={instructor.id} value={instructor.id}>
@@ -746,7 +746,7 @@ const SurveyResults = () => {
               </div>
             )}
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 lg:col-span-1">
               <TestDataToggle testDataOptions={testDataOptions} />
             </div>
           </CardContent>
