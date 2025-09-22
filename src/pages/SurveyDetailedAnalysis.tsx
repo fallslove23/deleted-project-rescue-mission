@@ -125,6 +125,8 @@ const SurveyDetailedAnalysis = () => {
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
+  // 호환성: 과거 코드에서 참조하던 sessions 명칭을 subjectOptions로 매핑
+  const sessions = subjectOptions;
 
   const loadSurvey = useCallback(async () => {
     if (!surveyId) return;
@@ -809,7 +811,7 @@ const SurveyDetailedAnalysis = () => {
                 <h2>응답 목록</h2>
                 <ChevronDown className={`h-4 w-4 transition-transform ${isResponsesOpen ? 'rotate-180' : ''}`} />
                 <span className="text-sm text-muted-foreground font-normal">
-                  {responses.length} / {responsesTotal} 응답
+                  {activeTab === 'all' ? `${responses.length} / ${responsesTotal} 응답` : `${filteredResponses.length} 응답`}
                 </span>
               </Button>
             </CollapsibleTrigger>
@@ -835,7 +837,7 @@ const SurveyDetailedAnalysis = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {responses.map((response) => (
+                      {filteredResponses.map((response) => (
                         <tr key={response.id}>
                           <td className="px-4 py-3 font-mono text-xs sm:text-sm">{response.id}</td>
                           <td className="px-4 py-3">{formatDateTime(response.submittedAt)}</td>
