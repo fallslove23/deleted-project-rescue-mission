@@ -37,6 +37,7 @@ export function AdminSidebar() {
   const viewMode = searchParams.get('view'); // URL에서 view 파라미터 읽기
   const isAdmin = userRoles.includes('admin');
   const isInstructor = userRoles.includes('instructor');
+  const isOperator = userRoles.includes('operator');
   const isDeveloper = user?.email === 'sethetrend87@osstem.com';
 
   type MenuItem = {
@@ -64,7 +65,7 @@ export function AdminSidebar() {
         title: "분석",
         items: [
           { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-          ...(isInstructor ? [{ title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false }] : []),
+          { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false },
           { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
           { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
         ]
