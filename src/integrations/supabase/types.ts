@@ -2202,6 +2202,50 @@ export type Database = {
           },
         ]
       }
+      instructor_survey_stats: {
+        Row: {
+          active_survey_count: number | null
+          all_test_data: boolean | null
+          avg_course_satisfaction: number | null
+          avg_instructor_satisfaction: number | null
+          avg_operation_satisfaction: number | null
+          avg_overall_satisfaction: number | null
+          course_name: string | null
+          education_round: number | null
+          education_year: number | null
+          has_test_data: boolean | null
+          instructor_id: string | null
+          instructor_name: string | null
+          last_response_at: string | null
+          question_stats: Json | null
+          rating_distribution: Json | null
+          response_count: number | null
+          survey_count: number | null
+          survey_ids: string[] | null
+          test_active_survey_count: number | null
+          test_avg_course_satisfaction: number | null
+          test_avg_instructor_satisfaction: number | null
+          test_avg_operation_satisfaction: number | null
+          test_avg_overall_satisfaction: number | null
+          test_question_stats: Json | null
+          test_rating_distribution: Json | null
+          test_response_count: number | null
+          test_survey_count: number | null
+          test_text_response_count: number | null
+          test_text_responses: Json | null
+          text_response_count: number | null
+          text_responses: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mv_course_satisfaction: {
         Row: {
           avg_course_satisfaction: number | null
