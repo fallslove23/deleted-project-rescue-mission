@@ -45,20 +45,13 @@ interface Instructor {
   photo_url?: string | null;
 }
 
-// DB 섹션 원본 타입
-interface DbSectionItem {
-  id: string;
-  name: string | null;
+// 과목(강사+세션명에서 Part/세부 평가명을 제거한 그룹) 옵션
+interface SubjectOption {
+  key: string;        // 드롭다운 value
+  label: string;      // 표시용 "강사 - 과목"
+  sessionIds: string[]; // 이 과목에 속하는 세션 ID들(Part.1/2 등 포함)
 }
 
-// 세션 타입(현재 사용 안 함)
-interface SessionItem {
-  id: string;
-  session_name: string | null;
-  instructor_id: string | null;
-  course_id: string | null;
-  label: string;
-}
 
 
 const RATING_QUESTION_TYPES = new Set(['rating', 'scale']);
@@ -128,8 +121,8 @@ const SurveyDetailedAnalysis = () => {
   const [loadingSurvey, setLoadingSurvey] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
 
-  // 세션(과목·강사) 드롭다운 및 현재 선택 상태
-  const [sessions, setSessions] = useState<SessionItem[]>([]);
+  // 과목(세션 그룹) 드롭다운 및 현재 선택 상태
+  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
 
@@ -190,17 +183,35 @@ const SurveyDetailedAnalysis = () => {
         instData?.forEach((i: any) => nameMap.set(i.id, i.name || ''));
       }
 
-      const mapped: SessionItem[] = raw.map((s: any) => ({
-        id: s.id,
-        session_name: s.session_name ?? null,
-        instructor_id: s.instructor_id ?? null,
-        course_id: s.course_id ?? null,
-        label: `${nameMap.get(s.instructor_id) ?? ''}${nameMap.get(s.instructor_id) ? ' - ' : ''}${s.session_name ?? ''}`.trim() || '과목',
+      // 세션명을 과목 단위로 정규화: " - Part.X ..." 및 평가명 접미어 제거
+      const toBase = (name: string | null): string => {
+        if (!name) return '';
+        let s = name.replace(/\s*-\s*Part\.?\s*\d+.*/i, '');
+        s = s.replace(/\s*-\s*(교육|강의|운영).*/i, '');
+        return s.trim();
+      };
+
+      // 과목(강사+과목) 라벨로 그룹핑
+      const group = new Map<string, string[]>();
+      raw.forEach((s: any) => {
+        const instr = nameMap.get(s.instructor_id) ?? '';
+        const base = toBase(s.session_name ?? '');
+        const label = (instr ? `${instr} - ${base}` : base) || '과목';
+        const arr = group.get(label) ?? [];
+        arr.push(s.id);
+        group.set(label, arr);
+      });
+
+      const options: SubjectOption[] = Array.from(group.entries()).map(([label, ids]) => ({
+        key: label,
+        label,
+        sessionIds: ids,
       }));
-      setSessions(mapped);
+
+      setSubjectOptions(options);
     } catch (err) {
       console.error('Error loading sessions:', err);
-      setSessions([]);
+      setSubjectOptions([]);
     }
   }, [surveyId]);
 
@@ -303,53 +314,55 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  // 세션 기반 필터링 (질문의 session_id로 필터링)
+  // 과목(세션 그룹) 기준 필터링
+  const selectedSessionIds = useMemo(() => {
+    if (activeTab === 'all') return null;
+    return subjectOptions.find((o) => o.key === activeTab)?.sessionIds ?? null;
+  }, [activeTab, subjectOptions]);
+
   const filteredDistributions = useMemo(() => {
-    if (activeTab === 'all') return distributions;
-    
-    return distributions.filter((d) => d.sessionId === activeTab);
-  }, [activeTab, distributions]);
+    if (!selectedSessionIds) return distributions;
+    const set = new Set(selectedSessionIds);
+    return distributions.filter((d) => d.sessionId && set.has(d.sessionId));
+  }, [distributions, selectedSessionIds]);
 
-  // 선택된 세션에 따라 요약 통계도 필터링
   const filteredSummary = useMemo(() => {
-    if (!summary || activeTab === 'all') return summary;
-    
-    // 선택된 세션의 질문들만 가져와서 평균 계산
-    const sessionDists = distributions.filter((d) => d.sessionId === activeTab);
-    const responseCount = sessionDists.reduce((acc, d) => acc + d.totalAnswers, 0);
-
-    const avg = (arr: typeof sessionDists, type?: string | null) => {
-      const items = type ? arr.filter((d) => d.satisfactionType === type) : arr;
-      if (items.length === 0) return null;
-      return items.reduce((acc, d) => acc + (d.average || 0), 0) / items.length;
+    if (!summary) return summary;
+    if (!selectedSessionIds) return summary;
+    const set = new Set(selectedSessionIds);
+    const dists = distributions.filter((d) => d.sessionId && set.has(d.sessionId));
+    const responseCount = dists.reduce((acc, d) => acc + d.totalAnswers, 0);
+    const avg = (items: typeof dists) => (items.length ? items.reduce((a, d) => a + (d.average || 0), 0) / items.length : null);
+    const avgBy = (type: string) => {
+      const items = dists.filter((d) => d.satisfactionType === type);
+      return items.length ? items.reduce((a, d) => a + (d.average || 0), 0) / items.length : null;
     };
-    
     return {
       ...summary,
       responseCount,
-      avgOverall: avg(sessionDists),
-      avgCourse: avg(sessionDists, 'course'),
-      avgInstructor: avg(sessionDists, 'instructor'),
-      avgOperation: avg(sessionDists, 'operation'),
+      avgOverall: avg(dists),
+      avgCourse: avgBy('course'),
+      avgInstructor: avgBy('instructor'),
+      avgOperation: avgBy('operation'),
     };
-  }, [activeTab, summary, distributions]);
+  }, [summary, distributions, selectedSessionIds]);
 
-  const filteredResponses = useMemo(
-    () => (activeTab === 'all' ? responses : responses.filter((r) => r.sessionId === activeTab)),
-    [responses, activeTab],
-  );
+  const filteredResponses = useMemo(() => {
+    if (!selectedSessionIds) return responses;
+    const set = new Set(selectedSessionIds);
+    return responses.filter((r) => r.sessionId && set.has(r.sessionId));
+  }, [responses, selectedSessionIds]);
 
   const filteredTextAnswers = useMemo(() => {
-    if (activeTab === 'all') return groupedTextAnswers;
-    
-    // 선택된 세션의 질문들에 대한 텍스트 답변만 필터링
+    if (!selectedSessionIds) return groupedTextAnswers;
+    const set = new Set(selectedSessionIds);
     return groupedTextAnswers
       .map((g) => ({
         ...g,
-        answers: g.answers.filter((a) => a.sessionId === activeTab),
+        answers: g.answers.filter((a) => a.sessionId && set.has(a.sessionId)),
       }))
       .filter((g) => g.answers.length > 0);
-  }, [activeTab, groupedTextAnswers]);
+  }, [groupedTextAnswers, selectedSessionIds]);
 
   const ratingDistributions = useMemo(
     () => filteredDistributions.filter((item) => RATING_QUESTION_TYPES.has(item.questionType)),
@@ -589,9 +602,9 @@ const SurveyDetailedAnalysis = () => {
             </SelectTrigger>
             <SelectContent className="z-50 bg-background border shadow-lg">
               <SelectItem value="all">전체</SelectItem>
-              {sessions.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.label}
+              {subjectOptions.map((opt) => (
+                <SelectItem key={opt.key} value={opt.key}>
+                  {opt.label}
                 </SelectItem>
               ))}
             </SelectContent>
