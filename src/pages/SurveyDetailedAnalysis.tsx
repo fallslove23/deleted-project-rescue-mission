@@ -531,8 +531,7 @@ const SurveyDetailedAnalysis = () => {
             <TabsTrigger value="all">전체</TabsTrigger>
             {sections.map((section) => (
               <TabsTrigger key={section.id} value={section.id}>
-                {section.order_index != null ? `${section.order_index}일차` : ''}
-                {section.name && ` · ${section.name}`}
+                {section.name || '과목'}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -619,7 +618,7 @@ const SurveyDetailedAnalysis = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">선택형 문항 분포</h2>
             <span className="text-sm text-muted-foreground">
-              {choiceDistributions.length} / {distributionsTotal} 문항
+              {choiceDistributions.length} {activeTab === 'all' ? `/ ${distributionsTotal} 문항` : '문항'}
             </span>
           </div>
           {initialLoading && choiceDistributions.length === 0 ? (
@@ -678,18 +677,18 @@ const SurveyDetailedAnalysis = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">텍스트 응답</h2>
             <span className="text-sm text-muted-foreground">
-              {groupedTextAnswers.length}개의 문항 / {textAnswersTotal}개 응답
+              {filteredTextAnswers.length}개의 문항 / {filteredTextAnswers.reduce((acc, g) => acc + g.answers.length, 0)}개 응답
             </span>
           </div>
-          {initialLoading && groupedTextAnswers.length === 0 ? (
+          {initialLoading && filteredTextAnswers.length === 0 ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : groupedTextAnswers.length === 0 ? (
+          ) : filteredTextAnswers.length === 0 ? (
             <p className="text-sm text-muted-foreground">텍스트 응답이 없습니다.</p>
           ) : (
             <div className="space-y-4">
-              {groupedTextAnswers.map((group) => (
+              {filteredTextAnswers.map((group) => (
                 <Card key={group.questionId}>
                   <CardHeader>
                     <CardTitle className="text-base">{group.questionText}</CardTitle>
