@@ -1409,7 +1409,7 @@ export default function SurveyManagementV2() {
                           미리보기
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={() => navigate(`/survey-detailed-analysis/${survey.id}`, { 
                             state: { from: 'survey-management' } 

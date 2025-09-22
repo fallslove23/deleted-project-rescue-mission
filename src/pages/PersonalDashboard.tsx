@@ -64,7 +64,6 @@ const PersonalDashboard: FC = () => {
   const [previewResolvedInstructorId, setPreviewResolvedInstructorId] = useState<string | null>(previewInstructorId);
 
   const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
 
   const isInstructor = userRoles.includes('instructor');
@@ -176,12 +175,9 @@ const PersonalDashboard: FC = () => {
 
   const filters = useMemo(() => ({
     year: selectedYear === 'all' ? 'all' as const : Number(selectedYear),
-    round:
-      selectedRound === 'all' || selectedRound === 'latest'
-        ? (selectedRound as 'all' | 'latest')
-        : Number(selectedRound),
+    round: 'all' as const,
     course: selectedCourse,
-  }), [selectedYear, selectedRound, selectedCourse]);
+  }), [selectedYear, selectedCourse]);
 
   const stats = useInstructorStats({
     instructorId: instructorId ?? undefined,
@@ -256,7 +252,7 @@ const PersonalDashboard: FC = () => {
         <CardHeader>
           <CardTitle>조회 조건</CardTitle>
           <CardDescription>
-            선택한 연도, 차수, 과정을 기준으로 집계된 통계를 확인합니다.
+            선택한 연도, 과정을 기준으로 집계된 통계를 확인합니다.
             {usingTestData && (
               <Badge variant="secondary" className="ml-2">
                 테스트 데이터 포함
@@ -265,7 +261,7 @@ const PersonalDashboard: FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <p className="mb-2 text-sm font-medium">연도</p>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -277,23 +273,6 @@ const PersonalDashboard: FC = () => {
                   {stats.availableYears.map(year => (
                     <SelectItem key={year} value={String(year)}>
                       {year}년
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium">차수</p>
-              <Select value={selectedRound} onValueChange={setSelectedRound}>
-                <SelectTrigger>
-                  <SelectValue placeholder="차수 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체</SelectItem>
-                  {stats.availableRounds.length > 0 && <SelectItem value="latest">최신</SelectItem>}
-                  {stats.availableRounds.map(round => (
-                    <SelectItem key={round} value={String(round)}>
-                      {round}차
                     </SelectItem>
                   ))}
                 </SelectContent>
