@@ -224,19 +224,25 @@ const SurveyDetailedAnalysis = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, [surveyId, testDataOptions]);
+  }, [surveyId, testDataOptions?.includeTestData]);
 
   useEffect(() => {
-    loadSurvey();
-  }, [loadSurvey]);
+    if (surveyId) {
+      loadSurvey();
+    }
+  }, [surveyId]);
 
   useEffect(() => {
-    loadInstructorOptions();
-  }, [loadInstructorOptions]);
+    if (surveyId) {
+      loadInstructorOptions();
+    }
+  }, [surveyId]);
 
   useEffect(() => {
-    loadDetailStats();
-  }, [loadDetailStats]);
+    if (surveyId && testDataOptions?.includeTestData !== undefined) {
+      loadDetailStats();
+    }
+  }, [surveyId, testDataOptions?.includeTestData]);
 
   const handleSendResults = useCallback(async () => {
     if (!surveyId) return;
