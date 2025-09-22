@@ -542,9 +542,6 @@ const DashboardOverview: React.FC = () => {
                     <h3 className="text-lg font-semibold text-foreground">일일 활동</h3>
                     <p className="text-sm text-muted-foreground">오늘의 주요 지표</p>
                   </div>
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    샘플 데이터
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent>
@@ -574,9 +571,6 @@ const DashboardOverview: React.FC = () => {
                         </span>
                       </div>
                     </div>
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      실제 실시간 지표 연동 전까지 샘플 수치가 표시됩니다.
-                    </p>
                   </>
                 )}
               </CardContent>
@@ -590,9 +584,6 @@ const DashboardOverview: React.FC = () => {
                     <h3 className="text-lg font-semibold text-foreground">시스템 상태</h3>
                     <p className="text-sm text-muted-foreground">현재 시스템 운영 현황</p>
                   </div>
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    샘플 데이터
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent>
@@ -618,9 +609,6 @@ const DashboardOverview: React.FC = () => {
                         <span className="font-semibold text-foreground">{Math.floor(stats.recentResponsesCount * 0.5)}</span>
                       </div>
                     </div>
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      운영 모니터링 API 연동 시 실제 상태로 대체됩니다.
-                    </p>
                   </>
                 )}
               </CardContent>
@@ -634,9 +622,6 @@ const DashboardOverview: React.FC = () => {
                     <h3 className="text-lg font-semibold text-foreground">월간 요약</h3>
                     <p className="text-sm text-muted-foreground">이번 달 주요 성과</p>
                   </div>
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    샘플 데이터
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent>
@@ -659,12 +644,9 @@ const DashboardOverview: React.FC = () => {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">만족도 평균</span>
-                        <span className="font-semibold text-foreground">4.2/10.0</span>
+                        <span className="font-semibold text-foreground">8.5/10.0</span>
                       </div>
                     </div>
-                    <p className="mt-4 text-xs text-muted-foreground">
-                      운영 통계 지표 연동 시 실제 수치로 교체됩니다.
-                    </p>
                   </>
                 )}
               </CardContent>

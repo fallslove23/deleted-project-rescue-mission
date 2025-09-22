@@ -301,7 +301,41 @@ export const SurveyAggregatesRepository = {
 
     const summary = calculateSummary(aggregates);
 
-    // RPC 보정 호출은 임시로 비활성화하여 숫자 변환 오류로 인한 실패를 방지합니다.
+    // get_survey_analysis RPC 함수 수정으로 다시 활성화
+    const needsFix = aggregates.filter(
+      (a) => a.response_count > 0 &&
+        (a.avg_course_satisfaction === null || a.avg_instructor_satisfaction === null || a.avg_operation_satisfaction === null)
+    );
+
+    if (needsFix.length > 0) {
+      try {
+        const fixes = await Promise.all(
+          needsFix.map(async (a) => {
+            const { data, error } = await supabase.rpc('get_survey_analysis', { survey_id_param: a.survey_id });
+            if (error || !data) return null;
+            const row = Array.isArray(data) ? data[0] : data;
+            const scores = (row as any)?.satisfaction_scores ?? {};
+            const patched = { ...a };
+            const instr = Number((scores as any).instructor_satisfaction);
+            const course = Number((scores as any).course_satisfaction);
+            const oper = Number((scores as any).operation_satisfaction);
+            if (!Number.isNaN(instr)) patched.avg_instructor_satisfaction = instr;
+            if (!Number.isNaN(course)) patched.avg_course_satisfaction = course;
+            if (!Number.isNaN(oper)) patched.avg_operation_satisfaction = oper;
+            return patched;
+          })
+        );
+
+        const patchMap = new Map(needsFix.map((a, idx) => [a.survey_id, fixes[idx]]));
+        const patchedAggregates = aggregates.map((a) => patchMap.get(a.survey_id) ?? a);
+        return {
+          aggregates: patchedAggregates,
+          summary: calculateSummary(patchedAggregates),
+        };
+      } catch (e) {
+        console.warn('Fallback aggregation patch failed:', e);
+      }
+    }
     return {
       aggregates,
       summary,
