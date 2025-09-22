@@ -137,7 +137,7 @@ function AppContent() {
       <Route
         path="/dashboard/course-statistics"
         element={
-          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+          <ProtectedRoute allowedRoles={["admin", "operator", "instructor"]}>
             <DashboardCourseStatistics />
           </ProtectedRoute>
         }

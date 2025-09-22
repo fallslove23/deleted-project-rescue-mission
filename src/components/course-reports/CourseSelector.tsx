@@ -18,6 +18,8 @@ interface CourseSelectorProps {
   onRoundChange: (round: string) => void;
   onInstructorChange: (instructor: string) => void;
   testDataToggle?: React.ReactNode;
+  isInstructor?: boolean;
+  currentInstructorName?: string;
 }
 
 const CourseSelector: React.FC<CourseSelectorProps> = ({
@@ -34,6 +36,8 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
   onRoundChange,
   onInstructorChange,
   testDataToggle,
+  isInstructor = false,
+  currentInstructorName,
 }) => {
   const roundValue = selectedRound === null ? 'all' : String(selectedRound);
   const instructorValue = selectedInstructor && selectedInstructor.trim() !== '' ? selectedInstructor : 'all';
@@ -104,24 +108,33 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
 
         <div>
           <label className="text-sm font-medium">강사</label>
-          <Select
-            value={instructorValue}
-            onValueChange={(v) => onInstructorChange(v === 'all' ? '' : v)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="강사 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체</SelectItem>
-              {availableInstructors
-                .filter((instructor) => instructor?.id && instructor.id.trim() !== '')
-                .map((instructor) => (
-                  <SelectItem key={instructor.id} value={instructor.id}>
-                    {instructor.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          {isInstructor ? (
+            <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2">
+              <span className="flex-1 text-sm">{currentInstructorName || '내 강의'}</span>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                내 데이터만 표시
+              </span>
+            </div>
+          ) : (
+            <Select
+              value={instructorValue}
+              onValueChange={(v) => onInstructorChange(v === 'all' ? '' : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="강사 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 강사</SelectItem>
+                {availableInstructors
+                  .filter((instructor) => instructor?.id && instructor.id.trim() !== '')
+                  .map((instructor) => (
+                    <SelectItem key={instructor.id} value={instructor.id}>
+                      {instructor.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </CardContent>
     </Card>

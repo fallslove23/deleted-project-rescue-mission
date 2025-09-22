@@ -56,6 +56,7 @@ const CourseReports: React.FC = () => {
     availableInstructors,
     loading,
     isInstructor,
+    instructorId,
   } = useCourseReportsData(
     selectedYear,
     selectedCourse,
@@ -63,6 +64,12 @@ const CourseReports: React.FC = () => {
     selectedInstructor,
     testDataOptions.includeTestData,
   );
+
+  const currentInstructorName = useMemo(() => {
+    if (!isInstructor || !instructorId) return null;
+    const instructor = availableInstructors.find(inst => inst.id === instructorId);
+    return instructor?.name || null;
+  }, [isInstructor, instructorId, availableInstructors]);
 
   useEffect(() => {
     if (availableCourses.length === 0) return;
@@ -447,6 +454,8 @@ const CourseReports: React.FC = () => {
         onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
         onInstructorChange={setSelectedInstructor}
         testDataToggle={<TestDataToggle testDataOptions={testDataOptions} />}
+        isInstructor={isInstructor}
+        currentInstructorName={currentInstructorName}
       />
       <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다. 필터를 변경해 다시 시도하세요.">
         {content}
