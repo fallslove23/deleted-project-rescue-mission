@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -124,7 +125,8 @@ const SurveyResults = () => {
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
   const testDataOptions = useTestDataToggle();
-  const [searchParams, setSearchParams] = useSearchParams();
+const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -818,6 +820,7 @@ const SurveyResults = () => {
                     <TableHead className="text-center">강사</TableHead>
                     <TableHead className="text-center">운영</TableHead>
                     <TableHead className="text-center">상태</TableHead>
+                    <TableHead className="text-center w-[96px]">상세</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -845,6 +848,19 @@ const SurveyResults = () => {
                         <Badge variant={item.status === 'completed' ? 'secondary' : 'outline'}>
                           {item.status === 'completed' ? '완료' : '진행 중'}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/survey-detailed-analysis/${item.survey_id}`, { state: { from: 'survey-results' } });
+                          }}
+                        >
+                          <BarChart className="h-4 w-4 mr-1" />
+                          분석
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -987,34 +1003,6 @@ const SurveyResults = () => {
           </CardContent>
         </Card>
 
-        {/* 상세 분석 섹션 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>상세 분석</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              설문 응답 데이터를 통한 상세한 분석 결과를 확인할 수 있습니다.
-            </p>
-          </CardHeader>
-          <CardContent>
-            {!selectedSurvey ? (
-              <div className="py-12 text-center text-muted-foreground">
-                상세 분석을 위해 설문을 선택하세요.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <p className="text-sm text-muted-foreground">
-                  선택된 설문: <span className="font-medium">{selectedSurvey.title}</span>
-                </p>
-                <Button
-                  onClick={() => window.open(`/survey-analysis?surveyId=${selectedSurvey.survey_id}`, '_blank')}
-                  className="w-fit"
-                >
-                  상세 분석 보기
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
