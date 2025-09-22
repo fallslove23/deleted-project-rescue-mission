@@ -24,6 +24,7 @@ export interface SurveyQuestionDistribution {
   satisfactionType: string | null;
   orderIndex: number | null;
   sessionId: string | null;
+  sectionId: string | null;
   totalAnswers: number;
   average: NullableNumber;
   ratingDistribution: RatingDistribution;
@@ -37,6 +38,7 @@ export interface SurveyTextAnswer {
   satisfactionType: string | null;
   orderIndex: number | null;
   sessionId: string | null;
+  sectionId: string | null;
   answerText: string;
   createdAt: string | null;
 }
@@ -189,6 +191,7 @@ function parseDistributions(value: unknown): SurveyQuestionDistribution[] {
         satisfactionType: typeof (item as any).satisfaction_type === 'string' ? (item as any).satisfaction_type : null,
         orderIndex: toInteger((item as any).order_index),
         sessionId: typeof (item as any).session_id === 'string' ? (item as any).session_id : null,
+        sectionId: typeof (item as any).section_id === 'string' ? (item as any).section_id : null,
         totalAnswers: toInteger((item as any).total_answers) ?? 0,
         average: toNumber((item as any).average),
         ratingDistribution: parseDistribution((item as any).rating_distribution),
@@ -223,6 +226,7 @@ function parseTextAnswers(value: unknown): SurveyTextAnswer[] {
         satisfactionType: typeof (item as any).satisfaction_type === 'string' ? (item as any).satisfaction_type : null,
         orderIndex: toInteger((item as any).order_index),
         sessionId: typeof (item as any).session_id === 'string' ? (item as any).session_id : null,
+        sectionId: typeof (item as any).section_id === 'string' ? (item as any).section_id : null,
         answerText,
         createdAt: typeof (item as any).created_at === 'string' ? (item as any).created_at : null,
       } satisfies SurveyTextAnswer;

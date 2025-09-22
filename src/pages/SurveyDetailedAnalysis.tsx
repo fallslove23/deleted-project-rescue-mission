@@ -44,12 +44,11 @@ interface Instructor {
   photo_url?: string | null;
 }
 
-interface SessionItem {
+interface SectionItem {
   id: string;
-  session_name: string | null;
-  session_order: number | null;
-  instructor_id: string | null;
-  course_id: string | null;
+  name: string;
+  description: string | null;
+  order_index: number;
 }
 
 const RATING_QUESTION_TYPES = new Set(['rating', 'scale']);
@@ -119,8 +118,8 @@ const SurveyDetailedAnalysis = () => {
   const [loadingSurvey, setLoadingSurvey] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
 
-  // 세션(일차) 탭 및 현재 선택 상태
-  const [sessions, setSessions] = useState<SessionItem[]>([]);
+  // 섹션(일차/과목) 탭 및 현재 선택 상태
+  const [sections, setSections] = useState<SectionItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
 
   const loadSurvey = useCallback(async () => {
@@ -157,21 +156,21 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [surveyId]);
 
-  // 일차(세션) 목록 불러오기
-  const loadSessions = useCallback(async () => {
+  // 일차(섹션/과목) 목록 불러오기
+  const loadSections = useCallback(async () => {
     if (!surveyId) return;
     try {
       const { data, error } = await supabase
-        .from('survey_sessions')
-        .select('id, session_name, session_order, instructor_id, course_id')
+        .from('survey_sections')
+        .select('id, name, description, order_index')
         .eq('survey_id', surveyId)
-        .order('session_order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       if (error) throw error;
-      setSessions((data || []) as SessionItem[]);
+      setSections((data || []) as SectionItem[]);
     } catch (err) {
-      console.error('Error loading sessions:', err);
-      setSessions([]);
+      console.error('Error loading sections:', err);
+      setSections([]);
     }
   }, [surveyId]);
 
@@ -179,10 +178,10 @@ const SurveyDetailedAnalysis = () => {
     loadSurvey();
   }, [loadSurvey]);
 
-  // 세션도 함께 로드
+  // 섹션도 함께 로드
   useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+    loadSections();
+  }, [loadSections]);
 
   const handleSendResults = useCallback(async () => {
     if (!surveyId) return;
@@ -274,28 +273,30 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  const filteredDistributions = useMemo(
-    () => (activeTab === 'all' ? distributions : distributions.filter((d) => d.sessionId === activeTab)),
-    [activeTab, distributions],
-  );
+  // 섹션 기반 필터링 (질문의 section_id로 필터링)
+  const filteredDistributions = useMemo(() => {
+    if (activeTab === 'all') return distributions;
+    
+    return distributions.filter((d) => d.sectionId === activeTab);
+  }, [activeTab, distributions]);
 
+  // 응답 필터링은 섹션별 질문에 대한 응답으로 간접 필터링
   const filteredResponses = useMemo(
-    () => (activeTab === 'all' ? responses : responses.filter((r) => r.sessionId === activeTab)),
-    [activeTab, responses],
+    () => responses, // 섹션별로 응답을 직접 필터링하기보다는 질문 기반으로 필터링
+    [responses],
   );
 
-  const filteredTextAnswers = useMemo(
-    () =>
-      activeTab === 'all'
-        ? groupedTextAnswers
-        : groupedTextAnswers
-            .map((g) => ({
-              ...g,
-              answers: g.answers.filter((a) => a.sessionId === activeTab),
-            }))
-            .filter((g) => g.answers.length > 0),
-    [activeTab, groupedTextAnswers],
-  );
+  const filteredTextAnswers = useMemo(() => {
+    if (activeTab === 'all') return groupedTextAnswers;
+    
+    // 선택된 섹션의 질문들에 대한 텍스트 답변만 필터링
+    return groupedTextAnswers
+      .map((g) => ({
+        ...g,
+        answers: g.answers.filter((a) => a.sectionId === activeTab),
+      }))
+      .filter((g) => g.answers.length > 0);
+  }, [activeTab, groupedTextAnswers]);
 
   const ratingDistributions = useMemo(
     () => filteredDistributions.filter((item) => RATING_QUESTION_TYPES.has(item.questionType)),
@@ -528,10 +529,10 @@ const SurveyDetailedAnalysis = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex flex-wrap gap-2">
             <TabsTrigger value="all">전체</TabsTrigger>
-            {sessions.map((s, idx) => (
-              <TabsTrigger key={s.id} value={s.id}>
-                {s.session_order != null ? `${s.session_order}일차` : `세션 ${idx + 1}`}
-                {s.session_name ? ` · ${s.session_name}` : ''}
+            {sections.map((section) => (
+              <TabsTrigger key={section.id} value={section.id}>
+                {section.order_index != null ? `${section.order_index}일차` : ''}
+                {section.name && ` · ${section.name}`}
               </TabsTrigger>
             ))}
           </TabsList>
