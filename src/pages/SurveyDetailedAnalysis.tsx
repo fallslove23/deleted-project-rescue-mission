@@ -672,7 +672,7 @@ const SurveyDetailedAnalysis = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-8">
-                  {ratingAnalysis.slice(0, 10).map((analysis, index) => (
+                  {ratingAnalysis.map((analysis, index) => (
                     <div key={analysis.question.id} className="space-y-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
