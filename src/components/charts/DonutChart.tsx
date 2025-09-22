@@ -29,10 +29,13 @@ export const DonutChart = ({
 }: DonutChartProps) => {
   const dataWithColors = useMemo(
     () =>
-      data.map((item, index) => ({
-        ...item,
-        color: item.color || COLORS[index % COLORS.length]
-      })),
+      data
+        .map((item, index) => ({
+          name: String(item.name ?? '-'),
+          value: Number.isFinite(item.value) ? item.value : 0,
+          color: item.color || COLORS[index % COLORS.length]
+        }))
+        .filter((d) => Number.isFinite(d.value)),
     [data]
   );
 

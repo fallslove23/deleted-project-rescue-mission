@@ -62,6 +62,10 @@ export const AreaChart = ({
     if (!data) return [] as Array<Record<string, string | number>>;
     return data.map((row) => {
       const next: Record<string, string | number> = { ...row };
+      // Ensure categorical x value is a string
+      const nameVal = (row as any)?.name;
+      next.name = typeof nameVal === 'string' ? nameVal : String(nameVal ?? '-');
+      // Force numeric series to finite numbers
       dataKeys.forEach(({ key }) => {
         const v = next[key];
         next[key] = typeof v === 'number' && Number.isFinite(v) ? v : 0;
@@ -105,6 +109,7 @@ export const AreaChart = ({
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-1) / 0.2)" strokeWidth={1} />
             <XAxis
+              type="category"
               dataKey="name"
               tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
               axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
