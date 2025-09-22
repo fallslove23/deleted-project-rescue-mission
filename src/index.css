@@ -29,36 +29,45 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 263 70% 50.4%;
-    --primary-foreground: 0 0% 98%;
+    /* Soft purple gradient theme */
+    --primary: 251 91% 64%;          /* #5b4bff */
+    --primary-variant: 268 85% 73%;  /* #9a7bff */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 95%;
-    --secondary-foreground: 222.2 84% 4.9%;
+    --secondary: 250 100% 98%;
+    --secondary-foreground: 251 91% 64%;
 
-    --muted: 210 40% 95%;
+    --muted: 250 100% 98%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 95%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 250 100% 96%;
+    --accent-foreground: 251 91% 64%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 263 70% 50.4%;
+    --border: 250 100% 95%;
+    --input: 250 100% 95%;
+    --ring: 251 91% 64%;
     --surface: 0 0% 100%;
     --surface-foreground: 222.2 84% 4.9%;
-    --surface-border: 214.3 31.8% 91.4%;
+    --surface-border: 250 100% 95%;
 
-    /* Modern gradient colors */
-    --gradient-primary: linear-gradient(135deg, hsl(263 70% 50.4%) 0%, hsl(270 91% 65%) 100%);
-    --gradient-secondary: linear-gradient(135deg, hsl(240 3.7% 15.9%) 0%, hsl(240 10% 3.9%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(263 70% 50.4%) 0%, hsl(285 85% 50%) 100%);
+    /* Purple gradient system */
+    --gradient-primary: linear-gradient(135deg, hsl(251 91% 64%) 0%, hsl(268 85% 73%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(250 100% 98%) 0%, hsl(250 100% 96%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(251 91% 64%) 0%, hsl(268 85% 73%) 100%);
+    --gradient-soft: linear-gradient(135deg, hsl(250 100% 99%) 0%, hsl(250 100% 97%) 100%);
+    
+    /* Neumorphic shadows */
+    --shadow-neumorphic: 6px 6px 12px hsl(250 100% 92%), -6px -6px 12px hsl(0 0% 100%);
+    --shadow-neumorphic-inset: inset 3px 3px 6px hsl(250 100% 92%), inset -3px -3px 6px hsl(0 0% 100%);
+    --shadow-neumorphic-soft: 3px 3px 8px hsl(250 100% 94%), -3px -3px 8px hsl(0 0% 100%);
+    --shadow-purple-glow: 0 4px 20px hsl(251 91% 64% / 0.15);
     
     /* Glass effects */
-    --glass-bg: 240 10% 3.9% / 0.8;
-    --glass-border: 240 5% 64.9% / 0.2;
+    --glass-bg: 251 91% 64% / 0.05;
+    --glass-border: 251 91% 64% / 0.1;
 
     /* Chart colors - Premium Purple Palette */
     --chart-1: 263 85% 65%;         /* Main purple */
@@ -79,15 +88,17 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
-    /* 사이드바 색상 변수 - 가시성 확보를 위한 명확한 대비 */
-    --sidebar-background: var(--surface);
-    --sidebar-foreground: 263 70% 40%;
-    --sidebar-primary: 263 70% 50.4%;
+    /* Sidebar neumorphic theme */
+    --sidebar-background: 250 100% 99%;
+    --sidebar-foreground: 220 14% 46%;
+    --sidebar-primary: 251 91% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 263 70% 30%;
-    --sidebar-border: var(--surface-border);
-    --sidebar-ring: var(--primary);
+    --sidebar-accent: 250 100% 96%;
+    --sidebar-accent-foreground: 251 91% 64%;
+    --sidebar-border: 250 100% 94%;
+    --sidebar-ring: 251 91% 64%;
+    --sidebar-muted: 250 100% 97%;
+    --sidebar-muted-foreground: 220 14% 60%;
   }
 
   .dark {
@@ -100,35 +111,47 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
+    /* Dark mode purple gradient theme */
+    --primary: 251 91% 64%;
+    --primary-variant: 268 85% 73%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 251 91% 64%;
 
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 220 15% 20%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 220 15% 22%;
+    --accent-foreground: 251 91% 64%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 217.2 91.2% 59.8%;
+    --border: 220 15% 24%;
+    --input: 220 15% 24%;
+    --ring: 251 91% 64%;
     --surface: 220 15% 16%;
     --surface-foreground: 210 40% 96%;
     --surface-border: 220 15% 24%;
-    --sidebar-background: var(--surface);
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 263 70% 50.4%;
+    
+    /* Dark mode neumorphic shadows */
+    --shadow-neumorphic: 6px 6px 12px hsl(220 20% 12%), -6px -6px 12px hsl(220 15% 22%);
+    --shadow-neumorphic-inset: inset 3px 3px 6px hsl(220 20% 12%), inset -3px -3px 6px hsl(220 15% 22%);
+    --shadow-neumorphic-soft: 3px 3px 8px hsl(220 20% 14%), -3px -3px 8px hsl(220 15% 20%);
+    --shadow-purple-glow: 0 4px 20px hsl(251 91% 64% / 0.25);
+    
+    /* Dark sidebar theme */
+    --sidebar-background: 220 15% 18%;
+    --sidebar-foreground: 210 40% 85%;
+    --sidebar-primary: 251 91% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 15% 22%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: var(--surface-border);
-    --sidebar-ring: var(--primary);
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 15% 24%;
+    --sidebar-ring: 251 91% 64%;
+    --sidebar-muted: 220 15% 20%;
+    --sidebar-muted-foreground: 210 40% 70%;
   }
 }
 
@@ -365,4 +388,60 @@ All colors MUST be HSL.
     font-weight: 500;
     letter-spacing: -0.025em;
   }
+}
+
+/* Neumorphic design utilities */
+.neumorphic-card {
+  @apply bg-gradient-soft shadow-neumorphic rounded-xl border border-sidebar-border/30;
+}
+
+.neumorphic-button {
+  @apply shadow-neumorphic-soft hover:shadow-neumorphic active:shadow-neumorphic-inset transition-all duration-200;
+}
+
+.purple-pill {
+  @apply bg-gradient-primary text-sidebar-primary-foreground shadow-purple-glow rounded-xl;
+}
+
+/* Mobile-optimized sidebar styles */
+.sidebar-mobile {
+  @apply lg:translate-x-0 lg:static lg:inset-0;
+}
+
+/* Responsive text utilities */
+.text-sidebar-responsive {
+  @apply text-sm lg:text-base;
+}
+
+/* Touch-friendly menu items */
+.menu-item-touch {
+  @apply min-h-[48px] touch-friendly;
+}
+
+/* Enhanced scrolling for sidebar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--sidebar-border)) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-border));
+  border-radius: 2px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--sidebar-primary) / 0.3);
+}
+
+/* Fade animation for role switcher */
+.role-switcher-fade {
+  animation: fade-in 0.3s ease-out;
 }

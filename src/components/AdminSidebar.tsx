@@ -10,6 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -26,9 +27,13 @@ import {
   Database,
   Code,
   Shield,
+  Building2,
+  Target,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RoleSwitcher } from "./RoleSwitcher";
+import { Badge } from "@/components/ui/badge";
 
 export function AdminSidebar() {
   const { userRoles, user } = useAuth();
@@ -45,6 +50,7 @@ export function AdminSidebar() {
     url: string;
     icon: LucideIcon;
     exact: boolean;
+    badge?: string;
   };
 
   type MenuSection = {
@@ -52,93 +58,71 @@ export function AdminSidebar() {
     items: MenuItem[];
   };
 
-  // 메뉴 구성 함수
+  // 새로운 메뉴 구조 - 요구사항에 따라 재구성
   const getMenuItems = () => {
-    const baseAdminMenuItems: MenuSection[] = [
+    // Admin/Director 메뉴 구조
+    const adminMenuItems: MenuSection[] = [
       {
-        title: "개요",
+        title: "조직 개요",
         items: [
-          { title: "대시보드", url: "/dashboard", icon: LayoutDashboard, exact: true }
+          { title: "대시보드", url: "/dashboard", icon: Building2, exact: true }
         ]
       },
       {
-        title: "분석",
+        title: "조직 분석", 
         items: [
           { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-          { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false },
           { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
-          { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
+          { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false },
+          { title: "누적 데이터", url: "/dashboard/cumulative-data", icon: Database, exact: false }
         ]
       },
       {
-        title: "관리",
+        title: "운영 관리",
         items: [
           { title: "설문관리", url: "/surveys-v2", icon: FileText, exact: false },
           { title: "템플릿관리", url: "/dashboard/templates", icon: FileText, exact: false },
           { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck, exact: false },
           { title: "사용자관리", url: "/dashboard/users", icon: Users, exact: false },
-          { title: "과목관리", url: "/dashboard/courses", icon: BookOpen, exact: false }
+          { title: "과정관리", url: "/dashboard/courses", icon: BookOpen, exact: false }
         ]
       },
       {
-        title: "기타",
+        title: "감사 로그",
         items: [
           { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, exact: false },
           { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings, exact: false },
-          { title: "정책 관리", url: "/dashboard/policy-management", icon: Shield, exact: false },
-          { title: "누적 데이터", url: "/dashboard/cumulative-data", icon: Database, exact: false }
+          { title: "정책 관리", url: "/dashboard/policy-management", icon: Shield, exact: false }
         ]
       }
     ];
 
-    const baseInstructorMenuItems: MenuSection[] = [
+    // Instructor 메뉴 구조
+    const instructorMenuItems: MenuSection[] = [
       {
-        title: "분석",
+        title: "나의 분석",
         items: [
-          { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-          { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false }
+          { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false },
+          { title: "과정별 내 결과", url: "/dashboard/course-reports", icon: TrendingUp, exact: false, badge: "내 데이터만" },
+          { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false, badge: "요약만" }
         ]
       }
     ];
 
-    return { baseAdminMenuItems, baseInstructorMenuItems };
+    return { adminMenuItems, instructorMenuItems };
   };
 
-  const { baseAdminMenuItems, baseInstructorMenuItems } = getMenuItems();
-
-
-  // 교육생 뷰 메뉴 (오늘의 설문만)
-  const studentMenuItems: MenuSection[] = [
-    {
-      title: "설문",
-      items: [
-        { title: "오늘의 설문", url: "/", icon: FileText, exact: true }
-      ]
-    }
-  ];
-
-  // 강사 뷰 메뉴 (결과 분석 및 과정 통계)
-  const instructorViewMenuItems: MenuSection[] = [
-    {
-      title: "설문 분석",
-      items: [
-        { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-        { title: "과정 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
-      ]
-    }
-  ];
+  const { adminMenuItems, instructorMenuItems } = getMenuItems();
 
   // view 모드에 따른 메뉴 선택
   let menuItems: MenuSection[];
-  if (viewMode === 'student') {
-    menuItems = studentMenuItems;
-  } else if (viewMode === 'instructor') {
-    menuItems = instructorViewMenuItems;
-  } else if (viewMode === 'admin') {
-    menuItems = baseAdminMenuItems;
+  if (viewMode === 'instructor') {
+    menuItems = instructorMenuItems;
+  } else if (viewMode === 'admin' || isAdmin) {
+    menuItems = adminMenuItems;
   } else {
-    // 기본: 사용자 역할에 따른 메뉴 (관리자 권한이 있으면 관리자 메뉴, 없으면 강사 메뉴)
-    menuItems = isAdmin ? baseAdminMenuItems : baseInstructorMenuItems;
+    // 기본: 강사 메뉴
+    menuItems = instructorMenuItems;
   }
 
   const renderMenuItem = (
@@ -146,11 +130,7 @@ export function AdminSidebar() {
     options: { variant?: "default" | "developer" } = {}
   ) => {
     const { variant = "default" } = options;
-    const iconClass =
-      variant === "developer"
-        ? "text-destructive group-data-[active=true]/menu-button:text-destructive-foreground"
-        : "text-sidebar-foreground/55 group-data-[active=true]/menu-button:text-sidebar-primary-foreground";
-
+    
     return (
       <SidebarMenuItem key={item.url}>
         <NavLink to={item.url} end={item.exact} className="block">
@@ -159,20 +139,35 @@ export function AdminSidebar() {
               asChild
               isActive={isActive}
               className={cn(
-                "group/menu-button rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "group/menu-button relative overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 variant === "developer"
-                  ? "text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/40 data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground"
-                  : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-sidebar-ring/40 data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:shadow-sm"
+                  ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
+                  : isActive
+                  ? "bg-gradient-primary text-sidebar-primary-foreground shadow-purple-glow"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
               )}
             >
-              <span className="flex w-full items-center gap-3">
+              <span className="flex w-full items-center gap-3 relative z-10">
                 <item.icon
                   className={cn(
-                    "h-4 w-4 flex-shrink-0 transition-colors",
-                    iconClass
+                    "h-4 w-4 flex-shrink-0 transition-all duration-200",
+                    isActive ? "text-sidebar-primary-foreground drop-shadow-sm" : "text-sidebar-foreground/70"
                   )}
                 />
-                <span className="truncate leading-5">{item.title}</span>
+                <span className="truncate leading-5 flex-1">{item.title}</span>
+                {item.badge && (
+                  <Badge 
+                    variant="secondary" 
+                    className={cn(
+                      "text-[0.6rem] h-4 px-1.5 ml-auto",
+                      isActive 
+                        ? "bg-white/20 text-white border-0" 
+                        : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
+                    )}
+                  >
+                    {item.badge}
+                  </Badge>
+                )}
               </span>
             </SidebarMenuButton>
           )}
@@ -182,16 +177,16 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar">
-      <SidebarContent className="bg-sidebar px-3 py-5 text-sidebar-foreground">
+    <Sidebar className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic">
+      <SidebarContent className="bg-gradient-soft px-3 py-6 text-sidebar-foreground sidebar-scroll">
         <div className="space-y-6">
           {menuItems.map((section) => (
-            <SidebarGroup key={section.title} className="space-y-2">
-              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-foreground/60">
+            <SidebarGroup key={section.title} className="space-y-3">
+              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-muted-foreground/80">
                 {section.title}
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu>
+                <SidebarMenu className="space-y-1">
                   {section.items.map((item) => renderMenuItem(item))}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -200,12 +195,12 @@ export function AdminSidebar() {
 
           {/* 개발자 전용 섹션 */}
           {isDeveloper && (
-            <SidebarGroup className="space-y-2 border-t border-sidebar-border pt-4">
-              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-destructive">
+            <SidebarGroup className="space-y-3 border-t border-sidebar-border/50 pt-6">
+              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-destructive/80">
                 개발자 도구
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu>
+                <SidebarMenu className="space-y-1">
                   {renderMenuItem(
                     {
                       title: "테스트 화면",
@@ -221,6 +216,10 @@ export function AdminSidebar() {
           )}
         </div>
       </SidebarContent>
+      
+      <SidebarFooter className="p-0 border-t border-sidebar-border/30">
+        <RoleSwitcher />
+      </SidebarFooter>
     </Sidebar>
   );
 }

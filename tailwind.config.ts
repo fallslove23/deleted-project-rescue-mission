@@ -99,7 +99,9 @@ export default {
 					accent: 'hsl(var(--sidebar-accent))',
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
+					ring: 'hsl(var(--sidebar-ring))',
+					muted: 'hsl(var(--sidebar-muted))',
+					'muted-foreground': 'hsl(var(--sidebar-muted-foreground))'
 				},
 				chart: {
 					'1': 'hsl(var(--chart-1))',
@@ -113,6 +115,7 @@ export default {
 				'gradient-primary': 'var(--gradient-primary)',
 				'gradient-secondary': 'var(--gradient-secondary)',
 				'gradient-accent': 'var(--gradient-accent)',
+				'gradient-soft': 'var(--gradient-soft)',
 			},
 			backdropBlur: {
 				'glass': '12px',
@@ -120,6 +123,10 @@ export default {
 			boxShadow: {
 				'glass': '0 8px 32px hsl(var(--glass-bg))',
 				'neon': '0 0 20px hsl(var(--primary) / 0.3)',
+				'neumorphic': 'var(--shadow-neumorphic)',
+				'neumorphic-inset': 'var(--shadow-neumorphic-inset)',
+				'neumorphic-soft': 'var(--shadow-neumorphic-soft)',
+				'purple-glow': 'var(--shadow-purple-glow)',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
