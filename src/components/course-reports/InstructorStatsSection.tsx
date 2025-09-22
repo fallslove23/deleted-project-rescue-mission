@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BarChart3, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 
 interface InstructorStats {
   instructor_id: string;
@@ -70,37 +71,39 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
         </CardHeader>
         <CardContent>
           {instructorStats.length > 0 ? (
-            <ResponsiveContainer width="100%" height={Math.max(300, instructorStats.length * 50)}>
-              <BarChart 
-                data={horizontalChartData} 
-                layout="horizontal"
-                margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" domain={[0, 10]} />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  width={80}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    `${value}점`, 
-                    name === '만족도' ? '평균 만족도' : name
-                  ]}
-                  labelFormatter={(label: string, payload: any) => {
-                    const data = payload?.[0]?.payload;
-                    return data?.full_name || label;
-                  }}
-                />
-                <Bar dataKey="만족도" radius={[0, 4, 4, 0]}>
-                  {horizontalChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getBarColor(entry.만족도)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <ChartErrorBoundary fallbackDescription="강사 통계 차트를 표시하는 중 오류가 발생했습니다.">
+              <ResponsiveContainer width="100%" height={Math.max(300, instructorStats.length * 50)}>
+                <BarChart 
+                  data={horizontalChartData} 
+                  layout="horizontal"
+                  margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={[0, 10]} />
+                  <YAxis 
+                    type="category" 
+                    dataKey="name" 
+                    width={80}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip 
+                    formatter={(value: number, name: string) => [
+                      `${value}점`, 
+                      name === '만족도' ? '평균 만족도' : name
+                    ]}
+                    labelFormatter={(label: string, payload: any) => {
+                      const data = payload?.[0]?.payload;
+                      return data?.full_name || label;
+                    }}
+                  />
+                  <Bar dataKey="만족도" radius={[0, 4, 4, 0]}>
+                    {horizontalChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getBarColor(entry.만족도)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartErrorBoundary>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               표시할 강사 데이터가 없습니다.

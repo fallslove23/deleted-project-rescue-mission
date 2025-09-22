@@ -1,6 +1,7 @@
 import { ReactNode, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { ChartEmptyState } from './ChartEmptyState';
+import { ChartErrorBoundary } from './ChartErrorBoundary';
 
 interface DonutChartProps {
   data: Array<{ name: string; value: number; color?: string }>;
@@ -75,43 +76,45 @@ export const DonutChart = ({
       )}
 
       {hasData ? (
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={dataWithColors}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={renderLabel}
-              outerRadius={outerRadius}
-              innerRadius={innerRadius}
-              fill="#8884d8"
-              dataKey="value"
-              stroke="white"
-              strokeWidth={2}
-              cornerRadius={3}
-            >
-              {dataWithColors.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value: number, name: string) => [value, name]}
-              contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                color: 'hsl(var(--card-foreground))'
-              }}
-            />
-            <Legend
-              wrapperStyle={{
-                fontSize: '12px',
-                color: 'hsl(var(--foreground))'
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        <ChartErrorBoundary fallbackDescription="유효하지 않은 값이 포함되어 차트를 표시할 수 없습니다.">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={dataWithColors}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={renderLabel}
+                outerRadius={outerRadius}
+                innerRadius={innerRadius}
+                fill="#8884d8"
+                dataKey="value"
+                stroke="white"
+                strokeWidth={2}
+                cornerRadius={3}
+              >
+                {dataWithColors.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number, name: string) => [value, name]}
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  color: 'hsl(var(--card-foreground))'
+                }}
+              />
+              <Legend
+                wrapperStyle={{
+                  fontSize: '12px',
+                  color: 'hsl(var(--foreground))'
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartErrorBoundary>
       ) : (
         <div className="flex h-64 w-full items-center justify-center">
           {emptyState ?? (

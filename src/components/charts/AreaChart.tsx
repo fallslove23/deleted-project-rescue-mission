@@ -10,6 +10,7 @@ import {
   Legend
 } from 'recharts';
 import { ChartEmptyState } from './ChartEmptyState';
+import { ChartErrorBoundary } from './ChartErrorBoundary';
 
 interface AreaChartProps {
   data: Array<{
@@ -81,6 +82,7 @@ export const AreaChart = ({
         <h3 className="mb-4 text-center font-semibold text-foreground">{title}</h3>
       )}
       {hasData ? (
+        <ChartErrorBoundary fallbackDescription="유효하지 않은 값이 포함되어 차트를 표시할 수 없습니다.">
         <ResponsiveContainer width="100%" height="100%">
           <RechartsAreaChart
             data={safeData}
@@ -169,6 +171,7 @@ export const AreaChart = ({
             ))}
           </RechartsAreaChart>
         </ResponsiveContainer>
+        </ChartErrorBoundary>
       ) : (
         <div className="flex h-64 w-full items-center justify-center">
           {emptyState ?? (
