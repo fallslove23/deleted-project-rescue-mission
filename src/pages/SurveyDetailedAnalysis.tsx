@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
@@ -41,6 +42,14 @@ interface Instructor {
   name: string;
   email: string;
   photo_url?: string | null;
+}
+
+interface SessionItem {
+  id: string;
+  session_name: string | null;
+  session_order: number | null;
+  instructor_id: string | null;
+  course_id: string | null;
 }
 
 const RATING_QUESTION_TYPES = new Set(['rating', 'scale']);
@@ -110,6 +119,10 @@ const SurveyDetailedAnalysis = () => {
   const [loadingSurvey, setLoadingSurvey] = useState(true);
   const [sendingResults, setSendingResults] = useState(false);
 
+  // 세션(일차) 탭 및 현재 선택 상태
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('all');
+
   const loadSurvey = useCallback(async () => {
     if (!surveyId) return;
 
@@ -144,9 +157,32 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [surveyId]);
 
+  // 일차(세션) 목록 불러오기
+  const loadSessions = useCallback(async () => {
+    if (!surveyId) return;
+    try {
+      const { data, error } = await supabase
+        .from('survey_sessions')
+        .select('id, session_name, session_order, instructor_id, course_id')
+        .eq('survey_id', surveyId)
+        .order('session_order', { ascending: true });
+
+      if (error) throw error;
+      setSessions((data || []) as SessionItem[]);
+    } catch (err) {
+      console.error('Error loading sessions:', err);
+      setSessions([]);
+    }
+  }, [surveyId]);
+
   useEffect(() => {
     loadSurvey();
   }, [loadSurvey]);
+
+  // 세션도 함께 로드
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   const handleSendResults = useCallback(async () => {
     if (!surveyId) return;
@@ -238,25 +274,48 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
+  const filteredDistributions = useMemo(
+    () => (activeTab === 'all' ? distributions : distributions.filter((d) => d.sessionId === activeTab)),
+    [activeTab, distributions],
+  );
+
+  const filteredResponses = useMemo(
+    () => (activeTab === 'all' ? responses : responses.filter((r) => r.sessionId === activeTab)),
+    [activeTab, responses],
+  );
+
+  const filteredTextAnswers = useMemo(
+    () =>
+      activeTab === 'all'
+        ? groupedTextAnswers
+        : groupedTextAnswers
+            .map((g) => ({
+              ...g,
+              answers: g.answers.filter((a) => a.sessionId === activeTab),
+            }))
+            .filter((g) => g.answers.length > 0),
+    [activeTab, groupedTextAnswers],
+  );
+
   const ratingDistributions = useMemo(
-    () => distributions.filter((item) => RATING_QUESTION_TYPES.has(item.questionType)),
-    [distributions],
+    () => filteredDistributions.filter((item) => RATING_QUESTION_TYPES.has(item.questionType)),
+    [filteredDistributions],
   );
 
   const choiceDistributions = useMemo(
     () =>
-      distributions.filter(
+      filteredDistributions.filter(
         (item) => !RATING_QUESTION_TYPES.has(item.questionType) && item.optionCounts.length > 0,
       ),
-    [distributions],
+    [filteredDistributions],
   );
 
   const otherQuestions = useMemo(
     () =>
-      distributions.filter(
+      filteredDistributions.filter(
         (item) => !RATING_QUESTION_TYPES.has(item.questionType) && item.optionCounts.length === 0,
       ),
-    [distributions],
+    [filteredDistributions],
   );
 
   if (!surveyId) {
@@ -466,6 +525,18 @@ const SurveyDetailedAnalysis = () => {
           </Alert>
         )}
 
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="flex flex-wrap gap-2">
+            <TabsTrigger value="all">전체</TabsTrigger>
+            {sessions.map((s, idx) => (
+              <TabsTrigger key={s.id} value={s.id}>
+                {s.session_order != null ? `${s.session_order}일차` : `세션 ${idx + 1}`}
+                {s.session_name ? ` · ${s.session_name}` : ''}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">요약 통계</h2>
           {initialLoading && !summary ? (
@@ -486,7 +557,7 @@ const SurveyDetailedAnalysis = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">평가형 문항 분석</h2>
             <span className="text-sm text-muted-foreground">
-              {ratingDistributions.length} / {distributionsTotal} 문항
+              {ratingDistributions.length} {activeTab === 'all' ? `/ ${distributionsTotal} 문항` : '문항'}
             </span>
           </div>
           {initialLoading && ratingDistributions.length === 0 ? (
