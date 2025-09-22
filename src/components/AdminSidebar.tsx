@@ -151,17 +151,20 @@ export function AdminSidebar() {
                 <item.icon
                   className={cn(
                     "h-4 w-4 flex-shrink-0 transition-all duration-200",
-                    isActive ? "text-sidebar-primary-foreground drop-shadow-sm" : "text-sidebar-foreground/70"
+                    isActive ? "text-white drop-shadow-sm" : "text-sidebar-foreground/70"
                   )}
                 />
-                <span className="truncate leading-5 flex-1">{item.title}</span>
+                <span className={cn(
+                  "truncate leading-5 flex-1 font-medium",
+                  isActive ? "text-white drop-shadow-sm font-semibold" : ""
+                )}>{item.title}</span>
                 {item.badge && (
                   <Badge 
                     variant="secondary" 
                     className={cn(
-                      "text-[0.6rem] h-4 px-1.5 ml-auto",
+                      "text-[0.6rem] h-4 px-1.5 ml-auto font-medium",
                       isActive 
-                        ? "bg-white/20 text-white border-0" 
+                        ? "bg-white/25 text-white border-0 drop-shadow-sm font-semibold" 
                         : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
                     )}
                   >
