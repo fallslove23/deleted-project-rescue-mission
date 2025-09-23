@@ -34,12 +34,10 @@ score_data AS (
     COALESCE(sr.is_test, false) AS is_test_response,
     sq.satisfaction_type,
     CASE
-      WHEN qa.answer_value::text ~ '^[0-9]+(\.[0-9]+)?$'
-           AND sq.question_type IN ('scale', 'rating')
-      THEN CASE
-        WHEN (qa.answer_value::text)::numeric <= 5
-          THEN (qa.answer_value::text)::numeric * 2
-        ELSE (qa.answer_value::text)::numeric
+      WHEN sq.question_type IN ('scale', 'rating') THEN CASE
+        WHEN safe_answer.safe_score IS NULL THEN NULL
+        WHEN safe_answer.safe_score <= 5 THEN safe_answer.safe_score * 2
+        ELSE safe_answer.safe_score
       END
       ELSE NULL
     END AS satisfaction_score
@@ -47,6 +45,14 @@ score_data AS (
   LEFT JOIN public.survey_responses sr ON sr.survey_id = s.id
   LEFT JOIN public.question_answers qa ON qa.response_id = sr.id
   LEFT JOIN public.survey_questions sq ON sq.id = qa.question_id
+  LEFT JOIN LATERAL (
+    SELECT public.safe_numeric_convert(
+      COALESCE(
+        NULLIF(qa.answer_value::text, ''),
+        NULLIF(qa.answer_text, '')
+      )
+    ) AS safe_score
+  ) AS safe_answer ON TRUE
 )
 SELECT
   s.id AS survey_id,
