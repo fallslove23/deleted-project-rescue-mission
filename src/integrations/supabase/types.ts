@@ -2561,6 +2561,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      app_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      app_uid: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       check_role_change_allowed: {
         Args: { new_role: string; old_role: string; user_id: string }
         Returns: boolean
