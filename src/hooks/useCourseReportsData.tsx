@@ -106,9 +106,17 @@ export const useCourseReportsData = (
     if (isInstructor && !instructorIdLoaded) return null; // wait until instructor id lookup completes
 
     try {
+      // 선택된 코스 값(normalizedName)을 원본(course_name, displayName)으로 변환
+      const resolveCourseName = (normalized?: string | null) => {
+        if (!normalized) return null;
+        const match = (data?.availableCourses ?? []).find((c) => c.normalizedName === normalized);
+        return match?.displayName ?? null;
+      };
+      const courseNameParam = resolveCourseName(selectedCourse);
+
       const current = await fetchStatistics({
         year: selectedYear,
-        courseName: selectedCourse || null,
+        courseName: courseNameParam,
         round: selectedRound ?? null,
         instructorId: instructorFilter,
         includeTestData,
@@ -118,7 +126,7 @@ export const useCourseReportsData = (
         try {
           const previous = await CourseReportsRepositoryFixed.fetchStatistics({
             year: selectedYear - 1,
-            courseName: current.summary.normalizedCourseName ?? (selectedCourse || null),
+            courseName: current.summary.courseName ?? courseNameParam,
             round: selectedRound ?? null,
             instructorId: instructorFilter,
             includeTestData,
@@ -152,6 +160,7 @@ export const useCourseReportsData = (
     selectedCourse,
     selectedRound,
     selectedYear,
+    data,
     toast,
   ]);
 
