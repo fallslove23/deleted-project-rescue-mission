@@ -1,6 +1,36 @@
 -- Create or replace the survey cumulative statistics view with precomputed
 -- response counts, satisfaction averages (converted to a 10-point scale), and
 -- instructor aggregations so the application can query a single dataset.
+DROP INDEX IF EXISTS public.idx_survey_cumulative_stats_survey_id;
+DROP INDEX IF EXISTS public.idx_survey_cumulative_stats_education_year;
+DROP INDEX IF EXISTS public.idx_survey_cumulative_stats_course_name;
+DROP INDEX IF EXISTS public.idx_survey_cumulative_stats_test;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'survey_cumulative_stats'
+  ) THEN
+    BEGIN
+      EXECUTE 'DROP POLICY IF EXISTS "Admins and operators can view cumulative stats" ON public.survey_cumulative_stats';
+    EXCEPTION
+      WHEN undefined_object THEN NULL;
+    END;
+
+    BEGIN
+      EXECUTE 'DROP POLICY IF EXISTS "Instructors can view their own survey stats" ON public.survey_cumulative_stats';
+    EXCEPTION
+      WHEN undefined_object THEN NULL;
+    END;
+  END IF;
+END
+$$;
+
+DROP MATERIALIZED VIEW IF EXISTS public.survey_cumulative_stats CASCADE;
 DROP VIEW IF EXISTS public.survey_cumulative_stats;
 DROP FUNCTION IF EXISTS public.get_survey_cumulative_summary(text, integer, text, boolean);
 
@@ -109,6 +139,9 @@ GROUP BY
 
 COMMENT ON VIEW public.survey_cumulative_stats IS
   'Aggregated survey-level response counts, satisfaction averages, and instructor metadata for cumulative dashboards.';
+
+GRANT SELECT ON public.survey_cumulative_stats TO authenticated;
+GRANT SELECT ON public.survey_cumulative_stats TO anon;
 
 CREATE OR REPLACE FUNCTION public.get_survey_cumulative_summary(
   search_term text DEFAULT NULL,
