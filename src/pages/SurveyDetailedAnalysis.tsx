@@ -539,6 +539,53 @@ const SurveyDetailedAnalysis = () => {
       });
   }, [filteredQuestions]);
 
+  // 선택한 강사-과목(세션) 기준 요약값 재계산
+  const filteredSummary = useMemo(() => {
+    if (!detailStats) return null;
+    if (activeTab === 'all' || !selectedSessionIds) return null;
+
+    const isRating = (q: any) => RATING_QUESTION_TYPES.has(q.questionType);
+
+    // 선택된 세션의 평점 문항만 수집
+    const sessionSet = new Set(selectedSessionIds);
+    const qs = (detailStats?.distributions?.items || []).filter((q: any) => {
+      if (!isRating(q)) return false;
+      return !q.sessionId || sessionSet.has(q.sessionId);
+    });
+
+    const weightedAvg = (items: any[], typeFilter?: string) => {
+      const filtered = items.filter((q: any) => {
+        if (q == null) return false;
+        const avg = Number(q.average);
+        if (!Number.isFinite(avg)) return false;
+        if (!typeFilter) return true;
+        const t = (q.satisfactionType || '').toLowerCase();
+        return t === typeFilter;
+      });
+
+      const { wsum, wcount } = filtered.reduce(
+        (acc: { wsum: number; wcount: number }, q: any) => {
+          const count = Number(q.totalAnswers) || 0;
+          const avg = Number(q.average) || 0;
+          return { wsum: acc.wsum + avg * count, wcount: acc.wcount + count };
+        },
+        { wsum: 0, wcount: 0 }
+      );
+
+      return wcount > 0 ? wsum / wcount : null;
+    };
+
+    return {
+      responseCount: filteredResponses.length,
+      avgOverall: weightedAvg(qs),
+      avgCourse: weightedAvg(qs, 'course'),
+      avgInstructor: weightedAvg(qs, 'instructor'),
+      avgOperation: weightedAvg(qs, 'operation'),
+    };
+  }, [detailStats, activeTab, selectedSessionIds, filteredResponses]);
+
+  const summaryToShow = filteredSummary ?? detailStats?.summary;
+
   if (!surveyId) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -715,7 +762,7 @@ const SurveyDetailedAnalysis = () => {
                 <CardTitle className="text-sm font-medium">총 응답 수</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{detailStats.summary.responseCount || 0}</div>
+                <div className="text-2xl font-bold">{summaryToShow?.responseCount ?? 0}</div>
               </CardContent>
             </Card>
             <Card>
@@ -723,8 +770,8 @@ const SurveyDetailedAnalysis = () => {
                 <CardTitle className="text-sm font-medium">전체 만족도</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatAverage(detailStats.summary.avgOverall)}</div>
-                <Progress value={(detailStats.summary.avgOverall || 0) * 10} className="mt-2" />
+                <div className="text-2xl font-bold">{formatAverage(summaryToShow?.avgOverall)}</div>
+                <Progress value={(summaryToShow?.avgOverall || 0) * 10} className="mt-2" />
               </CardContent>
             </Card>
             <Card>
@@ -732,8 +779,8 @@ const SurveyDetailedAnalysis = () => {
                 <CardTitle className="text-sm font-medium">과목 만족도</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatAverage(detailStats.summary.avgCourse)}</div>
-                <Progress value={(detailStats.summary.avgCourse || 0) * 10} className="mt-2" />
+                <div className="text-2xl font-bold">{formatAverage(summaryToShow?.avgCourse)}</div>
+                <Progress value={(summaryToShow?.avgCourse || 0) * 10} className="mt-2" />
               </CardContent>
             </Card>
             <Card>
@@ -741,8 +788,8 @@ const SurveyDetailedAnalysis = () => {
                 <CardTitle className="text-sm font-medium">강사 만족도</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatAverage(detailStats.summary.avgInstructor)}</div>
-                <Progress value={(detailStats.summary.avgInstructor || 0) * 10} className="mt-2" />
+                <div className="text-2xl font-bold">{formatAverage(summaryToShow?.avgInstructor)}</div>
+                <Progress value={(summaryToShow?.avgInstructor || 0) * 10} className="mt-2" />
               </CardContent>
             </Card>
           </div>
