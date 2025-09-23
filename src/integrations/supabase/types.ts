@@ -517,6 +517,7 @@ export type Database = {
           photo_url: string | null
           position: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           active?: boolean | null
@@ -531,6 +532,7 @@ export type Database = {
           photo_url?: string | null
           position?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           active?: boolean | null
@@ -545,6 +547,7 @@ export type Database = {
           photo_url?: string | null
           position?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -580,24 +583,34 @@ export type Database = {
       }
       program_sessions: {
         Row: {
+          instructor_id: string | null
           is_active: boolean
           program_id: string
           session_id: string
           sort_order: number
         }
         Insert: {
+          instructor_id?: string | null
           is_active?: boolean
           program_id: string
           session_id: string
           sort_order?: number
         }
         Update: {
+          instructor_id?: string | null
           is_active?: boolean
           program_id?: string
           session_id?: string
           sort_order?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "program_sessions_instructor_fk"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "program_sessions_program_id_fkey"
             columns: ["program_id"]
