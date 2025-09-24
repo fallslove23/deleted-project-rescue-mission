@@ -2543,6 +2543,16 @@ export type Database = {
         }
         Returns: string
       }
+      create_survey_response: {
+        Args: {
+          p_attended?: boolean
+          p_is_test?: boolean
+          p_respondent_email?: string
+          p_session_id?: string
+          p_survey_id: string
+        }
+        Returns: string
+      }
       generate_short_code: {
         Args: { length?: number }
         Returns: string

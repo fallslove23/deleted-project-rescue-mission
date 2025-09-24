@@ -538,17 +538,17 @@ const SurveyParticipateSession = () => {
     setSubmitting(true);
     try {
       console.log('📝 응답 데이터 삽입 중...');
-      const { data: responseData, error: responseError } = await supabase
-        .from('survey_responses')
-        .insert({ survey_id: surveyId, respondent_email: null })
-        .select('id')
-        .single();
+      const { data: responseId, error: responseError } = await supabase
+        .rpc('create_survey_response', { 
+          p_survey_id: surveyId, 
+          p_respondent_email: null 
+        });
       
       if (responseError) {
         console.error('❌ 응답 데이터 삽입 실패:', responseError);
         throw responseError;
       }
-      console.log('✅ 응답 데이터 삽입 성공:', responseData);
+      console.log('✅ 응답 데이터 삽입 성공:', responseId);
 
       const validAnswers = answers.filter((a) =>
         Array.isArray(a.answer) ? a.answer.length > 0 : String(a.answer || '').trim() !== ''
@@ -557,7 +557,7 @@ const SurveyParticipateSession = () => {
 
         if (validAnswers.length > 0) {
           const answersData = validAnswers.map((a) => ({
-            response_id: responseData.id,
+            response_id: responseId,
             question_id: a.questionId,
             answer_text: Array.isArray(a.answer) ? a.answer.join(', ') : a.answer,
             answer_value: a.answer,
