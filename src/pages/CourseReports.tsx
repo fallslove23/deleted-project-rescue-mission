@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import CourseSelector from '@/components/course-reports/CourseSelector';
 import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -26,6 +27,7 @@ import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 
 const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
 
 const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
   // Comprehensive NaN/invalid number handling
@@ -43,8 +45,11 @@ const CourseReports: React.FC = () => {
   const { userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
 
-  // 전체 통계를 위한 단순화된 상태 (필터 제거)
-  const [selectedYear] = useState<number>(CURRENT_YEAR);
+  // 단순화된 필터: 연도, 과정, 차수, (선택) 강사
+  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
+  const [selectedCourse, setSelectedCourse] = useState<string>('');
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [selectedInstructor, setSelectedInstructor] = useState<string>('');
 
   const {
     summary,
@@ -62,14 +67,43 @@ const CourseReports: React.FC = () => {
     instructorName,
   } = useCourseReportsData(
     selectedYear,
-    '', // 전체 과정
-    null, // 전체 차수
-    '', // 전체 강사
-    testDataOptions?.includeTestData || false, // Add null check here
+    selectedCourse,
+    selectedRound,
+    selectedInstructor,
+    testDataOptions?.includeTestData || false,
   );
 
-  // 전체 통계이므로 과정명은 "전체 과정"으로 표시
-  const currentCourseName = '전체 과정';
+  const currentInstructorName = useMemo(() => {
+    if (!isInstructor || !instructorId) return null;
+    return instructorName || availableInstructors.find(inst => inst.id === instructorId)?.name || null;
+  }, [isInstructor, instructorId, instructorName, availableInstructors]);
+
+  // 선택 가능한 첫 과정으로 자동 세팅
+  useEffect(() => {
+    if (availableCourses.length === 0) return;
+    if (!selectedCourse || !availableCourses.some(c => c.normalizedName === selectedCourse)) {
+      setSelectedCourse(availableCourses[0].normalizedName);
+    }
+  }, [availableCourses, selectedCourse]);
+
+  // 선택한 과정의 첫 차수로 자동 세팅
+  useEffect(() => {
+    if (!selectedCourse) return;
+    if (availableRounds.length === 0) {
+      setSelectedRound(null);
+      return;
+    }
+    if (selectedRound === null || !availableRounds.includes(selectedRound)) {
+      setSelectedRound(availableRounds[0]);
+    }
+  }, [availableRounds, selectedCourse, selectedRound]);
+
+  // 과정 표시 이름 계산
+  const currentCourseName = useMemo(() => {
+    if (summary?.courseName) return summary.courseName;
+    const match = availableCourses.find(c => c.normalizedName === selectedCourse);
+    return match?.displayName || selectedCourse || '';
+  }, [summary?.courseName, availableCourses, selectedCourse]);
 
   const satisfactionChartData = useMemo(() => {
     if (!summary) return [] as Array<{ name: string; value: number; color: string }>;
@@ -88,14 +122,22 @@ const CourseReports: React.FC = () => {
       }));
   }, [summary]);
 
-  // 과정별 만족도 추이로 변경
   const trendChartData = useMemo(() => {
-    return [
-      { name: 'BS Advanced', '만족도': 9.92 },
-      { name: 'BS Basic', '만족도': 9.88 },
-      { name: '영업 BS 집체교육', '만족도': 9.68 }
-    ];
-  }, []);
+    if (!Array.isArray(trend)) return [];
+    return trend
+      .map((point, index) => {
+        const instructorVal = toFixedOrZero(point.avgInstructorSatisfaction);
+        const courseVal = toFixedOrZero(point.avgCourseSatisfaction);
+        const operationVal = toFixedOrZero(point.avgOperationSatisfaction);
+        return {
+          name: point.educationRound ? `${point.educationRound}차` : `기준 ${index + 1}`,
+          '강사 만족도': Number.isFinite(instructorVal) ? instructorVal : 0,
+          '과정 만족도': Number.isFinite(courseVal) ? courseVal : 0,
+          '운영 만족도': Number.isFinite(operationVal) ? operationVal : 0,
+        };
+      })
+      .filter(item => item['강사 만족도'] > 0 || item['과정 만족도'] > 0 || item['운영 만족도'] > 0);
+  }, [trend]);
 
   const instructorStatsDisplay = useMemo(
     () =>
@@ -331,18 +373,20 @@ const CourseReports: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              과정별 만족도 비교
+              만족도 추이
             </CardTitle>
-            <CardDescription>각 과정의 만족도를 비교해 보세요.</CardDescription>
+            <CardDescription>차수별 만족도 변화를 확인해 보세요.</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
-            <ChartErrorBoundary fallbackDescription="과정별 만족도 차트를 표시할 수 없습니다.">
-              <AreaChart 
+            <ChartErrorBoundary fallbackDescription="만족도 추이 차트를 표시할 수 없습니다. 데이터를 확인해 주세요.">
+              <AreaChart
                 data={trendChartData}
                 dataKeys={[
-                  { key: '만족도', label: '만족도', color: 'hsl(var(--chart-1))' }
+                  { key: '강사 만족도', label: '강사 만족도', color: 'hsl(var(--chart-1))' },
+                  { key: '과정 만족도', label: '과정 만족도', color: 'hsl(var(--chart-2))' },
+                  { key: '운영 만족도', label: '운영 만족도', color: 'hsl(var(--chart-3))' },
                 ]}
-                xAxisLabel="과정명"
+                xAxisLabel="교육 차수"
                 yAxisLabel="만족도 점수"
               />
             </ChartErrorBoundary>
