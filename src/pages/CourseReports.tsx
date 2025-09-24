@@ -96,7 +96,7 @@ const CourseReports: React.FC = () => {
       }
     ];
 
-    // 기존 데이터에서 결합된 과정 옵션 생성
+    // 선택된 연도에 관계없이 모든 과정 옵션 생성
     availableCourses.forEach(course => {
       availableRounds.forEach(round => {
         const displayName = `${selectedYear}년 ${round}차 ${course.displayName || course.normalizedName}`;

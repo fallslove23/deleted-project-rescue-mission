@@ -175,11 +175,6 @@ const SurveyParticipateSession = () => {
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
 
   const completedKey = surveyId ? `survey_completed_${surveyId}` : '';
-  const autosaveKey = useMemo(() => (surveyId ? `survey_session_autosave_${surveyId}` : null), [surveyId]);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
-  const [hasSavedProgress, setHasSavedProgress] = useState(false);
-  const saveTimeoutRef = useRef<number | null>(null);
   const restoredOnceRef = useRef(false);
 
   useEffect(() => {
@@ -325,66 +320,11 @@ const SurveyParticipateSession = () => {
       }));
       let restoredSessionIndex = 0;
       let restoredQuestionIndex = 0;
-      let restoredUpdatedAt: number | null = null;
-      let restored = false;
-
-      if (autosaveKey && typeof window !== 'undefined') {
-        const rawSaved = localStorage.getItem(autosaveKey);
-        if (rawSaved) {
-          try {
-            const parsed = JSON.parse(rawSaved) as SessionAutosaveData;
-            restored = true;
-            if (parsed.answers) {
-              initialAnswers = initialAnswers.map((answer) => {
-                const savedValue = parsed.answers[answer.questionId];
-                return savedValue !== undefined ? { ...answer, answer: savedValue } : answer;
-              });
-            }
-            if (typeof parsed.currentSessionIndex === 'number') {
-              restoredSessionIndex = clampIndex(parsed.currentSessionIndex, sessionList.length);
-            }
-            if (typeof parsed.currentQuestionIndex === 'number') {
-              const targetSession = sessionList[restoredSessionIndex];
-              if (targetSession) {
-                const targetGroups = groupQuestionsBySection(
-                  getQuestionsForSessionId(targetSession.id, typedQuestions),
-                  sectionsList
-                );
-                restoredQuestionIndex = clampIndex(parsed.currentQuestionIndex, targetGroups.length);
-              }
-            }
-            if (typeof parsed.updatedAt === 'number') {
-              restoredUpdatedAt = parsed.updatedAt;
-            }
-          } catch (parseError) {
-            console.error('임시 저장 데이터 복원 실패:', parseError);
-          }
-        }
-      }
-
-      if (restoredUpdatedAt) {
-        setLastSavedAt(restoredUpdatedAt);
-      } else {
-        setLastSavedAt(null);
-      }
 
       setSurveySessions(sessionList);
       setAnswers(initialAnswers);
       setCurrentSessionIndex(restoredSessionIndex);
       setCurrentQuestionIndex(restoredQuestionIndex);
-      setHasSavedProgress(restored);
-      setAutoSaveStatus(restored ? 'saved' : 'idle');
-      if (restored) {
-        if (!restoredOnceRef.current) {
-          toast({
-            title: '임시 저장된 응답을 복원했습니다',
-            description: '이전에 작성하던 세션에서 이어집니다.',
-          });
-          restoredOnceRef.current = true;
-        }
-      } else {
-        restoredOnceRef.current = false;
-      }
     } catch (error) {
       console.error('Error fetching survey data:', error);
       toast({
@@ -408,68 +348,6 @@ const SurveyParticipateSession = () => {
       answer: q.question_type === 'multiple_choice_multiple' ? [] : '',
     }));
   }, [questions]);
-
-  const saveProgressToStorage = useCallback(
-    (options?: { notify?: boolean }) => {
-      if (!autosaveKey || typeof window === 'undefined') return;
-      const payload: SessionAutosaveData = {
-        answers: answers.reduce<Record<string, string | string[]>>((acc, current) => {
-          acc[current.questionId] = current.answer;
-          return acc;
-        }, {}),
-        currentSessionIndex,
-        currentQuestionIndex,
-        updatedAt: Date.now(),
-      };
-
-      try {
-        localStorage.setItem(autosaveKey, JSON.stringify(payload));
-        setLastSavedAt(payload.updatedAt);
-        setAutoSaveStatus('saved');
-        setHasSavedProgress(true);
-        if (options?.notify) {
-          toast({ title: '임시 저장 완료', description: '진행 상황이 안전하게 저장되었습니다.' });
-        }
-      } catch (storageError) {
-        console.error('임시 저장 실패:', storageError);
-        setAutoSaveStatus('error');
-        if (options?.notify) {
-          toast({
-            title: '임시 저장 실패',
-            description: '브라우저 저장소에 접근할 수 없습니다.',
-            variant: 'destructive',
-          });
-        }
-      }
-    },
-    [answers, autosaveKey, currentQuestionIndex, currentSessionIndex, toast]
-  );
-
-  const clearProgress = useCallback(
-    (options?: { notify?: boolean }) => {
-      if (typeof window !== 'undefined') {
-        if (autosaveKey) {
-          localStorage.removeItem(autosaveKey);
-        }
-        if (saveTimeoutRef.current) {
-          window.clearTimeout(saveTimeoutRef.current);
-          saveTimeoutRef.current = null;
-        }
-      }
-
-      setAnswers(createEmptyAnswers());
-      setCurrentSessionIndex(0);
-      setCurrentQuestionIndex(0);
-      setAutoSaveStatus('idle');
-      setLastSavedAt(null);
-      setHasSavedProgress(false);
-      restoredOnceRef.current = false;
-      if (options?.notify) {
-        toast({ title: '임시 저장을 초기화했습니다', description: '처음부터 설문을 다시 진행할 수 있습니다.' });
-      }
-    },
-    [autosaveKey, createEmptyAnswers, toast]
-  );
 
   const sectionMap = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
   const getQuestionsForSession = useCallback((sessionId: string) => getQuestionsForSessionId(sessionId, questions), [questions]);
@@ -582,44 +460,6 @@ const SurveyParticipateSession = () => {
     return currentQuestionIndex === Math.max(currentGroups.length - 1, 0);
   };
 
-  const lastSavedRelative = useMemo(() => {
-    if (!lastSavedAt) return null;
-    return formatDistanceToNow(new Date(lastSavedAt), { addSuffix: true, locale: ko });
-  }, [lastSavedAt]);
-
-  useEffect(() => {
-    if (!autosaveKey || typeof window === 'undefined') return;
-    if (loading) return;
-    if (surveySessions.length === 0 || questions.length === 0) return;
-
-    if (saveTimeoutRef.current) {
-      window.clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-
-    setAutoSaveStatus('saving');
-    const timeoutId = window.setTimeout(() => {
-      saveProgressToStorage();
-      saveTimeoutRef.current = null;
-    }, 1000);
-    saveTimeoutRef.current = timeoutId;
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        window.clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-    };
-  }, [answers, autosaveKey, loading, questions.length, saveProgressToStorage, surveySessions.length]);
-
-  const autosaveStatusMessage = useMemo(() => {
-    if (autoSaveStatus === 'saving') return '자동 저장 중...';
-    if (autoSaveStatus === 'error') return '임시 저장 실패';
-    if (lastSavedRelative) return `임시 저장 ${lastSavedRelative}`;
-    if (autoSaveStatus === 'saved') return '임시 저장 완료';
-    return '자동 저장 대기 중';
-  }, [autoSaveStatus, lastSavedRelative]);
-
   const sessionNavItems = useMemo(
     () =>
       surveySessions.map((session, index) => {
@@ -670,11 +510,11 @@ const SurveyParticipateSession = () => {
   );
 
   const handleManualSave = () => {
-    saveProgressToStorage({ notify: true });
+    // 임시 저장 기능 제거됨
   };
 
   const handleResetProgress = () => {
-    clearProgress({ notify: true });
+    // 진행 초기화 기능 제거됨
   };
 
   const handleSessionSelect = (index: number, groupIndex = 0) => {
@@ -772,7 +612,6 @@ const SurveyParticipateSession = () => {
       }
 
       console.log('🎉 세션 설문 제출 완료!');
-      clearProgress({ notify: false });
       toast({ title: '설문 참여 완료!', description: '소중한 의견을 주셔서 감사합니다.' });
       navigate('/');
     } catch (error) {
@@ -988,225 +827,23 @@ const SurveyParticipateSession = () => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:gap-10">
-          {sessionNavItems.length > 0 && (
-            <aside className="lg:w-72 xl:w-80">
-              <div className="sticky top-24 space-y-6">
-                <div>
-                  <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    세션 목록
-                  </div>
-                  <div className="space-y-3">
-                    {sessionNavItems.map((item) => (
-                      <div
-                        key={item.session.id}
-                        className={cn(
-                          'rounded-xl border transition',
-                          item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background'
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleSessionSelect(item.index)}
-                          className="w-full space-y-2 px-3 py-3 text-left"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-semibold">{item.session.session_name}</div>
-                              {item.session.course?.title && (
-                                <div className="truncate text-xs text-muted-foreground">{item.session.course.title}</div>
-                              )}
-                            </div>
-                            <span className="text-xs font-medium text-muted-foreground">{item.completion}%</span>
-                          </div>
-                          <Progress value={item.completion} className="h-1.5" />
-                        </button>
-                        {item.groups.length > 0 && (
-                          <div className="space-y-1.5 px-3 pb-3">
-                            {item.groups.map((group) => (
-                              <button
-                                key={`${item.session.id}-${group.index}`}
-                                type="button"
-                                onClick={() =>
-                                  item.index === currentSessionIndex
-                                    ? handleGroupSelect(group.index)
-                                    : handleSessionSelect(item.index, group.index)
-                                }
-                                className={cn(
-                                  'w-full rounded-lg border px-2.5 py-1.5 text-left text-xs transition',
-                                  item.index === currentSessionIndex && group.index === currentQuestionIndex
-                                    ? 'border-primary bg-primary/10 text-primary-600 dark:text-primary-200'
-                                    : 'border-transparent hover:bg-muted'
-                                )}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="truncate">{group.label}</span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {group.answeredCount}/{group.total}
-                                  </span>
-                                </div>
-                                <Progress value={group.completion} className="mt-1 h-1" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 pt-2">
-                  <Button variant="outline" size="sm" onClick={handleManualSave} className="justify-start">
-                    <ClipboardCheck className="mr-2 h-4 w-4" />
-                    임시 저장
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleResetProgress()}
-                    className="justify-start text-muted-foreground hover:text-destructive"
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    진행 초기화
-                  </Button>
-                </div>
-              </div>
-            </aside>
-          )}
-
-          <div className="flex-1 lg:max-w-3xl">
-            {sessionNavItems.length > 0 && (
-              <div className="mb-6 space-y-4 lg:hidden">
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">세션 이동</span>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={handleManualSave}>
-                        <ClipboardCheck className="mr-1 h-4 w-4" />
-                        임시 저장
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleResetProgress()}
-                        className="text-muted-foreground"
-                        aria-label="진행 초기화"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
-                    {sessionNavItems.map((item) => (
-                      <button
-                        key={item.session.id}
-                        type="button"
-                        onClick={() => handleSessionSelect(item.index)}
-                        className={cn(
-                          'flex-shrink-0 min-w-[180px] rounded-lg border px-3 py-2 text-left transition',
-                          item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background'
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-semibold">{item.session.session_name}</span>
-                          <span className="text-xs text-muted-foreground">{item.completion}%</span>
-                        </div>
-                        {item.session.course?.title && (
-                          <div className="mt-1 truncate text-[11px] text-muted-foreground">
-                            {item.session.course.title}
-                          </div>
-                        )}
-                        <Progress value={item.completion} className="mt-2 h-1" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {stepItems.length > 0 && (
-                  <div>
-                    <div className="mb-2 text-sm font-medium text-muted-foreground">섹션 이동</div>
-                    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
-                      {stepItems.map((item) => (
-                        <button
-                          key={item.index}
-                          type="button"
-                          onClick={() => handleGroupSelect(item.index)}
-                          className={cn(
-                            'flex-shrink-0 min-w-[150px] rounded-lg border px-3 py-2 text-left transition',
-                            item.isCurrent ? 'border-primary bg-primary/10 shadow-sm' : 'border-border bg-background'
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
-                                item.isCompleted
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted text-muted-foreground'
-                              )}
-                            >
-                              {item.index + 1}
-                            </span>
-                            <span className="truncate text-sm font-medium">{item.label}</span>
-                          </div>
-                          <div className="mt-1 text-xs text-muted-foreground">{item.completion}% 완료</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+        <div className="flex justify-center">
+          <div className="w-full max-w-3xl">
+            <div className="mb-6">
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-foreground mb-2">{survey.title}</h1>
+                {survey.description && (
+                  <p className="text-muted-foreground">{survey.description}</p>
                 )}
               </div>
-            )}
+            </div>
 
             <div className="mb-6 space-y-2">
-              <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span>
-                    세션 {currentSessionIndex + 1} / {totalSessions}
-                  </span>
-                  <span className="hidden text-muted-foreground sm:inline">•</span>
-                  <span>{Math.round(progress)}% 전체 진행</span>
-                  {currentSessionMeta && (
-                    <>
-                      <span className="hidden text-muted-foreground sm:inline">•</span>
-                      <span>
-                        현재 세션 {currentSessionMeta.answered} / {currentSessionMeta.total}
-                      </span>
-                    </>
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    'flex items-center gap-2',
-                    autoSaveStatus === 'error' ? 'text-destructive' : 'text-muted-foreground'
-                  )}
-                >
-                  {autoSaveStatus === 'saving' ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : autoSaveStatus === 'error' ? (
-                    <AlertCircle className="h-3.5 w-3.5" />
-                  ) : (
-                    <ClipboardCheck className="h-3.5 w-3.5" />
-                  )}
-                  <span className="truncate">{autosaveStatusMessage}</span>
-                </div>
+              <div className="text-xs text-muted-foreground sm:text-sm">
+                세션 {currentSessionIndex + 1} / {totalSessions} • {Math.round(progress)}% 진행
               </div>
               <Progress value={progress} className="h-2" />
             </div>
-
-            {hasSavedProgress && (
-              <Alert className="mb-6 border-primary/30 bg-primary/5">
-                <ClipboardCheck className="h-4 w-4 text-primary" />
-                <AlertDescription>
-                  <div className="space-y-1 text-left">
-                    <div className="font-medium text-primary">이전에 저장된 응답을 이어서 작성 중입니다.</div>
-                    <p className="text-xs text-muted-foreground sm:text-sm">
-                      {lastSavedRelative ? `마지막 저장: ${lastSavedRelative}` : '진행 상황이 자동으로 저장됩니다.'}
-                    </p>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
 
             <Card className="mb-6 border border-primary/20 bg-primary/5">
               <CardHeader className="space-y-4">
