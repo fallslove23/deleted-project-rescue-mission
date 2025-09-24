@@ -2369,8 +2369,8 @@ export type Database = {
           education_year: number | null
           expected_participants: number | null
           instructor_count: number | null
-          instructor_id: string | null
-          instructor_names: string | null
+          instructor_names: string[] | null
+          instructor_names_text: string | null
           last_response_at: string | null
           real_response_count: number | null
           status: string | null
@@ -2379,16 +2379,11 @@ export type Database = {
           test_response_count: number | null
           title: string | null
           total_response_count: number | null
+          weighted_satisfaction_real: number | null
+          weighted_satisfaction_test: number | null
+          weighted_satisfaction_total: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "surveys_instructor_id_fkey"
-            columns: ["instructor_id"]
-            isOneToOne: false
-            referencedRelation: "instructors"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       surveys_list_v1: {
         Row: {
