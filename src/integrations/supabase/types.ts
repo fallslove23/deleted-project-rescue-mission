@@ -760,20 +760,6 @@ export type Database = {
             foreignKeyName: "short_urls_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "short_urls_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "short_urls_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -838,20 +824,6 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_analysis_comments_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_analysis_comments_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -932,20 +904,6 @@ export type Database = {
             foreignKeyName: "fk_survey_completions_survey_id"
             columns: ["survey_id"]
             isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "fk_survey_completions_survey_id"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "fk_survey_completions_survey_id"
-            columns: ["survey_id"]
-            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -1011,20 +969,6 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_instructors_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_instructors_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -1133,20 +1077,6 @@ export type Database = {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_questions_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_questions_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -1227,20 +1157,6 @@ export type Database = {
             foreignKeyName: "survey_responses_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_responses_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_responses_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -1308,20 +1224,6 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_sections_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_sections_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -1412,20 +1314,6 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_sessions_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_sessions_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -1533,20 +1421,6 @@ export type Database = {
             columns: ["survey_id"]
             isOneToOne: false
             referencedRelation: "mv_survey_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "fk_survey_tokens_survey_id"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "fk_survey_tokens_survey_id"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
             referencedColumns: ["survey_id"]
           },
           {
@@ -2078,20 +1952,6 @@ export type Database = {
             foreignKeyName: "survey_responses_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
-            referencedRelation: "survey_aggregates"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_responses_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
-            referencedRelation: "survey_cumulative_stats"
-            referencedColumns: ["survey_id"]
-          },
-          {
-            foreignKeyName: "survey_responses_survey_id_fkey"
-            columns: ["survey_id"]
-            isOneToOne: false
             referencedRelation: "surveys"
             referencedColumns: ["id"]
           },
@@ -2215,50 +2075,6 @@ export type Database = {
           },
         ]
       }
-      instructor_survey_stats: {
-        Row: {
-          active_survey_count: number | null
-          all_test_data: boolean | null
-          avg_course_satisfaction: number | null
-          avg_instructor_satisfaction: number | null
-          avg_operation_satisfaction: number | null
-          avg_overall_satisfaction: number | null
-          course_name: string | null
-          education_round: number | null
-          education_year: number | null
-          has_test_data: boolean | null
-          instructor_id: string | null
-          instructor_name: string | null
-          last_response_at: string | null
-          question_stats: Json | null
-          rating_distribution: Json | null
-          response_count: number | null
-          survey_count: number | null
-          survey_ids: string[] | null
-          test_active_survey_count: number | null
-          test_avg_course_satisfaction: number | null
-          test_avg_instructor_satisfaction: number | null
-          test_avg_operation_satisfaction: number | null
-          test_avg_overall_satisfaction: number | null
-          test_question_stats: Json | null
-          test_rating_distribution: Json | null
-          test_response_count: number | null
-          test_survey_count: number | null
-          test_text_response_count: number | null
-          test_text_responses: Json | null
-          text_response_count: number | null
-          text_responses: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "surveys_instructor_id_fkey"
-            columns: ["instructor_id"]
-            isOneToOne: false
-            referencedRelation: "instructors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mv_course_satisfaction: {
         Row: {
           avg_course_satisfaction: number | null
@@ -2357,75 +2173,9 @@ export type Database = {
           },
         ]
       }
-      survey_aggregates: {
-        Row: {
-          avg_course_satisfaction: number | null
-          avg_instructor_satisfaction: number | null
-          avg_operation_satisfaction: number | null
-          avg_overall_satisfaction: number | null
-          course_name: string | null
-          education_round: number | null
-          education_year: number | null
-          expected_participants: number | null
-          instructor_id: string | null
-          instructor_name: string | null
-          is_test: boolean | null
-          last_response_at: string | null
-          question_count: number | null
-          response_count: number | null
-          status: string | null
-          survey_id: string | null
-          title: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "surveys_instructor_id_fkey"
-            columns: ["instructor_id"]
-            isOneToOne: false
-            referencedRelation: "instructors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       survey_available_years_v1: {
         Row: {
           education_year: number | null
-        }
-        Relationships: []
-      }
-      survey_cumulative_stats: {
-        Row: {
-          avg_course_satisfaction_real: number | null
-          avg_course_satisfaction_test: number | null
-          avg_course_satisfaction_total: number | null
-          avg_instructor_satisfaction_real: number | null
-          avg_instructor_satisfaction_test: number | null
-          avg_instructor_satisfaction_total: number | null
-          avg_operation_satisfaction_real: number | null
-          avg_operation_satisfaction_test: number | null
-          avg_operation_satisfaction_total: number | null
-          avg_satisfaction_real: number | null
-          avg_satisfaction_test: number | null
-          avg_satisfaction_total: number | null
-          course_name: string | null
-          created_at: string | null
-          education_round: number | null
-          education_year: number | null
-          expected_participants: number | null
-          instructor_count: number | null
-          instructor_names: string[] | null
-          instructor_names_text: string | null
-          last_response_at: string | null
-          real_response_count: number | null
-          status: string | null
-          survey_id: string | null
-          survey_is_test: boolean | null
-          test_response_count: number | null
-          title: string | null
-          total_response_count: number | null
-          weighted_satisfaction_real: number | null
-          weighted_satisfaction_test: number | null
-          weighted_satisfaction_total: number | null
         }
         Relationships: []
       }
