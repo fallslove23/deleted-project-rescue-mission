@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
 import { DashboardLayout } from '@/components/layouts';
 import CourseReports from './CourseReports';
 import LoadingScreen from '@/components/LoadingScreen';
