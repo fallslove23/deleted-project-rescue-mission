@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/layouts';
 import CourseReports from './CourseReports';
 import LoadingScreen from '@/components/LoadingScreen';
+import { PageErrorBoundary } from '@/components/error-boundaries';
 
 const DashboardCourseReports: React.FC = () => {
   const { userRoles, loading } = useAuth();
@@ -28,7 +29,9 @@ const DashboardCourseReports: React.FC = () => {
       subtitle="과정별 운영 결과 분석"
       icon={<BarChart3 className="h-5 w-5 text-white" />}
     >
-      <CourseReports />
+      <PageErrorBoundary pageName="Dashboard Course Reports">
+        <CourseReports />
+      </PageErrorBoundary>
     </DashboardLayout>
   );
 };

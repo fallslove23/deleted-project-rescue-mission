@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
-import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
+import { ChartErrorBoundary, PageErrorBoundary, HookErrorBoundary, DataProcessingErrorBoundary } from '@/components/error-boundaries';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
@@ -40,6 +40,14 @@ const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
 };
 
 const CourseReports: React.FC = () => {
+  return (
+    <PageErrorBoundary pageName="Course Reports">
+      <CourseReportsContent />
+    </PageErrorBoundary>  
+  );
+};
+
+const CourseReportsContent: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { userRoles } = useAuth();
@@ -485,62 +493,64 @@ const CourseReports: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg">
-                <TrendingUp className="h-6 w-6" />
+    <HookErrorBoundary hookName="useCourseReportsData">
+      <div className="space-y-6">
+        <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 p-6 shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-primary">설문 결과 분석</h1>
+                  <p className="text-sm text-muted-foreground">
+                    설문 응답자 주요 지표를 서비스에서 진행한 데이터로 제공합니다.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-primary">설문 결과 분석</h1>
-                <p className="text-sm text-muted-foreground">
-                  설문 응답자 주요 지표를 서비스에서 진행한 데이터로 제공합니다.
-                </p>
-              </div>
+              {summary && (
+                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span>{summary.educationYear}년 전체 과정</span>
+                  <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                  <span>{summary.totalSurveys.toLocaleString()}개 설문</span>
+                  <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                  <span>{summary.totalResponses.toLocaleString()}명 응답</span>
+                </div>
+              )}
             </div>
             {summary && (
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <span>{summary.educationYear}년 전체 과정</span>
-                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                <span>{summary.totalSurveys.toLocaleString()}개 설문</span>
-                <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                <span>{summary.totalResponses.toLocaleString()}명 응답</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleShareReport} className="bg-white/70">
+                  <Share2 className="mr-2 h-4 w-4" /> 공유하기
+                </Button>
+                <Button variant="outline" size="sm" onClick={handlePDFExport} className="bg-white/70">
+                  <Download className="mr-2 h-4 w-4" /> PDF 다운로드
+                </Button>
               </div>
             )}
           </div>
-          {summary && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleShareReport} className="bg-white/70">
-                <Share2 className="mr-2 h-4 w-4" /> 공유하기
-              </Button>
-              <Button variant="outline" size="sm" onClick={handlePDFExport} className="bg-white/70">
-                <Download className="mr-2 h-4 w-4" /> PDF 다운로드
-              </Button>
-            </div>
-          )}
         </div>
+
+        <CourseSelector
+          selectedYear={selectedYearFilter}
+          selectedCourse={selectedCombinedCourse}
+          availableYears={availableYears}
+          availableCourses={combinedCourseOptions}
+          onYearChange={handleYearChange}
+          onCourseChange={handleCombinedCourseChange}
+          testDataToggle={
+            testDataOptions ? (
+              <TestDataToggle testDataOptions={testDataOptions} />
+            ) : null
+          }
+        />
+
+        <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다.">
+          {content}
+        </ChartErrorBoundary>
       </div>
-
-      <CourseSelector
-        selectedYear={selectedYearFilter}
-        selectedCourse={selectedCombinedCourse}
-        availableYears={availableYears}
-        availableCourses={combinedCourseOptions}
-        onYearChange={handleYearChange}
-        onCourseChange={handleCombinedCourseChange}
-        testDataToggle={
-          testDataOptions ? (
-            <TestDataToggle testDataOptions={testDataOptions} />
-          ) : null
-        }
-      />
-
-      <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다.">
-        {content}
-      </ChartErrorBoundary>
-    </div>
+    </HookErrorBoundary>
   );
 };
 
