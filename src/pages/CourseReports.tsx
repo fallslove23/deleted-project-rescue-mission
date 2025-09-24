@@ -96,10 +96,12 @@ const CourseReports: React.FC = () => {
       }
     ];
 
-    // 선택된 연도에 관계없이 모든 과정 옵션 생성
-    availableCourses.forEach(course => {
-      availableRounds.forEach(round => {
-        const displayName = `${selectedYear}년 ${round}차 ${course.displayName || course.normalizedName}`;
+    // 각 과정별 보유 차수(rounds)를 사용해 옵션 생성 (글로벌 availableRounds 사용 금지)
+    availableCourses.forEach((course) => {
+      const rounds = Array.isArray(course.rounds) ? [...course.rounds].sort((a, b) => a - b) : [];
+      rounds.forEach((round) => {
+        const name = course.displayName || course.normalizedName;
+        const displayName = `${selectedYear}년 ${round}차 ${name}`;
         combined.push({
           key: `${selectedYear}-${course.normalizedName}-${round}`,
           displayName,
@@ -112,7 +114,7 @@ const CourseReports: React.FC = () => {
     });
 
     return combined;
-  }, [availableCourses, availableRounds, selectedYear]);
+  }, [availableCourses, selectedYear]);
 
   // 결합된 과정 선택 파싱
   const parseCombinedCourse = (courseKey: string) => {
