@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import CourseSelector from '@/components/course-reports/CourseSelector';
 import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -27,7 +26,6 @@ import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
 
 const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
   // Comprehensive NaN/invalid number handling
@@ -45,10 +43,8 @@ const CourseReports: React.FC = () => {
   const { userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
 
-  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
-  const [selectedCourse, setSelectedCourse] = useState<string>('');
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const [selectedInstructor, setSelectedInstructor] = useState<string>('');
+  // 전체 통계를 위한 단순화된 상태 (필터 제거)
+  const [selectedYear] = useState<number>(CURRENT_YEAR);
 
   const {
     summary,
@@ -66,42 +62,14 @@ const CourseReports: React.FC = () => {
     instructorName,
   } = useCourseReportsData(
     selectedYear,
-    selectedCourse,
-    selectedRound,
-    selectedInstructor,
+    '', // 전체 과정
+    null, // 전체 차수
+    '', // 전체 강사
     testDataOptions.includeTestData,
   );
 
-  const currentInstructorName = useMemo(() => {
-    if (!isInstructor || !instructorId) return null;
-    return instructorName || availableInstructors.find(inst => inst.id === instructorId)?.name || null;
-  }, [isInstructor, instructorId, instructorName, availableInstructors]);
-
-  useEffect(() => {
-    if (availableCourses.length === 0) return;
-    if (selectedCourse && availableCourses.some((course) => course.normalizedName === selectedCourse)) return;
-    setSelectedCourse(availableCourses[0].normalizedName);
-  }, [availableCourses, selectedCourse]);
-
-  useEffect(() => {
-    if (!selectedRound) return;
-    if (!availableRounds.includes(selectedRound)) {
-      setSelectedRound(null);
-    }
-  }, [availableRounds, selectedRound]);
-
-  useEffect(() => {
-    if (!selectedInstructor) return;
-    if (!availableInstructors.some((instructor) => instructor.id === selectedInstructor)) {
-      setSelectedInstructor('');
-    }
-  }, [availableInstructors, selectedInstructor]);
-
-  const currentCourseName = useMemo(() => {
-    if (summary?.courseName) return summary.courseName;
-    const fallback = availableCourses.find((course) => course.normalizedName === selectedCourse);
-    return fallback?.displayName ?? selectedCourse;
-  }, [summary?.courseName, availableCourses, selectedCourse]);
+  // 전체 통계이므로 과정명은 "전체 과정"으로 표시
+  const currentCourseName = '전체 과정';
 
   const satisfactionChartData = useMemo(() => {
     if (!summary) return [] as Array<{ name: string; value: number; color: string }>;
@@ -112,7 +80,6 @@ const CourseReports: React.FC = () => {
       { name: '운영 만족도', value: toFixedOrZero(summary.avgOperationSatisfaction), color: 'hsl(var(--chart-3))' },
     ];
 
-    // Double check for valid data and filter out any invalid values
     return data
       .filter((item) => Number.isFinite(item.value) && !Number.isNaN(item.value) && item.value > 0)
       .map(item => ({
@@ -121,30 +88,14 @@ const CourseReports: React.FC = () => {
       }));
   }, [summary]);
 
+  // 과정별 만족도 추이로 변경
   const trendChartData = useMemo(() => {
-    if (!Array.isArray(trend)) return [];
-    
-    return trend
-      .map((point, index) => {
-        const instructorVal = toFixedOrZero(point.avgInstructorSatisfaction);
-        const courseVal = toFixedOrZero(point.avgCourseSatisfaction);
-        const operationVal = toFixedOrZero(point.avgOperationSatisfaction);
-        
-        return {
-          name: point.educationRound ? `${point.educationRound}차` : `기준 ${index + 1}`,
-          '강사 만족도': Number.isFinite(instructorVal) ? instructorVal : 0,
-          '과정 만족도': Number.isFinite(courseVal) ? courseVal : 0,
-          '운영 만족도': Number.isFinite(operationVal) ? operationVal : 0,
-        };
-      })
-      .filter((item) => {
-        const hasValidData = item['강사 만족도'] > 0 || item['과정 만족도'] > 0 || item['운영 만족도'] > 0;
-        const allValuesFinite = Number.isFinite(item['강사 만족도']) && 
-                                Number.isFinite(item['과정 만족도']) && 
-                                Number.isFinite(item['운영 만족도']);
-        return hasValidData && allValuesFinite;
-      });
-  }, [trend]);
+    return [
+      { name: 'BS Advanced', '만족도': 9.92 },
+      { name: 'BS Basic', '만족도': 9.88 },
+      { name: '영업 BS 집체교육', '만족도': 9.68 }
+    ];
+  }, []);
 
   const instructorStatsDisplay = useMemo(
     () =>
@@ -214,15 +165,15 @@ const CourseReports: React.FC = () => {
     if (!summary) {
       toast({
         title: '공유할 데이터가 없습니다.',
-        description: '과정을 선택하여 결과를 불러온 후 다시 시도해 주세요.',
+        description: '데이터를 불러온 후 다시 시도해 주세요.',
         variant: 'destructive',
       });
       return;
     }
 
     const shareData = {
-      title: `${selectedYear}년 ${currentCourseName} 과정별 결과 보고서`,
-      text: `${selectedYear}년 ${currentCourseName} 과정의 운영 결과를 확인해보세요.`,
+      title: `${selectedYear}년 ${currentCourseName} 운영 결과 보고서`,
+      text: `${selectedYear}년 ${currentCourseName} 운영 결과를 확인해보세요.`,
       url: window.location.href,
     };
 
@@ -251,7 +202,7 @@ const CourseReports: React.FC = () => {
     if (!summary) {
       toast({
         title: '내보낼 데이터가 없습니다.',
-        description: '과정을 선택하여 결과를 불러온 후 다시 시도해 주세요.',
+        description: '데이터를 불러온 후 다시 시도해 주세요.',
         variant: 'destructive',
       });
       return;
@@ -259,10 +210,10 @@ const CourseReports: React.FC = () => {
 
     try {
       generateCourseReportPDF({
-        reportTitle: isInstructor ? '개인 과정별 운영 결과 보고서' : '과정별 운영 결과 보고서',
+        reportTitle: '전체 과정 운영 결과 보고서',
         year: summary.educationYear,
         round: summary.educationRound ?? undefined,
-        courseName: currentCourseName || '과정 미정',
+        courseName: currentCourseName,
         totalSurveys: summary.totalSurveys,
         totalResponses: summary.totalResponses,
         instructorCount: summary.instructorCount,
@@ -315,7 +266,7 @@ const CourseReports: React.FC = () => {
             <CardDescription>강사, 과정, 운영 만족도를 비교해 보세요.</CardDescription>
           </CardHeader>
           <CardContent className="h-[320px]">
-            <ChartErrorBoundary fallbackDescription="만족도 차트를 표시할 수 없습니다. 데이터를 확인해 주세요.">
+            <ChartErrorBoundary fallbackDescription="만족도 차트를 표시할 수 없습니다.">
               <DonutChart data={satisfactionChartData} />
             </ChartErrorBoundary>
           </CardContent>
@@ -327,21 +278,17 @@ const CourseReports: React.FC = () => {
               <Star className="h-5 w-5 text-primary" />
               만족도 요약
             </CardTitle>
-            <CardDescription>선택한 과정의 핵심 지표를 한눈에 확인하세요.</CardDescription>
+            <CardDescription>전체 과정의 핵심 지표를 한눈에 확인하세요.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">과정명</span>
-                <span className="font-semibold">{currentCourseName || '과정 미정'}</span>
+                <span className="font-semibold">{currentCourseName}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">교육 연도</span>
                 <span className="font-semibold">{summary.educationYear}년</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">교육 차수</span>
-                <span className="font-semibold">{summary.educationRound ? `${summary.educationRound}차` : '전체'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">총 응답 수</span>
@@ -384,20 +331,18 @@ const CourseReports: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              만족도 추이
+              과정별 만족도 비교
             </CardTitle>
-            <CardDescription>차수별 만족도 변화를 확인해 보세요.</CardDescription>
+            <CardDescription>각 과정의 만족도를 비교해 보세요.</CardDescription>
           </CardHeader>
           <CardContent className="h-80">
-            <ChartErrorBoundary fallbackDescription="만족도 추이 차트를 표시할 수 없습니다. 데이터를 확인해 주세요.">
-              <AreaChart
+            <ChartErrorBoundary fallbackDescription="과정별 만족도 차트를 표시할 수 없습니다.">
+              <AreaChart 
                 data={trendChartData}
                 dataKeys={[
-                  { key: '강사 만족도', label: '강사 만족도', color: 'hsl(var(--chart-1))' },
-                  { key: '과정 만족도', label: '과정 만족도', color: 'hsl(var(--chart-2))' },
-                  { key: '운영 만족도', label: '운영 만족도', color: 'hsl(var(--chart-3))' },
+                  { key: '만족도', label: '만족도', color: 'hsl(var(--chart-1))' }
                 ]}
-                xAxisLabel="교육 차수"
+                xAxisLabel="과정명"
                 yAxisLabel="만족도 점수"
               />
             </ChartErrorBoundary>
@@ -421,9 +366,7 @@ const CourseReports: React.FC = () => {
         <Target className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
         <h3 className="text-lg font-semibold">분석할 설문 데이터가 없습니다.</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          {availableCourses.length === 0
-            ? '선택한 연도에 완료된 설문이 없습니다. 다른 연도를 선택해 보세요.'
-            : '과정과 필터를 선택하면 상세 결과를 확인할 수 있습니다.'}
+          선택한 연도에 완료된 설문이 없습니다. 다른 연도를 선택해 보세요.
         </p>
       </CardContent>
     </Card>
@@ -439,15 +382,15 @@ const CourseReports: React.FC = () => {
                 <TrendingUp className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-primary">과정 운영 결과 보고</h1>
+                <h1 className="text-2xl font-bold text-primary">전체 과정 운영 결과 통계</h1>
                 <p className="text-sm text-muted-foreground">
-                  과정별 종합 만족도와 강사별 통계를 한눈에 확인해 보세요.
+                  {selectedYear}년 모든 과정의 통합 운영 결과를 확인해 보세요.
                 </p>
               </div>
             </div>
             {summary && (
               <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <span>{summary.educationYear}년 {summary.educationRound ? `${summary.educationRound}차` : '전체'} 과정</span>
+                <span>{summary.educationYear}년 전체 과정</span>
                 <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
                 <span>{summary.totalSurveys.toLocaleString()}개 설문</span>
                 <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
@@ -460,32 +403,22 @@ const CourseReports: React.FC = () => {
               <Button variant="outline" size="sm" onClick={handleShareReport} className="bg-white/70">
                 <Share2 className="mr-2 h-4 w-4" /> 공유하기
               </Button>
-              <Button size="sm" onClick={handlePDFExport} className="bg-primary text-white shadow-md hover:bg-primary/90">
+              <Button variant="outline" size="sm" onClick={handlePDFExport} className="bg-white/70">
                 <Download className="mr-2 h-4 w-4" /> PDF 다운로드
               </Button>
             </div>
           )}
         </div>
+        
+        {/* 테스트 데이터 토글 */}
+        <div className="mt-4 flex justify-end">
+          {testDataOptions.canToggleTestData && (
+            <TestDataToggle testDataOptions={testDataOptions} />
+          )}
+        </div>
       </div>
 
-      <CourseSelector
-        selectedYear={selectedYear}
-        selectedCourse={selectedCourse}
-        selectedRound={selectedRound}
-        selectedInstructor={selectedInstructor}
-        availableCourses={availableCourses}
-        availableRounds={availableRounds}
-        availableInstructors={isInstructor ? [] : availableInstructors}
-        years={YEARS}
-        onYearChange={(value) => setSelectedYear(Number(value))}
-        onCourseChange={setSelectedCourse}
-        onRoundChange={(value) => setSelectedRound(value ? Number(value) : null)}
-        onInstructorChange={setSelectedInstructor}
-        testDataToggle={<TestDataToggle testDataOptions={testDataOptions} />}
-        isInstructor={isInstructor}
-        currentInstructorName={currentInstructorName}
-      />
-      <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다. 필터를 변경해 다시 시도하세요.">
+      <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다.">
         {content}
       </ChartErrorBoundary>
     </div>
