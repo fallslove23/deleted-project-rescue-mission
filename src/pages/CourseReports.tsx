@@ -213,11 +213,11 @@ const CourseReports: React.FC = () => {
       return;
     }
 
-    const shareData = {
-      title: `${selectedYear}년 ${currentCourseName} 운영 결과 보고서`,
-      text: `${selectedYear}년 ${currentCourseName} 운영 결과를 확인해보세요.`,
-      url: window.location.href,
-    };
+      const shareData = {
+        title: `${selectedYear}년 ${currentCourseName}${selectedRound ? `-${selectedRound}차` : ''} 결과 보고서`,
+        text: `${selectedYear}년 ${currentCourseName}${selectedRound ? `-${selectedRound}차` : ''} 결과를 확인해보세요.`,
+        url: window.location.href,
+      };
 
     try {
       if (navigator.share && navigator.canShare?.(shareData)) {
@@ -252,7 +252,7 @@ const CourseReports: React.FC = () => {
 
     try {
       generateCourseReportPDF({
-        reportTitle: '전체 과정 운영 결과 보고서',
+        reportTitle: `${currentCourseName}${selectedRound ? ` ${selectedRound}차` : ''} 결과 보고서`,
         year: summary.educationYear,
         round: summary.educationRound ?? undefined,
         courseName: currentCourseName,
@@ -426,9 +426,9 @@ const CourseReports: React.FC = () => {
                 <TrendingUp className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-primary">전체 과정 운영 결과 통계</h1>
+                <h1 className="text-2xl font-bold text-primary">과정 결과 통계</h1>
                 <p className="text-sm text-muted-foreground">
-                  {selectedYear}년 모든 과정의 통합 운영 결과를 확인해 보세요.
+                  선택한 과정의 운영 결과를 확인해 보세요.
                 </p>
               </div>
             </div>
@@ -453,14 +453,29 @@ const CourseReports: React.FC = () => {
             </div>
           )}
         </div>
-        
-        {/* 테스트 데이터 토글 */}
-        <div className="mt-4 flex justify-end">
-          {testDataOptions && testDataOptions.canToggleTestData && (
-            <TestDataToggle testDataOptions={testDataOptions} />
-          )}
-        </div>
       </div>
+
+      <CourseSelector
+        selectedYear={selectedYear}
+        selectedCourse={selectedCourse}
+        selectedRound={selectedRound}
+        selectedInstructor={selectedInstructor}
+        availableCourses={availableCourses}
+        availableRounds={availableRounds}
+        availableInstructors={availableInstructors}
+        years={YEARS}
+        onYearChange={(value) => setSelectedYear(parseInt(value))}
+        onCourseChange={setSelectedCourse}
+        onRoundChange={(value) => setSelectedRound(value ? parseInt(value) : null)}
+        onInstructorChange={setSelectedInstructor}
+        testDataToggle={
+          testDataOptions ? (
+            <TestDataToggle testDataOptions={testDataOptions} />
+          ) : null
+        }
+        isInstructor={isInstructor}
+        currentInstructorName={currentInstructorName}
+      />
 
       <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다.">
         {content}
