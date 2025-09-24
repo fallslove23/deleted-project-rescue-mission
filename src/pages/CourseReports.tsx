@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import CourseSelector from '@/components/course-reports/CourseSelector';
+import CourseSelector, { CombinedCourseOption } from '@/components/course-reports/CourseSelector';
 import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
 import { DonutChart } from '@/components/charts/DonutChart';
@@ -45,7 +45,11 @@ const CourseReports: React.FC = () => {
   const { userRoles } = useAuth();
   const testDataOptions = useTestDataToggle();
 
-  // 단순화된 필터: 연도, 과정, 차수, (선택) 강사
+  // 단순화된 필터: 연도와 결합된 과정 선택
+  const [selectedYearFilter, setSelectedYearFilter] = useState<string>('all');
+  const [selectedCombinedCourse, setSelectedCombinedCourse] = useState<string>('all');
+  
+  // 내부적으로 사용할 분해된 값들
   const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
@@ -73,30 +77,86 @@ const CourseReports: React.FC = () => {
     testDataOptions?.includeTestData || false,
   );
 
-  const currentInstructorName = useMemo(() => {
-    if (!isInstructor || !instructorId) return null;
-    return instructorName || availableInstructors.find(inst => inst.id === instructorId)?.name || null;
-  }, [isInstructor, instructorId, instructorName, availableInstructors]);
+  // 사용 가능한 연도 옵션 생성
+  const availableYears = useMemo(() => {
+    const years = ['all', ...YEARS.map(year => year.toString())];
+    return years;
+  }, []);
 
-  // 선택 가능한 첫 과정으로 자동 세팅
-  useEffect(() => {
-    if (availableCourses.length === 0) return;
-    if (!selectedCourse || !availableCourses.some(c => c.normalizedName === selectedCourse)) {
-      setSelectedCourse(availableCourses[0].normalizedName);
-    }
-  }, [availableCourses, selectedCourse]);
+  // 결합된 과정 옵션 생성
+  const combinedCourseOptions = useMemo((): CombinedCourseOption[] => {
+    const combined: CombinedCourseOption[] = [
+      {
+        key: 'all',
+        displayName: '전체 과정',
+        year: selectedYear,
+        course: '',
+        round: null,
+        instructor: ''
+      }
+    ];
 
-  // 선택한 과정의 첫 차수로 자동 세팅
-  useEffect(() => {
-    if (!selectedCourse) return;
-    if (availableRounds.length === 0) {
-      setSelectedRound(null);
-      return;
+    // 기존 데이터에서 결합된 과정 옵션 생성
+    availableCourses.forEach(course => {
+      availableRounds.forEach(round => {
+        const displayName = `${selectedYear}년 ${round}차 ${course.displayName || course.normalizedName}`;
+        combined.push({
+          key: `${selectedYear}-${course.normalizedName}-${round}`,
+          displayName,
+          year: selectedYear,
+          course: course.normalizedName,
+          round,
+          instructor: ''
+        });
+      });
+    });
+
+    return combined;
+  }, [availableCourses, availableRounds, selectedYear]);
+
+  // 결합된 과정 선택 파싱
+  const parseCombinedCourse = (courseKey: string) => {
+    if (courseKey === 'all') {
+      return { year: selectedYear, course: '', round: null, instructor: '' };
     }
-    if (selectedRound === null || !availableRounds.includes(selectedRound)) {
-      setSelectedRound(availableRounds[0]);
+    
+    const parts = courseKey.split('-');
+    if (parts.length >= 3) {
+      const year = parseInt(parts[0]);
+      const course = parts[1];
+      const round = parseInt(parts[2]);
+      return { year, course, round, instructor: '' };
     }
-  }, [availableRounds, selectedCourse, selectedRound]);
+    
+    return { year: selectedYear, course: '', round: null, instructor: '' };
+  };
+
+  // 연도 변경 핸들러
+  const handleYearChange = (year: string) => {
+    setSelectedYearFilter(year);
+    if (year === 'all') {
+      setSelectedYear(CURRENT_YEAR);
+    } else {
+      setSelectedYear(parseInt(year));
+    }
+    // 연도 변경시 과정 선택 초기화
+    setSelectedCombinedCourse('all');
+    setSelectedCourse('');
+    setSelectedRound(null);
+    setSelectedInstructor('');
+  };
+
+  // 결합된 과정 변경 핸들러
+  const handleCombinedCourseChange = (courseKey: string) => {
+    setSelectedCombinedCourse(courseKey);
+    const parsed = parseCombinedCourse(courseKey);
+    setSelectedYear(parsed.year);
+    setSelectedCourse(parsed.course);
+    setSelectedRound(parsed.round);
+    setSelectedInstructor(parsed.instructor);
+  };
+
+  // 자동 초기화 로직은 제거 (사용자가 직접 선택하도록 함)
 
   // 과정 표시 이름 계산
   const currentCourseName = useMemo(() => {
@@ -426,9 +486,9 @@ const CourseReports: React.FC = () => {
                 <TrendingUp className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-primary">과정 결과 통계</h1>
+                <h1 className="text-2xl font-bold text-primary">설문 결과 분석</h1>
                 <p className="text-sm text-muted-foreground">
-                  선택한 과정의 운영 결과를 확인해 보세요.
+                  설문 응답자 주요 지표를 서비스에서 진행한 데이터로 제공합니다.
                 </p>
               </div>
             </div>
@@ -456,25 +516,17 @@ const CourseReports: React.FC = () => {
       </div>
 
       <CourseSelector
-        selectedYear={selectedYear}
-        selectedCourse={selectedCourse}
-        selectedRound={selectedRound}
-        selectedInstructor={selectedInstructor}
-        availableCourses={availableCourses}
-        availableRounds={availableRounds}
-        availableInstructors={availableInstructors}
-        years={YEARS}
-        onYearChange={(value) => setSelectedYear(parseInt(value))}
-        onCourseChange={setSelectedCourse}
-        onRoundChange={(value) => setSelectedRound(value ? parseInt(value) : null)}
-        onInstructorChange={setSelectedInstructor}
+        selectedYear={selectedYearFilter}
+        selectedCourse={selectedCombinedCourse}
+        availableYears={availableYears}
+        availableCourses={combinedCourseOptions}
+        onYearChange={handleYearChange}
+        onCourseChange={handleCombinedCourseChange}
         testDataToggle={
           testDataOptions ? (
             <TestDataToggle testDataOptions={testDataOptions} />
           ) : null
         }
-        isInstructor={isInstructor}
-        currentInstructorName={currentInstructorName}
       />
 
       <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다.">
