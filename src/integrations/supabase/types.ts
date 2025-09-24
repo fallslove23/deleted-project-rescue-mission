@@ -2181,16 +2181,9 @@ export type Database = {
       }
       surveys_list_v1: {
         Row: {
-          combined_round_end: number | null
-          combined_round_start: number | null
-          course_id: string | null
           course_name: string | null
-          course_title: string | null
           created_at: string | null
-          created_by: string | null
-          creator_email: string | null
           description: string | null
-          education_day: number | null
           education_round: number | null
           education_year: number | null
           end_date: string | null
@@ -2198,29 +2191,11 @@ export type Database = {
           id: string | null
           instructor_id: string | null
           instructor_name: string | null
-          is_combined: boolean | null
-          is_test: boolean | null
-          round_label: string | null
           start_date: string | null
           status: string | null
-          template_id: string | null
           title: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "surveys_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "surveys_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "surveys_instructor_id_fkey"
             columns: ["instructor_id"]
@@ -2228,78 +2203,31 @@ export type Database = {
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "surveys_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "survey_templates"
-            referencedColumns: ["id"]
-          },
         ]
       }
       surveys_list_v2: {
         Row: {
-          combined_round_end: number | null
-          combined_round_start: number | null
-          course_id: string | null
           course_name: string | null
           created_at: string | null
-          created_by: string | null
           description: string | null
-          education_day: number | null
           education_round: number | null
           education_year: number | null
           end_date: string | null
           expected_participants: number | null
           id: string | null
           instructor_id: string | null
-          is_combined: boolean | null
-          is_test: boolean | null
-          program_id: string | null
-          program_title: string | null
-          round_label: string | null
-          session_id: string | null
-          session_title: string | null
+          instructor_name: string | null
+          response_count: number | null
           start_date: string | null
           status: string | null
-          template_id: string | null
           title: string | null
-          updated_at: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "surveys_course_id_fkey"
-            columns: ["course_id"]
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
             isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "surveys_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "surveys_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "surveys_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "survey_sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "surveys_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "survey_templates"
+            referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
         ]
