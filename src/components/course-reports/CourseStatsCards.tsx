@@ -33,7 +33,7 @@ const CourseStatsCards: React.FC<CourseStatsCardsProps> = ({
       
       <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-primary">총 응답 수</CardTitle>
+          <CardTitle className="text-sm font-medium text-primary">응답한 인원수</CardTitle>
           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <Users className="h-4 w-4 text-primary" />
           </div>

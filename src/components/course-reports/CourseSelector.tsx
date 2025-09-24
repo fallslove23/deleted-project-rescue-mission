@@ -64,7 +64,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
             <SelectTrigger>
               <SelectValue placeholder="과정 선택" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-50">
               {availableCourses.map((course) => (
                 <SelectItem key={course.key} value={course.key}>
                   {course.displayName}

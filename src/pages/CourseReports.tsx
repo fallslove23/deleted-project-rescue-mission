@@ -150,7 +150,13 @@ const CourseReports: React.FC = () => {
   const handleCombinedCourseChange = (courseKey: string) => {
     setSelectedCombinedCourse(courseKey);
     const parsed = parseCombinedCourse(courseKey);
-    setSelectedYear(parsed.year);
+    
+    // 연도가 바뀌는 경우에만 연도 필터도 업데이트
+    if (parsed.year !== selectedYear) {
+      setSelectedYearFilter(parsed.year.toString());
+      setSelectedYear(parsed.year);
+    }
+    
     setSelectedCourse(parsed.course);
     setSelectedRound(parsed.round);
     setSelectedInstructor(parsed.instructor);
@@ -393,7 +399,7 @@ const CourseReports: React.FC = () => {
                 <span className="font-semibold">{summary.educationYear}년</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">총 응답 수</span>
+                <span className="text-sm text-muted-foreground">응답한 인원수</span>
                 <span className="font-semibold">{summary.totalResponses.toLocaleString()}명</span>
               </div>
               <div className="flex items-center justify-between">
