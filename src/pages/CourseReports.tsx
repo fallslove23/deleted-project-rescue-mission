@@ -65,7 +65,7 @@ const CourseReports: React.FC = () => {
     '', // 전체 과정
     null, // 전체 차수
     '', // 전체 강사
-    testDataOptions.includeTestData,
+    testDataOptions?.includeTestData || false, // Add null check here
   );
 
   // 전체 통계이므로 과정명은 "전체 과정"으로 표시
@@ -316,7 +316,7 @@ const CourseReports: React.FC = () => {
                   <span className="text-sm text-muted-foreground">/ 10점</span>
                 </div>
               </div>
-              {testDataOptions.includeTestData && (
+              {testDataOptions?.includeTestData && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
                   테스트 데이터가 포함되어 있어 실제 응답 수와 차이가 있을 수 있습니다.
                 </div>
@@ -412,7 +412,7 @@ const CourseReports: React.FC = () => {
         
         {/* 테스트 데이터 토글 */}
         <div className="mt-4 flex justify-end">
-          {testDataOptions.canToggleTestData && (
+          {testDataOptions && testDataOptions.canToggleTestData && (
             <TestDataToggle testDataOptions={testDataOptions} />
           )}
         </div>

@@ -3,11 +3,16 @@ import { Switch } from '@/components/ui/switch';
 import { TestDataOptions } from '@/hooks/useTestDataToggle';
 
 interface TestDataToggleProps {
-  testDataOptions: TestDataOptions;
+  testDataOptions?: TestDataOptions; // Make it optional to handle undefined case
   className?: string;
 }
 
 export function TestDataToggle({ testDataOptions, className }: TestDataToggleProps) {
+  // Add null check to prevent destructuring error
+  if (!testDataOptions) {
+    return null;
+  }
+  
   const { includeTestData, setIncludeTestData, canToggleTestData } = testDataOptions;
 
   if (!canToggleTestData) {
