@@ -12,7 +12,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { ArrowLeft, Download, Mail, Printer, Loader2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Download, Mail, Printer, Loader2, ChevronDown, Trash2 } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { SurveyDetailRepository } from '@/repositories/surveyDetailRepository';
@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TestDataToggle } from '@/components/TestDataToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Survey {
   id: string;
@@ -128,6 +129,11 @@ const SurveyDetailedAnalysis = () => {
     [userRoles]
   );
   
+  const isAdmin = useMemo(
+    () => userRoles.includes('admin'),
+    [userRoles]
+  );
+  
   const isInstructor = useMemo(
     () => userRoles.includes('instructor'),
     [userRoles]
@@ -148,6 +154,8 @@ const SurveyDetailedAnalysis = () => {
   const [activeInstructor, setActiveInstructor] = useState<string>('all');
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
+  // 상태 추가
+  const [deletingAnswerId, setDeletingAnswerId] = useState<string | null>(null);
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
 
   // 프로필 정보 로드
@@ -418,6 +426,41 @@ const SurveyDetailedAnalysis = () => {
       setSendingResults(false);
     }
   }, [surveyId, toast]);
+
+  const handleDeleteAnswer = useCallback(async (answerId: string) => {
+    if (!isAdmin) {
+      toast({
+        title: '권한 없음',
+        description: '관리자만 답변을 삭제할 수 있습니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('question_answers')
+        .delete()
+        .eq('id', answerId);
+
+      if (error) throw error;
+
+      toast({
+        title: '삭제 완료',
+        description: '답변이 성공적으로 삭제되었습니다.',
+      });
+
+      // 데이터 새로고침
+      loadDetailStats();
+    } catch (err) {
+      console.error('Error deleting answer:', err);
+      toast({
+        title: '삭제 실패',
+        description: '답변 삭제 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    }
+  }, [isAdmin, toast, loadDetailStats]);
 
   const generateCSV = useCallback(() => {
     if (!survey || !detailStats) return '';
@@ -876,15 +919,41 @@ const SurveyDetailedAnalysis = () => {
                           </Badge>
                         )}
                       </h4>
-                      <div className="space-y-2">
-                        {group.answers.slice(0, 10).map((answer: any, index: number) => (
-                          <div key={answer.answerId} className="p-3 bg-muted/50 rounded-lg">
-                            <p className="text-sm">{answer.answerText}</p>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {formatDateTime(answer.createdAt)}
-                            </div>
-                          </div>
-                        ))}
+                       <div className="space-y-2">
+                         {group.answers.slice(0, 10).map((answer: any, index: number) => (
+                           <div key={answer.answerId} className="p-3 bg-muted/50 rounded-lg relative group">
+                             <p className="text-sm pr-8">{answer.answerText}</p>
+                             <div className="text-xs text-muted-foreground mt-1">
+                               {formatDateTime(answer.createdAt)}
+                             </div>
+                             {isAdmin && (
+                               <>
+                                 <Button
+                                   variant="ghost"
+                                   size="sm"
+                                   className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                                   onClick={() => setDeletingAnswerId(answer.answerId)}
+                                 >
+                                   <Trash2 className="h-3 w-3" />
+                                 </Button>
+                                 <ConfirmDialog
+                                   open={deletingAnswerId === answer.answerId}
+                                   onOpenChange={(open) => !open && setDeletingAnswerId(null)}
+                                   title="답변 삭제"
+                                   description="이 답변을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+                                   primaryAction={{
+                                     label: '삭제',
+                                     variant: 'destructive',
+                                     onClick: () => {
+                                       handleDeleteAnswer(answer.answerId);
+                                       setDeletingAnswerId(null);
+                                     }
+                                   }}
+                                 />
+                               </>
+                             )}
+                           </div>
+                         ))}
                         {group.answers.length > 10 && (
                           <div className="text-center pt-2">
                             <p className="text-xs text-muted-foreground">
