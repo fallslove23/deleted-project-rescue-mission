@@ -1894,7 +1894,7 @@ export default function SurveyBuilder() {
                     <TabsTrigger value="compare">템플릿 비교</TabsTrigger>
                   </TabsList>
                   <TabsContent value="select" className="mt-4 flex-1 min-h-0 overflow-hidden">
-                    <div className="h-full overflow-y-auto pr-1">
+                    <div className="h-full overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
                       {templates.length === 0 ? (
                         <div className="flex h-full items-center justify-center rounded-lg border border-dashed p-10 text-sm text-muted-foreground">
                           사용 가능한 템플릿이 없습니다.
@@ -2085,8 +2085,8 @@ export default function SurveyBuilder() {
                                         <span>만족도 유형 없음</span>
                                       )}
                                     </div>
-                                    <ScrollArea className="max-h-72 pr-4">
-                                      <div className="space-y-3">
+                                    <ScrollArea className="max-h-72 pr-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
+                                      <div className="space-y-3 pr-2">
                                         {selectedTemplate.questions.map((question, index) => (
                                           <div key={question.id} className="rounded-lg border bg-card/50 p-3">
                                             <div className="flex items-center justify-between text-[11px] text-muted-foreground">
@@ -2123,7 +2123,7 @@ export default function SurveyBuilder() {
                     </div>
                   </TabsContent>
                   <TabsContent value="compare" className="mt-4 flex-1 overflow-hidden">
-                    <div className="h-full overflow-y-auto pr-1">
+                    <div className="h-full overflow-y-auto pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
                       {templates.length === 0 ? (
                         <div className="flex h-full items-center justify-center rounded-lg border border-dashed p-10 text-sm text-muted-foreground">
                           사용 가능한 템플릿이 없습니다.
@@ -2194,8 +2194,8 @@ export default function SurveyBuilder() {
                                           )}
                                         </div>
                                       </div>
-                                      <ScrollArea className="mt-auto max-h-56 pr-4">
-                                        <div className="space-y-2">
+                                      <ScrollArea className="mt-auto max-h-56 pr-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
+                                        <div className="space-y-2 pr-2">
                                           {template.questions.map((question, index) => (
                                             <div key={question.id} className="rounded-lg border bg-card/50 p-3">
                                               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
