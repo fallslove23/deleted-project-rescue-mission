@@ -156,6 +156,7 @@ const SurveyDetailedAnalysis = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
   // 상태 추가
   const [deletingAnswerId, setDeletingAnswerId] = useState<string | null>(null);
+  const [deletingResponseId, setDeletingResponseId] = useState<string | null>(null);
   const [isResponsesOpen, setIsResponsesOpen] = useState(false);
 
   // 프로필 정보 로드
@@ -457,6 +458,42 @@ const SurveyDetailedAnalysis = () => {
       toast({
         title: '삭제 실패',
         description: '답변 삭제 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    }
+  }, [isAdmin, toast, loadDetailStats]);
+
+  const handleDeleteResponse = useCallback(async (responseId: string) => {
+    if (!isAdmin) {
+      toast({
+        title: '권한 없음',
+        description: '관리자만 응답을 삭제할 수 있습니다.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // survey_responses 삭제 시 question_answers도 cascade로 함께 삭제됨
+      const { error } = await supabase
+        .from('survey_responses')
+        .delete()
+        .eq('id', responseId);
+
+      if (error) throw error;
+
+      toast({
+        title: '삭제 완료',
+        description: '응답이 성공적으로 삭제되었습니다.',
+      });
+
+      // 데이터 새로고침
+      loadDetailStats();
+    } catch (err) {
+      console.error('Error deleting response:', err);
+      toast({
+        title: '삭제 실패',
+        description: '응답 삭제 중 오류가 발생했습니다.',
         variant: 'destructive',
       });
     }
@@ -997,24 +1034,52 @@ const SurveyDetailedAnalysis = () => {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <CardContent>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {filteredResponses.slice(0, 50).map((response: any) => (
-                      <div key={response.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium">
-                            {response.respondentEmail || '익명 응답자'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatDateTime(response.submittedAt)}
-                          </div>
-                        </div>
-                        {response.isTest && (
-                          <Badge variant="outline" className="text-xs">
-                            테스트
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                   <div className="space-y-2 max-h-96 overflow-y-auto">
+                     {filteredResponses.slice(0, 50).map((response: any) => (
+                       <div key={response.id} className="flex items-center justify-between p-2 bg-muted/30 rounded relative group">
+                         <div className="flex-1">
+                           <div className="text-sm font-medium">
+                             {response.respondentEmail || '익명 응답자'}
+                           </div>
+                           <div className="text-xs text-muted-foreground">
+                             {formatDateTime(response.submittedAt)}
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-2">
+                           {response.isTest && (
+                             <Badge variant="outline" className="text-xs">
+                               테스트
+                             </Badge>
+                           )}
+                           {isAdmin && (
+                             <>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                                 onClick={() => setDeletingResponseId(response.id)}
+                               >
+                                 <Trash2 className="h-3 w-3" />
+                               </Button>
+                               <ConfirmDialog
+                                 open={deletingResponseId === response.id}
+                                 onOpenChange={(open) => !open && setDeletingResponseId(null)}
+                                 title="응답 삭제"
+                                 description={`${response.respondentEmail || '익명 응답자'}의 응답을 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 해당 응답의 모든 답변이 함께 삭제됩니다.`}
+                                 primaryAction={{
+                                   label: '삭제',
+                                   variant: 'destructive',
+                                   onClick: () => {
+                                     handleDeleteResponse(response.id);
+                                     setDeletingResponseId(null);
+                                   }
+                                 }}
+                               />
+                             </>
+                           )}
+                         </div>
+                       </div>
+                     ))}
                   </div>
                 </CardContent>
               </CollapsibleContent>
