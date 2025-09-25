@@ -1867,10 +1867,22 @@ export default function SurveyBuilder() {
             <DialogContent className="max-w-6xl max-h-[85vh] overflow-hidden">
               <div className="flex h-full max-h-[78vh] flex-col">
                 <DialogHeader className="flex-shrink-0">
-                  <DialogTitle>템플릿 적용</DialogTitle>
-                  <DialogDescription>
-                    템플릿을 카드에서 선택하고 왼쪽의 세션에 적용하세요. 적용 전 미리보기와 비교를 통해 구성 차이를 확인할 수 있습니다.
-                  </DialogDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <DialogTitle>템플릿 적용</DialogTitle>
+                      <DialogDescription>
+                        템플릿을 카드에서 선택하고 왼쪽의 세션에 적용하세요. 적용 전 미리보기와 비교를 통해 구성 차이를 확인할 수 있습니다.
+                      </DialogDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={handleCloseTemplateDialog} disabled={loadingTemplate}>
+                        취소
+                      </Button>
+                      <Button onClick={handleConfirmApply} disabled={loadingTemplate || selectedAssignments.length === 0}>
+                        {loadingTemplate ? "적용 중..." : "템플릿 적용"}
+                      </Button>
+                    </div>
+                  </div>
                 </DialogHeader>
                 <Tabs
                   value={templateDialogTab}
@@ -2217,14 +2229,6 @@ export default function SurveyBuilder() {
                     </div>
                   </TabsContent>
                 </Tabs>
-                <DialogFooter className="mt-4 gap-2 flex-shrink-0 border-t pt-4">
-                  <Button variant="outline" onClick={handleCloseTemplateDialog} disabled={loadingTemplate}>
-                    취소
-                  </Button>
-                  <Button onClick={handleConfirmApply} disabled={loadingTemplate || selectedAssignments.length === 0}>
-                    {loadingTemplate ? "적용 중..." : "템플릿 적용"}
-                  </Button>
-                </DialogFooter>
               </div>
             </DialogContent>
           </Dialog>
