@@ -25,17 +25,24 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
   comparisonLabel = '이전 기간',
   onInstructorClick
 }) => {
-  // Horizontal Bar Chart용 데이터 준비
-  const horizontalChartData = instructorStats
+  // Vertical Bar Chart용 데이터 준비 (현재 차수와 이전 차수 비교)
+  const verticalChartData = instructorStats
     .filter((stat) => !isNaN(stat.avg_satisfaction) && stat.avg_satisfaction > 0) // NaN과 0 값 필터링
     .sort((a, b) => b.avg_satisfaction - a.avg_satisfaction)
-    .map((stat) => ({
-      name: stat.instructor_name.length > 8 ? stat.instructor_name.substring(0, 7) + '...' : stat.instructor_name,
-      만족도: Number(stat.avg_satisfaction.toFixed(1)),
-      응답수: stat.response_count,
-      설문수: stat.survey_count,
-      full_name: stat.instructor_name
-    }));
+    .map((stat) => {
+      const previousStat = previousStats.find(prev => prev.instructor_id === stat.instructor_id);
+      const displayName = stat.instructor_name.length > 6 ? stat.instructor_name.substring(0, 5) + '...' : stat.instructor_name;
+      
+      return {
+        name: displayName,
+        현재차수: Number(stat.avg_satisfaction.toFixed(1)),
+        이전차수: previousStat ? Number(previousStat.avg_satisfaction.toFixed(1)) : 0,
+        응답수: stat.response_count,
+        설문수: stat.survey_count,
+        full_name: stat.instructor_name,
+        instructor_id: stat.instructor_id
+      };
+    });
 
   const hasComparisonData = previousStats.length > 0;
 
@@ -66,41 +73,58 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
             강사별 만족도 현황 (10점 만점)
           </CardTitle>
           <CardDescription>
-            가로 막대그래프로 강사별 만족도를 비교할 수 있습니다
+            {hasComparisonData 
+              ? '현재 차수와 이전 차수의 강사별 만족도를 비교할 수 있습니다' 
+              : '강사별 만족도 현황을 세로 막대그래프로 확인할 수 있습니다'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
           {instructorStats.length > 0 ? (
             <ChartErrorBoundary fallbackDescription="강사 통계 차트를 표시하는 중 오류가 발생했습니다.">
-              <ResponsiveContainer width="100%" height={Math.max(300, instructorStats.length * 50)}>
+              <ResponsiveContainer width="100%" height={400}>
                 <BarChart 
-                  data={horizontalChartData} 
-                  layout="horizontal"
-                  margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
+                  data={verticalChartData} 
+                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 10]} />
-                  <YAxis 
-                    type="category" 
+                  <XAxis 
                     dataKey="name" 
-                    width={80}
+                    tick={{ fontSize: 11 }}
+                    height={60}
+                    interval={0}
+                  />
+                  <YAxis 
+                    domain={[0, 10]}
                     tick={{ fontSize: 12 }}
+                    label={{ value: '만족도 (점)', angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     formatter={(value: number, name: string) => [
                       `${value}점`, 
-                      name === '만족도' ? '평균 만족도' : name
+                      name === '현재차수' ? '현재 차수' : name === '이전차수' ? comparisonLabel : name
                     ]}
                     labelFormatter={(label: string, payload: any) => {
                       const data = payload?.[0]?.payload;
-                      return data?.full_name || label;
+                      return `강사: ${data?.full_name || label}`;
                     }}
                   />
-                  <Bar dataKey="만족도" radius={[0, 4, 4, 0]}>
-                    {horizontalChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getBarColor(entry.만족도)} />
-                    ))}
-                  </Bar>
+                  <Legend />
+                  <Bar 
+                    dataKey="현재차수" 
+                    name="현재 차수"
+                    fill="hsl(var(--primary))" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                  {hasComparisonData && (
+                    <Bar 
+                      dataKey="이전차수" 
+                      name={comparisonLabel}
+                      fill="hsl(var(--muted-foreground))" 
+                      radius={[4, 4, 0, 0]}
+                      opacity={0.7}
+                    />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </ChartErrorBoundary>
