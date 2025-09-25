@@ -121,6 +121,26 @@ const formatSatisfaction = (value: number | null | undefined) => {
   return value.toFixed(1);
 };
 
+// 강사 정보를 포맷하는 함수 (여러 강사 처리)
+const formatInstructorNames = (surveyId: string, instructorName: string | null, allInstructors?: Array<{name: string}>) => {
+  // 기본 강사 이름이 있으면 우선 표시
+  if (instructorName && instructorName.trim() !== '') {
+    return instructorName;
+  }
+  
+  // 여러 강사가 있는 경우 처리 (향후 확장 가능)
+  if (allInstructors && allInstructors.length > 0) {
+    if (allInstructors.length === 1) {
+      return allInstructors[0].name;
+    } else if (allInstructors.length > 1) {
+      return `${allInstructors[0].name} 외 ${allInstructors.length - 1}명`;
+    }
+  }
+  
+  // 강사가 할당되지 않은 경우
+  return '강사 미배정';
+};
+
 const SurveyResults = () => {
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
@@ -852,7 +872,7 @@ const [searchParams, setSearchParams] = useSearchParams();
                       </TableCell>
                       <TableCell className="text-center">{item.education_year}</TableCell>
                       <TableCell className="text-center">{item.education_round}</TableCell>
-                      <TableCell>{item.instructor_name ?? '-'}</TableCell>
+                      <TableCell>{formatInstructorNames(item.survey_id, item.instructor_name)}</TableCell>
                       <TableCell className="text-center">{formatNumber(item.response_count)}</TableCell>
                       <TableCell className="text-center">{formatSatisfaction(item.avg_overall_satisfaction)}</TableCell>
                       <TableCell className="text-center">{formatSatisfaction(item.avg_course_satisfaction)}</TableCell>
