@@ -125,17 +125,17 @@ const SurveyDetailedAnalysis = () => {
   const [profileLoading, setProfileLoading] = useState(true);
   
   const canViewAll = useMemo(
-    () => userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director'),
+    () => (userRoles?.includes('admin') || userRoles?.includes('operator') || userRoles?.includes('director')) ?? false,
     [userRoles]
   );
   
   const isAdmin = useMemo(
-    () => userRoles.includes('admin'),
+    () => userRoles?.includes('admin') ?? false,
     [userRoles]
   );
   
   const isInstructor = useMemo(
-    () => userRoles.includes('instructor'),
+    () => userRoles?.includes('instructor') ?? false,
     [userRoles]
   );
   
