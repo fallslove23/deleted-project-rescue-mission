@@ -24,9 +24,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TestDataToggle } from '@/components/TestDataToggle';
 import { useToast } from '@/hooks/use-toast';
-import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Survey {
@@ -118,7 +116,7 @@ const SurveyDetailedAnalysis = () => {
   const { toast } = useToast();
   const { user, userRoles } = useAuth();
 
-  const testDataOptions = useTestDataToggle();
+  
   
   // 사용자 권한 관련
   const [profile, setProfile] = useState<{ instructor_id: string | null } | null>(null);
@@ -359,7 +357,7 @@ const SurveyDetailedAnalysis = () => {
 
   // 설문 상세 분석 데이터 로드
   const loadDetailStats = useCallback(async () => {
-    if (!surveyId || !testDataOptions) return;
+    if (!surveyId) return;
     
     setInitialLoading(true);
     setError(null);
@@ -367,7 +365,7 @@ const SurveyDetailedAnalysis = () => {
     try {
       const stats = await SurveyDetailRepository.fetchSurveyDetailStats({
         surveyId,
-        includeTestData: testDataOptions.includeTestData,
+        includeTestData: false, // 테스트 데이터 제외
         responseLimit: 100,
         distributionLimit: 50,
         textLimit: 100,
@@ -380,7 +378,7 @@ const SurveyDetailedAnalysis = () => {
     } finally {
       setInitialLoading(false);
     }
-  }, [surveyId, testDataOptions?.includeTestData]);
+  }, [surveyId]);
 
   useEffect(() => {
     if (surveyId) {
@@ -396,10 +394,10 @@ const SurveyDetailedAnalysis = () => {
   }, [surveyId, loadInstructorOptions, loadSessions, profileLoading]);
 
   useEffect(() => {
-    if (surveyId && testDataOptions?.includeTestData !== undefined) {
+    if (surveyId) {
       loadDetailStats();
     }
-  }, [surveyId, testDataOptions?.includeTestData]);
+  }, [surveyId, loadDetailStats]);
 
   const handleSendResults = useCallback(async () => {
     if (!surveyId) return;
@@ -772,7 +770,6 @@ const SurveyDetailedAnalysis = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {testDataOptions && <TestDataToggle testDataOptions={testDataOptions} />}
           <Button variant="outline" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" />
             CSV 다운로드
@@ -836,7 +833,7 @@ const SurveyDetailedAnalysis = () => {
       ) : (
         <>
           {/* Summary Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">총 응답 수</CardTitle>
@@ -845,12 +842,12 @@ const SurveyDetailedAnalysis = () => {
                 <div className="text-2xl font-bold">{summaryToShow?.responseCount ?? 0}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-2 border-primary/20 bg-primary/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">전체 만족도</CardTitle>
+                <CardTitle className="text-sm font-medium text-primary">종합 만족도</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatAverage(summaryToShow?.avgOverall)}</div>
+                <div className="text-2xl font-bold text-primary">{formatAverage(summaryToShow?.avgOverall)}</div>
                 <Progress value={(summaryToShow?.avgOverall || 0) * 10} className="mt-2" />
               </CardContent>
             </Card>
@@ -870,6 +867,19 @@ const SurveyDetailedAnalysis = () => {
               <CardContent>
                 <div className="text-2xl font-bold">{formatAverage(summaryToShow?.avgInstructor)}</div>
                 <Progress value={(summaryToShow?.avgInstructor || 0) * 10} className="mt-2" />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">운영 만족도</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {summaryToShow?.avgOperation ? formatAverage(summaryToShow.avgOperation) : '없음'}
+                </div>
+                {summaryToShow?.avgOperation && (
+                  <Progress value={(summaryToShow.avgOperation || 0) * 10} className="mt-2" />
+                )}
               </CardContent>
             </Card>
           </div>
