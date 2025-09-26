@@ -874,12 +874,8 @@ const SurveyDetailedAnalysis = () => {
                 <CardTitle className="text-sm font-medium">운영 만족도</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {summaryToShow?.avgOperation ? formatAverage(summaryToShow.avgOperation) : '없음'}
-                </div>
-                {summaryToShow?.avgOperation && (
-                  <Progress value={(summaryToShow.avgOperation || 0) * 10} className="mt-2" />
-                )}
+                <div className="text-2xl font-bold">{formatAverage(summaryToShow?.avgOperation)}</div>
+                <Progress value={(summaryToShow?.avgOperation || 0) * 10} className="mt-2" />
               </CardContent>
             </Card>
           </div>
