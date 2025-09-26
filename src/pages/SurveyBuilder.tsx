@@ -39,6 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { formatSatisfactionType } from "@/utils/satisfaction";
 
 /* ───────────────────────────────── helpers ───────────────────────────────── */
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -628,7 +629,7 @@ export default function SurveyBuilder() {
                 </span>
                 {question.satisfaction_type && (
                   <span className="rounded-full bg-muted px-2 py-0.5">
-                    만족도: {question.satisfaction_type}
+                    {formatSatisfactionType(question.satisfaction_type)}
                   </span>
                 )}
                 {question.is_required && (
@@ -2145,7 +2146,7 @@ export default function SurveyBuilder() {
                                             <p className="mt-2 text-sm font-medium">{question.question_text}</p>
                                             {question.satisfaction_type && (
                                               <p className="mt-1 text-[11px] text-muted-foreground">
-                                                만족도 유형: {question.satisfaction_type}
+                                                {formatSatisfactionType(question.satisfaction_type)}
                                               </p>
                                             )}
                                           </div>
@@ -2254,7 +2255,7 @@ export default function SurveyBuilder() {
                                               <p className="mt-2 text-sm font-medium">{question.question_text}</p>
                                               {question.satisfaction_type && (
                                                 <p className="mt-1 text-[11px] text-muted-foreground">
-                                                  만족도: {question.satisfaction_type}
+                                                  {formatSatisfactionType(question.satisfaction_type)}
                                                 </p>
                                               )}
                                             </div>

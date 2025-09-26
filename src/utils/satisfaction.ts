@@ -26,3 +26,18 @@ export function formatSatisfaction(
   // Additional safety check for the result
   return Number.isFinite(parseFloat(result)) ? result : fallback;
 }
+
+export function formatSatisfactionType(type: string | null): string {
+  if (!type) return '';
+  
+  switch (type.toLowerCase()) {
+    case 'instructor':
+      return '강사 만족도';
+    case 'course':
+      return '과목 만족도';
+    case 'operation':
+      return '운영 만족도';
+    default:
+      return type;
+  }
+}

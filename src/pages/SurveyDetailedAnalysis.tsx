@@ -26,6 +26,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { formatSatisfaction, formatSatisfactionType } from "@/utils/satisfaction";
 
 interface Survey {
   id: string;
@@ -94,20 +95,6 @@ function formatDateTime(value: string | null): string {
   }
 }
 
-function formatSatisfactionType(type: string | null): string {
-  if (!type) return '';
-  
-  switch (type.toLowerCase()) {
-    case 'instructor':
-      return '강사';
-    case 'course':
-      return '과목';
-    case 'operation':
-      return '운영';
-    default:
-      return type.toUpperCase();
-  }
-}
 
 const SurveyDetailedAnalysis = () => {
   const { surveyId } = useParams<{ surveyId: string }>();
