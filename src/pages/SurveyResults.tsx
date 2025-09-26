@@ -121,9 +121,16 @@ const formatSatisfaction = (value: number | null | undefined) => {
 
 // 강사 정보를 포맷하는 함수 (여러 강사 처리)
 const formatInstructorNames = (surveyId: string, instructorName: string | null, allInstructors?: Array<{name: string}>) => {
-  // 기본 강사 이름이 있으면 우선 표시
+  // 기본 강사 이름이 있으면 여러 강사인지 확인하여 포맷
   if (instructorName && instructorName.trim() !== '') {
-    return instructorName;
+    // 쉼표로 구분된 여러 강사 이름 처리
+    const instructorNames = instructorName.split(',').map(name => name.trim()).filter(name => name !== '');
+    
+    if (instructorNames.length > 1) {
+      return `${instructorNames[0]} 외 ${instructorNames.length - 1}명`;
+    }
+    
+    return instructorNames[0] || instructorName;
   }
   
   // 여러 강사가 있는 경우 처리 (향후 확장 가능)
