@@ -208,21 +208,20 @@ const SurveyResults = () => {
 
   // 운영 설문을 제외한 강사 만족도 계산
   const calculateAdjustedInstructorSatisfaction = () => {
-    // 운영 설문이 아닌 설문들만 필터링
-    const nonOperationalSurveys = aggregates.filter(item => 
-      !item.title.includes('[종료 설문]') && 
-      !item.title.includes('운영') &&
+    // 강사 만족도 데이터가 있는 설문들만 필터링 (제목에 관계없이)
+    const surveysWithInstructorSatisfaction = aggregates.filter(item => 
       item.avg_instructor_satisfaction !== null &&
+      item.avg_instructor_satisfaction > 0 &&
       item.response_count > 0
     );
     
-    if (nonOperationalSurveys.length === 0) return null;
+    if (surveysWithInstructorSatisfaction.length === 0) return null;
     
     // 가중 평균 계산 (응답 수로 가중치)
-    const totalWeightedScore = nonOperationalSurveys.reduce((sum, item) => 
+    const totalWeightedScore = surveysWithInstructorSatisfaction.reduce((sum, item) => 
       sum + (item.avg_instructor_satisfaction! * item.response_count), 0
     );
-    const totalResponses = nonOperationalSurveys.reduce((sum, item) => 
+    const totalResponses = surveysWithInstructorSatisfaction.reduce((sum, item) => 
       sum + item.response_count, 0
     );
     
@@ -240,8 +239,8 @@ const SurveyResults = () => {
     // 집계 데이터에서 해당 설문 찾기
     const currentSurvey = aggregates.find(agg => agg.survey_id === surveyId);
     
-    // [종료 설문]이나 운영 설문의 경우 운영 만족도로 표시
-    if (currentSurvey && (currentSurvey.title.includes('[종료 설문]') || currentSurvey.title.includes('운영'))) {
+    // 강사 만족도 데이터가 없거나 0인 경우에만 운영 만족도로 표시
+    if (currentSurvey && (!currentSurvey.avg_instructor_satisfaction || currentSurvey.avg_instructor_satisfaction === 0)) {
       return '운영 만족도';
     }
     
