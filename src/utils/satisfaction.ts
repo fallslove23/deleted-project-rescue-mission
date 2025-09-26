@@ -34,7 +34,7 @@ export function formatSatisfactionType(type: string | null): string {
     case 'instructor':
       return '강사 만족도';
     case 'course':
-      return '과목 만족도';
+      return '과정 만족도';
     case 'operation':
       return '운영 만족도';
     default:
