@@ -24,8 +24,6 @@ import {
   generateCSVFilename,
   SurveyResultData,
 } from '@/utils/csvExport';
-import { useTestDataToggle } from '@/hooks/useTestDataToggle';
-import { TestDataToggle } from '@/components/TestDataToggle';
 import {
   EMPTY_SURVEY_AGGREGATE_SUMMARY,
   SurveyAggregate,
@@ -144,8 +142,7 @@ const formatInstructorNames = (surveyId: string, instructorName: string | null, 
 const SurveyResults = () => {
   const { user, userRoles } = useAuth();
   const { toast } = useToast();
-  const testDataOptions = useTestDataToggle();
-const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -268,7 +265,7 @@ const [searchParams, setSearchParams] = useSearchParams();
       try {
         const { aggregates: baseAggregates, summary: baseSummaryResult } =
           await SurveyAggregatesRepository.fetchAggregates({
-            includeTestData: testDataOptions.includeTestData,
+            includeTestData: false,
             restrictToInstructorId,
           });
 
@@ -297,7 +294,6 @@ const [searchParams, setSearchParams] = useSearchParams();
     isInstructor,
     profile?.instructor_id,
     profileLoading,
-    testDataOptions.includeTestData,
     toast,
   ]);
 
@@ -340,7 +336,7 @@ const [searchParams, setSearchParams] = useSearchParams();
             courseName: courseNameFilter,
             instructorId: instructorFilter,
             restrictToInstructorId,
-            includeTestData: testDataOptions.includeTestData,
+            includeTestData: false,
           });
         setAggregates(filteredAggregates);
         setSummary(filteredSummary);
@@ -373,7 +369,6 @@ const [searchParams, setSearchParams] = useSearchParams();
     selectedInstructor,
     selectedRound,
     selectedYear,
-    testDataOptions.includeTestData,
     toast,
   ]);
 
@@ -488,9 +483,7 @@ const [searchParams, setSearchParams] = useSearchParams();
           .order('submitted_at', { ascending: false })
           .range(from, to);
 
-        if (!testDataOptions.includeTestData) {
-          query = query.or('is_test.is.null,is_test.eq.false');
-        }
+        query = query.or('is_test.is.null,is_test.eq.false');
 
         const { data, error, count } = await query;
 
@@ -513,7 +506,7 @@ const [searchParams, setSearchParams] = useSearchParams();
     };
 
     fetchResponses();
-  }, [responsePage, selectedSurveyId, testDataOptions.includeTestData, toast]);
+  }, [responsePage, selectedSurveyId, toast]);
 
   const selectedSurvey = useMemo(
     () => aggregates.find((item) => item.survey_id === selectedSurveyId) ?? null,
@@ -588,9 +581,7 @@ const [searchParams, setSearchParams] = useSearchParams();
           .order('submitted_at', { ascending: true })
           .range(offset, offset + chunkSize - 1);
 
-        if (!testDataOptions.includeTestData) {
-          responseQuery = responseQuery.or('is_test.is.null,is_test.eq.false');
-        }
+        responseQuery = responseQuery.or('is_test.is.null,is_test.eq.false');
 
         const { data: responseChunk, error: responseError, count } = await responseQuery;
         if (responseError) {
@@ -782,9 +773,6 @@ const [searchParams, setSearchParams] = useSearchParams();
               </div>
             )}
 
-            <div className="flex items-center gap-2 lg:col-span-1">
-              <TestDataToggle testDataOptions={testDataOptions} />
-            </div>
           </CardContent>
         </Card>
 
