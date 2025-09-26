@@ -206,12 +206,43 @@ const SurveyResults = () => {
     return baseAggregates;
   }, []);
 
+  // 운영 설문을 제외한 강사 만족도 계산
+  const calculateAdjustedInstructorSatisfaction = () => {
+    // 운영 설문이 아닌 설문들만 필터링
+    const nonOperationalSurveys = aggregates.filter(item => 
+      !item.title.includes('[종료 설문]') && 
+      !item.title.includes('운영') &&
+      item.avg_instructor_satisfaction !== null &&
+      item.response_count > 0
+    );
+    
+    if (nonOperationalSurveys.length === 0) return null;
+    
+    // 가중 평균 계산 (응답 수로 가중치)
+    const totalWeightedScore = nonOperationalSurveys.reduce((sum, item) => 
+      sum + (item.avg_instructor_satisfaction! * item.response_count), 0
+    );
+    const totalResponses = nonOperationalSurveys.reduce((sum, item) => 
+      sum + item.response_count, 0
+    );
+    
+    return totalResponses > 0 ? totalWeightedScore / totalResponses : null;
+  };
+
   // 강사 정보를 포맷하는 함수 (여러 강사 처리)
   const formatInstructorNames = (surveyId: string, instructorName: string | null, allInstructors?: Array<{name: string}>) => {
     // 캐시된 강사 정보 확인
     const cachedName = instructorNamesCache.get(surveyId);
     if (cachedName) {
       return cachedName;
+    }
+    
+    // 집계 데이터에서 해당 설문 찾기
+    const currentSurvey = aggregates.find(agg => agg.survey_id === surveyId);
+    
+    // [종료 설문]이나 운영 설문의 경우 운영 만족도로 표시
+    if (currentSurvey && (currentSurvey.title.includes('[종료 설문]') || currentSurvey.title.includes('운영'))) {
+      return '운영 만족도';
     }
     
     // 기본 강사 이름이 있으면 여러 강사인지 확인하여 포맷
@@ -878,7 +909,7 @@ const SurveyResults = () => {
             </div>
             <div className="rounded-lg border p-4">
               <p className="text-sm text-muted-foreground">강사 만족도</p>
-              <p className="text-2xl font-semibold">{formatSatisfaction(summary.avgInstructor)}</p>
+              <p className="text-2xl font-semibold">{formatSatisfaction(calculateAdjustedInstructorSatisfaction())}</p>
             </div>
             <div className="rounded-lg border p-4">
               <p className="text-sm text-muted-foreground">운영 만족도</p>
@@ -934,8 +965,13 @@ const SurveyResults = () => {
                       <TableCell>{formatInstructorNames(item.survey_id, item.instructor_name)}</TableCell>
                       <TableCell className="text-center">{formatNumber(item.response_count)}</TableCell>
                       <TableCell className="text-center">{formatSatisfaction(item.avg_overall_satisfaction)}</TableCell>
-                      <TableCell className="text-center">{formatSatisfaction(item.avg_course_satisfaction)}</TableCell>
-                      <TableCell className="text-center">{formatSatisfaction(item.avg_instructor_satisfaction)}</TableCell>
+                       <TableCell className="text-center">{formatSatisfaction(item.avg_course_satisfaction)}</TableCell>
+                       <TableCell className="text-center">
+                         {item.title.includes('[종료 설문]') || item.title.includes('운영') 
+                           ? '-' 
+                           : formatSatisfaction(item.avg_instructor_satisfaction)
+                         }
+                       </TableCell>
                       <TableCell className="text-center">{formatSatisfaction(item.avg_operation_satisfaction)}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant={item.status === 'completed' ? 'secondary' : 'outline'}>

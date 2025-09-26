@@ -91,6 +91,10 @@ type Survey = {
   is_grouped?: boolean | null;
   group_type?: string | null;
   group_number?: number | null;
+  
+  // 운영자 정보 필드
+  operator_name?: string | null;
+  operator_contact?: string | null;
 };
 type SurveyQuestion = {
   id: string; question_text: string; question_type: string; options: any; is_required: boolean;
@@ -160,6 +164,10 @@ export default function SurveyBuilder() {
   const [startAt, setStartAt] = useState<string>("");
   const [endAt, setEndAt] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  
+  // 운영자 정보 상태
+  const [operatorName, setOperatorName] = useState<string>("");
+  const [operatorContact, setOperatorContact] = useState<string>("");
 
   const [courseNames, setCourseNames] = useState<{id: string; name: string}[]>([]);
   const [courseMgrOpen, setCourseMgrOpen] = useState(false);
@@ -201,6 +209,10 @@ export default function SurveyBuilder() {
       setEducationRound(s.education_round ?? 1);
       setEducationDay(s.education_day ?? 1);
       setCourseName(s.course_name ?? "");
+      
+      // 운영자 정보 로드
+      setOperatorName(s.operator_name ?? "");
+      setOperatorContact(s.operator_contact ?? "");
       
       // 분반 정보 로드
       setIsGrouped(s.is_grouped ?? false);
@@ -435,6 +447,10 @@ export default function SurveyBuilder() {
         group_type: isGrouped ? (groupType || null) : null,
         group_number: isGrouped ? (groupNumber ?? null) : null,
         is_final_survey: isFinalSurvey,
+        
+        // 운영자 정보 필드
+        operator_name: operatorName.trim() || null,
+        operator_contact: operatorContact.trim() || null,
       };
       const { error } = await supabase.from("surveys").update(payload).eq("id", surveyId);
       if (error) throw error;
@@ -1497,6 +1513,33 @@ export default function SurveyBuilder() {
                   </CardContent>
                 </Card>
               )}
+
+              {/* 운영자 정보 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">운영자 정보</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>운영자 이름</Label>
+                      <Input
+                        placeholder="운영자 이름을 입력하세요"
+                        value={operatorName}
+                        onChange={(e) => setOperatorName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>운영자 연락처</Label>
+                      <Input
+                        placeholder="운영자 연락처를 입력하세요"
+                        value={operatorContact}
+                        onChange={(e) => setOperatorContact(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="flex justify-end">
                 <Button onClick={saveBasic} disabled={saving || loading || !survey}>
