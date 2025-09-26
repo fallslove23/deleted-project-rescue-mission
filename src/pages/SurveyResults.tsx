@@ -119,8 +119,38 @@ const formatSatisfaction = (value: number | null | undefined) => {
   return value.toFixed(1);
 };
 
-  // 상태 추가
+const SurveyResults = () => {
+  const { user, userRoles } = useAuth();
+  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [allAggregates, setAllAggregates] = useState<SurveyAggregate[]>([]);
+  const [aggregates, setAggregates] = useState<SurveyAggregate[]>([]);
+  const [aggregatesLoading, setAggregatesLoading] = useState(true);
+  const [baseSummary, setBaseSummary] = useState<SurveyAggregateSummary>(EMPTY_SURVEY_AGGREGATE_SUMMARY);
+  const [summary, setSummary] = useState<SurveyAggregateSummary>(EMPTY_SURVEY_AGGREGATE_SUMMARY);
+  const [hasBaseAggregates, setHasBaseAggregates] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedRound, setSelectedRound] = useState<string>('all');
+  const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
+  const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
+  const [responses, setResponses] = useState<SurveyResponseRow[]>([]);
+  const [responseTotal, setResponseTotal] = useState(0);
+  const [responsePage, setResponsePage] = useState(0);
+  const [responsesLoading, setResponsesLoading] = useState(false);
+  const [downloadJob, setDownloadJob] = useState<DownloadJob | null>(null);
+  const [allInstructorsList, setAllInstructorsList] = useState<Array<{ id: string; name: string }>>([]);
   const [instructorNamesCache, setInstructorNamesCache] = useState<Map<string, string>>(new Map());
+
+  const canViewAll = useMemo(
+    () => userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director'),
+    [userRoles],
+  );
+  const isInstructor = useMemo(() => userRoles.includes('instructor'), [userRoles]);
 
   const fetchAggregatesWithInstructorNames = useCallback(async (baseAggregates: SurveyAggregate[]) => {
     const cache = new Map<string, string>();
@@ -208,38 +238,6 @@ const formatSatisfaction = (value: number | null | undefined) => {
     // 강사가 할당되지 않은 경우
     return '강사 미배정';
   };
-
-const SurveyResults = () => {
-  const { user, userRoles } = useAuth();
-  const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [allAggregates, setAllAggregates] = useState<SurveyAggregate[]>([]);
-  const [aggregates, setAggregates] = useState<SurveyAggregate[]>([]);
-  const [aggregatesLoading, setAggregatesLoading] = useState(true);
-  const [baseSummary, setBaseSummary] = useState<SurveyAggregateSummary>(EMPTY_SURVEY_AGGREGATE_SUMMARY);
-  const [summary, setSummary] = useState<SurveyAggregateSummary>(EMPTY_SURVEY_AGGREGATE_SUMMARY);
-  const [hasBaseAggregates, setHasBaseAggregates] = useState(false);
-  const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [selectedRound, setSelectedRound] = useState<string>('all');
-  const [selectedCourse, setSelectedCourse] = useState<string>('all');
-  const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
-  const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
-  const [responses, setResponses] = useState<SurveyResponseRow[]>([]);
-  const [responseTotal, setResponseTotal] = useState(0);
-  const [responsePage, setResponsePage] = useState(0);
-  const [responsesLoading, setResponsesLoading] = useState(false);
-  const [downloadJob, setDownloadJob] = useState<DownloadJob | null>(null);
-  const [allInstructorsList, setAllInstructorsList] = useState<Array<{ id: string; name: string }>>([]);
-
-  const canViewAll = useMemo(
-    () => userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director'),
-    [userRoles],
-  );
-  const isInstructor = useMemo(() => userRoles.includes('instructor'), [userRoles]);
 
   const filtersApplied = useMemo(
     () =>
