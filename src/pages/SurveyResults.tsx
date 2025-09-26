@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -119,32 +119,95 @@ const formatSatisfaction = (value: number | null | undefined) => {
   return value.toFixed(1);
 };
 
-// 강사 정보를 포맷하는 함수 (여러 강사 처리)
-const formatInstructorNames = (surveyId: string, instructorName: string | null, allInstructors?: Array<{name: string}>) => {
-  // 기본 강사 이름이 있으면 여러 강사인지 확인하여 포맷
-  if (instructorName && instructorName.trim() !== '') {
-    // 쉼표로 구분된 여러 강사 이름 처리
-    const instructorNames = instructorName.split(',').map(name => name.trim()).filter(name => name !== '');
+  // 상태 추가
+  const [instructorNamesCache, setInstructorNamesCache] = useState<Map<string, string>>(new Map());
+
+  const fetchAggregatesWithInstructorNames = useCallback(async (baseAggregates: SurveyAggregate[]) => {
+    const cache = new Map<string, string>();
     
-    if (instructorNames.length > 1) {
-      return `${instructorNames[0]} 외 ${instructorNames.length - 1}명`;
+    // 강사 정보가 없는 설문들에 대해 survey_sessions에서 조회
+    const surveysNeedingInstructors = baseAggregates.filter(agg => !agg.instructor_name);
+    
+    if (surveysNeedingInstructors.length > 0) {
+      const surveyIds = surveysNeedingInstructors.map(agg => agg.survey_id);
+      
+      try {
+        const { data: sessionData, error } = await supabase
+          .from('survey_sessions')
+          .select(`
+            survey_id,
+            instructor_id,
+            instructors!inner(name)
+          `)
+          .in('survey_id', surveyIds)
+          .not('instructor_id', 'is', null);
+
+        if (!error && sessionData && sessionData.length > 0) {
+          const surveyInstructorMap = new Map<string, string[]>();
+          
+          sessionData.forEach((session: any) => {
+            const surveyId = session.survey_id;
+            const instructorName = session.instructors?.name;
+            
+            if (instructorName) {
+              const existing = surveyInstructorMap.get(surveyId) || [];
+              if (!existing.includes(instructorName)) {
+                existing.push(instructorName);
+              }
+              surveyInstructorMap.set(surveyId, existing);
+            }
+          });
+          
+          // 강사명 포맷팅
+          surveyInstructorMap.forEach((instructorNames, surveyId) => {
+            if (instructorNames.length > 1) {
+              cache.set(surveyId, `${instructorNames[0]} 외 ${instructorNames.length - 1}명`);
+            } else if (instructorNames.length === 1) {
+              cache.set(surveyId, instructorNames[0]);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching instructor names:', error);
+      }
     }
     
-    return instructorNames[0] || instructorName;
-  }
-  
-  // 여러 강사가 있는 경우 처리 (향후 확장 가능)
-  if (allInstructors && allInstructors.length > 0) {
-    if (allInstructors.length === 1) {
-      return allInstructors[0].name;
-    } else if (allInstructors.length > 1) {
-      return `${allInstructors[0].name} 외 ${allInstructors.length - 1}명`;
+    setInstructorNamesCache(cache);
+    return baseAggregates;
+  }, []);
+
+  // 강사 정보를 포맷하는 함수 (여러 강사 처리)
+  const formatInstructorNames = (surveyId: string, instructorName: string | null, allInstructors?: Array<{name: string}>) => {
+    // 캐시된 강사 정보 확인
+    const cachedName = instructorNamesCache.get(surveyId);
+    if (cachedName) {
+      return cachedName;
     }
-  }
-  
-  // 강사가 할당되지 않은 경우
-  return '강사 미배정';
-};
+    
+    // 기본 강사 이름이 있으면 여러 강사인지 확인하여 포맷
+    if (instructorName && instructorName.trim() !== '') {
+      // 쉼표로 구분된 여러 강사 이름 처리
+      const instructorNames = instructorName.split(',').map(name => name.trim()).filter(name => name !== '');
+      
+      if (instructorNames.length > 1) {
+        return `${instructorNames[0]} 외 ${instructorNames.length - 1}명`;
+      }
+      
+      return instructorNames[0] || instructorName;
+    }
+    
+    // 여러 강사가 있는 경우 처리 (향후 확장 가능)
+    if (allInstructors && allInstructors.length > 0) {
+      if (allInstructors.length === 1) {
+        return allInstructors[0].name;
+      } else {
+        return `${allInstructors[0].name} 외 ${allInstructors.length - 1}명`;
+      }
+    }
+    
+    // 강사가 할당되지 않은 경우
+    return '강사 미배정';
+  };
 
 const SurveyResults = () => {
   const { user, userRoles } = useAuth();
@@ -324,7 +387,9 @@ const SurveyResults = () => {
 
     if (noFiltersApplied) {
       if (hasBaseAggregates) {
-        setAggregates(allAggregates);
+      fetchAggregatesWithInstructorNames(allAggregates).then(enhancedAggregates => {
+        setAggregates(enhancedAggregates);
+      });
         setSummary(baseSummary);
         setAggregatesLoading(false);
       } else {
@@ -345,7 +410,8 @@ const SurveyResults = () => {
             restrictToInstructorId,
             includeTestData: false,
           });
-        setAggregates(filteredAggregates);
+        const enhancedAggregates = await fetchAggregatesWithInstructorNames(filteredAggregates);
+        setAggregates(enhancedAggregates);
         setSummary(filteredSummary);
       } catch (error) {
         console.error('Failed to load aggregated survey results', error);
