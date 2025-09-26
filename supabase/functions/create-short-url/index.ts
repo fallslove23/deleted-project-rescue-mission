@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.52.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: '서버 오류가 발생했습니다',
-        details: error.message 
+        details: error instanceof Error ? error.message : String(error) 
       }),
       { 
         status: 500, 

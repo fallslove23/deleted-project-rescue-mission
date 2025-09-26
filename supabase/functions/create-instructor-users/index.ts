@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.0";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -31,7 +31,16 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const results = [];
+    const results: Array<{
+      instructor_id: string;
+      name: string;
+      email: string;
+      status: 'success' | 'error';
+      message: string;
+      user_id?: string;
+      email_sent?: boolean;
+      email_error?: string;
+    }> = [];
     const emailPromises = [];
     const FROM_ADDRESS = Deno.env.get("RESEND_FROM_ADDRESS") ?? "onboarding@resend.dev";
 
@@ -147,7 +156,7 @@ const handler = async (req: Request): Promise<Response> => {
           name: instructor.name,
           email: instructor.email,
           status: 'error',
-          message: error.message
+          message: error instanceof Error ? error.message : String(error)
         });
       }
     }
