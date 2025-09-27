@@ -22,6 +22,7 @@ import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
+import { CourseOption } from '@/repositories/courseReportsRepositoryFixed';
 import { ChartErrorBoundary, PageErrorBoundary, HookErrorBoundary, DataProcessingErrorBoundary } from '@/components/error-boundaries';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -60,6 +61,7 @@ const CourseReportsContent: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
+  const [allCoursesForYear, setAllCoursesForYear] = useState<CourseOption[]>([]);
 
   const {
     summary,
@@ -83,6 +85,18 @@ const CourseReportsContent: React.FC = () => {
     false,
   );
 
+  // 연도 변경 또는 전체 과정 선택 시, 해당 연도의 전체 과정 목록을 유지
+  useEffect(() => {
+    if (Array.isArray(availableCourses) && availableCourses.length > 0) {
+      if (selectedCombinedCourse === 'all') {
+        setAllCoursesForYear(availableCourses);
+      } else if (allCoursesForYear.length === 0) {
+        // 초기 로딩 보호: 선택된 과정이 있어도 목록이 비어있으면 한 번 채움
+        setAllCoursesForYear(availableCourses);
+      }
+    }
+  }, [selectedYear, availableCourses, selectedCombinedCourse, allCoursesForYear.length]);
+
   // 사용 가능한 연도 옵션 생성
   const availableYears = useMemo(() => {
     const years = ['all', ...YEARS.map(year => year.toString())];
@@ -102,8 +116,11 @@ const CourseReportsContent: React.FC = () => {
       }
     ];
 
+    // 현재 연도 기준 전체 과정 목록을 유지하여, 특정 과정 선택 시에도 목록이 사라지지 않도록 함
+    const sourceCourses = (allCoursesForYear.length > 0 ? allCoursesForYear : availableCourses) || [];
+
     // 각 과정별 보유 차수(rounds)를 사용해 옵션 생성 (글로벌 availableRounds 사용 금지)
-    availableCourses.forEach((course) => {
+    sourceCourses.forEach((course) => {
       const rounds = Array.isArray(course.rounds) ? [...course.rounds].sort((a, b) => a - b) : [];
       rounds.forEach((round) => {
         const name = course.displayName || course.normalizedName;
@@ -120,7 +137,7 @@ const CourseReportsContent: React.FC = () => {
     });
 
     return combined;
-  }, [availableCourses, selectedYear]);
+  }, [selectedYear, allCoursesForYear, availableCourses]);
 
   // 결합된 과정 선택 파싱
   const parseCombinedCourse = (courseKey: string) => {
@@ -152,6 +169,7 @@ const CourseReportsContent: React.FC = () => {
     setSelectedCourse('');
     setSelectedRound(null);
     setSelectedInstructor('');
+    setAllCoursesForYear([]);
   };
 
   // 결합된 과정 변경 핸들러
