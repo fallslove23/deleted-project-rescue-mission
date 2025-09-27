@@ -19,7 +19,6 @@ interface CourseSelectorProps {
   availableCourses: CombinedCourseOption[];
   onYearChange: (year: string) => void;
   onCourseChange: (courseKey: string) => void;
-  testDataToggle?: React.ReactNode;
 }
 
 const CourseSelector: React.FC<CourseSelectorProps> = ({
@@ -29,16 +28,14 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
   availableCourses,
   onYearChange,
   onCourseChange,
-  testDataToggle,
 }) => {
   return (
     <Card className="shadow-lg border-0 bg-gradient-to-r from-card to-card/50">
-      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5 text-primary" />
           <CardTitle>필터</CardTitle>
         </div>
-        {testDataToggle}
       </CardHeader>
 
       <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -48,7 +45,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
             <SelectTrigger>
               <SelectValue placeholder="연도 선택" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-50 bg-background border shadow-md">
               {availableYears.map((year) => (
                 <SelectItem key={year} value={year}>
                   {year === 'all' ? '전체 연도' : `${year}년`}
@@ -64,7 +61,7 @@ const CourseSelector: React.FC<CourseSelectorProps> = ({
             <SelectTrigger>
               <SelectValue placeholder="과정 선택" />
             </SelectTrigger>
-            <SelectContent className="z-50">
+            <SelectContent className="z-50 bg-background border shadow-md">
               {availableCourses.map((course) => (
                 <SelectItem key={course.key} value={course.key}>
                   {course.displayName}

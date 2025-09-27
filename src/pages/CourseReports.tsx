@@ -21,8 +21,6 @@ import { KeywordCloud } from '@/components/course-reports/KeywordCloud';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { useTestDataToggle } from '@/hooks/useTestDataToggle';
-import { TestDataToggle } from '@/components/TestDataToggle';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { ChartErrorBoundary, PageErrorBoundary, HookErrorBoundary, DataProcessingErrorBoundary } from '@/components/error-boundaries';
 
@@ -51,7 +49,7 @@ const CourseReportsContent: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { userRoles } = useAuth();
-  const testDataOptions = useTestDataToggle();
+  
 
   // 단순화된 필터: 연도와 결합된 과정 선택
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>('all');
@@ -82,7 +80,7 @@ const CourseReportsContent: React.FC = () => {
     selectedCourse,
     selectedRound,
     selectedInstructor,
-    testDataOptions?.includeTestData || false,
+    false,
   );
 
   // 사용 가능한 연도 옵션 생성
@@ -434,11 +432,6 @@ const CourseReportsContent: React.FC = () => {
                   <span className="text-sm text-muted-foreground">/ 10점</span>
                 </div>
               </div>
-              {testDataOptions?.includeTestData && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                  테스트 데이터가 포함되어 있어 실제 응답 수와 차이가 있을 수 있습니다.
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -539,11 +532,6 @@ const CourseReportsContent: React.FC = () => {
           availableCourses={combinedCourseOptions}
           onYearChange={handleYearChange}
           onCourseChange={handleCombinedCourseChange}
-          testDataToggle={
-            testDataOptions ? (
-              <TestDataToggle testDataOptions={testDataOptions} />
-            ) : null
-          }
         />
 
         <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다.">
