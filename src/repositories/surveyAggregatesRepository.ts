@@ -198,6 +198,29 @@ export const SurveyAggregatesRepository = {
   }: SurveyAggregateFilters): Promise<SurveyAggregateResult> {
     const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
 
+    // When filtering by instructor, include surveys linked via survey_instructors as well
+    let instructorSurveyIds: string[] | null = null;
+    if (instructorFilter) {
+      try {
+        const [{ data: directSurveys }, { data: mappedSurveys }] = await Promise.all([
+          supabase.from('surveys').select('id').eq('instructor_id', instructorFilter),
+          supabase.from('survey_instructors').select('survey_id').eq('instructor_id', instructorFilter),
+        ]);
+
+        const ids = [
+          ...(directSurveys?.map((r: any) => r.id).filter(Boolean) ?? []),
+          ...(mappedSurveys?.map((r: any) => r.survey_id).filter(Boolean) ?? []),
+        ];
+        instructorSurveyIds = Array.from(new Set(ids));
+        if (instructorSurveyIds.length === 0) {
+          return { aggregates: [], summary: { ...EMPTY_SURVEY_AGGREGATE_SUMMARY } };
+        }
+      } catch (e) {
+        console.warn('Failed to resolve instructor survey mapping, falling back to direct filter', e);
+        instructorSurveyIds = null;
+      }
+    }
+
     let query = supabase
       .from('survey_aggregates')
       .select(
@@ -225,7 +248,12 @@ export const SurveyAggregatesRepository = {
     if (year) query = query.eq('education_year', year);
     if (round) query = query.eq('education_round', round);
     if (courseName) query = query.eq('course_name', courseName);
-    if (instructorFilter) query = query.eq('instructor_id', instructorFilter);
+    if (instructorSurveyIds && instructorSurveyIds.length > 0) {
+      query = query.in('survey_id', instructorSurveyIds);
+    } else if (instructorFilter) {
+      // Fallback: keep existing behavior for rows where instructor_id is populated
+      query = query.eq('instructor_id', instructorFilter);
+    }
     if (!includeTestData) query = query.neq('is_test', true);
 
     const orderColumn = 'last_response_at';
