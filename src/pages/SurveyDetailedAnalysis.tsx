@@ -380,6 +380,28 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [surveyId, loadInstructorOptions, loadSessions, profileLoading]);
 
+  // 강사 사용자인 경우 자신의 ID로 필터 자동 설정
+  useEffect(() => {
+    if (!canViewAll && isInstructor && profile?.instructor_id && instructorOptions.length > 0) {
+      const myOption = instructorOptions.find(opt => opt.instructorId === profile.instructor_id);
+      if (myOption) {
+        setActiveInstructor(myOption.key);
+      }
+    }
+  }, [canViewAll, isInstructor, profile?.instructor_id, instructorOptions]);
+
+  useEffect(() => {
+    if (!canViewAll && isInstructor && profile?.instructor_id && subjectOptions.length > 0) {
+      // 자신과 관련된 과목이 있으면 첫 번째 것으로 자동 설정
+      const mySubjects = subjectOptions.filter(opt => 
+        opt.label.includes(instructorOptions.find(iOpt => iOpt.instructorId === profile.instructor_id)?.label.split(' - ')[0] || '')
+      );
+      if (mySubjects.length > 0) {
+        setActiveTab(mySubjects[0].key);
+      }
+    }
+  }, [canViewAll, isInstructor, profile?.instructor_id, subjectOptions, instructorOptions]);
+
   useEffect(() => {
     if (surveyId) {
       loadDetailStats();
@@ -795,21 +817,30 @@ const SurveyDetailedAnalysis = () => {
               강사-과목을 선택하여 상세 분석을 확인하세요.
             </p>
           </CardHeader>
-          <CardContent>
-            <Select value={activeTab} onValueChange={setActiveTab}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="전체" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="all">전체</SelectItem>
-                {subjectOptions.map((option) => (
-                  <SelectItem key={option.key} value={option.key}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
+           <CardContent>
+             <Select 
+               value={activeTab} 
+               onValueChange={!canViewAll && isInstructor ? undefined : setActiveTab}
+               disabled={!canViewAll && isInstructor}
+             >
+               <SelectTrigger className={`w-64 ${!canViewAll && isInstructor ? 'opacity-50' : ''}`}>
+                 <SelectValue placeholder="전체" />
+               </SelectTrigger>
+               <SelectContent className="bg-background border shadow-lg z-50">
+                 <SelectItem value="all">전체</SelectItem>
+                 {subjectOptions.map((option) => (
+                   <SelectItem key={option.key} value={option.key}>
+                     {option.label}
+                   </SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
+             {!canViewAll && isInstructor && (
+               <p className="text-xs text-muted-foreground mt-1">
+                 강사는 자신의 과목만 조회할 수 있습니다.
+               </p>
+             )}
+           </CardContent>
         </Card>
       )}
 

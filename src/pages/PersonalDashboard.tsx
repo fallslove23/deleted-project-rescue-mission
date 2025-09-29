@@ -66,11 +66,14 @@ const PersonalDashboard: FC = () => {
 
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
+  const [allInstructorsList, setAllInstructorsList] = useState<Array<{ id: string; name: string }>>([]);
 
   const isInstructor = userRoles.includes('instructor');
   const isPreviewingInstructor = viewAs === 'instructor';
   const asInstructor = isInstructor || isPreviewingInstructor;
   const canViewPersonalStats = asInstructor || userRoles.includes('admin');
+  const canViewAll = userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director');
 
   const fetchProfile = useCallback(async () => {
     if (!user) {
@@ -102,6 +105,24 @@ const PersonalDashboard: FC = () => {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // 관리자/운영/디렉터: 전체 강사 목록 로드
+  useEffect(() => {
+    const fetchAllInstructors = async () => {
+      if (!canViewAll) return;
+      const { data, error } = await supabase
+        .from('instructors')
+        .select('id, name')
+        .order('name');
+      if (!error) {
+        setAllInstructorsList((data || []).map((i) => ({ id: i.id as string, name: i.name as string })));
+      } else {
+        console.error('Failed to load instructors list', error);
+        setAllInstructorsList([]);
+      }
+    };
+    fetchAllInstructors();
+  }, [canViewAll]);
 
   useEffect(() => {
     if (!isPreviewingInstructor) {
@@ -174,6 +195,17 @@ const PersonalDashboard: FC = () => {
     return profile?.instructor_id ?? null;
   }, [isPreviewingInstructor, previewResolvedInstructorId, profile?.instructor_id]);
 
+  // 강사 로그인 시 자신의 ID로 고정
+  const effectiveInstructorId = useMemo(() => {
+    if (isInstructor && !canViewAll) {
+      return instructorId; // 강사는 자신의 데이터만 볼 수 있음
+    }
+    if (canViewAll && selectedInstructor !== 'all') {
+      return selectedInstructor;
+    }
+    return instructorId; // 기본적으로는 자신의 instructor_id 사용
+  }, [isInstructor, canViewAll, instructorId, selectedInstructor]);
+
   const filters = useMemo(() => ({
     year: selectedYear === 'all' ? 'all' as const : Number(selectedYear),
     round: 'all' as const,
@@ -181,10 +213,10 @@ const PersonalDashboard: FC = () => {
   }), [selectedYear, selectedCourse]);
 
   const stats = useInstructorStats({
-    instructorId: instructorId ?? undefined,
+    instructorId: effectiveInstructorId ?? undefined,
     includeTestData: testDataOptions.includeTestData,
     filters,
-    enabled: canViewPersonalStats && Boolean(instructorId),
+    enabled: canViewPersonalStats && Boolean(effectiveInstructorId),
   });
 
   const loading = profileLoading || stats.loading;
@@ -262,7 +294,7 @@ const PersonalDashboard: FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <p className="mb-2 text-sm font-medium">연도</p>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -295,6 +327,31 @@ const PersonalDashboard: FC = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">강사</p>
+              <Select 
+                value={isInstructor && !canViewAll ? (instructorId || 'all') : selectedInstructor} 
+                onValueChange={isInstructor && !canViewAll ? undefined : setSelectedInstructor}
+                disabled={isInstructor && !canViewAll}
+              >
+                <SelectTrigger className={isInstructor && !canViewAll ? 'opacity-50' : ''}>
+                  <SelectValue placeholder="강사 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 강사</SelectItem>
+                  {canViewAll && allInstructorsList.map(instructor => (
+                    <SelectItem key={instructor.id} value={instructor.id}>
+                      {instructor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isInstructor && !canViewAll && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  강사는 자신의 결과만 조회할 수 있습니다.
+                </p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -318,7 +375,7 @@ const PersonalDashboard: FC = () => {
             <ChartEmptyState description="집계 데이터를 불러오지 못했습니다." actions={stats.error} />
           </CardContent>
         </Card>
-      ) : !instructorId ? (
+      ) : !effectiveInstructorId ? (
         <Card>
           <CardContent className="py-16">
             <ChartEmptyState description="강사 정보가 확인되지 않았습니다." />
