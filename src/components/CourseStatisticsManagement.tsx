@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, Plus, Edit, Trash2, FileSpreadsheet, Wand2, AlertCircle, CheckCircle, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 
@@ -43,6 +44,10 @@ const CourseStatisticsManagement = () => {
   const [loading, setLoading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
   const { toast } = useToast();
+  const { userRoles } = useAuth();
+
+  // 관리자 권한 체크
+  const isAdmin = userRoles?.includes('admin') || false;
 
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
   const statusOptions = ['완료', '진행 중', '진행 예정', '취소'];
@@ -106,6 +111,15 @@ const CourseStatisticsManagement = () => {
   };
 
   const handleSave = async (formData: FormData) => {
+    if (!isAdmin) {
+      toast({
+        title: "권한 없음",
+        description: "관리자만 통계 데이터를 수정할 수 있습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const rawCourseName = (formData.get('course_name') as string) || '';
       const courseName = rawCourseName.trim();
@@ -179,6 +193,15 @@ const CourseStatisticsManagement = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isAdmin) {
+      toast({
+        title: "권한 없음",
+        description: "관리자만 통계 데이터를 삭제할 수 있습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!confirm('정말로 삭제하시겠습니까?')) return;
 
     try {
@@ -364,6 +387,15 @@ const CourseStatisticsManagement = () => {
   };
 
   const generateFromSurveys = async () => {
+    if (!isAdmin) {
+      toast({
+        title: "권한 없음",
+        description: "관리자만 통계 데이터를 자동 생성할 수 있습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!confirm('기존 설문 데이터로부터 통계를 자동 생성하시겠습니까? (기존 데이터는 덮어쓰여질 수 있습니다)')) return;
 
     try {
@@ -564,7 +596,8 @@ const CourseStatisticsManagement = () => {
               <Button 
                 variant="outline" 
                 onClick={() => setIsUploadDialogOpen(true)}
-                disabled={loading}
+                disabled={loading || !isAdmin}
+                className={!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Excel 업로드
@@ -572,7 +605,8 @@ const CourseStatisticsManagement = () => {
               <Button 
                 variant="outline" 
                 onClick={generateFromSurveys}
-                disabled={loading}
+                disabled={loading || !isAdmin}
+                className={!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}
               >
                 {loading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
@@ -581,27 +615,33 @@ const CourseStatisticsManagement = () => {
                 )}
                 자동 생성
               </Button>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={() => { setEditingItem(null); setIsDialogOpen(true); }}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    새 통계 추가
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>{editingItem ? '통계 수정' : '새 통계 추가'}</DialogTitle>
-                    <DialogDescription>
-                      과정별 통계 정보를 입력해주세요.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <StatisticForm 
-                    initialData={editingItem} 
-                    onSave={handleSave}
-                    onCancel={() => setIsDialogOpen(false)}
-                  />
-                </DialogContent>
+              {isAdmin ? (
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => { setEditingItem(null); setIsDialogOpen(true); }}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      새 통계 추가
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>{editingItem ? '통계 수정' : '새 통계 추가'}</DialogTitle>
+                      <DialogDescription>
+                        과정별 통계 정보를 입력해주세요.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <StatisticForm 
+                      initialData={editingItem} 
+                      onSave={handleSave}
+                      onCancel={() => setIsDialogOpen(false)}
+                    />
+                  </DialogContent>
                 </Dialog>
+              ) : (
+                <div className="flex items-center text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+                  관리자 권한 필요
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -704,22 +744,26 @@ const CourseStatisticsManagement = () => {
                           {stat.total_satisfaction ? `${stat.total_satisfaction}/10` : '-'}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => { setEditingItem(stat); setIsDialogOpen(true); }}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => stat.id && handleDelete(stat.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          {isAdmin ? (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setEditingItem(stat); setIsDialogOpen(true); }}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => stat.id && handleDelete(stat.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">권한 없음</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
