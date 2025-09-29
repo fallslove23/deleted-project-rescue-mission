@@ -198,18 +198,24 @@ export const SurveyAggregatesRepository = {
   }: SurveyAggregateFilters): Promise<SurveyAggregateResult> {
     const instructorFilter = restrictToInstructorId ?? instructorId ?? null;
 
-    // When filtering by instructor, include surveys linked via survey_instructors as well
+    // When filtering by instructor, include surveys linked via survey_instructors and survey_sessions as well
     let instructorSurveyIds: string[] | null = null;
     if (instructorFilter) {
       try {
-        const [{ data: directSurveys }, { data: mappedSurveys }] = await Promise.all([
+        const [
+          { data: directSurveys },
+          { data: mappedSurveys },
+          { data: sessionMapped },
+        ] = await Promise.all([
           supabase.from('surveys').select('id').eq('instructor_id', instructorFilter),
           supabase.from('survey_instructors').select('survey_id').eq('instructor_id', instructorFilter),
+          supabase.from('survey_sessions').select('survey_id').eq('instructor_id', instructorFilter),
         ]);
 
         const ids = [
           ...(directSurveys?.map((r: any) => r.id).filter(Boolean) ?? []),
           ...(mappedSurveys?.map((r: any) => r.survey_id).filter(Boolean) ?? []),
+          ...(sessionMapped?.map((r: any) => r.survey_id).filter(Boolean) ?? []),
         ];
         instructorSurveyIds = Array.from(new Set(ids));
         if (instructorSurveyIds.length === 0) {
