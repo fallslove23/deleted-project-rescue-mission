@@ -801,7 +801,7 @@ const SurveyResults = () => {
           <CardHeader>
             <CardTitle>필터</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <CardContent className="grid gap-4 md:grid-cols-3">
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">연도</span>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -818,25 +818,6 @@ const SurveyResults = () => {
                 </SelectContent>
               </Select>
             </div>
-
-            {!courseIncludesRound && (
-              <div className="flex flex-col gap-2">
-                <span className="text-sm text-muted-foreground">차수</span>
-                <Select value={selectedRound} onValueChange={setSelectedRound}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="전체 차수" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border shadow-lg z-50">
-                    <SelectItem value="all">전체 차수</SelectItem>
-                    {rounds.map((round) => (
-                      <SelectItem key={round} value={round.toString()}>
-                        {round}차
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">과정</span>
@@ -855,24 +836,31 @@ const SurveyResults = () => {
               </Select>
             </div>
 
-            {canViewAll && (
-              <div className="flex flex-col gap-2">
-                <span className="text-sm text-muted-foreground">강사</span>
-                <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="전체 강사" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border shadow-lg z-50">
-                    <SelectItem value="all">전체 강사</SelectItem>
-                    {instructors.map((instructor) => (
-                      <SelectItem key={instructor.id} value={instructor.id}>
-                        {instructor.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-muted-foreground">강사</span>
+              <Select 
+                value={isInstructor && !canViewAll ? (profile?.instructor_id || 'all') : selectedInstructor} 
+                onValueChange={isInstructor && !canViewAll ? undefined : setSelectedInstructor}
+                disabled={isInstructor && !canViewAll}
+              >
+                <SelectTrigger className={isInstructor && !canViewAll ? 'opacity-50' : ''}>
+                  <SelectValue placeholder="전체 강사" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border shadow-lg z-50">
+                  <SelectItem value="all">전체 강사</SelectItem>
+                  {instructors.map((instructor) => (
+                    <SelectItem key={instructor.id} value={instructor.id}>
+                      {instructor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isInstructor && !canViewAll && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  강사는 자신의 결과만 조회할 수 있습니다.
+                </p>
+              )}
+            </div>
 
           </CardContent>
         </Card>
