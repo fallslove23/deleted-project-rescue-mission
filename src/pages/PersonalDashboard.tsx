@@ -68,6 +68,7 @@ const PersonalDashboard: FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
   const [allInstructorsList, setAllInstructorsList] = useState<Array<{ id: string; name: string }>>([]);
+  const [currentInstructorName, setCurrentInstructorName] = useState<string | null>(null);
 
   const isInstructor = userRoles.includes('instructor');
   const isPreviewingInstructor = viewAs === 'instructor';
@@ -123,6 +124,32 @@ const PersonalDashboard: FC = () => {
     };
     fetchAllInstructors();
   }, [canViewAll]);
+
+  // 현재 강사 이름 로드
+  useEffect(() => {
+    const fetchCurrentInstructorName = async () => {
+      if (!isInstructor || !profile?.instructor_id) {
+        setCurrentInstructorName(null);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('instructors')
+          .select('name')
+          .eq('id', profile.instructor_id)
+          .maybeSingle();
+        
+        if (!error && data) {
+          setCurrentInstructorName(data.name);
+        }
+      } catch (error) {
+        console.error('Failed to load instructor name:', error);
+      }
+    };
+    
+    fetchCurrentInstructorName();
+  }, [isInstructor, profile?.instructor_id]);
 
   useEffect(() => {
     if (!isPreviewingInstructor) {
@@ -330,12 +357,19 @@ const PersonalDashboard: FC = () => {
             <div>
               <p className="mb-2 text-sm font-medium">강사</p>
               <Select 
-                value={isInstructor && !canViewAll ? (instructorId || 'all') : selectedInstructor} 
+                value={isInstructor && !canViewAll ? (effectiveInstructorId || 'all') : selectedInstructor} 
                 onValueChange={isInstructor && !canViewAll ? undefined : setSelectedInstructor}
                 disabled={isInstructor && !canViewAll}
               >
                 <SelectTrigger className={isInstructor && !canViewAll ? 'opacity-50' : ''}>
-                  <SelectValue placeholder="강사 선택" />
+                  <SelectValue placeholder="강사 선택">
+                    {isInstructor && !canViewAll && currentInstructorName 
+                      ? currentInstructorName 
+                      : selectedInstructor === 'all' 
+                        ? '전체 강사' 
+                        : allInstructorsList.find(i => i.id === selectedInstructor)?.name || '전체 강사'
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 강사</SelectItem>

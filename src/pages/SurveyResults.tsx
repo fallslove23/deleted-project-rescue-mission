@@ -145,6 +145,7 @@ const SurveyResults = () => {
   const [downloadJob, setDownloadJob] = useState<DownloadJob | null>(null);
   const [allInstructorsList, setAllInstructorsList] = useState<Array<{ id: string; name: string }>>([]);
   const [instructorNamesCache, setInstructorNamesCache] = useState<Map<string, string>>(new Map());
+  const [currentInstructorName, setCurrentInstructorName] = useState<string | null>(null);
 
   const canViewAll = useMemo(
     () => userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director'),
@@ -353,6 +354,32 @@ const SurveyResults = () => {
     };
     fetchAllInstructors();
   }, [canViewAll]);
+
+  // 현재 강사 이름 로드
+  useEffect(() => {
+    const fetchCurrentInstructorName = async () => {
+      if (!isInstructor || !profile?.instructor_id) {
+        setCurrentInstructorName(null);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('instructors')
+          .select('name')
+          .eq('id', profile.instructor_id)
+          .maybeSingle();
+        
+        if (!error && data) {
+          setCurrentInstructorName(data.name);
+        }
+      } catch (error) {
+        console.error('Failed to load instructor name:', error);
+      }
+    };
+    
+    fetchCurrentInstructorName();
+  }, [isInstructor, profile?.instructor_id]);
 
   useEffect(() => {
     if (profileLoading) return;
@@ -844,7 +871,14 @@ const SurveyResults = () => {
                 disabled={isInstructor && !canViewAll}
               >
                 <SelectTrigger className={isInstructor && !canViewAll ? 'opacity-50' : ''}>
-                  <SelectValue placeholder="전체 강사" />
+                  <SelectValue placeholder="전체 강사">
+                    {isInstructor && !canViewAll && currentInstructorName 
+                      ? currentInstructorName 
+                      : selectedInstructor === 'all' 
+                        ? '전체 강사' 
+                        : instructors.find(i => i.id === selectedInstructor)?.name || '전체 강사'
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-popover border shadow-lg z-50">
                   <SelectItem value="all">전체 강사</SelectItem>
