@@ -19,7 +19,11 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
 
   const needRoleCheck = useMemo(() => !!(allowedRoles && allowedRoles.length > 0), [allowedRoles]);
   const hasAccess = useMemo(
-    () => (needRoleCheck ? allowedRoles!.some((r) => userRoles.includes(r)) : true),
+    () => {
+      // 관리자는 모든 페이지 접근 가능
+      if (userRoles.includes('admin')) return true;
+      return needRoleCheck ? allowedRoles!.some((r) => userRoles.includes(r)) : true;
+    },
     [needRoleCheck, allowedRoles, userRoles]
   );
 

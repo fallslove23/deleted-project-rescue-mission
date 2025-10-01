@@ -119,7 +119,12 @@ export function AdminSidebar() {
   if (viewMode === 'instructor') {
     menuItems = instructorMenuItems;
   } else if (viewMode === 'admin' || isAdmin) {
-    menuItems = adminMenuItems;
+    // 관리자이면서 강사인 경우 두 메뉴 모두 표시
+    if (isAdmin && isInstructor) {
+      menuItems = [...adminMenuItems, ...instructorMenuItems];
+    } else {
+      menuItems = adminMenuItems;
+    }
   } else {
     // 기본: 강사 메뉴
     menuItems = instructorMenuItems;
