@@ -12,8 +12,8 @@ const DashboardCourseReports: React.FC = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    if (!loading && userRoles.includes('instructor')) {
-      // 강사는 결과 분석 페이지로 리디렉션
+    if (!loading && userRoles.includes('instructor') && !userRoles.includes('admin') && !userRoles.includes('operator')) {
+      // 관리자가 아닌 강사만 결과 분석 페이지로 리디렉션
       navigate('/dashboard/results', { replace: true });
     }
   }, [userRoles, loading, navigate]);
