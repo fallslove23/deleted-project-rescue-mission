@@ -9,27 +9,26 @@ import {
   BookOpen,
   BarChart3,
   Loader2,
+  Filter,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import CourseSelector, { CombinedCourseOption } from '@/components/course-reports/CourseSelector';
 import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { KeywordCloud } from '@/components/course-reports/KeywordCloud';
+import { YearFilter, CourseFilter, SubjectFilter } from '@/components/filters';
+import { useFilterState } from '@/hooks/useFilterState';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
-import { CourseOption } from '@/repositories/courseReportsRepositoryFixed';
 import { ChartErrorBoundary, PageErrorBoundary, HookErrorBoundary, DataProcessingErrorBoundary } from '@/components/error-boundaries';
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
 
 const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
-  // Comprehensive NaN/invalid number handling
   if (value === null || value === undefined) return 0;
   if (typeof value !== 'number') return 0;
   if (!Number.isFinite(value) || Number.isNaN(value)) return 0;
@@ -51,17 +50,13 @@ const CourseReportsContent: React.FC = () => {
   const { toast } = useToast();
   const { userRoles } = useAuth();
   
+  // Use new filter state hook with URL synchronization
+  const { filters, updateFilter } = useFilterState({
+    defaultYear: CURRENT_YEAR,
+    syncToUrl: true,
+  });
 
-  // 단순화된 필터: 연도와 결합된 과정 선택
-  const [selectedYearFilter, setSelectedYearFilter] = useState<string>('all');
-  const [selectedCombinedCourse, setSelectedCombinedCourse] = useState<string>('all');
-  
-  // 내부적으로 사용할 분해된 값들
-  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
-  const [selectedCourse, setSelectedCourse] = useState<string>('');
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
-  const [selectedInstructor, setSelectedInstructor] = useState<string>('');
-  const [allCoursesForYear, setAllCoursesForYear] = useState<CourseOption[]>([]);
+  const [selectedCourseName, setSelectedCourseName] = useState<string>('');
 
   const {
     summary,
@@ -78,124 +73,30 @@ const CourseReportsContent: React.FC = () => {
     instructorId,
     instructorName,
   } = useCourseReportsData(
-    selectedYear,
-    selectedCourse,
-    selectedRound,
-    selectedInstructor,
+    filters.year || CURRENT_YEAR,
+    selectedCourseName,
+    null, // round - not using round filter for now
+    '', // instructor - not filtering by instructor in this view
     false,
   );
 
-  // 연도 변경 또는 전체 과정 선택 시, 해당 연도의 전체 과정 목록을 유지
+  // Update course name when courseId changes
   useEffect(() => {
-    if (Array.isArray(availableCourses) && availableCourses.length > 0) {
-      if (selectedCombinedCourse === 'all') {
-        setAllCoursesForYear(availableCourses);
-      } else if (allCoursesForYear.length === 0) {
-        // 초기 로딩 보호: 선택된 과정이 있어도 목록이 비어있으면 한 번 채움
-        setAllCoursesForYear(availableCourses);
+    if (filters.courseId && availableCourses.length > 0) {
+      const course = availableCourses.find(c => c.normalizedName === filters.courseId);
+      if (course) {
+        setSelectedCourseName(course.normalizedName);
       }
-    }
-  }, [selectedYear, availableCourses, selectedCombinedCourse, allCoursesForYear.length]);
-
-  // 사용 가능한 연도 옵션 생성
-  const availableYears = useMemo(() => {
-    const years = ['all', ...YEARS.map(year => year.toString())];
-    return years;
-  }, []);
-
-  // 결합된 과정 옵션 생성
-  const combinedCourseOptions = useMemo((): CombinedCourseOption[] => {
-    const combined: CombinedCourseOption[] = [
-      {
-        key: 'all',
-        displayName: '전체 과정',
-        year: selectedYear,
-        course: '',
-        round: null,
-        instructor: ''
-      }
-    ];
-
-    // 현재 연도 기준 전체 과정 목록을 유지하여, 특정 과정 선택 시에도 목록이 사라지지 않도록 함
-    const sourceCourses = (allCoursesForYear.length > 0 ? allCoursesForYear : availableCourses) || [];
-
-    // 각 과정별 보유 차수(rounds)를 사용해 옵션 생성 (글로벌 availableRounds 사용 금지)
-    sourceCourses.forEach((course) => {
-      const rounds = Array.isArray(course.rounds) ? [...course.rounds].sort((a, b) => a - b) : [];
-      rounds.forEach((round) => {
-        const name = course.displayName || course.normalizedName;
-        const displayName = `${selectedYear}년 ${round}차 ${name}`;
-        combined.push({
-          key: `${selectedYear}-${course.normalizedName}-${round}`,
-          displayName,
-          year: selectedYear,
-          course: course.normalizedName,
-          round,
-          instructor: ''
-        });
-      });
-    });
-
-    return combined;
-  }, [selectedYear, allCoursesForYear, availableCourses]);
-
-  // 결합된 과정 선택 파싱
-  const parseCombinedCourse = (courseKey: string) => {
-    if (courseKey === 'all') {
-      return { year: selectedYear, course: '', round: null, instructor: '' };
-    }
-    
-    const parts = courseKey.split('-');
-    if (parts.length >= 3) {
-      const year = parseInt(parts[0]);
-      const course = parts[1];
-      const round = parseInt(parts[2]);
-      return { year, course, round, instructor: '' };
-    }
-    
-    return { year: selectedYear, course: '', round: null, instructor: '' };
-  };
-
-  // 연도 변경 핸들러
-  const handleYearChange = (year: string) => {
-    setSelectedYearFilter(year);
-    if (year === 'all') {
-      setSelectedYear(CURRENT_YEAR);
     } else {
-      setSelectedYear(parseInt(year));
+      setSelectedCourseName('');
     }
-    // 연도 변경시 과정 선택 초기화
-    setSelectedCombinedCourse('all');
-    setSelectedCourse('');
-    setSelectedRound(null);
-    setSelectedInstructor('');
-    setAllCoursesForYear([]);
-  };
+  }, [filters.courseId, availableCourses]);
 
-  // 결합된 과정 변경 핸들러
-  const handleCombinedCourseChange = (courseKey: string) => {
-    setSelectedCombinedCourse(courseKey);
-    const parsed = parseCombinedCourse(courseKey);
-    
-    // 연도가 바뀌는 경우에만 연도 필터도 업데이트
-    if (parsed.year !== selectedYear) {
-      setSelectedYearFilter(parsed.year.toString());
-      setSelectedYear(parsed.year);
-    }
-    
-    setSelectedCourse(parsed.course);
-    setSelectedRound(parsed.round);
-    setSelectedInstructor(parsed.instructor);
-  };
-
-  // 자동 초기화 로직은 제거 (사용자가 직접 선택하도록 함)
-
-  // 과정 표시 이름 계산
   const currentCourseName = useMemo(() => {
     if (summary?.courseName) return summary.courseName;
-    const match = availableCourses.find(c => c.normalizedName === selectedCourse);
-    return match?.displayName || selectedCourse || '';
-  }, [summary?.courseName, availableCourses, selectedCourse]);
+    const match = availableCourses.find(c => c.normalizedName === selectedCourseName);
+    return match?.displayName || selectedCourseName || '';
+  }, [summary?.courseName, availableCourses, selectedCourseName]);
 
   const satisfactionChartData = useMemo(() => {
     if (!summary) return [] as Array<{ name: string; value: number; color: string }>;
@@ -292,7 +193,7 @@ const CourseReportsContent: React.FC = () => {
 
   const handleInstructorClick = (instructorIdValue: string) => {
     if (!instructorIdValue) return;
-    navigate(`/dashboard/instructor-details/${instructorIdValue}?year=${selectedYear}`);
+    navigate(`/dashboard/instructor-details/${instructorIdValue}?year=${filters.year || CURRENT_YEAR}`);
   };
 
   const handleShareReport = () => {
@@ -305,11 +206,11 @@ const CourseReportsContent: React.FC = () => {
       return;
     }
 
-      const shareData = {
-        title: `${selectedYear}년 ${currentCourseName}${selectedRound ? `-${selectedRound}차` : ''} 결과 보고서`,
-        text: `${selectedYear}년 ${currentCourseName}${selectedRound ? `-${selectedRound}차` : ''} 결과를 확인해보세요.`,
-        url: window.location.href,
-      };
+    const shareData = {
+      title: `${filters.year || CURRENT_YEAR}년 ${currentCourseName} 결과 보고서`,
+      text: `${filters.year || CURRENT_YEAR}년 ${currentCourseName} 결과를 확인해보세요.`,
+      url: window.location.href,
+    };
 
     try {
       if (navigator.share && navigator.canShare?.(shareData)) {
@@ -344,7 +245,7 @@ const CourseReportsContent: React.FC = () => {
 
     try {
       generateCourseReportPDF({
-        reportTitle: `${currentCourseName}${selectedRound ? ` ${selectedRound}차` : ''} 결과 보고서`,
+        reportTitle: `${currentCourseName} 결과 보고서`,
         year: summary.educationYear,
         round: summary.educationRound ?? undefined,
         courseName: currentCourseName,
@@ -418,7 +319,7 @@ const CourseReportsContent: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">과정명</span>
-                <span className="font-semibold">{currentCourseName}</span>
+                <span className="font-semibold">{currentCourseName || '전체 과정'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">교육 연도</span>
@@ -543,14 +444,35 @@ const CourseReportsContent: React.FC = () => {
           </div>
         </div>
 
-        <CourseSelector
-          selectedYear={selectedYearFilter}
-          selectedCourse={selectedCombinedCourse}
-          availableYears={availableYears}
-          availableCourses={combinedCourseOptions}
-          onYearChange={handleYearChange}
-          onCourseChange={handleCombinedCourseChange}
-        />
+        {/* New Filter System */}
+        <Card className="shadow-lg border-0 bg-gradient-to-r from-card to-card/50">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-primary" />
+              <CardTitle>필터</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <YearFilter
+              value={filters.year}
+              onChange={(year) => updateFilter('year', year)}
+              includeAll={false}
+            />
+            <CourseFilter
+              value={filters.courseId}
+              onChange={(courseId) => updateFilter('courseId', courseId)}
+              year={filters.year}
+              includeAll={true}
+            />
+            <SubjectFilter
+              value={filters.subjectId}
+              onChange={(subjectId) => updateFilter('subjectId', subjectId)}
+              courseId={filters.courseId}
+              disabled={!filters.courseId}
+              includeAll={true}
+            />
+          </CardContent>
+        </Card>
 
         <ChartErrorBoundary fallbackDescription="보고서 렌더링 중 오류가 발생했습니다.">
           {content}

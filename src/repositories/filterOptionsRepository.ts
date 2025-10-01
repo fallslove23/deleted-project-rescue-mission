@@ -1,0 +1,74 @@
+import { supabase } from '@/integrations/supabase/client';
+
+export interface CourseOption {
+  course_id: string;
+  course_title: string;
+  year: number;
+}
+
+export interface SubjectOption {
+  subject_id: string;
+  subject_title: string;
+  subject_position: number | null;
+}
+
+/**
+ * Fetch available course options using RPC
+ */
+export async function fetchCourseOptions(params: {
+  year?: number | null;
+  search?: string | null;
+}): Promise<CourseOption[]> {
+  try {
+    const { data, error } = await supabase.rpc('fn_course_filter_options' as any, {
+      p_year: params.year ?? null,
+      p_search: params.search ?? null,
+    }) as { data: CourseOption[] | null; error: any };
+
+    if (error) {
+      console.error('Failed to fetch course options:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchCourseOptions:', error);
+    throw new Error('데이터를 불러오지 못했습니다. 네트워크 또는 권한 문제일 수 있어요.');
+  }
+}
+
+/**
+ * Fetch available subject (session) options using RPC
+ */
+export async function fetchSubjectOptions(params: {
+  courseId: string;
+  search?: string | null;
+}): Promise<SubjectOption[]> {
+  try {
+    const { data, error } = await supabase.rpc('fn_subject_filter_options' as any, {
+      p_course_id: params.courseId,
+      p_search: params.search ?? null,
+    }) as { data: SubjectOption[] | null; error: any };
+
+    if (error) {
+      console.error('Failed to fetch subject options:', error);
+      throw error;
+    }
+
+    // Sort by position first, then by title
+    const subjects = data || [];
+    const sorted = subjects.sort((a, b) => {
+      if (a.subject_position !== null && b.subject_position !== null) {
+        return a.subject_position - b.subject_position;
+      }
+      if (a.subject_position !== null) return -1;
+      if (b.subject_position !== null) return 1;
+      return a.subject_title.localeCompare(b.subject_title, 'ko');
+    });
+
+    return sorted;
+  } catch (error) {
+    console.error('Error in fetchSubjectOptions:', error);
+    throw new Error('데이터를 불러오지 못했습니다. 네트워크 또는 권한 문제일 수 있어요.');
+  }
+}
