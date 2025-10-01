@@ -1,5 +1,4 @@
 import React, { useCallback, useMemo } from 'react';
-import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { useCumulativeSurveyStats } from '@/hooks/useCumulativeSurveyStats';
 import { formatSatisfaction } from '@/utils/satisfaction';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Filter, FileSpreadsheet, Calendar, Users, Star, Target } from 'lucide-react';
-import { TestDataToggle } from '@/components/TestDataToggle';
 import VirtualizedTable, { type VirtualizedColumn } from '@/components/data-table/VirtualizedTable';
 import type { SurveyCumulativeRow } from '@/repositories/cumulativeStatsRepo';
 
@@ -42,8 +40,7 @@ const getStatusLabel = (status: string | null) => {
 };
 
 const CumulativeDataTable = () => {
-  const testDataOptions = useTestDataToggle();
-  const includeTestData = testDataOptions.includeTestData;
+  const includeTestData = false; // 테스트 데이터 제외
 
   const {
     data,
@@ -199,12 +196,6 @@ const CumulativeDataTable = () => {
 
   return (
     <div className="space-y-6">
-      {testDataOptions.canToggleTestData && (
-        <div className="flex justify-end">
-          <TestDataToggle testDataOptions={testDataOptions} />
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

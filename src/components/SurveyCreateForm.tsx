@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import ProgramManager from "@/components/ProgramManager";
 import { Separator } from "@/components/ui/separator";
-import { Zap, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface SurveyCreateFormProps {
@@ -21,7 +21,6 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
   const { toast } = useToast();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [creatingTestSurvey, setCreatingTestSurvey] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -280,164 +279,6 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
     }
   };
 
-  // 테스트 설문 생성 함수
-  const createTestSurvey = async () => {
-    setCreatingTestSurvey(true);
-    try {
-      // 1. 테스트 설문 생성
-      const surveyPayload = {
-        title: `테스트 설문 - ${new Date().toLocaleString()}`,
-        description: '테스트용으로 자동 생성된 설문입니다.',
-        education_year: new Date().getFullYear(),
-        education_round: 1,
-        education_day: 1,
-        status: 'active',
-        course_name: 'Test Course',
-        expected_participants: 30,
-        is_test: true,
-      };
-
-      const { data: survey, error: surveyError } = await supabase
-        .from('surveys')
-        .insert(surveyPayload)
-        .select()
-        .single();
-
-      if (surveyError) throw surveyError;
-
-      // 2. 테스트 질문들 생성
-      const testQuestions = [
-        {
-          survey_id: survey.id,
-          question_text: '과정 내용에 대한 전반적인 만족도는?',
-          question_type: 'scale',
-          satisfaction_type: 'course',
-          is_required: true,
-          order_index: 1,
-          scope: 'session'
-        },
-        {
-          survey_id: survey.id,
-          question_text: '강사에 대한 전반적인 만족도는?',
-          question_type: 'scale',
-          satisfaction_type: 'instructor',
-          is_required: true,
-          order_index: 2,
-          scope: 'session'
-        },
-        {
-          survey_id: survey.id,
-          question_text: '운영 관리에 대한 만족도는?',
-          question_type: 'scale',
-          satisfaction_type: 'operation',
-          is_required: true,
-          order_index: 3,
-          scope: 'session'
-        },
-        {
-          survey_id: survey.id,
-          question_text: '가장 도움이 되었던 내용은?',
-          question_type: 'single_choice',
-          options: ['이론 강의', '실습 시간', '토론 시간', '질의응답', '기타'],
-          is_required: false,
-          order_index: 4,
-          scope: 'session'
-        },
-        {
-          survey_id: survey.id,
-          question_text: '추가 의견이나 개선사항이 있다면 자유롭게 작성해 주세요.',
-          question_type: 'text',
-          is_required: false,
-          order_index: 5,
-          scope: 'session'
-        }
-      ];
-
-      const { data: questions, error: questionsError } = await supabase
-        .from('survey_questions')
-        .insert(testQuestions)
-        .select();
-
-      if (questionsError) throw questionsError;
-
-      // 3. 테스트 응답들 생성 (10개)
-      const testResponses = [];
-      for (let i = 1; i <= 10; i++) {
-        testResponses.push({
-          survey_id: survey.id,
-          respondent_email: `test${i}@example.com`,
-          submitted_at: new Date().toISOString(),
-          session_info: `Session ${i}`
-        });
-      }
-
-      const { data: responses, error: responsesError } = await supabase
-        .from('survey_responses')
-        .insert(testResponses)
-        .select();
-
-      if (responsesError) throw responsesError;
-
-      // 4. 테스트 답변들 생성
-      const testAnswers = [];
-      responses?.forEach((response, responseIdx) => {
-        questions?.forEach((question) => {
-          let answerValue: any = null;
-          let answerText = '';
-
-          switch (question.question_type) {
-            case 'rating':
-              // 만족도 점수 (5점 만점, 3-5점 랜덤)
-              answerValue = Math.floor(Math.random() * 3) + 3;
-              answerText = String(answerValue);
-              break;
-            case 'single_choice':
-              // 선택지 중 랜덤 선택
-              const options = question.options as string[];
-              const randomOption = options[Math.floor(Math.random() * options.length)];
-              answerValue = randomOption;
-              answerText = randomOption;
-              break;
-            case 'text':
-              // 간단한 텍스트 응답
-              answerText = `응답자 ${responseIdx + 1}의 의견입니다. 전반적으로 만족합니다.`;
-              answerValue = answerText;
-              break;
-          }
-
-          testAnswers.push({
-            question_id: question.id,
-            response_id: response.id,
-            answer_text: answerText,
-            answer_value: answerValue
-          });
-        });
-      });
-
-      const { error: answersError } = await supabase
-        .from('question_answers')
-        .insert(testAnswers);
-
-      if (answersError) throw answersError;
-
-      toast({
-        title: '테스트 설문 생성 완료',
-        description: `"${survey.title}" 설문과 10개의 테스트 응답이 생성되었습니다.`
-      });
-
-      onSuccess(survey.id);
-    } catch (error: any) {
-      console.error('테스트 설문 생성 오류:', error);
-      toast({
-        title: '테스트 설문 생성 실패',
-        description: error.message || '테스트 설문 생성 중 오류가 발생했습니다.',
-        variant: 'destructive'
-      });
-    } finally {
-      setCreatingTestSurvey(false);
-    }
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -670,20 +511,8 @@ export default function SurveyCreateForm({ onSuccess, templates, initialTemplate
             />
           </div>
 
-          <div className="flex justify-between gap-4">
-            {user?.email === 'sethetrend87@osstem.com' && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={createTestSurvey}
-                disabled={creatingTestSurvey || loading}
-                className="flex items-center gap-2"
-              >
-                <Zap className="h-4 w-4" />
-                {creatingTestSurvey ? "테스트 설문 생성 중..." : "테스트 설문 생성"}
-              </Button>
-            )}
-            <Button type="submit" disabled={loading} className="flex items-center gap-2 ml-auto">
+          <div className="flex justify-end gap-4">
+            <Button type="submit" disabled={loading} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               {loading ? "생성 중..." : "설문 생성"}
             </Button>
