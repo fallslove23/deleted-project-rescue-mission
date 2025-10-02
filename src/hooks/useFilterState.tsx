@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 export interface FilterState {
   year: number | null;
   courseId: string;
+  courseTitle: string; // for legacy RPC compatibility
   subjectId: string;
   instructorId: string;
 }
@@ -26,6 +27,7 @@ export function useFilterState(options: UseFilterStateOptions = {}) {
       return {
         year: defaultYear,
         courseId: '',
+        courseTitle: '',
         subjectId: '',
         instructorId: '',
       };
@@ -39,6 +41,7 @@ export function useFilterState(options: UseFilterStateOptions = {}) {
     return {
       year: yearParam ? parseInt(yearParam) : defaultYear,
       courseId: courseIdParam || '',
+      courseTitle: '', // will be set when course is selected
       subjectId: subjectIdParam || '',
       instructorId: instructorIdParam || '',
     };
@@ -75,13 +78,16 @@ export function useFilterState(options: UseFilterStateOptions = {}) {
 
   const updateFilter = <K extends keyof FilterState>(
     key: K,
-    value: FilterState[K]
+    value: FilterState[K],
+    additionalData?: Partial<FilterState>
   ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
+      ...additionalData,
       // Reset dependent filters
       ...(key === 'courseId' ? { subjectId: '' } : {}),
+      ...(key === 'year' ? { courseId: '', courseTitle: '', subjectId: '' } : {}),
     }));
   };
 
@@ -89,6 +95,7 @@ export function useFilterState(options: UseFilterStateOptions = {}) {
     setFilters({
       year: defaultYear,
       courseId: '',
+      courseTitle: '',
       subjectId: '',
       instructorId: '',
     });

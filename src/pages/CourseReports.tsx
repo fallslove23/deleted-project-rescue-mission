@@ -80,9 +80,12 @@ const CourseReportsContent: React.FC = () => {
     false,
   );
 
-  // Update course name when courseId changes
+  // Sync course name from filters.courseTitle
   useEffect(() => {
-    if (filters.courseId && availableCourses.length > 0) {
+    if (filters.courseTitle) {
+      setSelectedCourseName(filters.courseTitle);
+    } else if (filters.courseId) {
+      // Fallback: if we only have courseId, try to find the title
       const course = availableCourses.find(c => c.normalizedName === filters.courseId);
       if (course) {
         setSelectedCourseName(course.normalizedName);
@@ -90,7 +93,7 @@ const CourseReportsContent: React.FC = () => {
     } else {
       setSelectedCourseName('');
     }
-  }, [filters.courseId, availableCourses]);
+  }, [filters.courseTitle, filters.courseId, availableCourses]);
 
   const currentCourseName = useMemo(() => {
     if (summary?.courseName) return summary.courseName;
@@ -460,7 +463,7 @@ const CourseReportsContent: React.FC = () => {
             />
             <CourseFilter
               value={filters.courseId}
-              onChange={(courseId) => updateFilter('courseId', courseId)}
+              onChange={(courseId, courseTitle) => updateFilter('courseId', courseId, { courseTitle })}
               year={filters.year}
               includeAll={true}
             />

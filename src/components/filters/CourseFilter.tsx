@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CourseFilterProps {
   value: string;
-  onChange: (courseId: string) => void;
+  onChange: (courseId: string, courseTitle?: string) => void;
   year?: number | null;
   label?: string;
   includeAll?: boolean;
@@ -50,7 +50,14 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
-      <Select value={value} onValueChange={onChange} disabled={loading}>
+      <Select 
+        value={value} 
+        onValueChange={(newValue) => {
+          const selectedCourse = courses.find(c => c.course_id === newValue);
+          onChange(newValue, selectedCourse?.course_title);
+        }} 
+        disabled={loading}
+      >
         <SelectTrigger>
           <SelectValue placeholder={loading ? '로딩 중...' : '과정 선택'}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
