@@ -58,77 +58,78 @@ export function AdminSidebar() {
     items: MenuItem[];
   };
 
-  // 새로운 메뉴 구조 - 요구사항에 따라 재구성
-  const getMenuItems = () => {
-    // Admin/Director 메뉴 구조
-    const adminMenuItems: MenuSection[] = [
-      {
+  // 역할 기반 메뉴 구조 - 사용자가 가진 모든 역할의 메뉴를 표시
+  const getMenuItems = (): MenuSection[] => {
+    const sections: MenuSection[] = [];
+    
+    // 관리자/운영자는 조직 전체 메뉴 접근
+    const hasAdminAccess = isAdmin || isOperator;
+    
+    if (hasAdminAccess) {
+      sections.push(
+        {
+          title: "조직 개요",
+          items: [
+            { title: "대시보드", url: "/dashboard", icon: Building2, exact: true }
+          ]
+        },
+        {
+          title: "조직 분석", 
+          items: [
+            { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
+            { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
+            { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false },
+            { title: "누적 데이터", url: "/dashboard/cumulative-data", icon: Database, exact: false }
+          ]
+        },
+        {
+          title: "운영 관리",
+          items: [
+            { title: "설문관리", url: "/surveys-v2", icon: FileText, exact: false },
+            { title: "템플릿관리", url: "/dashboard/templates", icon: FileText, exact: false },
+            { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck, exact: false },
+            { title: "사용자관리", url: "/dashboard/users", icon: Users, exact: false },
+            { title: "과정관리", url: "/dashboard/courses", icon: BookOpen, exact: false }
+          ]
+        },
+        {
+          title: "감사 로그",
+          items: [
+            { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, exact: false },
+            { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings, exact: false },
+            { title: "정책 관리", url: "/dashboard/policy-management", icon: Shield, exact: false }
+          ]
+        }
+      );
+    }
+
+    // 강사 역할이 있으면 "나의 분석" 섹션 추가
+    if (isInstructor) {
+      sections.push({
+        title: "나의 분석",
+        items: [
+          { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false, badge: "내 데이터만" },
+          { title: "과정별 내 결과", url: "/dashboard/results", icon: TrendingUp, exact: false, badge: "강사만" },
+          { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false, badge: "요약만" }
+        ]
+      });
+    }
+
+    // 강사 전용 모드 (관리자 권한 없는 강사)
+    if (!hasAdminAccess && isInstructor) {
+      // 강사는 대시보드만 추가로 접근
+      sections.unshift({
         title: "조직 개요",
         items: [
           { title: "대시보드", url: "/dashboard", icon: Building2, exact: true }
         ]
-      },
-      {
-        title: "조직 분석", 
-        items: [
-          { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-          { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
-          { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false },
-          { title: "누적 데이터", url: "/dashboard/cumulative-data", icon: Database, exact: false }
-        ]
-      },
-      {
-        title: "운영 관리",
-        items: [
-          { title: "설문관리", url: "/surveys-v2", icon: FileText, exact: false },
-          { title: "템플릿관리", url: "/dashboard/templates", icon: FileText, exact: false },
-          { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck, exact: false },
-          { title: "사용자관리", url: "/dashboard/users", icon: Users, exact: false },
-          { title: "과정관리", url: "/dashboard/courses", icon: BookOpen, exact: false }
-        ]
-      },
-      {
-        title: "감사 로그",
-        items: [
-          { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, exact: false },
-          { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings, exact: false },
-          { title: "정책 관리", url: "/dashboard/policy-management", icon: Shield, exact: false }
-        ]
-      }
-    ];
+      });
+    }
 
-    // Instructor 메뉴 구조
-    const instructorMenuItems: MenuSection[] = [
-      {
-        title: "나의 분석",
-        items: [
-          { title: "나의 만족도 통계", url: "/dashboard/my-stats", icon: Award, exact: false },
-          { title: "과정별 내 결과", url: "/dashboard/course-reports", icon: TrendingUp, exact: false, badge: "내 데이터만" },
-          { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false, badge: "요약만" }
-        ]
-      }
-    ];
-
-    return { adminMenuItems, instructorMenuItems };
+    return sections;
   };
 
-  const { adminMenuItems, instructorMenuItems } = getMenuItems();
-
-  // view 모드에 따른 메뉴 선택
-  let menuItems: MenuSection[];
-  if (viewMode === 'instructor') {
-    menuItems = instructorMenuItems;
-  } else if (viewMode === 'admin' || isAdmin) {
-    // 관리자이면서 강사인 경우 두 메뉴 모두 표시
-    if (isAdmin && isInstructor) {
-      menuItems = [...adminMenuItems, ...instructorMenuItems];
-    } else {
-      menuItems = adminMenuItems;
-    }
-  } else {
-    // 기본: 강사 메뉴
-    menuItems = instructorMenuItems;
-  }
+  const menuItems = getMenuItems();
 
   const renderMenuItem = (
     item: MenuItem,
