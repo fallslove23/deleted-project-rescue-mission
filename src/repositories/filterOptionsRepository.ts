@@ -23,8 +23,10 @@ export async function fetchCourseOptions(params: {
     const { data, error } = await supabase.rpc('fn_course_filter_options' as any, {
       p_year: params.year ?? null,
       p_search: params.search ?? null,
+      // Disambiguate overloaded function by providing extra flags
+      p_include_instructor: true,
+      p_include_admin: true,
     }) as { data: CourseOption[] | null; error: any };
-
     if (error) {
       console.error('Failed to fetch course options:', error);
       throw error;
