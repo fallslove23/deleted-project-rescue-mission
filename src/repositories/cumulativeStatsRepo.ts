@@ -221,11 +221,12 @@ export async function fetchCumulativeStats({
     survey_cumulative_stats: SurveyCumulativeStatsRow | null;
   };
 
+  // Query directly from survey_cumulative_stats to avoid FK join issues
   let query = supabase
-    .from('surveys')
+    .from('survey_cumulative_stats')
     .select(
       `
-        id,
+        survey_id,
         title,
         education_year,
         education_round,
@@ -233,33 +234,29 @@ export async function fetchCumulativeStats({
         status,
         expected_participants,
         created_at,
-        is_test,
-        survey_cumulative_stats:survey_cumulative_stats!inner(
-          survey_id,
-          last_response_at,
-          survey_is_test,
-          instructor_names,
-          instructor_names_text,
-          instructor_count,
-          total_response_count,
-          real_response_count,
-          test_response_count,
-          avg_satisfaction_total,
-          avg_satisfaction_real,
-          avg_satisfaction_test,
-          avg_course_satisfaction_total,
-          avg_course_satisfaction_real,
-          avg_course_satisfaction_test,
-          avg_instructor_satisfaction_total,
-          avg_instructor_satisfaction_real,
-          avg_instructor_satisfaction_test,
-          avg_operation_satisfaction_total,
-          avg_operation_satisfaction_real,
-          avg_operation_satisfaction_test,
-          weighted_satisfaction_total,
-          weighted_satisfaction_real,
-          weighted_satisfaction_test
-        )
+        last_response_at,
+        survey_is_test,
+        instructor_names,
+        instructor_names_text,
+        instructor_count,
+        total_response_count,
+        real_response_count,
+        test_response_count,
+        avg_satisfaction_total,
+        avg_satisfaction_real,
+        avg_satisfaction_test,
+        avg_course_satisfaction_total,
+        avg_course_satisfaction_real,
+        avg_course_satisfaction_test,
+        avg_instructor_satisfaction_total,
+        avg_instructor_satisfaction_real,
+        avg_instructor_satisfaction_test,
+        avg_operation_satisfaction_total,
+        avg_operation_satisfaction_real,
+        avg_operation_satisfaction_test,
+        weighted_satisfaction_total,
+        weighted_satisfaction_real,
+        weighted_satisfaction_test
       `,
       { count: 'exact' }
     )
@@ -268,35 +265,49 @@ export async function fetchCumulativeStats({
     .order('education_round', { ascending: false })
     .order('title', { ascending: true });
 
-  query = applyFilters(query, {
-    searchTerm,
-    educationYear,
-    courseName,
-    includeTestData,
-  });
+  // Apply filters
+  if (!includeTestData) {
+    query = query.or('survey_is_test.eq.false,survey_is_test.is.null');
+  }
+
+  if (educationYear !== null && educationYear !== undefined) {
+    query = query.eq('education_year', educationYear);
+  }
+
+  if (courseName !== null && courseName !== undefined) {
+    query = query.eq('course_name', courseName);
+  }
+
+  if (searchTerm && searchTerm.trim()) {
+    const like = `%${searchTerm.trim()}%`;
+    query = query.or(
+      [
+        `title.ilike.${like}`,
+        `course_name.ilike.${like}`,
+        `instructor_names_text.ilike.${like}`,
+      ].join(',')
+    );
+  }
 
   const { data, error, count } = await query.range(from, to);
   if (error) throw error;
 
-  const transformedData = (data ?? []).reduce<SurveyCumulativeRow[]>((acc, row) => {
-    const surveyRow = row as unknown as SurveyWithStatsRow;
-    const statsRow = surveyRow?.survey_cumulative_stats ?? null;
-
-    if (!surveyRow?.id || !statsRow?.survey_id) {
+  const transformedData = (data ?? []).reduce<SurveyCumulativeRow[]>((acc, statsRow: any) => {
+    if (!statsRow?.survey_id) {
       return acc;
     }
 
     const rawRow: RawSurveyCumulativeRow = {
-      survey_id: surveyRow.id,
-      title: surveyRow.title ?? null,
-      education_year: surveyRow.education_year,
-      education_round: surveyRow.education_round,
-      course_name: surveyRow.course_name ?? null,
-      status: surveyRow.status ?? null,
-      expected_participants: surveyRow.expected_participants,
-      created_at: surveyRow.created_at ?? null,
+      survey_id: statsRow.survey_id,
+      title: statsRow.title ?? null,
+      education_year: statsRow.education_year,
+      education_round: statsRow.education_round,
+      course_name: statsRow.course_name ?? null,
+      status: statsRow.status ?? null,
+      expected_participants: statsRow.expected_participants ?? null,
+      created_at: statsRow.created_at ?? null,
       last_response_at: statsRow.last_response_at ?? null,
-      survey_is_test: statsRow.survey_is_test ?? surveyRow.is_test,
+      survey_is_test: statsRow.survey_is_test ?? null,
       instructor_names: statsRow.instructor_names ?? null,
       instructor_names_text: statsRow.instructor_names_text ?? null,
       instructor_count: statsRow.instructor_count ?? null,

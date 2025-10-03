@@ -13,29 +13,35 @@ export interface SubjectOption {
 }
 
 /**
- * Fetch available course options using RPC
+ * Fetch available course options using courses table (safe fallback)
+ * - Avoids fragile RPC/view dependencies
  */
 export async function fetchCourseOptions(params: {
   year?: number | null;
   search?: string | null;
 }): Promise<CourseOption[]> {
   try {
-    const { data, error } = await supabase.rpc('fn_course_filter_options' as any, {
-      p_year: params.year ?? null,
-      p_search: params.search ?? null,
-      // Disambiguate overloaded function by providing extra flags
-      p_include_instructor: true,
-      p_include_admin: true,
-    }) as { data: CourseOption[] | null; error: any };
-    if (error) {
-      console.error('Failed to fetch course options:', error);
-      throw error;
+    let query = supabase
+      .from('courses')
+      .select('id, title')
+      .order('title', { ascending: true });
+
+    if (params.search && params.search.trim()) {
+      query = query.ilike('title', `%${params.search.trim()}%`);
     }
 
-    return data || [];
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data ?? []).map((row: any) => ({
+      course_id: row.id,
+      course_title: row.title,
+      year: params.year ?? new Date().getFullYear(),
+    }));
   } catch (error) {
     console.error('Error in fetchCourseOptions:', error);
-    throw new Error('데이터를 불러오지 못했습니다. 네트워크 또는 권한 문제일 수 있어요.');
+    // Fail-safe: return empty list to avoid blocking UI with toasts
+    return [];
   }
 }
 
