@@ -51,10 +51,11 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
       <Select 
-        value={value} 
+        value={value || 'all'} 
         onValueChange={(newValue) => {
-          const selectedCourse = courses.find(c => c.course_id === newValue);
-          onChange(newValue, selectedCourse?.course_title);
+          const actualValue = newValue === 'all' ? '' : newValue;
+          const selectedCourse = courses.find(c => c.course_id === actualValue);
+          onChange(actualValue, selectedCourse?.course_title);
         }} 
         disabled={loading}
       >
@@ -65,7 +66,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
         </SelectTrigger>
         <SelectContent className="z-50 bg-background border shadow-md">
           {includeAll && (
-            <SelectItem value="">전체 과정</SelectItem>
+            <SelectItem value="all">전체 과정</SelectItem>
           )}
           {courses.map((course) => (
             <SelectItem key={course.course_id} value={course.course_id}>

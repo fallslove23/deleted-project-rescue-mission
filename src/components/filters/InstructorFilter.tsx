@@ -57,7 +57,11 @@ const InstructorFilter: React.FC<InstructorFilterProps> = ({
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
-      <Select value={value} onValueChange={onChange} disabled={loading}>
+      <Select 
+        value={value || 'all'} 
+        onValueChange={(newValue) => onChange(newValue === 'all' ? '' : newValue)} 
+        disabled={loading}
+      >
         <SelectTrigger>
           <SelectValue placeholder={loading ? '로딩 중...' : '강사 선택'}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -65,7 +69,7 @@ const InstructorFilter: React.FC<InstructorFilterProps> = ({
         </SelectTrigger>
         <SelectContent className="z-50 bg-background border shadow-md">
           {includeAll && (
-            <SelectItem value="">전체 강사</SelectItem>
+            <SelectItem value="all">전체 강사</SelectItem>
           )}
           {instructors.map((instructor) => (
             <SelectItem key={instructor.id} value={instructor.id}>

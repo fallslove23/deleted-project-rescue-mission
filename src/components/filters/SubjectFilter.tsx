@@ -60,7 +60,11 @@ const SubjectFilter: React.FC<SubjectFilterProps> = ({
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
-      <Select value={value} onValueChange={onChange} disabled={isDisabled}>
+      <Select 
+        value={value || 'all'} 
+        onValueChange={(newValue) => onChange(newValue === 'all' ? '' : newValue)} 
+        disabled={isDisabled}
+      >
         <SelectTrigger>
           <SelectValue placeholder={loading ? '로딩 중...' : !courseId ? '먼저 과정을 선택하세요' : '과목 선택'}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -68,7 +72,7 @@ const SubjectFilter: React.FC<SubjectFilterProps> = ({
         </SelectTrigger>
         <SelectContent className="z-50 bg-background border shadow-md">
           {includeAll && (
-            <SelectItem value="">전체 과목</SelectItem>
+            <SelectItem value="all">전체 과목</SelectItem>
           )}
           {subjects.map((subject) => (
             <SelectItem key={subject.subject_id} value={subject.subject_id}>
