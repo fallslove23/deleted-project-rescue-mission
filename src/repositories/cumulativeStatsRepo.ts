@@ -377,7 +377,7 @@ export async function fetchCumulativeFilters(includeTestData: boolean): Promise<
   try {
     let query = supabase
       .from('surveys')
-      .select('education_year, course_name, is_test, instructors(name)')
+      .select('education_year, course_name, is_test')
       .order('education_year', { ascending: false })
       .order('course_name', { ascending: true });
 
