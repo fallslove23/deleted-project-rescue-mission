@@ -11,6 +11,7 @@ interface CourseFilterProps {
   label?: string;
   includeAll?: boolean;
   searchTerm?: string;
+  customOptions?: { value: string; label: string }[];
 }
 
 const CourseFilter: React.FC<CourseFilterProps> = ({
@@ -20,12 +21,19 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   label = '과정',
   includeAll = true,
   searchTerm = null,
+  customOptions,
 }) => {
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
+    // If custom options are provided, skip fetching
+    if (customOptions) {
+      setLoading(false);
+      return;
+    }
+
     const loadCourses = async () => {
       setLoading(true);
       try {
@@ -45,7 +53,12 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     };
 
     loadCourses();
-  }, [year, searchTerm, toast]);
+  }, [year, searchTerm, toast, customOptions]);
+
+  // Use custom options if provided, otherwise use fetched courses
+  const displayOptions = customOptions 
+    ? customOptions 
+    : courses.map(c => ({ value: c.course_id, label: c.course_title }));
 
   return (
     <div className="space-y-2">
@@ -54,8 +67,8 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
         value={value || 'all'} 
         onValueChange={(newValue) => {
           const actualValue = newValue === 'all' ? '' : newValue;
-          const selectedCourse = courses.find(c => c.course_id === actualValue);
-          onChange(actualValue, selectedCourse?.course_title);
+          const selectedOption = displayOptions.find(opt => opt.value === actualValue);
+          onChange(actualValue, selectedOption?.label);
         }} 
         disabled={loading}
       >
@@ -68,9 +81,9 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
           {includeAll && (
             <SelectItem value="all">전체 과정</SelectItem>
           )}
-          {courses.map((course) => (
-            <SelectItem key={course.course_id} value={course.course_id}>
-              {course.course_title}
+          {displayOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
             </SelectItem>
           ))}
         </SelectContent>

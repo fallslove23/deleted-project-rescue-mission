@@ -80,26 +80,28 @@ const CourseReportsContent: React.FC = () => {
     false,
   );
 
-  // Sync course name from filters.courseTitle
+  // Sync course name from filters.courseId (which now contains normalizedName)
   useEffect(() => {
-    if (filters.courseTitle) {
-      setSelectedCourseName(filters.courseTitle);
-    } else if (filters.courseId) {
-      // Fallback: if we only have courseId, try to find the title
-      const course = availableCourses.find(c => c.normalizedName === filters.courseId);
-      if (course) {
-        setSelectedCourseName(course.normalizedName);
-      }
+    if (filters.courseId) {
+      setSelectedCourseName(filters.courseId);
     } else {
       setSelectedCourseName('');
     }
-  }, [filters.courseTitle, filters.courseId, availableCourses]);
+  }, [filters.courseId]);
 
   const currentCourseName = useMemo(() => {
     if (summary?.courseName) return summary.courseName;
     const match = availableCourses.find(c => c.normalizedName === selectedCourseName);
     return match?.displayName || selectedCourseName || '';
   }, [summary?.courseName, availableCourses, selectedCourseName]);
+
+  // Convert availableCourses to customOptions format for CourseFilter
+  const courseOptions = useMemo(() => {
+    return availableCourses.map(course => ({
+      value: course.normalizedName,
+      label: course.displayName,
+    }));
+  }, [availableCourses]);
 
   const satisfactionChartData = useMemo(() => {
     if (!summary) return [] as Array<{ name: string; value: number; color: string }>;
@@ -463,9 +465,10 @@ const CourseReportsContent: React.FC = () => {
             />
             <CourseFilter
               value={filters.courseId}
-              onChange={(courseId, courseTitle) => updateFilter('courseId', courseId, { courseTitle })}
+              onChange={(normalizedName, displayName) => updateFilter('courseId', normalizedName, { courseTitle: displayName })}
               year={filters.year}
               includeAll={true}
+              customOptions={courseOptions}
             />
             <SubjectFilter
               value={filters.subjectId}
