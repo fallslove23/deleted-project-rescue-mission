@@ -198,30 +198,31 @@ const CumulativeDataTable = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
             데이터 필터
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">검색어</label>
+              <label className="text-xs sm:text-sm font-medium mb-2 block">검색어</label>
               <Input
                 placeholder="설문명, 과정명, 강사명 검색..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
+                className="text-sm"
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">연도</label>
+              <label className="text-xs sm:text-sm font-medium mb-2 block">연도</label>
               <Select
                 value={selectedYear !== null ? String(selectedYear) : 'all'}
                 onValueChange={(value) =>
                   setSelectedYear(value === 'all' ? null : Number(value))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="text-sm">
                   <SelectValue placeholder="연도 선택" />
                 </SelectTrigger>
                 <SelectContent>
@@ -235,14 +236,14 @@ const CumulativeDataTable = () => {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">과정</label>
+              <label className="text-xs sm:text-sm font-medium mb-2 block">과정</label>
               <Select
                 value={selectedCourse ?? 'all'}
                 onValueChange={(value) =>
                   setSelectedCourse(value === 'all' ? null : value)
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="text-sm">
                   <SelectValue placeholder="과정 선택" />
                 </SelectTrigger>
                 <SelectContent>
@@ -265,51 +266,51 @@ const CumulativeDataTable = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">총 응답 수</p>
-                <p className="text-2xl font-bold">{summary.totalResponses.toLocaleString()}</p>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">총 응답 수</p>
+                <p className="text-xl sm:text-2xl font-bold truncate">{summary.totalResponses.toLocaleString()}</p>
               </div>
-              <Calendar className="h-8 w-8 text-blue-500" />
+              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">평균 만족도</p>
-                <p className="text-2xl font-bold">{averageDisplay}</p>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">평균 만족도</p>
+                <p className="text-xl sm:text-2xl font-bold truncate">{averageDisplay}</p>
               </div>
-              <Star className="h-8 w-8 text-green-500" />
+              <Star className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">참여 강사</p>
-                <p className="text-2xl font-bold">{summary.participatingInstructors.toLocaleString()}</p>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">참여 강사</p>
+                <p className="text-xl sm:text-2xl font-bold truncate">{summary.participatingInstructors.toLocaleString()}</p>
               </div>
-              <Users className="h-8 w-8 text-purple-500" />
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">진행 과정</p>
-                <p className="text-2xl font-bold">{summary.coursesInProgress.toLocaleString()}</p>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">진행 과정</p>
+                <p className="text-xl sm:text-2xl font-bold truncate">{summary.coursesInProgress.toLocaleString()}</p>
               </div>
-              <Target className="h-8 w-8 text-orange-500" />
+              <Target className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 flex-shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -317,14 +318,14 @@ const CumulativeDataTable = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>누적 데이터 목록</CardTitle>
+          <CardTitle className="text-base sm:text-lg">누적 데이터 목록</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-6">
           {loading && data.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
-                <p>데이터를 불러오는 중...</p>
+                <p className="text-sm">데이터를 불러오는 중...</p>
               </div>
             </div>
           ) : error ? (

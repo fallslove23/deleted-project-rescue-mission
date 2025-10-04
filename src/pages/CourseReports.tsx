@@ -18,7 +18,7 @@ import InstructorStatsSection from '@/components/course-reports/InstructorStatsS
 import { DonutChart } from '@/components/charts/DonutChart';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { KeywordCloud } from '@/components/course-reports/KeywordCloud';
-import { YearFilter, CourseFilter, SubjectFilter } from '@/components/filters';
+import { YearFilter, CourseFilter } from '@/components/filters';
 import { useFilterState } from '@/hooks/useFilterState';
 import { useCourseReportsData } from '@/hooks/useCourseReportsData';
 import { useAuth } from '@/hooks/useAuth';
@@ -296,16 +296,16 @@ const CourseReportsContent: React.FC = () => {
         avgSatisfaction={overallSatisfaction}
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-2">
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               영역별 만족도
             </CardTitle>
-            <CardDescription>강사, 과정, 운영 만족도를 비교해 보세요.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">강사, 과정, 운영 만족도를 비교해 보세요.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[320px]">
+          <CardContent className="h-[280px] sm:h-[320px]">
             <ChartErrorBoundary fallbackDescription="만족도 차트를 표시할 수 없습니다.">
               <DonutChart data={satisfactionChartData} />
             </ChartErrorBoundary>
@@ -314,33 +314,33 @@ const CourseReportsContent: React.FC = () => {
 
         <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-primary/10">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Star className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               만족도 요약
             </CardTitle>
-            <CardDescription>전체 과정의 핵심 지표를 한눈에 확인하세요.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">전체 과정의 핵심 지표를 한눈에 확인하세요.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">과정명</span>
-                <span className="font-semibold">{currentCourseName || '전체 과정'}</span>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex items-center justify-between text-sm sm:text-base">
+                <span className="text-xs sm:text-sm text-muted-foreground">과정명</span>
+                <span className="font-semibold truncate ml-2">{currentCourseName || '전체 과정'}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">교육 연도</span>
+              <div className="flex items-center justify-between text-sm sm:text-base">
+                <span className="text-xs sm:text-sm text-muted-foreground">교육 연도</span>
                 <span className="font-semibold">{summary.educationYear}년</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">응답한 인원수</span>
+              <div className="flex items-center justify-between text-sm sm:text-base">
+                <span className="text-xs sm:text-sm text-muted-foreground">응답한 인원수</span>
                 <span className="font-semibold">{summary.totalResponses.toLocaleString()}명</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">참여 강사</span>
+              <div className="flex items-center justify-between text-sm sm:text-base">
+                <span className="text-xs sm:text-sm text-muted-foreground">참여 강사</span>
                 <span className="font-semibold">{summary.instructorCount.toLocaleString()}명</span>
               </div>
-              <div className="flex items-center justify-between border-t pt-4">
+              <div className="flex items-center justify-between border-t pt-3 sm:pt-4">
                 <div>
-                  <div className="text-sm text-muted-foreground">종합 만족도</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">종합 만족도</div>
                   {satisfactionChange && (
                     <div
                       className={`text-xs font-medium ${
@@ -351,9 +351,9 @@ const CourseReportsContent: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-primary">{overallSatisfaction.toFixed(1)}</span>
-                  <span className="text-sm text-muted-foreground">/ 10점</span>
+                <div className="flex items-baseline gap-1 sm:gap-2">
+                  <span className="text-3xl sm:text-4xl font-bold text-primary">{overallSatisfaction.toFixed(1)}</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">/ 10점</span>
                 </div>
               </div>
             </div>
@@ -457,7 +457,7 @@ const CourseReportsContent: React.FC = () => {
               <CardTitle>필터</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <YearFilter
               value={filters.year}
               onChange={(year) => updateFilter('year', year)}
@@ -469,13 +469,6 @@ const CourseReportsContent: React.FC = () => {
               year={filters.year}
               includeAll={true}
               customOptions={courseOptions}
-            />
-            <SubjectFilter
-              value={filters.subjectId}
-              onChange={(subjectId) => updateFilter('subjectId', subjectId)}
-              courseId={filters.courseId}
-              disabled={!filters.courseId}
-              includeAll={true}
             />
           </CardContent>
         </Card>
