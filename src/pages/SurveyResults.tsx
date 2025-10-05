@@ -816,19 +816,19 @@ const SurveyResults = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold">설문 결과 분석</h1>
-          <p className="text-muted-foreground">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8 space-y-4 sm:space-y-6">
+        <div className="flex flex-col gap-1 sm:gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">설문 결과 분석</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             설문 응답의 주요 지표를 서버에서 집계한 데이터로 빠르게 확인할 수 있습니다.
           </p>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>필터</CardTitle>
+          <CardHeader className="px-4 sm:px-6 py-3 sm:py-4">
+            <CardTitle className="text-base sm:text-lg">필터</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
+          <CardContent className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 px-4 sm:px-6">
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">연도</span>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -900,53 +900,53 @@ const SurveyResults = () => {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>요약 지표</CardTitle>
+          <CardHeader className="px-4 sm:px-6 py-3 sm:py-4">
+            <CardTitle className="text-base sm:text-lg">요약 지표</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">총 설문 수</p>
-              <p className="text-2xl font-semibold">{formatNumber(summary.totalSurveys)}</p>
+          <CardContent className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-4 sm:px-6">
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">총 설문 수</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatNumber(summary.totalSurveys)}</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">총 응답 수</p>
-              <p className="text-2xl font-semibold">{formatNumber(summary.totalResponses)}</p>
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">총 응답 수</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatNumber(summary.totalResponses)}</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">진행 중</p>
-              <p className="text-2xl font-semibold">{formatNumber(summary.activeSurveys)}</p>
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">진행 중</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatNumber(summary.activeSurveys)}</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">완료</p>
-              <p className="text-2xl font-semibold">{formatNumber(summary.completedSurveys)}</p>
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">완료</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatNumber(summary.completedSurveys)}</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">종합 만족도</p>
-              <p className="text-2xl font-semibold">{formatSatisfaction(summary.avgOverall)}</p>
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">종합 만족도</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatSatisfaction(summary.avgOverall)}</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">강의 만족도</p>
-              <p className="text-2xl font-semibold">{formatSatisfaction(summary.avgCourse)}</p>
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">강의 만족도</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatSatisfaction(summary.avgCourse)}</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">강사 만족도</p>
-              <p className="text-2xl font-semibold">{formatSatisfaction(calculateAdjustedInstructorSatisfaction())}</p>
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">강사 만족도</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatSatisfaction(calculateAdjustedInstructorSatisfaction())}</p>
             </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-sm text-muted-foreground">운영 만족도</p>
-              <p className="text-2xl font-semibold">{formatSatisfaction(summary.avgOperation)}</p>
+            <div className="rounded-lg border p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">운영 만족도</p>
+              <p className="text-lg sm:text-2xl font-semibold">{formatSatisfaction(summary.avgOperation)}</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle>집계 결과</CardTitle>
-            <span className="text-sm text-muted-foreground">
+          <CardHeader className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between px-4 sm:px-6 py-3 sm:py-4">
+            <CardTitle className="text-base sm:text-lg">집계 결과</CardTitle>
+            <span className="text-xs sm:text-sm text-muted-foreground">
               서버 집계를 통해 정렬된 설문 목록입니다.
             </span>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-auto px-2 sm:px-4 md:px-6">
             {aggregatesLoading ? (
               <div className="py-12 text-center text-muted-foreground">집계 데이터를 불러오는 중입니다...</div>
             ) : aggregates.length === 0 ? (
@@ -1021,52 +1021,56 @@ const SurveyResults = () => {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <CardHeader className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between px-4 sm:px-6 py-3 sm:py-4">
             <div>
-              <CardTitle>선택한 설문 상세</CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <CardTitle className="text-base sm:text-lg mb-1 sm:mb-2">선택한 설문 상세</CardTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 설문 응답 목록은 페이지 단위로 불러오며, 대량 다운로드는 백그라운드 작업으로 처리됩니다.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button
                 onClick={() => handleDownload('summary')}
                 disabled={!selectedSurvey || (downloadJob?.status === 'running' && downloadJob.type === 'summary')}
                 variant="secondary"
+                size="sm"
+                className="w-full sm:w-auto text-xs sm:text-sm"
               >
                 요약 다운로드
               </Button>
               <Button
                 onClick={() => handleDownload('responses')}
                 disabled={!selectedSurvey || (downloadJob?.status === 'running' && downloadJob.type === 'responses')}
+                size="sm"
+                className="w-full sm:w-auto text-xs sm:text-sm"
               >
                 응답 다운로드
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
             {!selectedSurvey ? (
-              <div className="py-12 text-center text-muted-foreground">
+              <div className="py-8 sm:py-12 text-center text-xs sm:text-sm text-muted-foreground">
                 표시할 설문을 선택하세요.
               </div>
             ) : (
               <>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">설문 제목</p>
-                    <p className="font-semibold">{selectedSurvey.title}</p>
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-lg border p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">설문 제목</p>
+                    <p className="text-sm sm:text-base font-semibold truncate">{selectedSurvey.title}</p>
                   </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">응답 수</p>
-                    <p className="font-semibold">{formatNumber(selectedSurvey.response_count)}</p>
+                  <div className="rounded-lg border p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">응답 수</p>
+                    <p className="text-sm sm:text-base font-semibold">{formatNumber(selectedSurvey.response_count)}</p>
                   </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">종합 만족도</p>
-                    <p className="font-semibold">{formatSatisfaction(selectedSurvey.avg_overall_satisfaction)}</p>
+                  <div className="rounded-lg border p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">종합 만족도</p>
+                    <p className="text-sm sm:text-base font-semibold">{formatSatisfaction(selectedSurvey.avg_overall_satisfaction)}</p>
                   </div>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">기대 인원 대비 응답률</p>
-                    <p className="font-semibold">
+                  <div className="rounded-lg border p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">기대 인원 대비 응답률</p>
+                    <p className="text-sm sm:text-base font-semibold">
                       {selectedSurvey.expected_participants && selectedSurvey.expected_participants > 0
                         ? `${Math.round(
                           (selectedSurvey.response_count / selectedSurvey.expected_participants) * 100,
@@ -1077,15 +1081,15 @@ const SurveyResults = () => {
                 </div>
 
                 {downloadJob && (
-                  <div className="rounded-lg border p-4 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
+                  <div className="rounded-lg border p-3 sm:p-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span>
                         {downloadJob.type === 'responses' ? '응답 다운로드' : '요약 다운로드'} 진행 상태
                       </span>
                       <span>{Math.round(downloadJob.progress * 100)}%</span>
                     </div>
                     <Progress value={Math.round(downloadJob.progress * 100)} />
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       {downloadJob.message}
                       {downloadJob.status === 'error' && downloadJob.error ? ` (${downloadJob.error})` : ''}
                     </p>
@@ -1093,9 +1097,9 @@ const SurveyResults = () => {
                 )}
 
                 <div className="rounded-lg border">
-                  <div className="flex items-center justify-between border-b px-4 py-2">
-                    <p className="text-sm font-semibold">응답 목록</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex items-center justify-between border-b px-3 sm:px-4 py-2">
+                    <p className="text-xs sm:text-sm font-semibold">응답 목록</p>
+                    <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
                       총 {formatNumber(responseTotal)}건 · {responsePage + 1}/{totalResponsePages || 1} 페이지
                     </p>
                   </div>

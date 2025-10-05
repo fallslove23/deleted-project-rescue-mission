@@ -720,32 +720,32 @@ const InstructorManagement = React.forwardRef<{
         </div>
       )}
 
-      <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-1 border rounded-md p-1">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-1 border rounded-md p-1 w-full sm:w-auto">
             <Button
               variant={viewType === 'card' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewType('card')}
-              className="h-8 px-3"
+              className="h-7 sm:h-8 px-2 sm:px-3 flex-1 sm:flex-none text-xs sm:text-sm"
             >
-              <Grid3X3 className="h-4 w-4" />
+              <Grid3X3 className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               variant={viewType === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewType('list')}
-              className="h-8 px-3"
+              className="h-7 sm:h-8 px-2 sm:px-3 flex-1 sm:flex-none text-xs sm:text-sm"
             >
-              <List className="h-4 w-4" />
+              <List className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
-          <div className="flex gap-1 border rounded-md p-1">
+          <div className="flex gap-1 border rounded-md p-1 w-full sm:w-auto">
             <Button
               variant={instructorRoleFilter === 'all' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setInstructorRoleFilter('all')}
-              className="h-8 px-3"
+              className="h-7 sm:h-8 px-2 sm:px-3 flex-1 sm:flex-none text-xs sm:text-sm"
             >
               전체 강사
             </Button>
@@ -753,7 +753,7 @@ const InstructorManagement = React.forwardRef<{
               variant={instructorRoleFilter === 'instructor-only' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setInstructorRoleFilter('instructor-only')}
-              className="h-8 px-3"
+              className="h-7 sm:h-8 px-2 sm:px-3 flex-1 sm:flex-none text-xs sm:text-sm"
             >
               강사 권한 보유
             </Button>
@@ -762,36 +762,36 @@ const InstructorManagement = React.forwardRef<{
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Search className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <Input
             placeholder="강사명, 이메일, 담당과목으로 검색..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-8 sm:pl-10 h-9 sm:h-10 text-xs sm:text-sm"
           />
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 sm:gap-4">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center">
-                <Users className="h-8 w-8 text-primary" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">총 강사 수</p>
-                  <p className="text-2xl font-bold">{instructors.length}</p>
+                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
+                <div className="ml-3 sm:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">총 강사 수</p>
+                  <p className="text-xl sm:text-2xl font-bold">{instructors.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center">
-                <UserPlus className="h-8 w-8 text-primary" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">계정 연결된 강사</p>
-                  <p className="text-2xl font-bold">
+                <UserPlus className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
+                <div className="ml-3 sm:ml-4 min-w-0">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">계정 연결된 강사</p>
+                  <p className="text-xl sm:text-2xl font-bold">
                     {Object.keys(instructorRoles).length}
                   </p>
                 </div>
@@ -803,11 +803,11 @@ const InstructorManagement = React.forwardRef<{
         {/* Instructors Grid/List */}
         {filteredInstructors.length === 0 ? (
           <Card>
-            <CardContent className="py-10 text-center space-y-2">
-              <p className="text-lg font-semibold">
+            <CardContent className="py-8 sm:py-10 px-4 sm:px-6 text-center space-y-2">
+              <p className="text-sm sm:text-base md:text-lg font-semibold">
                 {hasSearchQuery ? '검색 결과가 없습니다.' : `${filterLabel} 보기에서 표시할 강사가 없습니다.`}
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {hasSearchQuery
                   ? `현재 "${filterLabel}" 보기에서 "${trimmedSearchQuery}"에 해당하는 강사를 찾을 수 없습니다. 검색어를 변경하거나 필터를 조정해보세요.`
                   : instructorRoleFilter === 'instructor-only'
@@ -817,7 +817,7 @@ const InstructorManagement = React.forwardRef<{
             </CardContent>
           </Card>
         ) : viewType === 'card' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredInstructors.map((instructor) => {
               const instructorCoursesData = getInstructorCourses(instructor.id);
 

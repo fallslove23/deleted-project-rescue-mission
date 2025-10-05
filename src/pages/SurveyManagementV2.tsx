@@ -973,94 +973,97 @@ export default function SurveyManagementV2() {
       ]}
     >
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">최근 저장된 필터</span>
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <span className="text-xs sm:text-sm font-medium text-muted-foreground">최근 저장된 필터</span>
+            <Button size="sm" onClick={() => setPresetModalOpen(true)} disabled={presetSaving} className="w-full sm:w-auto text-xs sm:text-sm">
+              <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              필터 저장
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {presetLoading ? (
               <div className="flex items-center gap-2">
-                <Skeleton className="h-8 w-28" />
-                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-7 sm:h-8 w-24 sm:w-28" />
+                <Skeleton className="h-7 sm:h-8 w-20 sm:w-24" />
               </div>
             ) : recentPresets.length ? (
               recentPresets.map((preset) => (
-                <div key={preset.id} className="flex items-center gap-1">
+                <div key={preset.id} className="flex items-center gap-0.5 sm:gap-1">
                   <Button
                     variant={activePresetId === preset.id ? "default" : "outline"}
                     size="sm"
                     onClick={() => handleApplyPreset(preset)}
-                    className="whitespace-nowrap"
+                    className="whitespace-nowrap h-7 sm:h-8 text-xs px-2 sm:px-3"
                   >
-                    <Bookmark className="h-4 w-4 mr-1" />
-                    {preset.preset_name}
+                    <Bookmark className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">{preset.preset_name}</span>
+                    <span className="sm:hidden">{preset.preset_name.substring(0, 8)}...</span>
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => handleCopyPresetLink(preset)}
                     aria-label={`"${preset.preset_name}" 필터 링크 복사`}
-                    className="h-8 w-8"
+                    className="h-7 w-7 sm:h-8 sm:w-8"
                   >
-                    <Share2 className="h-4 w-4" />
+                    <Share2 className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               ))
             ) : (
-              <span className="text-sm text-muted-foreground">저장된 프리셋이 없습니다.</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">저장된 프리셋이 없습니다.</span>
             )}
           </div>
-          <Button size="sm" onClick={() => setPresetModalOpen(true)} disabled={presetSaving}>
-            <Save className="h-4 w-4 mr-2" />
-            필터 저장
-          </Button>
         </div>
 
         {/* 검색 및 필터 */}
         <Card>
-          <CardHeader>
-            <CardTitle>검색 / 필터</CardTitle>
+          <CardHeader className="px-4 sm:px-6 py-3 sm:py-4">
+            <CardTitle className="text-base sm:text-lg">검색 / 필터</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
             {/* 검색 */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">검색</label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <label className="text-xs sm:text-sm font-medium">검색</label>
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-2.5 sm:left-3 top-2.5 sm:top-3 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
                 <Input
                   ref={searchRef}
                   placeholder="제목 / 과정 / 강사 검색"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="pl-10"
+                  className="pl-8 sm:pl-10 h-9 sm:h-10 text-xs sm:text-sm"
                 />
               </div>
             </div>
 
             {/* 필터 */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">교육 연도</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-medium">교육 연도</label>
                 <Select value={filters.year ? String(filters.year) : "all"} onValueChange={(v) => handleFilterChange("year", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">모든 연도</SelectItem>
                     {availableYears.map((y) => <SelectItem key={y} value={String(y)}>{y}년</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">과정명</label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-medium">과정명</label>
                 <Select value={filters.courseName || "all"} onValueChange={(v) => handleFilterChange("courseName", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">모든 과정</SelectItem>
                     {availableCourseNames.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">상태</label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-medium">상태</label>
                 <Select value={filters.status || "all"} onValueChange={(v) => handleFilterChange("status", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">모든 상태</SelectItem>
                     <SelectItem value="draft">초안</SelectItem>
@@ -1072,14 +1075,14 @@ export default function SurveyManagementV2() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">정렬</label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-medium">정렬</label>
                 <Select value={`${sortBy}_${sortDir}`} onValueChange={(v) => {
                   const [by, dir] = v.split("_");
                   setSortBy(by as SortBy);
                   setSortDir(dir as SortDir);
                 }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="created_at_desc">생성일 ↓</SelectItem>
                     <SelectItem value="created_at_asc">생성일 ↑</SelectItem>
@@ -1090,20 +1093,20 @@ export default function SurveyManagementV2() {
               </div>
             </div>
 
-            <div className="rounded-md border border-dashed bg-muted/40 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-muted-foreground">필터 요약</span>
+            <div className="rounded-md border border-dashed bg-muted/40 p-2 sm:p-3">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span className="text-xs sm:text-sm text-muted-foreground">필터 요약</span>
                 {filterSummaryItems.length ? (
                   filterSummaryItems.map((item) => (
-                    <Badge key={`${item.label}-${item.value}`} variant="secondary" className="text-xs">
+                    <Badge key={`${item.label}-${item.value}`} variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
                       {item.label}: {item.value}
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-muted-foreground">모든 설문이 표시됩니다.</span>
+                  <span className="text-xs sm:text-sm text-muted-foreground">모든 설문이 표시됩니다.</span>
                 )}
                 {activePreset && (
-                  <span className="ml-auto text-xs font-medium text-primary whitespace-nowrap">
+                  <span className="w-full sm:w-auto sm:ml-auto text-[10px] sm:text-xs font-medium text-primary whitespace-nowrap mt-1 sm:mt-0">
                     "{activePreset.preset_name}" 프리셋 적용 중
                   </span>
                 )}

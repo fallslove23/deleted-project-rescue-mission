@@ -61,10 +61,10 @@ export function DashboardLayout(props: DashboardLayoutProps) {
       {renderSubNavigation()}
       
       <div className="flex-1 overflow-auto">
-        <div className="container mx-auto px-4 py-6 max-w-none">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 max-w-none">
           {(subline || typeof totalCount === "number") && (
-            <div className="mb-6">
-              <p className="text-sm text-muted-foreground">
+            <div className="mb-4 sm:mb-6">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {subline}
                 {typeof totalCount === "number" && ` - 전체 ${totalCount}개`}
               </p>

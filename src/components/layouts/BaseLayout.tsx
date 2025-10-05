@@ -13,8 +13,10 @@ export function BaseLayout({ children }: BaseLayoutProps) {
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
           <AdminSidebar />
-          <main className="flex-1 flex flex-col min-w-0">
-            {children}
+          <main className="flex-1 flex flex-col min-w-0 w-full">
+            <div className="w-full h-full overflow-x-hidden">
+              {children}
+            </div>
           </main>
         </div>
       </SidebarProvider>

@@ -270,15 +270,17 @@ const PersonalDashboard: FC = () => {
   }, [stats.summary, stats.trend, toast]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {isPreviewingInstructor && (
         <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4 flex items-center gap-2 text-sm text-orange-700">
-            <Eye className="h-4 w-4" />
-            <span>강사 페이지 미리보기 모드</span>
-            {previewInstructorEmail && <Badge variant="outline">{previewInstructorEmail}</Badge>}
+          <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs sm:text-sm text-orange-700">
+            <div className="flex items-center gap-2">
+              <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span>강사 페이지 미리보기 모드</span>
+            </div>
+            {previewInstructorEmail && <Badge variant="outline" className="text-[10px] sm:text-xs">{previewInstructorEmail}</Badge>}
             {previewResolvedInstructorId && (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">
                 ID: {previewResolvedInstructorId}
               </Badge>
             )}
@@ -286,10 +288,10 @@ const PersonalDashboard: FC = () => {
         </Card>
       )}
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">나의 만족도 통계</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold">나의 만족도 통계</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm">
             강의 만족도, 응답 추이, 주요 피드백을 한눈에 확인하세요.
           </p>
         </div>
@@ -298,34 +300,34 @@ const PersonalDashboard: FC = () => {
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 h-8 sm:h-9 text-xs sm:text-sm"
             disabled={!hasData}
             onClick={handleDownload}
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             CSV 다운로드
           </Button>
         </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>조회 조건</CardTitle>
-          <CardDescription>
+        <CardHeader className="px-4 sm:px-6 py-3 sm:py-4">
+          <CardTitle className="text-base sm:text-lg">조회 조건</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             선택한 연도, 과정을 기준으로 집계된 통계를 확인합니다.
             {usingTestData && (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="ml-2 text-[10px] sm:text-xs">
                 테스트 데이터 포함
               </Badge>
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <CardContent className="px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             <div>
-              <p className="mb-2 text-sm font-medium">연도</p>
+              <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-medium">연도</p>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger>
+                <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm">
                   <SelectValue placeholder="연도 선택" />
                 </SelectTrigger>
                 <SelectContent>
@@ -339,9 +341,9 @@ const PersonalDashboard: FC = () => {
               </Select>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">과정</p>
+              <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm font-medium">과정</p>
               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                <SelectTrigger>
+                <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm">
                   <SelectValue placeholder="과정 선택" />
                 </SelectTrigger>
                 <SelectContent>
