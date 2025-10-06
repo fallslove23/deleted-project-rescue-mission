@@ -61,7 +61,7 @@ export const CourseReportsRepositoryFixed = {
 
     const { data, error } = await supabase.rpc('get_course_reports_working', {
       p_year: filters.year,
-      p_course_name: filters.courseName ?? null,
+      p_course_name: normalizedCourseName, // use normalized name to avoid session/subject id mismatches
       p_round: filters.round ?? null,
       p_instructor_id: filters.instructorId ?? null,
       p_include_test: filters.includeTestData ?? false,
