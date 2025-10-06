@@ -230,6 +230,62 @@ export type Database = {
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_filter_options"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_filter_options"
+            referencedColumns: ["subject_id"]
+          },
         ]
       }
       course_names: {
@@ -551,6 +607,41 @@ export type Database = {
         }
         Relationships: []
       }
+      lectures: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          position: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          position?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          position?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lectures_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -612,6 +703,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "program_sessions_instructor_fk"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_instructor_fk"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
+          {
             foreignKeyName: "program_sessions_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
@@ -624,6 +729,62 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_filter_options"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_filter_options"
+            referencedColumns: ["subject_id"]
           },
         ]
       }
@@ -696,6 +857,73 @@ export type Database = {
             columns: ["response_id"]
             isOneToOne: false
             referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_survey_responses_canonical"
+            referencedColumns: ["response_id"]
+          },
+        ]
+      }
+      session_course_map: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          session_keyword: string
+          survey_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          session_keyword: string
+          survey_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          session_keyword?: string
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_course_map_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
         ]
@@ -792,6 +1020,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subject_canonical_map: {
+        Row: {
+          canonical_subject_id: string
+          created_at: string
+          session_id: string
+          source_subject_id: string | null
+          subject_position: number
+          subject_title: string
+        }
+        Insert: {
+          canonical_subject_id?: string
+          created_at?: string
+          session_id: string
+          source_subject_id?: string | null
+          subject_position?: number
+          subject_title?: string
+        }
+        Update: {
+          canonical_subject_id?: string
+          created_at?: string
+          session_id?: string
+          source_subject_id?: string | null
+          subject_position?: number
+          subject_title?: string
+        }
+        Relationships: []
       }
       survey_analysis_comments: {
         Row: {
@@ -993,6 +1248,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "survey_instructors_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "survey_instructors_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
+          {
             foreignKeyName: "survey_instructors_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
@@ -1109,6 +1378,62 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_filter_options"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_filter_options"
+            referencedColumns: ["subject_id"]
+          },
+          {
             foreignKeyName: "survey_questions_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
@@ -1201,6 +1526,62 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_filter_options"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_filter_options"
+            referencedColumns: ["subject_id"]
           },
           {
             foreignKeyName: "survey_responses_survey_id_fkey"
@@ -1353,6 +1734,7 @@ export type Database = {
           created_at: string
           id: string
           instructor_id: string | null
+          lecture_id: string | null
           session_name: string | null
           session_order: number
           survey_id: string
@@ -1363,6 +1745,7 @@ export type Database = {
           created_at?: string
           id?: string
           instructor_id?: string | null
+          lecture_id?: string | null
           session_name?: string | null
           session_order?: number
           survey_id: string
@@ -1373,6 +1756,7 @@ export type Database = {
           created_at?: string
           id?: string
           instructor_id?: string | null
+          lecture_id?: string | null
           session_name?: string | null
           session_order?: number
           survey_id?: string
@@ -1392,6 +1776,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "instructors"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
           },
           {
             foreignKeyName: "survey_sessions_survey_id_fkey"
@@ -1692,6 +2090,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
+          {
             foreignKeyName: "surveys_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
@@ -1704,6 +2116,62 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_filter_options"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_filter_options"
+            referencedColumns: ["subject_id"]
           },
           {
             foreignKeyName: "surveys_template_id_fkey"
@@ -1976,6 +2444,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
+          {
             foreignKeyName: "surveys_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
@@ -2015,6 +2497,41 @@ export type Database = {
             referencedRelation: "survey_responses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "question_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "v_survey_responses_canonical"
+            referencedColumns: ["response_id"]
+          },
         ]
       }
       analytics_responses: {
@@ -2052,6 +2569,62 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_filter_options"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_filter_options"
+            referencedColumns: ["subject_id"]
           },
           {
             foreignKeyName: "survey_responses_survey_id_fkey"
@@ -2207,6 +2780,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
+          {
             foreignKeyName: "surveys_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
@@ -2257,6 +2844,20 @@ export type Database = {
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
         ]
       }
       mv_course_satisfaction: {
@@ -2295,6 +2896,20 @@ export type Database = {
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
         ]
       }
       mv_recent_activity: {
@@ -2329,6 +2944,20 @@ export type Database = {
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
         ]
       }
       program_sessions_v1: {
@@ -2354,6 +2983,62 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_filter_options"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "program_sessions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_filter_options"
+            referencedColumns: ["subject_id"]
           },
         ]
       }
@@ -2384,6 +3069,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "instructors"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
           },
         ]
       }
@@ -2453,6 +3152,20 @@ export type Database = {
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
         ]
       }
       surveys_list_v2: {
@@ -2480,7 +3193,447 @@ export type Database = {
             referencedRelation: "instructors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_survey_responses_v2"
+            referencedColumns: ["instructor_id"]
+          },
         ]
+      }
+      v_admin_survey_responses: {
+        Row: {
+          attended: boolean | null
+          course_id: string | null
+          course_title: string | null
+          respondent_anon: string | null
+          respondent_email: string | null
+          response_id: string | null
+          session_id: string | null
+          session_name: string | null
+          session_order: number | null
+          submitted_at: string | null
+          survey_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_aggregates"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_admin_survey_responses_v2: {
+        Row: {
+          attended: boolean | null
+          course_id: string | null
+          course_title: string | null
+          respondent_anon: string | null
+          respondent_email: string | null
+          response_id: string | null
+          session_id: string | null
+          subject_id: string | null
+          subject_position: number | null
+          subject_title: string | null
+          submitted_at: string | null
+          survey_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_aggregates"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_course_filter_options: {
+        Row: {
+          course_id: string | null
+          course_title: string | null
+          year: number | null
+        }
+        Relationships: []
+      }
+      v_course_filter_options_canon: {
+        Row: {
+          course_id: string | null
+          course_title: string | null
+          year: number | null
+        }
+        Relationships: []
+      }
+      v_instructor_session_map: {
+        Row: {
+          instructor_user_id: string | null
+          session_id: string | null
+        }
+        Relationships: []
+      }
+      v_instructor_survey_responses: {
+        Row: {
+          attended: boolean | null
+          course_id: string | null
+          course_title: string | null
+          department: string | null
+          instructor_email: string | null
+          instructor_id: string | null
+          instructor_name: string | null
+          lecture_id: string | null
+          lecture_title: string | null
+          position: string | null
+          respondent_anon: string | null
+          respondent_email: string | null
+          response_id: string | null
+          session_id: string | null
+          session_name: string | null
+          session_order: number | null
+          submitted_at: string | null
+          survey_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_aggregates"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_instructor_survey_responses_v2: {
+        Row: {
+          attended: boolean | null
+          course_id: string | null
+          course_title: string | null
+          department: string | null
+          instructor_email: string | null
+          instructor_id: string | null
+          instructor_name: string | null
+          position: string | null
+          respondent_anon: string | null
+          respondent_email: string | null
+          response_id: string | null
+          session_id: string | null
+          subject_id: string | null
+          subject_position: number | null
+          subject_title: string | null
+          submitted_at: string | null
+          survey_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "active_surveys_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "analytics_surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "mv_survey_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_aggregates"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "survey_cumulative_stats"
+            referencedColumns: ["survey_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v1"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys_list_v2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_session_filter_options: {
+        Row: {
+          session_id: string | null
+          session_title: string | null
+          year: number | null
+        }
+        Relationships: []
+      }
+      v_session_filter_options_canon: {
+        Row: {
+          session_id: string | null
+          session_title: string | null
+          year: number | null
+        }
+        Relationships: []
+      }
+      v_subject_filter_options: {
+        Row: {
+          course_id: string | null
+          position: number | null
+          subject_id: string | null
+          subject_title: string | null
+        }
+        Insert: {
+          course_id?: string | null
+          position?: number | null
+          subject_id?: string | null
+          subject_title?: string | null
+        }
+        Update: {
+          course_id?: string | null
+          position?: number | null
+          subject_id?: string | null
+          subject_title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_subject_filter_options_canon: {
+        Row: {
+          course_id: string | null
+          subject_id: string | null
+          subject_position: number | null
+          subject_title: string | null
+        }
+        Relationships: []
+      }
+      v_survey_responses_canonical: {
+        Row: {
+          course_id: string | null
+          course_title: string | null
+          response_id: string | null
+          session_id: string | null
+          session_title: string | null
+          subject_id: string | null
+          subject_position: number | null
+          subject_title: string | null
+          submitted_at: string | null
+          year: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {
@@ -2552,6 +3705,123 @@ export type Database = {
           p_survey_id: string
         }
         Returns: string
+      }
+      fn_admin_survey_responses: {
+        Args: { p_course_id?: string; p_search?: string; p_year?: number }
+        Returns: {
+          attended: boolean | null
+          course_id: string | null
+          course_title: string | null
+          respondent_anon: string | null
+          respondent_email: string | null
+          response_id: string | null
+          session_id: string | null
+          session_name: string | null
+          session_order: number | null
+          submitted_at: string | null
+          survey_id: string | null
+        }[]
+      }
+      fn_course_filter_options: {
+        Args:
+          | {
+              p_include_admin?: boolean
+              p_include_instructor?: boolean
+              p_search?: string
+              p_year?: number
+            }
+          | { p_search?: string; p_year?: number }
+        Returns: {
+          course_id: string
+          course_title: string
+          has_admin: number
+          has_instructor: number
+          year: number
+        }[]
+      }
+      fn_cumulative_list: {
+        Args: {
+          p_course_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_year?: number
+        }
+        Returns: {
+          attended: boolean
+          course_id: string
+          course_title: string
+          response_id: string
+          session_id: string
+          subject_title: string
+          submitted_at: string
+          survey_id: string
+        }[]
+      }
+      fn_cumulative_survey: {
+        Args: {
+          p_course_id?: string
+          p_include_test?: boolean
+          p_instructor_id?: string
+          p_search?: string
+          p_year?: number
+        }
+        Returns: {
+          attended: boolean | null
+          course_id: string | null
+          course_title: string | null
+          department: string | null
+          instructor_email: string | null
+          instructor_id: string | null
+          instructor_name: string | null
+          lecture_id: string | null
+          lecture_title: string | null
+          position: string | null
+          respondent_anon: string | null
+          respondent_email: string | null
+          response_id: string | null
+          session_id: string | null
+          session_name: string | null
+          session_order: number | null
+          submitted_at: string | null
+          survey_id: string | null
+        }[]
+      }
+      fn_cumulative_survey_v2: {
+        Args: {
+          p_course_id?: string
+          p_instructor_id?: string
+          p_search?: string
+          p_year?: number
+        }
+        Returns: {
+          attended: boolean | null
+          course_id: string | null
+          course_title: string | null
+          department: string | null
+          instructor_email: string | null
+          instructor_id: string | null
+          instructor_name: string | null
+          lecture_id: string | null
+          lecture_title: string | null
+          position: string | null
+          respondent_anon: string | null
+          respondent_email: string | null
+          response_id: string | null
+          session_id: string | null
+          session_name: string | null
+          session_order: number | null
+          submitted_at: string | null
+          survey_id: string | null
+        }[]
+      }
+      fn_subject_filter_options: {
+        Args: { p_course_id: string; p_search?: string }
+        Returns: {
+          subject_id: string
+          subject_position: number
+          subject_title: string
+        }[]
       }
       generate_short_code: {
         Args: { length?: number }
@@ -2754,6 +4024,10 @@ export type Database = {
       is_user_admin: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      normalize_course_name: {
+        Args: { input_name: string }
+        Returns: string
       }
       refresh_dashboard_materialized_views: {
         Args: Record<PropertyKey, never>
