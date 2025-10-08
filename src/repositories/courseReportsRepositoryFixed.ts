@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { normalizeCourseName } from '@/utils/surveyStats';
+
 
 export interface CourseReportFilters {
   year: number;
@@ -57,12 +57,12 @@ export interface CourseReportStatisticsResponse {
 
 export const CourseReportsRepositoryFixed = {
   async fetchStatistics(filters: CourseReportFilters): Promise<CourseReportStatisticsResponse | null> {
-    // Pass normalized course name directly to DB - DB will handle normalization internally
-    const normalizedCourseName = normalizeCourseName(filters.courseName ?? null);
+    // Pass selected course name as-is; DB will handle normalization internally
+    const courseNameParam = filters.courseName ?? null;
 
     const { data, error } = await supabase.rpc('get_course_reports_working', {
       p_year: filters.year,
-      p_course_name: normalizedCourseName,
+      p_course_name: courseNameParam,
       p_round: filters.round ?? null,
       p_instructor_id: filters.instructorId ?? null,
       p_include_test: filters.includeTestData ?? false,
@@ -135,7 +135,7 @@ export const CourseReportsRepositoryFixed = {
     const summary: CourseReportSummary = {
       educationYear: toNumberWithDefault(rawSummary.educationYear, filters.year),
       courseName: toStringOrNull(rawSummary.courseName),
-      normalizedCourseName: toStringOrNull(rawSummary.normalizedCourseName) ?? normalizedCourseName,
+      normalizedCourseName: toStringOrNull(rawSummary.normalizedCourseName) ?? courseNameParam,
       educationRound: toNumberOrNull(rawSummary.educationRound),
       instructorId: toStringOrNull(rawSummary.instructorId),
       availableRounds: toNumberArray(ensureArray(rawSummary.availableRounds)),
