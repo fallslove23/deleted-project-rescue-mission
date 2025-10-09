@@ -27,22 +27,27 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
 }) => {
   // Vertical Bar Chart용 데이터 준비 (현재 차수와 이전 차수 비교)
   const verticalChartData = instructorStats
-    .filter((stat) => !isNaN(stat.avg_satisfaction) && stat.avg_satisfaction > 0) // NaN과 0 값 필터링
-    .sort((a, b) => b.avg_satisfaction - a.avg_satisfaction)
     .map((stat) => {
       const previousStat = previousStats.find(prev => prev.instructor_id === stat.instructor_id);
       const displayName = stat.instructor_name.length > 6 ? stat.instructor_name.substring(0, 5) + '...' : stat.instructor_name;
+      const current = typeof stat.avg_satisfaction === 'number' && Number.isFinite(stat.avg_satisfaction) && stat.avg_satisfaction > 0
+        ? Number(stat.avg_satisfaction.toFixed(1))
+        : 0;
+      const prev = previousStat && typeof previousStat.avg_satisfaction === 'number' && Number.isFinite(previousStat.avg_satisfaction) && previousStat.avg_satisfaction > 0
+        ? Number(previousStat.avg_satisfaction.toFixed(1))
+        : 0;
       
       return {
         name: displayName,
-        현재차수: Number(stat.avg_satisfaction.toFixed(1)),
-        이전차수: previousStat ? Number(previousStat.avg_satisfaction.toFixed(1)) : 0,
+        현재차수: current,
+        이전차수: prev,
         응답수: stat.response_count,
         설문수: stat.survey_count,
         full_name: stat.instructor_name,
         instructor_id: stat.instructor_id
       };
-    });
+    })
+    .sort((a, b) => b.현재차수 - a.현재차수);
 
   const hasComparisonData = previousStats.length > 0;
 
