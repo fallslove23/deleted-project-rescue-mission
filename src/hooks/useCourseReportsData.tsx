@@ -35,7 +35,8 @@ export const useCourseReportsData = (
 ): UseCourseReportsDataResult => {
   const { toast } = useToast();
   const { user, userRoles } = useAuth();
-  const isInstructor = userRoles.includes('instructor');
+  const isPrivileged = userRoles.includes('admin') || userRoles.includes('operator') || userRoles.includes('director');
+  const isInstructor = userRoles.includes('instructor') && !isPrivileged;
 
   const [instructorId, setInstructorId] = useState<string | null>(null);
   const [instructorName, setInstructorName] = useState<string | null>(null);
