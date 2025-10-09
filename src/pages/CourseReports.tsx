@@ -163,8 +163,9 @@ const CourseReportsContent: React.FC = () => {
 
   const overallSatisfaction = useMemo(() => {
     if (!summary) return 0;
+    // Filter out null, 0 (no data), and invalid values
     const values = [summary.avgInstructorSatisfaction, summary.avgCourseSatisfaction, summary.avgOperationSatisfaction]
-      .map((value) => (typeof value === 'number' && Number.isFinite(value) ? value : null))
+      .map((value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null))
       .filter((value): value is number => value !== null);
 
     if (values.length === 0) return 0;
@@ -174,12 +175,13 @@ const CourseReportsContent: React.FC = () => {
 
   const previousOverallSatisfaction = useMemo(() => {
     if (!previousSummary) return 0;
+    // Filter out null, 0 (no data), and invalid values
     const values = [
       previousSummary.avgInstructorSatisfaction,
       previousSummary.avgCourseSatisfaction,
       previousSummary.avgOperationSatisfaction,
     ]
-      .map((value) => (typeof value === 'number' && Number.isFinite(value) ? value : null))
+      .map((value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null))
       .filter((value): value is number => value !== null);
 
     if (values.length === 0) return 0;
