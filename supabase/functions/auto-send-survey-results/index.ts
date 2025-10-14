@@ -106,9 +106,11 @@ serve(async (req) => {
     const partialLogCounts = new Map<string, number>();
     logs?.forEach((l) => {
       const surveyId = String(l.survey_id);
-      if (l.status === "success") {
+      // Treat both 'success' and 'partial' as completed to prevent resending
+      if (l.status === "success" || l.status === "partial") {
         hasSuccessfulLog.set(surveyId, true);
-      } else if (l.status === "partial") {
+      }
+      if (l.status === "partial") {
         partialLogCounts.set(surveyId, (partialLogCounts.get(surveyId) ?? 0) + 1);
       }
     });
