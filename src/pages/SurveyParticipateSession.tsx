@@ -537,10 +537,15 @@ const SurveyParticipateSession = () => {
     console.log('🚀 세션 설문 제출 시작:', { surveyId, answersCount: answers.length });
     setSubmitting(true);
     try {
+      // 설문 존재 여부 확인
+      if (!survey || !survey.id) {
+        throw new Error('설문 정보를 찾을 수 없습니다.');
+      }
+      
       console.log('📝 응답 데이터 삽입 중...');
       const { data: responseId, error: responseError } = await supabase
         .rpc('create_survey_response', { 
-          p_survey_id: surveyId, 
+          p_survey_id: survey.id, 
           p_respondent_email: null 
         });
       
