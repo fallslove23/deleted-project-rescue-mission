@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CourseFilterProps {
   value: string;
-  onChange: (courseId: string, courseTitle?: string) => void;
+  onChange: (sessionId: string, sessionTitle?: string) => void;
   year?: number | null;
   label?: string;
   includeAll?: boolean;
@@ -55,10 +55,10 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     loadCourses();
   }, [year, searchTerm, toast, customOptions]);
 
-  // Use custom options if provided, otherwise use fetched courses
+  // Use custom options if provided, otherwise use fetched courses (session-based)
   const displayOptions = customOptions 
     ? customOptions 
-    : courses.map(c => ({ value: c.course_id, label: c.course_title }));
+    : courses.map(c => ({ value: c.session_id, label: c.session_title }));
 
   return (
     <div className="space-y-2">

@@ -1,7 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CourseOption {
-  course_id: string;
+  session_id: string;
+  session_title: string;
   course_title: string;
   year: number;
 }
@@ -13,8 +14,8 @@ export interface SubjectOption {
 }
 
 /**
- * Fetch available course options using courses table (safe fallback)
- * - Avoids fragile RPC/view dependencies
+ * Fetch available course options using session-based view
+ * - Uses v_course_filter_options view based on survey sessions
  */
 export async function fetchCourseOptions(params: {
   year?: number | null;
@@ -22,21 +23,28 @@ export async function fetchCourseOptions(params: {
 }): Promise<CourseOption[]> {
   try {
     let query = supabase
-      .from('courses')
-      .select('id, title')
-      .order('title', { ascending: true });
+      .from('v_course_filter_options')
+      .select('session_id, session_title, course_title, year')
+      .order('session_title', { ascending: true });
 
+    // Apply year filter if provided
+    if (params.year) {
+      query = query.eq('year', params.year);
+    }
+
+    // Apply search filter if provided
     if (params.search && params.search.trim()) {
-      query = query.ilike('title', `%${params.search.trim()}%`);
+      query = query.ilike('session_title', `%${params.search.trim()}%`);
     }
 
     const { data, error } = await query;
     if (error) throw error;
 
     return (data ?? []).map((row: any) => ({
-      course_id: row.id,
-      course_title: row.title,
-      year: params.year ?? new Date().getFullYear(),
+      session_id: row.session_id,
+      session_title: row.session_title,
+      course_title: row.course_title,
+      year: row.year,
     }));
   } catch (error) {
     console.error('Error in fetchCourseOptions:', error);
