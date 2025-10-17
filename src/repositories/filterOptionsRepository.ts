@@ -1,11 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CourseOption {
-  session_id: string;
-  session_title: string;
+  course_id: string;
   course_title: string;
   year: number;
 }
+
 
 export interface SubjectOption {
   subject_id: string;
@@ -22,7 +22,7 @@ export async function fetchCourseOptions(params: {
   search?: string | null;
 }): Promise<CourseOption[]> {
   try {
-    const { data, error } = await (supabase as any).rpc('fn_session_filter_options', {
+    const { data, error } = await (supabase as any).rpc('fn_course_filter_options', {
       p_year: params.year ?? null,
       p_search: params.search ?? null,
     }) as { data: any[] | null; error: any };
@@ -30,8 +30,7 @@ export async function fetchCourseOptions(params: {
     if (error) throw error;
 
     return (data ?? []).map((row: any) => ({
-      session_id: row.session_id,
-      session_title: row.session_title,
+      course_id: row.course_id,
       course_title: row.course_title,
       year: row.year,
     }));

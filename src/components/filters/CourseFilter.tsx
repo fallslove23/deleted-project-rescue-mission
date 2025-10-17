@@ -58,7 +58,7 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   // Use custom options if provided, otherwise use fetched courses (session-based)
   const displayOptions = customOptions 
     ? customOptions 
-    : courses.map(c => ({ value: c.session_id, label: c.session_title }));
+    : courses.map(c => ({ value: c.course_id, label: c.course_title }));
 
   return (
     <div className="space-y-2">
