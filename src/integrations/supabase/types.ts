@@ -4841,6 +4841,15 @@ export type Database = {
           survey_id: string | null
         }[]
       }
+      fn_session_filter_options: {
+        Args: { p_search?: string; p_year?: number }
+        Returns: {
+          course_title: string
+          session_id: string
+          session_title: string
+          year: number
+        }[]
+      }
       fn_subject_filter_options: {
         Args: { p_course_id: string; p_search?: string }
         Returns: {
