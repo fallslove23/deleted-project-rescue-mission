@@ -22,10 +22,10 @@ export async function fetchCourseOptions(params: {
   search?: string | null;
 }): Promise<CourseOption[]> {
   try {
-    const { data, error } = await supabase.rpc('fn_session_filter_options', {
+    const { data, error } = await (supabase as any).rpc('fn_session_filter_options', {
       p_year: params.year ?? null,
       p_search: params.search ?? null,
-    });
+    }) as { data: any[] | null; error: any };
 
     if (error) throw error;
 
