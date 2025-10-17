@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { CourseFilter } from '@/components/filters';
 import {
   Table,
   TableBody,
@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   downloadCSV,
@@ -539,9 +540,12 @@ const SurveyResults = () => {
     base.forEach((item) => {
       const key = buildCourseKey(item.education_year, item.education_round, item.course_name);
       if (!map.has(key)) {
+        // 타이틀에서 '3일차'와 같은 일차 정보를 추출해 라벨에 반영
+        const dayMatch = (item.title || '').match(/(\d+일차)/);
+        const daySuffix = dayMatch ? ` ${dayMatch[1]}` : '';
         map.set(key, {
           key,
-          label: `${item.education_year}년 ${item.education_round}차 ${item.course_name ?? '과정 미정'}`,
+          label: `${item.education_year}년 ${item.education_round}차 ${item.course_name ?? '과정 미정'}${daySuffix}`,
         });
       }
     });

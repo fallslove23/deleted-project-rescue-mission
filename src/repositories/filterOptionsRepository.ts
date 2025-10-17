@@ -23,7 +23,7 @@ export async function fetchCourseOptions(params: {
 }): Promise<CourseOption[]> {
   try {
     let query = supabase
-      .from('v_course_filter_options')
+      .from<any>('v_course_filter_options' as any)
       .select('session_id, session_title, course_title, year')
       .order('session_title', { ascending: true });
 
