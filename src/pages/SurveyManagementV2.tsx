@@ -241,7 +241,8 @@ export default function SurveyManagementV2() {
   const [error, setError] = useState<string | null>(null);
 
   const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [availableCourseNames, setAvailableCourseNames] = useState<string[]>([]);
+  const [availableSessions, setAvailableSessions] = useState<{ value: string; label: string }[]>([]);
+  const [availablePrograms, setAvailablePrograms] = useState<string[]>([]);  // 빠른 생성용 프로그램 목록
   const [templates, setTemplates] = useState<TemplateLite[]>([]);
   
   // 서버 페이지네이션을 위한 새로운 상태
@@ -250,7 +251,7 @@ export default function SurveyManagementV2() {
   const [filters, setFilters] = useState<SurveyFilters>({
     year: params.get("year") ? parseInt(params.get("year") as string) : null,
     status: (params.get("status") as any) || null,
-    courseName: params.get("course") || null,
+    sessionId: params.get("session") || null,
     q: params.get("q") || null,
   });
 
@@ -293,7 +294,7 @@ export default function SurveyManagementV2() {
     return {
       year: typeof input?.year === "number" ? input.year : input?.year ? parseInt(String(input.year), 10) : null,
       status: (input?.status as SurveyFilters["status"]) ?? null,
-      courseName: (input?.courseName as string) ?? null,
+      sessionId: (input?.sessionId as string) ?? null,
       q: input?.q ? String(input.q).trim() || null : null,
     };
   }, []);
@@ -305,7 +306,7 @@ export default function SurveyManagementV2() {
       return (
         (na.year ?? null) === (nb.year ?? null) &&
         (na.status ?? null) === (nb.status ?? null) &&
-        (na.courseName ?? null) === (nb.courseName ?? null) &&
+        (na.sessionId ?? null) === (nb.sessionId ?? null) &&
         (na.q ?? null) === (nb.q ?? null)
       );
     },
@@ -317,7 +318,10 @@ export default function SurveyManagementV2() {
       const normalized = normalizeFilters(target);
       const items: { label: string; value: string }[] = [];
       if (normalized.year) items.push({ label: "교육 연도", value: `${normalized.year}년` });
-      if (normalized.courseName) items.push({ label: "과정명", value: normalized.courseName });
+      if (normalized.sessionId) {
+        const session = availableSessions.find(s => s.value === normalized.sessionId);
+        if (session) items.push({ label: "세션(과정)", value: session.label });
+      }
       if (normalized.status) {
         const statusInfo = STATUS_CONFIG[normalized.status];
         items.push({ label: "상태", value: statusInfo?.label ?? normalized.status });
@@ -389,7 +393,7 @@ export default function SurveyManagementV2() {
         const params = new URLSearchParams();
         if (normalized.year) params.set("year", String(normalized.year));
         if (normalized.status) params.set("status", normalized.status);
-        if (normalized.courseName) params.set("course", normalized.courseName);
+        if (normalized.sessionId) params.set("session", normalized.sessionId);
         if (normalized.q) params.set("q", normalized.q);
         if (sortBy) params.set("sortBy", sortBy);
         if (sortDir) params.set("sortDir", sortDir);
@@ -535,7 +539,7 @@ export default function SurveyManagementV2() {
     const p = new URLSearchParams();
     if (filters.year) p.set("year", String(filters.year));
     if (filters.status) p.set("status", filters.status);
-    if (filters.courseName) p.set("course", filters.courseName);
+    if (filters.sessionId) p.set("session", filters.sessionId);
     if (filters.q) p.set("q", filters.q);
     if (sortBy) p.set("sortBy", sortBy);
     if (sortDir) p.set("sortDir", sortDir);
@@ -593,22 +597,46 @@ export default function SurveyManagementV2() {
     }
   }, [paginationHook.data, paginationHook.pagination, paginationHook.loading, paginationHook.error]);
 
-  const loadCourseNames = async (year: number | null) => {
-    const names = await SurveysRepository.getAvailableCourseNames(year);
-    setAvailableCourseNames(names);
-    if (filters.courseName && !names.includes(filters.courseName)) {
-      setFilters((p) => ({ ...p, courseName: null }));
+  const loadSessions = async (year: number | null) => {
+    try {
+      const { data, error } = await (supabase as any).rpc('rpc_session_filter_options', {
+        p_year: year
+      });
+      if (error) throw error;
+      setAvailableSessions((data || []).map((item: any) => ({
+        value: item.value,
+        label: item.label
+      })));
+      // 현재 선택된 세션이 목록에 없으면 초기화
+      if (filters.sessionId && !data?.some((s: any) => s.value === filters.sessionId)) {
+        setFilters((p) => ({ ...p, sessionId: null }));
+      }
+    } catch (e) {
+      console.error('Failed to load sessions:', e);
+      setAvailableSessions([]);
+    }
+  };
+
+  const loadPrograms = async () => {
+    try {
+      const { data, error } = await (supabase as any).from('programs').select('name').order('name');
+      if (error) throw error;
+      setAvailablePrograms((data || []).map((p: any) => p.name));
+    } catch (e) {
+      console.error('Failed to load programs:', e);
+      setAvailablePrograms([]);
     }
   };
 
   useEffect(() => { 
     paginationHook.refresh(); 
-  }, [filters.year, filters.status, filters.q, filters.courseName, sortBy, sortDir]);
+  }, [filters.year, filters.status, filters.q, filters.sessionId, sortBy, sortDir]);
   
   useEffect(() => { 
     paginationHook.goToPage(currentPage); 
   }, [currentPage]);
-  useEffect(() => { loadCourseNames(filters.year); }, [filters.year]);
+  useEffect(() => { loadSessions(filters.year); }, [filters.year]);
+  useEffect(() => { loadPrograms(); }, []);
   useEffect(() => { (async () => setTemplates(await SurveysRepository.listTemplates()))(); }, []);
   useEffect(() => { fetchFilterPresets(); }, [fetchFilterPresets]);
   useEffect(() => {
@@ -957,7 +985,7 @@ export default function SurveyManagementV2() {
           variant="outline"
           size="sm"
           onClick={() => setQuickOpen(true)}
-          disabled={!availableYears.length || !availableCourseNames.length}
+          disabled={!availableYears.length || !availablePrograms.length}
         >
           <Wand2 className="h-4 w-4 mr-2" />
           빠른 생성
@@ -1051,12 +1079,12 @@ export default function SurveyManagementV2() {
                 </Select>
               </div>
               <div className="space-y-1.5 sm:space-y-2">
-                <label className="text-xs sm:text-sm font-medium">과정명</label>
-                <Select value={filters.courseName || "all"} onValueChange={(v) => handleFilterChange("courseName", v)}>
+                <label className="text-xs sm:text-sm font-medium">세션(과정)</label>
+                <Select value={filters.sessionId || "all"} onValueChange={(v) => handleFilterChange("sessionId", v)}>
                   <SelectTrigger className="h-9 sm:h-10 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">모든 과정</SelectItem>
-                    {availableCourseNames.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  <SelectContent className="z-50 bg-background border shadow-md">
+                    <SelectItem value="all">모든 세션</SelectItem>
+                    {availableSessions.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -1611,7 +1639,7 @@ export default function SurveyManagementV2() {
           open={quickOpen}
           onOpenChange={setQuickOpen}
           years={availableYears}
-          courseNames={availableCourseNames}
+          courseNames={availablePrograms}
           templates={templates}
           defaultYear={new Date().getFullYear()}
           onCreate={handleQuickCreate}

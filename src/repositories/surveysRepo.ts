@@ -37,6 +37,7 @@ export interface SurveyFilters {
   status: "draft" | "active" | "public" | "completed" | "scheduled" | "expired" | null;
   q?: string | null;
   courseName?: string | null;
+  sessionId?: string | null;  // 세션 기준 필터 추가
 }
 
 export interface PaginatedSurveyResult {
@@ -126,6 +127,7 @@ export const SurveysRepository = {
 
     if (filters.year) query = query.eq("education_year", filters.year);
     if (filters.courseName) query = query.eq("course_name", filters.courseName);
+    if (filters.sessionId) query = query.eq("session_id", filters.sessionId);
     
     // 상태 필터링 개선
     if (filters.status) {
