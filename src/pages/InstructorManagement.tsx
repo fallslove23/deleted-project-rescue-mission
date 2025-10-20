@@ -108,9 +108,9 @@ const InstructorManagement = React.forwardRef<{
     try {
       const [instructorsRes, subjectsRes, lecturesRes, instructorLecturesRes] = await Promise.all([
         supabase.from('instructors').select('*').order('name'),
-        supabase.from('subjects').select('*').order('title'),
-        supabase.from('lectures').select('*').order('position'),
-        supabase.from('instructor_lectures').select('*')
+        (supabase as any).from('subjects').select('*').order('title'),
+        (supabase as any).from('lectures').select('*').order('position'),
+        (supabase as any).from('instructor_lectures').select('*')
       ]);
 
       if (instructorsRes.error) throw instructorsRes.error;
