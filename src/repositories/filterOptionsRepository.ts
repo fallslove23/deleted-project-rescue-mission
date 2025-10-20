@@ -62,16 +62,16 @@ export async function fetchCourseOptions(params: {
 }
 
 /**
- * Fetch available subject (session) options using RPC
+ * Fetch available subject options for a specific session
+ * Uses new normalized structure: sessions → session_subjects → subjects
  */
 export async function fetchSubjectOptions(params: {
-  courseId: string;
+  sessionId: string;  // Changed from courseId to sessionId
   search?: string | null;
 }): Promise<SubjectOption[]> {
   try {
-    const { data, error } = await supabase.rpc('fn_subject_filter_options' as any, {
-      p_course_id: params.courseId,
-      p_search: params.search ?? null,
+    const { data, error } = await supabase.rpc('rpc_subjects_for_session' as any, {
+      p_session_id: params.sessionId,
     }) as { data: SubjectOption[] | null; error: any };
 
     if (error) {
@@ -79,18 +79,17 @@ export async function fetchSubjectOptions(params: {
       throw error;
     }
 
-    // Sort by position first, then by title
     const subjects = data || [];
-    const sorted = subjects.sort((a, b) => {
-      if (a.subject_position !== null && b.subject_position !== null) {
-        return a.subject_position - b.subject_position;
-      }
-      if (a.subject_position !== null) return -1;
-      if (b.subject_position !== null) return 1;
-      return a.subject_title.localeCompare(b.subject_title, 'ko');
-    });
+    
+    // Apply client-side search filter if provided
+    if (params.search && params.search.trim()) {
+      const searchLower = params.search.toLowerCase();
+      return subjects.filter((opt: SubjectOption) =>
+        opt.subject_title.toLowerCase().includes(searchLower)
+      );
+    }
 
-    return sorted;
+    return subjects;
   } catch (error) {
     console.error('Error in fetchSubjectOptions:', error);
     throw new Error('데이터를 불러오지 못했습니다. 네트워크 또는 권한 문제일 수 있어요.');

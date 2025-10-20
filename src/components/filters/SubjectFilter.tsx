@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 interface SubjectFilterProps {
   value: string;
   onChange: (subjectId: string) => void;
-  courseId: string;
+  sessionId: string;  // Changed from courseId - now refers to program session
   label?: string;
   includeAll?: boolean;
   searchTerm?: string;
@@ -17,7 +17,7 @@ interface SubjectFilterProps {
 const SubjectFilter: React.FC<SubjectFilterProps> = ({
   value,
   onChange,
-  courseId,
+  sessionId,  // Changed from courseId
   label = '과목',
   includeAll = true,
   searchTerm = null,
@@ -28,8 +28,8 @@ const SubjectFilter: React.FC<SubjectFilterProps> = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    // Reset subjects when course changes or is empty
-    if (!courseId) {
+    // Reset subjects when session changes or is empty
+    if (!sessionId) {
       setSubjects([]);
       return;
     }
@@ -37,7 +37,7 @@ const SubjectFilter: React.FC<SubjectFilterProps> = ({
     const loadSubjects = async () => {
       setLoading(true);
       try {
-        const data = await fetchSubjectOptions({ courseId, search: searchTerm });
+        const data = await fetchSubjectOptions({ sessionId, search: searchTerm });
         setSubjects(data);
       } catch (error) {
         console.error('Failed to load subjects:', error);
@@ -53,9 +53,9 @@ const SubjectFilter: React.FC<SubjectFilterProps> = ({
     };
 
     loadSubjects();
-  }, [courseId, searchTerm, toast]);
+  }, [sessionId, searchTerm, toast]);
 
-  const isDisabled = disabled || !courseId || loading;
+  const isDisabled = disabled || !sessionId || loading;
 
   return (
     <div className="space-y-2">
@@ -66,7 +66,7 @@ const SubjectFilter: React.FC<SubjectFilterProps> = ({
         disabled={isDisabled}
       >
         <SelectTrigger>
-          <SelectValue placeholder={loading ? '로딩 중...' : !courseId ? '먼저 과정을 선택하세요' : '과목 선택'}>
+          <SelectValue placeholder={loading ? '로딩 중...' : !sessionId ? '먼저 과정을 선택하세요' : '과목 선택'}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           </SelectValue>
         </SelectTrigger>
