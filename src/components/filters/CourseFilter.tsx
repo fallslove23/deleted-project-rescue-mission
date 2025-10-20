@@ -5,13 +5,12 @@ import { fetchCourseOptions, CourseOption } from '@/repositories/filterOptionsRe
 import { useToast } from '@/hooks/use-toast';
 
 interface CourseFilterProps {
-  value: string;
-  onChange: (sessionId: string, sessionTitle?: string) => void;
+  value: string;  // session_key UUID
+  onChange: (sessionKey: string, label?: string) => void;
   year?: number | null;
   label?: string;
   includeAll?: boolean;
   searchTerm?: string;
-  customOptions?: { value: string; label: string }[];
 }
 
 const CourseFilter: React.FC<CourseFilterProps> = ({
@@ -21,20 +20,18 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   label = '과정',
   includeAll = true,
   searchTerm = null,
-  customOptions,
 }) => {
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // If custom options are provided, skip fetching
-    if (customOptions) {
-      setLoading(false);
-      return;
-    }
-
     const loadCourses = async () => {
+      if (!year) {
+        setCourses([]);
+        return;
+      }
+
       setLoading(true);
       try {
         const data = await fetchCourseOptions({ year, search: searchTerm });
@@ -53,12 +50,10 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
     };
 
     loadCourses();
-  }, [year, searchTerm, toast, customOptions]);
+  }, [year, searchTerm, toast]);
 
-  // Use custom options if provided, otherwise use fetched courses (session-based)
-  const displayOptions = customOptions 
-    ? customOptions 
-    : courses.map(c => ({ value: c.course_id, label: c.course_title }));
+  // Display options from fetched courses (session-based with "연도+차수+과정명" format)
+  const displayOptions = courses.map(c => ({ value: c.value, label: c.label }));
 
   return (
     <div className="space-y-2">

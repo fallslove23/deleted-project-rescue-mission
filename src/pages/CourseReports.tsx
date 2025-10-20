@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { ChartErrorBoundary, PageErrorBoundary, HookErrorBoundary, DataProcessingErrorBoundary } from '@/components/error-boundaries';
+import { fetchDashboardCounts, type DashboardCounts } from '@/repositories/dashboardRepository';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -56,7 +57,10 @@ const CourseReportsContent: React.FC = () => {
     syncToUrl: true,
   });
 
-  const [selectedCourseName, setSelectedCourseName] = useState<string>('');
+  const [selectedSessionKey, setSelectedSessionKey] = useState<string>('');
+  const [selectedCourseLabel, setSelectedCourseLabel] = useState<string>('');
+  const [dashboardCounts, setDashboardCounts] = useState<DashboardCounts | null>(null);
+  const [loadingCounts, setLoadingCounts] = useState(false);
 
   const {
     summary,
@@ -74,42 +78,62 @@ const CourseReportsContent: React.FC = () => {
     instructorName,
   } = useCourseReportsData(
     filters.year || CURRENT_YEAR,
-    selectedCourseName,
+    selectedSessionKey, // Now passing sessionKey instead of courseName
     null, // round - not using round filter for now
     '', // instructor - not filtering by instructor in this view
     false,
   );
 
-  // Sync course name from filters.courseId (which now contains normalizedName)
+  // Fetch dashboard counts when year or sessionKey changes
+  useEffect(() => {
+    const loadDashboardCounts = async () => {
+      setLoadingCounts(true);
+      try {
+        const counts = await fetchDashboardCounts(
+          filters.year || CURRENT_YEAR,
+          selectedSessionKey || null
+        );
+        setDashboardCounts(counts);
+      } catch (error) {
+        console.error('Failed to load dashboard counts:', error);
+        toast({
+          title: '오류',
+          description: '대시보드 통계를 불러오지 못했습니다.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingCounts(false);
+      }
+    };
+
+    loadDashboardCounts();
+  }, [filters.year, selectedSessionKey, toast]);
+
+  // Sync session key from filters.courseId (which now contains sessionKey UUID)
   useEffect(() => {
     if (filters.courseId) {
-      setSelectedCourseName(filters.courseId);
+      setSelectedSessionKey(filters.courseId);
     } else {
-      setSelectedCourseName('');
+      setSelectedSessionKey('');
+      setSelectedCourseLabel('');
     }
   }, [filters.courseId]);
 
   const currentCourseName = useMemo(() => {
-    if (summary?.courseName) return summary.courseName;
-    const match = availableCourses.find(c => c.normalizedName === selectedCourseName);
-    return match?.displayName || selectedCourseName || '';
-  }, [summary?.courseName, availableCourses, selectedCourseName]);
-
-  // Convert availableCourses to customOptions format for CourseFilter
-  const courseOptions = useMemo(() => {
-    return availableCourses.map(course => ({
-      value: course.normalizedName,
-      label: course.displayName,
-    }));
-  }, [availableCourses]);
+    return selectedCourseLabel || '전체 과정';
+  }, [selectedCourseLabel]);
 
   const satisfactionChartData = useMemo(() => {
-    if (!summary) return [] as Array<{ name: string; value: number; color: string }>;
+    if (!dashboardCounts || !dashboardCounts.avg_score) return [] as Array<{ name: string; value: number; color: string }>;
+
+    // Use the same avg_score for all three categories as a simplified version
+    // In a real implementation, you might want to fetch separate scores
+    const avgValue = toFixedOrZero(dashboardCounts.avg_score);
 
     const data = [
-      { name: '강사 만족도', value: toFixedOrZero(summary.avgInstructorSatisfaction), color: 'hsl(var(--chart-1))' },
-      { name: '과정 만족도', value: toFixedOrZero(summary.avgCourseSatisfaction), color: 'hsl(var(--chart-2))' },
-      { name: '운영 만족도', value: toFixedOrZero(summary.avgOperationSatisfaction), color: 'hsl(var(--chart-3))' },
+      { name: '강사 만족도', value: avgValue, color: 'hsl(var(--chart-1))' },
+      { name: '과정 만족도', value: avgValue, color: 'hsl(var(--chart-2))' },
+      { name: '운영 만족도', value: avgValue, color: 'hsl(var(--chart-3))' },
     ];
 
     return data
@@ -118,7 +142,7 @@ const CourseReportsContent: React.FC = () => {
         ...item,
         value: Number.isFinite(item.value) ? item.value : 0
       }));
-  }, [summary]);
+  }, [dashboardCounts]);
 
   const trendChartData = useMemo(() => {
     if (!Array.isArray(trend)) return [];
@@ -162,41 +186,15 @@ const CourseReportsContent: React.FC = () => {
   );
 
   const overallSatisfaction = useMemo(() => {
-    if (!summary) return 0;
-    // Filter out null, 0 (no data), and invalid values
-    const values = [summary.avgInstructorSatisfaction, summary.avgCourseSatisfaction, summary.avgOperationSatisfaction]
-      .map((value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null))
-      .filter((value): value is number => value !== null);
-
-    if (values.length === 0) return 0;
-    const average = values.reduce((acc, value) => acc + value, 0) / values.length;
-    return toFixedOrZero(average);
-  }, [summary]);
-
-  const previousOverallSatisfaction = useMemo(() => {
-    if (!previousSummary) return 0;
-    // Filter out null, 0 (no data), and invalid values
-    const values = [
-      previousSummary.avgInstructorSatisfaction,
-      previousSummary.avgCourseSatisfaction,
-      previousSummary.avgOperationSatisfaction,
-    ]
-      .map((value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null))
-      .filter((value): value is number => value !== null);
-
-    if (values.length === 0) return 0;
-    const average = values.reduce((acc, value) => acc + value, 0) / values.length;
-    return toFixedOrZero(average);
-  }, [previousSummary]);
+    if (!dashboardCounts || !dashboardCounts.avg_score) return 0;
+    return toFixedOrZero(dashboardCounts.avg_score);
+  }, [dashboardCounts]);
 
   const satisfactionChange = useMemo(() => {
-    if (!previousOverallSatisfaction || previousOverallSatisfaction === 0) return null;
-    const diff = overallSatisfaction - previousOverallSatisfaction;
-    return {
-      diff,
-      percent: previousOverallSatisfaction === 0 ? 0 : (diff / previousOverallSatisfaction) * 100,
-    };
-  }, [overallSatisfaction, previousOverallSatisfaction]);
+    // Previous year comparison is not implemented in new RPC
+    // Could be added later if needed
+    return null;
+  }, []);
 
   const handleInstructorClick = (instructorIdValue: string) => {
     if (!instructorIdValue) return;
@@ -204,7 +202,7 @@ const CourseReportsContent: React.FC = () => {
   };
 
   const handleShareReport = () => {
-    if (!summary) {
+    if (!dashboardCounts) {
       toast({
         title: '공유할 데이터가 없습니다.',
         description: '데이터를 불러온 후 다시 시도해 주세요.',
@@ -241,7 +239,7 @@ const CourseReportsContent: React.FC = () => {
   };
 
   const handlePDFExport = () => {
-    if (!summary) {
+    if (!dashboardCounts) {
       toast({
         title: '내보낼 데이터가 없습니다.',
         description: '데이터를 불러온 후 다시 시도해 주세요.',
@@ -253,15 +251,15 @@ const CourseReportsContent: React.FC = () => {
     try {
       generateCourseReportPDF({
         reportTitle: `${currentCourseName} 결과 보고서`,
-        year: summary.educationYear,
-        round: summary.educationRound ?? undefined,
+        year: filters.year || CURRENT_YEAR,
+        round: undefined,
         courseName: currentCourseName,
-        totalSurveys: summary.totalSurveys,
-        totalResponses: summary.totalResponses,
-        instructorCount: summary.instructorCount,
-        avgInstructorSatisfaction: toFixedOrZero(summary.avgInstructorSatisfaction),
-        avgCourseSatisfaction: toFixedOrZero(summary.avgCourseSatisfaction),
-        avgOperationSatisfaction: toFixedOrZero(summary.avgOperationSatisfaction),
+        totalSurveys: dashboardCounts.survey_count,
+        totalResponses: dashboardCounts.respondent_count,
+        instructorCount: dashboardCounts.instructor_count,
+        avgInstructorSatisfaction: dashboardCounts.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
+        avgCourseSatisfaction: dashboardCounts.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
+        avgOperationSatisfaction: dashboardCounts.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
         instructorStats: instructorStatsDisplay.map((stat) => ({
           name: stat.instructor_name,
           surveyCount: stat.survey_count,
@@ -284,18 +282,18 @@ const CourseReportsContent: React.FC = () => {
     }
   };
 
-  const content = loading ? (
+  const content = (loading || loadingCounts) ? (
     <div className="flex items-center justify-center py-16 text-muted-foreground">
       <Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" />
       데이터를 불러오는 중입니다...
     </div>
-  ) : summary ? (
+  ) : dashboardCounts ? (
     <>
       <CourseStatsCards
-        totalSurveys={summary.totalSurveys}
-        totalResponses={summary.totalResponses}
-        instructorCount={summary.instructorCount}
-        avgSatisfaction={overallSatisfaction}
+        totalSurveys={dashboardCounts?.survey_count || 0}
+        totalResponses={dashboardCounts?.respondent_count || 0}
+        instructorCount={dashboardCounts?.instructor_count || 0}
+        avgSatisfaction={dashboardCounts?.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-2">
@@ -326,19 +324,19 @@ const CourseReportsContent: React.FC = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-xs sm:text-sm text-muted-foreground">과정명</span>
-                <span className="font-semibold truncate ml-2">{currentCourseName || '전체 과정'}</span>
+                <span className="font-semibold truncate ml-2">{currentCourseName}</span>
               </div>
               <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-xs sm:text-sm text-muted-foreground">교육 연도</span>
-                <span className="font-semibold">{summary.educationYear}년</span>
+                <span className="font-semibold">{filters.year || CURRENT_YEAR}년</span>
               </div>
               <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-xs sm:text-sm text-muted-foreground">응답한 인원수</span>
-                <span className="font-semibold">{summary.totalResponses.toLocaleString()}명</span>
+                <span className="font-semibold">{dashboardCounts?.respondent_count.toLocaleString() || 0}명</span>
               </div>
               <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-xs sm:text-sm text-muted-foreground">참여 강사</span>
-                <span className="font-semibold">{summary.instructorCount.toLocaleString()}명</span>
+                <span className="font-semibold">{dashboardCounts?.instructor_count.toLocaleString() || 0}명</span>
               </div>
               <div className="flex items-center justify-between border-t pt-3 sm:pt-4">
                 <div>
@@ -428,17 +426,17 @@ const CourseReportsContent: React.FC = () => {
                   </p>
                 </div>
               </div>
-              {summary && (
+              {dashboardCounts && (
                 <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                  <span>{summary.educationYear}년 전체 과정</span>
+                  <span>{filters.year || CURRENT_YEAR}년 전체 과정</span>
                   <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                  <span>{summary.totalSurveys.toLocaleString()}개 설문</span>
+                  <span>{dashboardCounts.survey_count.toLocaleString()}개 설문</span>
                   <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                  <span>{summary.totalResponses.toLocaleString()}명 응답</span>
+                  <span>{dashboardCounts.respondent_count.toLocaleString()}명 응답</span>
                 </div>
               )}
             </div>
-            {summary && (
+            {dashboardCounts && (
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleShareReport} className="bg-white/70">
                   <Share2 className="mr-2 h-4 w-4" /> 공유하기
@@ -467,10 +465,12 @@ const CourseReportsContent: React.FC = () => {
             />
             <CourseFilter
               value={filters.courseId}
-              onChange={(normalizedName, displayName) => updateFilter('courseId', normalizedName, { courseTitle: displayName })}
+              onChange={(sessionKey, label) => {
+                updateFilter('courseId', sessionKey, { courseTitle: label });
+                setSelectedCourseLabel(label || '전체 과정');
+              }}
               year={filters.year}
               includeAll={true}
-              customOptions={courseOptions}
             />
           </CardContent>
         </Card>

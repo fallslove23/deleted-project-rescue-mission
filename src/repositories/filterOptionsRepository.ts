@@ -1,8 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CourseOption {
-  course_id: string;
-  course_title: string;
+  value: string;  // session_key UUID
+  label: string;  // "YYYY년 N차 과정명"
+  course_key: string;
   year: number;
 }
 
@@ -14,26 +15,45 @@ export interface SubjectOption {
 }
 
 /**
- * Fetch available course options using session-based view
- * - Uses v_course_filter_options view based on survey sessions
+ * Fetch available course options (실제 진행된 과정 세션)
+ * Returns: "연도+차수+과정명" format (e.g., "2025년 7차 BS Basic")
  */
 export async function fetchCourseOptions(params: {
   year?: number | null;
   search?: string | null;
 }): Promise<CourseOption[]> {
   try {
-    const { data, error } = await (supabase as any).rpc('fn_course_filter_options', {
-      p_year: params.year ?? null,
-      p_search: params.search ?? null,
+    if (!params.year) {
+      console.warn('fetchCourseOptions called without year parameter');
+      return [];
+    }
+
+    const { data, error } = await (supabase as any).rpc('rpc_course_filter_options', {
+      p_year: params.year,
     }) as { data: any[] | null; error: any };
 
-    if (error) throw error;
+    if (error) {
+      console.error('RPC error in fetchCourseOptions:', error);
+      throw error;
+    }
 
-    return (data ?? []).map((row: any) => ({
-      course_id: row.course_id,
-      course_title: row.course_title,
+    const options = (data ?? []).map((row: any) => ({
+      value: row.value,
+      label: row.label,
+      course_key: row.course_key,
       year: row.year,
     }));
+
+    // Apply client-side search filter if provided
+    if (params.search && params.search.trim()) {
+      const searchLower = params.search.toLowerCase();
+      return options.filter((opt: CourseOption) =>
+        opt.label.toLowerCase().includes(searchLower) ||
+        opt.course_key.toLowerCase().includes(searchLower)
+      );
+    }
+
+    return options;
   } catch (error) {
     console.error('Error in fetchCourseOptions:', error);
     // Fail-safe: return empty list to avoid blocking UI with toasts

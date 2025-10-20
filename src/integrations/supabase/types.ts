@@ -5068,6 +5068,24 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      rpc_course_filter_options: {
+        Args: { p_year: number }
+        Returns: {
+          course_key: string
+          label: string
+          value: string
+          year: number
+        }[]
+      }
+      rpc_dashboard_counts: {
+        Args: { p_session_key?: string; p_year: number }
+        Returns: {
+          avg_score: number
+          instructor_count: number
+          respondent_count: number
+          survey_count: number
+        }[]
+      }
       safe_numeric_convert: {
         Args: { input_text: string }
         Returns: number
