@@ -27,17 +27,22 @@ interface Instructor {
   updated_at: string;
 }
 
-interface Course {
+interface Subject {
   id: string;
   title: string;
-  description: string;
 }
 
-interface InstructorCourse {
+interface Lecture {
+  id: string;
+  subject_id: string;
+  title: string;
+  position: number | null;
+}
+
+interface InstructorLecture {
   id: string;
   instructor_id: string;
-  course_id: string;
-  created_at: string;
+  lecture_id: string;
 }
 
 const InstructorManagement = React.forwardRef<{
@@ -62,8 +67,9 @@ const InstructorManagement = React.forwardRef<{
   const { toast } = useToast();
   
   const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [lectures, setLectures] = useState<Lecture[]>([]);
+  const [instructorLectures, setInstructorLectures] = useState<InstructorLecture[]>([]);
   const [instructorRoles, setInstructorRoles] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
@@ -72,13 +78,12 @@ const InstructorManagement = React.forwardRef<{
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
-  const [newCourseTitle, setNewCourseTitle] = useState('');
-  const [newCourseDescription, setNewCourseDescription] = useState('');
+  const [selectedLectures, setSelectedLectures] = useState<string[]>([]);
+  const [newSubjectTitle, setNewSubjectTitle] = useState('');
   const [isCreateUsersDialogOpen, setIsCreateUsersDialogOpen] = useState(false);
   const [selectedInstructorsForUsers, setSelectedInstructorsForUsers] = useState<string[]>([]);
   const [creatingUsers, setCreatingUsers] = useState(false);
-  const [courseSearchQuery, setCourseSearchQuery] = useState('');
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -101,19 +106,22 @@ const InstructorManagement = React.forwardRef<{
 
   const fetchData = async () => {
     try {
-      const [instructorsRes, coursesRes, instructorCoursesRes] = await Promise.all([
+      const [instructorsRes, subjectsRes, lecturesRes, instructorLecturesRes] = await Promise.all([
         supabase.from('instructors').select('*').order('name'),
-        supabase.from('courses').select('*').order('title'),
-        supabase.from('instructor_courses').select('*')
+        supabase.from('subjects').select('*').order('title'),
+        supabase.from('lectures').select('*').order('position'),
+        supabase.from('instructor_lectures').select('*')
       ]);
 
       if (instructorsRes.error) throw instructorsRes.error;
-      if (coursesRes.error) throw coursesRes.error;
-      if (instructorCoursesRes.error) throw instructorCoursesRes.error;
+      if (subjectsRes.error) throw subjectsRes.error;
+      if (lecturesRes.error) throw lecturesRes.error;
+      if (instructorLecturesRes.error) throw instructorLecturesRes.error;
 
       setInstructors(instructorsRes.data || []);
-      setCourses(coursesRes.data || []);
-      setInstructorCourses(instructorCoursesRes.data || []);
+      setSubjects(subjectsRes.data || [] as any);
+      setLectures(lecturesRes.data || [] as any);
+      setInstructorLectures(instructorLecturesRes.data || [] as any);
 
       // 강사별 역할 정보 조회
       await fetchInstructorRoles();
@@ -391,24 +399,28 @@ const InstructorManagement = React.forwardRef<{
         });
       }
 
-      // Update course assignments using instructor_courses table
+      // Update lecture assignments using instructor_lectures table
       if (instructorId) {
-        // Remove existing course assignments
-        await supabase
-          .from('instructor_courses')
+        // Remove existing lecture assignments
+        await (supabase as any)
+          .from('instructor_lectures')
           .delete()
           .eq('instructor_id', instructorId);
 
-        // Add new course assignments
-        if (selectedCourses.length > 0) {
-          const coursesToInsert = selectedCourses.map(courseId => ({
+        // Add new lecture assignments
+        if (selectedLectures.length > 0) {
+          const lecturesToInsert = selectedLectures.map(lectureId => ({
             instructor_id: instructorId,
-            course_id: courseId
+            lecture_id: lectureId
           }));
           
-          await supabase
-            .from('instructor_courses')
-            .insert(coursesToInsert);
+          const { error: insertError } = await (supabase as any)
+            .from('instructor_lectures')
+            .insert(lecturesToInsert);
+          
+          if (insertError) {
+            console.error('Error inserting instructor lectures:', insertError);
+          }
         }
       }
 
@@ -444,9 +456,8 @@ const InstructorManagement = React.forwardRef<{
       setIsDialogOpen(false);
       setEditingInstructor(null);
       setFormData({ name: '', email: '', bio: '', photo_url: '' });
-      setSelectedCourses([]);
-      setNewCourseTitle('');
-      setNewCourseDescription('');
+      setSelectedLectures([]);
+      setNewSubjectTitle('');
       fetchData();
     } catch (error) {
       console.error('Error saving instructor:', error);
@@ -467,11 +478,11 @@ const InstructorManagement = React.forwardRef<{
       photo_url: instructor.photo_url || ''
     });
     
-    // Set selected courses for this instructor using instructor_courses table
-    const instructorCourseIds = instructorCourses
-      .filter(ic => ic.instructor_id === instructor.id)
-      .map(ic => ic.course_id);
-    setSelectedCourses(instructorCourseIds);
+    // Set selected lectures for this instructor using instructor_lectures table
+    const instructorLectureIds = instructorLectures
+      .filter(il => il.instructor_id === instructor.id)
+      .map(il => il.lecture_id);
+    setSelectedLectures(instructorLectureIds);
     
     setIsDialogOpen(true);
   };
@@ -479,17 +490,26 @@ const InstructorManagement = React.forwardRef<{
   const openAddDialog = () => {
     setEditingInstructor(null);
     setFormData({ name: '', email: '', bio: '', photo_url: '' });
-    setSelectedCourses([]);
-    setNewCourseTitle('');
-    setNewCourseDescription('');
+    setSelectedLectures([]);
+    setNewSubjectTitle('');
     setIsDialogOpen(true);
   };
 
-  const getInstructorCourses = (instructorId: string) => {
-    const instructorCourseIds = instructorCourses
-      .filter(ic => ic.instructor_id === instructorId)
-      .map(ic => ic.course_id);
-    return courses.filter(course => instructorCourseIds.includes(course.id));
+  const getInstructorSubjects = (instructorId: string) => {
+    // Get lectures assigned to instructor
+    const instructorLectureIds = instructorLectures
+      .filter(il => il.instructor_id === instructorId)
+      .map(il => il.lecture_id);
+    
+    // Get subject IDs from those lectures
+    const subjectIds = new Set(
+      lectures
+        .filter(l => instructorLectureIds.includes(l.id))
+        .map(l => l.subject_id)
+    );
+    
+    // Return unique subjects
+    return subjects.filter(subject => subjectIds.has(subject.id));
   };
 
   const filterLabel = instructorRoleFilter === 'all' ? '전체 강사' : '강사 권한 보유';
@@ -504,68 +524,41 @@ const InstructorManagement = React.forwardRef<{
     }
 
     const searchLower = trimmedSearchQuery.toLowerCase();
-    const instructorCoursesData = getInstructorCourses(instructor.id);
-    const courseTitles = instructorCoursesData.map(course => course.title.toLowerCase()).join(' ');
+    const instructorSubjectsData = getInstructorSubjects(instructor.id);
+    const subjectTitles = instructorSubjectsData.map(subject => subject.title.toLowerCase()).join(' ');
     
     return instructor.name.toLowerCase().includes(searchLower) ||
            (instructor.email && instructor.email.toLowerCase().includes(searchLower)) ||
-           courseTitles.includes(searchLower);
+           subjectTitles.includes(searchLower);
   });
 
-  // Filter courses based on search query in dialog
-  const filteredCourses = courses.filter(course => {
-    const searchLower = courseSearchQuery.toLowerCase();
-    return course.title.toLowerCase().includes(searchLower) ||
-           (course.description && course.description.toLowerCase().includes(searchLower));
-  });
+  // Get lectures grouped by subject for dialog
+  const lecturesBySubject = subjects.map(subject => ({
+    subject,
+    lectures: lectures.filter(l => l.subject_id === subject.id)
+  })).filter(group => group.lectures.length > 0);
 
-  const handleAddNewCourse = async () => {
-    if (!newCourseTitle.trim()) return;
+  // Filter by search query in dialog
+  const filteredLecturesBySubject = subjectSearchQuery
+    ? lecturesBySubject.filter(group => 
+        group.subject.title.toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
+        group.lectures.some(l => l.title.toLowerCase().includes(subjectSearchQuery.toLowerCase()))
+      )
+    : lecturesBySubject;
 
-    try {
-      const { data, error } = await supabase
-        .from('courses')
-        .insert([{
-          title: newCourseTitle,
-          description: newCourseDescription
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setCourses(prev => [...prev, data]);
-      setSelectedCourses(prev => [...prev, data.id]);
-      setNewCourseTitle('');
-      setNewCourseDescription('');
-
-      toast({
-        title: "성공",
-        description: "새 과목이 추가되었습니다."
-      });
-    } catch (error) {
-      console.error('Error adding course:', error);
-      toast({
-        title: "오류",
-        description: "과목 추가 중 오류가 발생했습니다.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const toggleCourseSelection = (courseId: string) => {
-    setSelectedCourses(prev =>
-      prev.includes(courseId)
-        ? prev.filter(id => id !== courseId)
-        : [...prev, courseId]
+  const toggleLectureSelection = (lectureId: string) => {
+    setSelectedLectures(prev =>
+      prev.includes(lectureId)
+        ? prev.filter(id => id !== lectureId)
+        : [...prev, lectureId]
     );
   };
 
   const handleDeleteInstructor = async (instructor: Instructor) => {
     try {
-      // First delete instructor-course assignments
-      await supabase
-        .from('instructor_courses')
+      // First delete instructor-lecture assignments
+      await (supabase as any)
+        .from('instructor_lectures')
         .delete()
         .eq('instructor_id', instructor.id);
 
@@ -818,8 +811,8 @@ const InstructorManagement = React.forwardRef<{
           </Card>
         ) : viewType === 'card' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {filteredInstructors.map((instructor) => {
-              const instructorCoursesData = getInstructorCourses(instructor.id);
+             {filteredInstructors.map((instructor) => {
+              const instructorSubjectsData = getInstructorSubjects(instructor.id);
 
               return (
                 <Card key={instructor.id} className="hover:shadow-md transition-shadow">
@@ -909,14 +902,14 @@ const InstructorManagement = React.forwardRef<{
                       </div>
                     </div>
 
-                    {/* Courses */}
+                    {/* Subjects */}
                     <div>
                       <p className="text-sm font-medium mb-2">담당 과목</p>
                       <div className="flex flex-wrap gap-1">
-                        {instructorCoursesData.length > 0 ? (
-                          instructorCoursesData.map((course) => (
-                            <Badge key={course.id} variant="secondary" className="text-xs">
-                              {course.title}
+                        {instructorSubjectsData.length > 0 ? (
+                          instructorSubjectsData.map((subject) => (
+                            <Badge key={subject.id} variant="secondary" className="text-xs">
+                              {subject.title}
                             </Badge>
                           ))
                         ) : (
@@ -983,7 +976,7 @@ const InstructorManagement = React.forwardRef<{
                   </thead>
                   <tbody>
                     {filteredInstructors.map((instructor) => {
-                      const instructorCoursesData = getInstructorCourses(instructor.id);
+                      const instructorSubjectsData = getInstructorSubjects(instructor.id);
 
                       return (
                         <tr key={instructor.id} className="border-b hover:bg-muted/50">
@@ -1030,18 +1023,18 @@ const InstructorManagement = React.forwardRef<{
                           </td>
                           <td className="p-4">
                             <div className="flex flex-wrap gap-1">
-                              {instructorCoursesData.length > 0 ? (
-                                instructorCoursesData.slice(0, 2).map((course) => (
-                                  <Badge key={course.id} variant="secondary" className="text-xs">
-                                    {course.title}
+                              {instructorSubjectsData.length > 0 ? (
+                                instructorSubjectsData.slice(0, 2).map((subject) => (
+                                  <Badge key={subject.id} variant="secondary" className="text-xs">
+                                    {subject.title}
                                   </Badge>
                                 ))
                               ) : (
                                 <Badge variant="outline" className="text-xs">담당 과목 없음</Badge>
                               )}
-                              {instructorCoursesData.length > 2 && (
+                              {instructorSubjectsData.length > 2 && (
                                 <Badge variant="outline" className="text-xs">
-                                  +{instructorCoursesData.length - 2}
+                                  +{instructorSubjectsData.length - 2}
                                 </Badge>
                               )}
                             </div>
@@ -1186,69 +1179,52 @@ const InstructorManagement = React.forwardRef<{
                 </div>
               </div>
               
-              {/* Course Selection */}
+              {/* Lecture Selection */}
               <div className="space-y-2">
-                <Label>담당 과목</Label>
+                <Label>담당 강의 선택</Label>
                 <div className="space-y-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
-                      placeholder="과목명으로 검색..."
-                      value={courseSearchQuery}
-                      onChange={(e) => setCourseSearchQuery(e.target.value)}
+                      placeholder="과목명 또는 강의명으로 검색..."
+                      value={subjectSearchQuery}
+                      onChange={(e) => setSubjectSearchQuery(e.target.value)}
                       className="pl-10"
                     />
                   </div>
-                  <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                    {filteredCourses.length > 0 ? (
-                      filteredCourses.map((course) => (
-                        <div key={course.id} className="flex items-center space-x-2 py-1">
-                          <Checkbox
-                            id={`course-${course.id}`}
-                            checked={selectedCourses.includes(course.id)}
-                            onCheckedChange={() => toggleCourseSelection(course.id)}
-                          />
-                          <Label htmlFor={`course-${course.id}`} className="flex-1 text-sm">
-                            {course.title}
-                            {course.description && (
-                              <span className="text-muted-foreground"> - {course.description}</span>
-                            )}
-                          </Label>
+                  <div className="border rounded-md p-3 max-h-80 overflow-y-auto space-y-4">
+                    {filteredLecturesBySubject.length > 0 ? (
+                      filteredLecturesBySubject.map(({ subject, lectures: subjectLectures }) => (
+                        <div key={subject.id} className="space-y-2">
+                          <h4 className="font-semibold text-sm text-primary">{subject.title}</h4>
+                          <div className="space-y-1 pl-2">
+                            {subjectLectures.map((lecture) => (
+                              <div key={lecture.id} className="flex items-center space-x-2 py-1">
+                                <Checkbox
+                                  id={`lecture-${lecture.id}`}
+                                  checked={selectedLectures.includes(lecture.id)}
+                                  onCheckedChange={() => toggleLectureSelection(lecture.id)}
+                                />
+                                <Label htmlFor={`lecture-${lecture.id}`} className="flex-1 text-sm">
+                                  {lecture.title}
+                                  {lecture.position != null && (
+                                    <span className="text-muted-foreground"> (순서: {lecture.position})</span>
+                                  )}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        {courseSearchQuery ? '검색 결과가 없습니다.' : '등록된 과목이 없습니다.'}
+                        {subjectSearchQuery ? '검색 결과가 없습니다.' : '등록된 강의가 없습니다.'}
                       </p>
                     )}
                   </div>
-                </div>
-              </div>
-              
-              {/* Add New Course */}
-              <div className="space-y-2">
-                <Label>새 과목 추가</Label>
-                <div className="border rounded-md p-3 space-y-3">
-                  <Input
-                    placeholder="과목명"
-                    value={newCourseTitle}
-                    onChange={(e) => setNewCourseTitle(e.target.value)}
-                  />
-                  <Input
-                    placeholder="과목 설명 (선택사항)"
-                    value={newCourseDescription}
-                    onChange={(e) => setNewCourseDescription(e.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleAddNewCourse}
-                    disabled={!newCourseTitle.trim()}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    과목 추가하고 선택
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    선택된 강의: {selectedLectures.length}개
+                  </p>
                 </div>
               </div>
               

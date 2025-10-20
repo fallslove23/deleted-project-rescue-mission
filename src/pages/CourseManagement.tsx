@@ -12,10 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, BookOpen, Trash2, Users, Grid3X3, List, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface Course {
+interface Subject {
   id: string;
   title: string;
-  description: string;
 }
 
 interface Instructor {
@@ -24,27 +23,33 @@ interface Instructor {
   email: string;
 }
 
-interface InstructorCourse {
+interface Lecture {
+  id: string;
+  subject_id: string;
+  title: string;
+}
+
+interface InstructorLecture {
   id: string;
   instructor_id: string;
-  course_id: string;
+  lecture_id: string;
 }
 
 const CourseManagement = () => {
   const { toast } = useToast();
   
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [lectures, setLectures] = useState<Lecture[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
+  const [instructorLectures, setInstructorLectures] = useState<InstructorLecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'card' | 'list'>('card');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
 
   const [formData, setFormData] = useState({
-    title: '',
-    description: ''
+    title: ''
   });
 
   useEffect(() => {
@@ -53,19 +58,29 @@ const CourseManagement = () => {
 
   const fetchData = async () => {
     try {
-      const [coursesRes, instructorsRes, instructorCoursesRes] = await Promise.all([
-        supabase.from('courses').select('*').order('title'),
+      const [subjectsRes, lecturesRes, instructorsRes, instructorLecturesRes] = await Promise.all([
+        (supabase as any).from('subjects').select('*').order('title'),
+        (supabase as any).from('lectures').select('*'),
         supabase.from('instructors').select('id, name, email').order('name'),
-        supabase.from('instructor_courses').select('*')
+        (supabase as any).from('instructor_lectures').select('*')
       ]);
 
-      if (coursesRes.error) throw coursesRes.error;
+      if (subjectsRes.error) {
+        console.error('Error fetching subjects:', subjectsRes.error);
+        throw subjectsRes.error;
+      }
+      if (lecturesRes.error) {
+        console.error('Error fetching lectures:', lecturesRes.error);
+      }
       if (instructorsRes.error) throw instructorsRes.error;
-      if (instructorCoursesRes.error) throw instructorCoursesRes.error;
+      if (instructorLecturesRes.error) {
+        console.error('Error fetching instructor_lectures:', instructorLecturesRes.error);
+      }
 
-      setCourses(coursesRes.data || []);
+      setSubjects(subjectsRes.data || []);
+      setLectures(lecturesRes.data || []);
       setInstructors(instructorsRes.data || []);
-      setInstructorCourses(instructorCoursesRes.data || []);
+      setInstructorLectures(instructorLecturesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -82,12 +97,12 @@ const CourseManagement = () => {
     e.preventDefault();
     
     try {
-      if (editingCourse) {
-        // Update existing course
-        const { error } = await supabase
-          .from('courses')
+      if (editingSubject) {
+        // Update existing subject
+        const { error } = await (supabase as any)
+          .from('subjects')
           .update(formData)
-          .eq('id', editingCourse.id);
+          .eq('id', editingSubject.id);
 
         if (error) throw error;
         
@@ -96,9 +111,9 @@ const CourseManagement = () => {
           description: "과목 정보가 수정되었습니다."
         });
       } else {
-        // Create new course
-        const { error } = await supabase
-          .from('courses')
+        // Create new subject
+        const { error } = await (supabase as any)
+          .from('subjects')
           .insert([formData]);
 
         if (error) throw error;
@@ -110,11 +125,11 @@ const CourseManagement = () => {
       }
 
       setIsDialogOpen(false);
-      setEditingCourse(null);
-      setFormData({ title: '', description: '' });
+      setEditingSubject(null);
+      setFormData({ title: '' });
       fetchData();
     } catch (error) {
-      console.error('Error saving course:', error);
+      console.error('Error saving subject:', error);
       toast({
         title: "오류",
         description: "과목 정보 저장 중 오류가 발생했습니다.",
@@ -123,34 +138,45 @@ const CourseManagement = () => {
     }
   };
 
-  const openEditDialog = (course: Course) => {
-    setEditingCourse(course);
+  const openEditDialog = (subject: Subject) => {
+    setEditingSubject(subject);
     setFormData({
-      title: course.title,
-      description: course.description || ''
+      title: subject.title
     });
     setIsDialogOpen(true);
   };
 
   const openAddDialog = () => {
-    setEditingCourse(null);
-    setFormData({ title: '', description: '' });
+    setEditingSubject(null);
+    setFormData({ title: '' });
     setIsDialogOpen(true);
   };
 
-  const handleDeleteCourse = async (courseId: string) => {
+  const handleDeleteSubject = async (subjectId: string) => {
     try {
-      // First delete instructor-course assignments
-      await supabase
-        .from('instructor_courses')
-        .delete()
-        .eq('course_id', courseId);
+      // First delete related lectures
+      const subjectLectures = lectures.filter(l => l.subject_id === subjectId);
+      if (subjectLectures.length > 0) {
+        const lectureIds = subjectLectures.map(l => l.id);
+        
+        // Delete instructor-lecture assignments
+        await (supabase as any)
+          .from('instructor_lectures')
+          .delete()
+          .in('lecture_id', lectureIds);
+        
+        // Delete lectures
+        await (supabase as any)
+          .from('lectures')
+          .delete()
+          .eq('subject_id', subjectId);
+      }
 
-      // Then delete the course
-      const { error } = await supabase
-        .from('courses')
+      // Then delete the subject
+      const { error } = await (supabase as any)
+        .from('subjects')
         .delete()
-        .eq('id', courseId);
+        .eq('id', subjectId);
 
       if (error) throw error;
 
@@ -161,7 +187,7 @@ const CourseManagement = () => {
       
       fetchData();
     } catch (error) {
-      console.error('Error deleting course:', error);
+      console.error('Error deleting subject:', error);
       toast({
         title: "오류",
         description: "과목 삭제 중 오류가 발생했습니다.",
@@ -170,21 +196,28 @@ const CourseManagement = () => {
     }
   };
 
-  const getCourseInstructors = (courseId: string) => {
-    const courseInstructorIds = instructorCourses
-      .filter(ic => ic.course_id === courseId)
-      .map(ic => ic.instructor_id);
-    return instructors.filter(instructor => courseInstructorIds.includes(instructor.id));
+  const getSubjectInstructors = (subjectId: string) => {
+    // Get lectures for this subject
+    const subjectLectures = lectures.filter(l => l.subject_id === subjectId);
+    const lectureIds = subjectLectures.map(l => l.id);
+    
+    // Get instructor IDs teaching these lectures
+    const instructorIds = new Set(
+      instructorLectures
+        .filter(il => lectureIds.includes(il.lecture_id))
+        .map(il => il.instructor_id)
+    );
+    
+    return instructors.filter(instructor => instructorIds.has(instructor.id));
   };
 
-  // Filter courses based on search query
-  const filteredCourses = courses.filter(course => {
+  // Filter subjects based on search query
+  const filteredSubjects = subjects.filter(subject => {
     const searchLower = searchQuery.toLowerCase();
-    const courseInstructors = getCourseInstructors(course.id);
-    const instructorNames = courseInstructors.map(instructor => instructor.name.toLowerCase()).join(' ');
+    const subjectInstructors = getSubjectInstructors(subject.id);
+    const instructorNames = subjectInstructors.map(instructor => instructor.name.toLowerCase()).join(' ');
     
-    return course.title.toLowerCase().includes(searchLower) ||
-           (course.description && course.description.toLowerCase().includes(searchLower)) ||
+    return subject.title.toLowerCase().includes(searchLower) ||
            instructorNames.includes(searchLower);
   });
 
@@ -239,7 +272,7 @@ const CourseManagement = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
-          placeholder="과목명, 설명, 배정강사로 검색..."
+          placeholder="과목명, 배정강사로 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
@@ -254,7 +287,7 @@ const CourseManagement = () => {
               <BookOpen className="h-8 w-8 text-primary" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">총 과목 수</p>
-                <p className="text-2xl font-bold">{courses.length}</p>
+                <p className="text-2xl font-bold">{subjects.length}</p>
               </div>
             </div>
           </CardContent>
@@ -267,7 +300,7 @@ const CourseManagement = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">배정된 강사 수</p>
                 <p className="text-2xl font-bold">
-                  {new Set(instructorCourses.map(ic => ic.instructor_id)).size}
+                  {new Set(instructorLectures.map(il => il.instructor_id)).size}
                 </p>
               </div>
             </div>
@@ -275,23 +308,22 @@ const CourseManagement = () => {
         </Card>
       </div>
 
-      {/* Courses Grid/List */}
+      {/* Subjects Grid/List */}
       {viewType === 'card' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCourses.map((course) => {
-            const courseInstructors = getCourseInstructors(course.id);
+          {filteredSubjects.map((subject) => {
+            const subjectInstructors = getSubjectInstructors(subject.id);
+            const subjectLectures = lectures.filter(l => l.subject_id === subject.id);
             
             return (
-              <Card key={course.id} className="hover:shadow-md transition-shadow">
+              <Card key={subject.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{course.title}</CardTitle>
-                      {course.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {course.description}
-                        </p>
-                      )}
+                      <CardTitle className="text-lg">{subject.title}</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {subjectLectures.length}개 강의
+                      </p>
                     </div>
                   </div>
                 </CardHeader>
@@ -300,11 +332,11 @@ const CourseManagement = () => {
                   {/* Assigned Instructors */}
                   <div>
                     <p className="text-sm font-medium mb-2">
-                      배정된 강사 ({courseInstructors.length}명)
+                      배정된 강사 ({subjectInstructors.length}명)
                     </p>
                     <div className="flex flex-wrap gap-1">
-                      {courseInstructors.length > 0 ? (
-                        courseInstructors.map((instructor) => (
+                      {subjectInstructors.length > 0 ? (
+                        subjectInstructors.map((instructor) => (
                           <Badge key={instructor.id} variant="secondary" className="text-xs">
                             {instructor.name}
                           </Badge>
@@ -322,7 +354,7 @@ const CourseManagement = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => openEditDialog(course)}
+                      onClick={() => openEditDialog(subject)}
                       className="flex-1"
                     >
                       <Edit className="h-3 w-3 mr-1" />
@@ -339,13 +371,13 @@ const CourseManagement = () => {
                         <AlertDialogHeader>
                           <AlertDialogTitle>과목 삭제</AlertDialogTitle>
                           <AlertDialogDescription>
-                            정말로 "{course.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                            정말로 "{subject.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>취소</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDeleteCourse(course.id)}
+                            onClick={() => handleDeleteSubject(subject.id)}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
                             삭제
@@ -367,32 +399,30 @@ const CourseManagement = () => {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left p-4 font-medium">과목명</th>
-                    <th className="text-left p-4 font-medium">설명</th>
+                    <th className="text-left p-4 font-medium">강의 수</th>
                     <th className="text-left p-4 font-medium">배정된 강사</th>
-                    <th className="text-left p-4 font-medium">강사 수</th>
                     <th className="text-left p-4 font-medium">작업</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCourses.map((course) => {
-                    const courseInstructors = getCourseInstructors(course.id);
+                  {filteredSubjects.map((subject) => {
+                    const subjectInstructors = getSubjectInstructors(subject.id);
+                    const subjectLectures = lectures.filter(l => l.subject_id === subject.id);
                     
                     return (
-                      <tr key={course.id} className="border-b">
+                      <tr key={subject.id} className="border-b">
                         <td className="p-4">
-                          <div>
-                            <p className="font-medium">{course.title}</p>
-                          </div>
+                          <p className="font-medium">{subject.title}</p>
                         </td>
                         <td className="p-4">
-                          <p className="text-sm text-muted-foreground">
-                            {course.description || '설명 없음'}
-                          </p>
+                          <Badge variant="outline" className="text-xs">
+                            {subjectLectures.length}개
+                          </Badge>
                         </td>
                         <td className="p-4">
                           <div className="flex flex-wrap gap-1">
-                            {courseInstructors.length > 0 ? (
-                              courseInstructors.map((instructor) => (
+                            {subjectInstructors.length > 0 ? (
+                              subjectInstructors.map((instructor) => (
                                 <Badge key={instructor.id} variant="secondary" className="text-xs">
                                   {instructor.name}
                                 </Badge>
@@ -405,16 +435,11 @@ const CourseManagement = () => {
                           </div>
                         </td>
                         <td className="p-4">
-                          <Badge variant="outline" className="text-xs">
-                            {courseInstructors.length}명
-                          </Badge>
-                        </td>
-                        <td className="p-4">
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => openEditDialog(course)}
+                              onClick={() => openEditDialog(subject)}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
@@ -429,13 +454,13 @@ const CourseManagement = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>과목 삭제</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    정말로 "{course.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                    정말로 "{subject.title}" 과목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>취소</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => handleDeleteCourse(course.id)}
+                                    onClick={() => handleDeleteSubject(subject.id)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                   >
                                     삭제
@@ -455,17 +480,14 @@ const CourseManagement = () => {
         </Card>
       )}
 
-      {/* Add/Edit Course Dialog */}
+      {/* Add/Edit Subject Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingCourse ? '과목 수정' : '새 과목 추가'}
-            </DialogTitle>
+            <DialogTitle>{editingSubject ? '과목 수정' : '새 과목 추가'}</DialogTitle>
           </DialogHeader>
-          
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="title">과목명</Label>
               <Input
                 id="title"
@@ -475,28 +497,12 @@ const CourseManagement = () => {
                 required
               />
             </div>
-            
-            <div>
-              <Label htmlFor="description">설명</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="과목에 대한 설명을 입력하세요"
-                rows={3}
-              />
-            </div>
-            
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-              >
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
                 취소
               </Button>
-              <Button type="submit">
-                {editingCourse ? '수정' : '추가'}
+              <Button type="submit" className="flex-1">
+                {editingSubject ? '수정' : '추가'}
               </Button>
             </div>
           </form>
