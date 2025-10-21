@@ -16,20 +16,8 @@ export function useAnonymousSession() {
 
         if (!mounted) return;
 
-        if (!data.session) {
-          // 익명 로그인 켜져 있으면 성공, 꺼져 있어도 앱 흐름은 유지
-          try {
-            await supabase.auth.signInAnonymously();
-            const after = await supabase.auth.getSession();
-            if (!mounted) return;
-            setSession(after.data.session ?? null);
-          } catch {
-            // 익명 로그인 미사용/실패 → 세션 없이 진행
-            setSession(null);
-          }
-        } else {
-          setSession(data.session);
-        }
+        // 익명 설문은 별도의 인증 없이 anon 키로만 접근
+        setSession(data.session ?? null);
       } finally {
         if (mounted) setLoading(false);
       }

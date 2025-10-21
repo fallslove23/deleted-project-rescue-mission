@@ -34,11 +34,12 @@ interface Survey {
 interface SurveySession {
   id: string;
   survey_id: string;
-  course_id: string;
-  instructor_id: string;
+  subject_id: string | null;
+  instructor_id: string | null;
   session_order: number;
   session_name: string;
-  course?: {
+  subject?: {
+    id: string;
     title: string;
   };
   instructor?: {

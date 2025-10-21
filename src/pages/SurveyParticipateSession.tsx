@@ -32,11 +32,12 @@ interface Survey {
 interface SurveySession {
   id: string;
   survey_id: string;
-  course_id: string;
-  instructor_id: string;
+  subject_id: string | null;
+  instructor_id: string | null;
   session_order: number;
   session_name: string;
-  course?: {
+  subject?: {
+    id: string;
     title: string;
   };
   instructor?: {
@@ -864,8 +865,8 @@ const SurveyParticipateSession = () => {
                         </span>
                       )}
                     </div>
-                    {currentSessionData.course?.title && (
-                      <div className="text-sm text-muted-foreground">과목: {currentSessionData.course.title}</div>
+                    {currentSessionData.subject?.title && (
+                      <div className="text-sm text-muted-foreground">과목: {currentSessionData.subject.title}</div>
                     )}
                   </div>
                   {currentSessionMeta && (
