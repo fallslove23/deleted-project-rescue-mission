@@ -69,7 +69,7 @@ const CourseReportsContent: React.FC = () => {
     instructorStats,
     previousInstructorStats,
     textualResponses,
-    availableCourses,
+    availableSessions,  // Changed from availableCourses
     availableRounds,
     availableInstructors,
     loading,

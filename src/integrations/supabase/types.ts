@@ -3540,13 +3540,21 @@ export type Database = {
         }[]
       }
       get_course_reports_working: {
-        Args: {
-          p_course_name?: string
-          p_include_test?: boolean
-          p_instructor_id?: string
-          p_round?: number
-          p_year: number
-        }
+        Args:
+          | {
+              p_course_name?: string
+              p_include_test?: boolean
+              p_instructor_id?: string
+              p_round?: number
+              p_year: number
+            }
+          | {
+              p_include_test?: boolean
+              p_instructor_id?: string
+              p_round?: number
+              p_session_id?: string
+              p_year: number
+            }
         Returns: Json
       }
       get_course_statistics: {

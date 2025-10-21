@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  CourseOption,
+  SessionOption,  // Changed from CourseOption
   CourseReportStatisticsResponse,
 } from '@/repositories/courseReportsRepositoryFixed';
 import { CourseReportsRepositoryFixed } from '@/repositories/courseReportsRepositoryFixed';
@@ -16,7 +16,7 @@ export interface UseCourseReportsDataResult {
   instructorStats: CourseReportStatisticsResponse['instructorStats'];
   previousInstructorStats: CourseReportStatisticsResponse['instructorStats'];
   textualResponses: CourseReportStatisticsResponse['textualResponses'];
-  availableCourses: CourseOption[];
+  availableSessions: SessionOption[];  // Changed from availableCourses
   availableRounds: number[];
   availableInstructors: { id: string; name: string }[];
   loading: boolean;
@@ -28,7 +28,7 @@ export interface UseCourseReportsDataResult {
 
 export const useCourseReportsData = (
   selectedYear: number,
-  selectedCourse: string,
+  selectedSessionId: string,  // Changed from selectedCourse
   selectedRound: number | null,
   selectedInstructor: string,
   includeTestData = false
@@ -107,13 +107,12 @@ export const useCourseReportsData = (
     if (isInstructor && !instructorIdLoaded) return null; // wait until instructor id lookup completes
 
     try {
-      // selectedCourse now contains session_id (UUID) instead of course name
-      // Pass null for courseName since we're using session-based filtering
-      const sessionIdParam = selectedCourse || null;
+      // selectedSessionId now contains session_id (UUID)
+      const sessionIdParam = selectedSessionId || null;
 
       const current = await fetchStatistics({
         year: selectedYear,
-        courseName: sessionIdParam, // This will be treated as session_id filter in RPC
+        sessionId: sessionIdParam,  // Changed from courseName
         round: selectedRound ?? null,
         instructorId: instructorFilter,
         includeTestData,
@@ -123,7 +122,7 @@ export const useCourseReportsData = (
         try {
           const previous = await CourseReportsRepositoryFixed.fetchStatistics({
             year: selectedYear - 1,
-            courseName: current.summary.courseName ?? sessionIdParam,
+            sessionId: current.summary.sessionId ?? sessionIdParam,  // Changed
             round: selectedRound ?? null,
             instructorId: instructorFilter,
             includeTestData,
@@ -153,7 +152,7 @@ export const useCourseReportsData = (
     instructorFilter,
     isInstructor,
     instructorIdLoaded,
-    selectedCourse,
+    selectedSessionId,  // Changed from selectedCourse
     selectedRound,
     selectedYear,
     toast,
@@ -166,7 +165,7 @@ export const useCourseReportsData = (
   }, [
     refetch,
     selectedYear,
-    selectedCourse,
+    selectedSessionId,  // Changed from selectedCourse
     selectedRound,
     instructorFilter,
     includeTestData,
@@ -175,17 +174,13 @@ export const useCourseReportsData = (
     instructorIdLoaded,
   ]);
 
-  const availableCourses = data?.availableCourses ?? [];
+  const availableSessions = data?.availableSessions ?? [];  // Changed from availableCourses
 
   const availableRounds = useMemo(() => {
     if (!data) return [];
-    const normalized = selectedCourse || data.summary.normalizedCourseName || '';
-    const matched = availableCourses.find((course) => course.normalizedName === normalized);
-    if (matched) {
-      return matched.rounds;
-    }
+    // For sessions, we can derive rounds from availableRounds in summary
     return data.summary.availableRounds ?? [];
-  }, [availableCourses, data, selectedCourse]);
+  }, [data]);
 
   return {
     summary: data?.summary ?? null,
@@ -194,7 +189,7 @@ export const useCourseReportsData = (
     instructorStats: data?.instructorStats ?? [],
     previousInstructorStats: previousData?.instructorStats ?? [],
     textualResponses: data?.textualResponses ?? [],
-    availableCourses,
+    availableSessions,  // Changed from availableCourses
     availableRounds,
     availableInstructors: data?.availableInstructors ?? [],
     loading,

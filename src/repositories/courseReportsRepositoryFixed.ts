@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CourseReportFilters {
   year: number;
-  courseName?: string | null;
+  sessionId?: string | null;  // Changed from courseName to sessionId
   round?: number | null;
   instructorId?: string | null;
   includeTestData?: boolean;
@@ -11,8 +11,9 @@ export interface CourseReportFilters {
 
 export interface CourseReportSummary {
   educationYear: number;
-  courseName: string | null;
-  normalizedCourseName: string | null;
+  sessionId: string | null;  // Changed from courseName
+  sessionTitle: string | null;  // Changed from normalizedCourseName
+  programName: string | null;  // Added program name
   educationRound: number | null;
   instructorId: string | null;
   availableRounds: number[];
@@ -40,10 +41,12 @@ export interface CourseInstructorStat {
   avgSatisfaction: number | null;
 }
 
-export interface CourseOption {
-  normalizedName: string;
+export interface SessionOption {  // Changed from CourseOption
+  sessionId: string;  // Changed from normalizedName
   displayName: string;
-  rounds: number[];
+  sessionTitle: string;  // Added
+  programName: string;  // Added
+  turn: number;  // Added turn
 }
 
 export interface CourseReportStatisticsResponse {
@@ -51,18 +54,18 @@ export interface CourseReportStatisticsResponse {
   trend: CourseTrendPoint[];
   instructorStats: CourseInstructorStat[];
   textualResponses: string[];
-  availableCourses: CourseOption[];
+  availableSessions: SessionOption[];  // Changed from availableCourses
   availableInstructors: { id: string; name: string }[];
 }
 
 export const CourseReportsRepositoryFixed = {
   async fetchStatistics(filters: CourseReportFilters): Promise<CourseReportStatisticsResponse | null> {
-    // Pass selected course name as-is; DB will handle normalization internally
-    const courseNameParam = filters.courseName ?? null;
+    // Use sessionId parameter directly
+    const sessionIdParam = filters.sessionId ?? null;
 
     const { data, error } = await supabase.rpc('get_course_reports_working', {
       p_year: filters.year,
-      p_course_name: courseNameParam,
+      p_session_id: sessionIdParam,  // Changed from p_course_name
       p_round: filters.round ?? null,
       p_instructor_id: filters.instructorId ?? null,
       p_include_test: filters.includeTestData ?? false,
@@ -134,8 +137,9 @@ export const CourseReportsRepositoryFixed = {
 
     const summary: CourseReportSummary = {
       educationYear: toNumberWithDefault(rawSummary.educationYear, filters.year),
-      courseName: toStringOrNull(rawSummary.courseName),
-      normalizedCourseName: toStringOrNull(rawSummary.normalizedCourseName) ?? courseNameParam,
+      sessionId: toStringOrNull(rawSummary.sessionId),  // Changed
+      sessionTitle: toStringOrNull(rawSummary.sessionTitle),  // Changed
+      programName: toStringOrNull(rawSummary.programName),  // Added
       educationRound: toNumberOrNull(rawSummary.educationRound),
       instructorId: toStringOrNull(rawSummary.instructorId),
       availableRounds: toNumberArray(ensureArray(rawSummary.availableRounds)),
@@ -176,18 +180,20 @@ export const CourseReportsRepositoryFixed = {
       .map((item) => toStringOrNull(item))
       .filter((item): item is string => item !== null);
 
-    const rawAvailableCourses = ensureArray(rawData.available_courses);
-    const availableCourses: CourseOption[] = rawAvailableCourses
+    const rawAvailableSessions = ensureArray(rawData.available_sessions);  // Changed
+    const availableSessions: SessionOption[] = rawAvailableSessions  // Changed
       .map((item) => {
-        const course = ensureObject(item);
-        const normalizedName = toStringOrNull(course.normalizedName) ?? '';
+        const session = ensureObject(item);
+        const sessionId = toStringOrNull(session.sessionId) ?? '';
         return {
-          normalizedName,
-          displayName: toStringOrNull(course.displayName) ?? normalizedName,
-          rounds: toNumberArray(ensureArray(course.rounds)),
+          sessionId,  // Changed
+          displayName: toStringOrNull(session.displayName) ?? '',
+          sessionTitle: toStringOrNull(session.sessionTitle) ?? '',  // Added
+          programName: toStringOrNull(session.programName) ?? '',  // Added
+          turn: toNumberWithDefault(session.turn, 0),  // Added
         };
       })
-      .filter((course) => course.normalizedName.length > 0 || course.displayName.length > 0);
+      .filter((session) => session.sessionId.length > 0);
 
     const rawAvailableInstructors = ensureArray(rawData.available_instructors);
     const availableInstructors = rawAvailableInstructors
@@ -205,7 +211,7 @@ export const CourseReportsRepositoryFixed = {
       trend,
       instructorStats,
       textualResponses,
-      availableCourses,
+      availableSessions,  // Changed from availableCourses
       availableInstructors,
     };
   },
