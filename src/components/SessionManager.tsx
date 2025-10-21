@@ -34,10 +34,11 @@ interface SessionManagerProps {
   subjects: Subject[];  // subjects (과목) 목록
   instructors: Instructor[];
   onSessionsChange: (sessions: SurveySession[]) => void;
+  onSubjectSearchChange?: (term: string) => void;
 }
 
 export const SessionManager = ({
-  surveyId, sessions, subjects, instructors, onSessionsChange
+  surveyId, sessions, subjects, instructors, onSessionsChange, onSubjectSearchChange
 }: SessionManagerProps) => {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -290,6 +291,7 @@ export const SessionManager = ({
                   placeholder="선택(옵션)"
                   searchPlaceholder="과목명 검색..."
                   emptyText="검색 결과가 없습니다."
+                  onSearchChange={onSubjectSearchChange}
                 />
               </div>
 

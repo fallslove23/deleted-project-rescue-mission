@@ -21,6 +21,7 @@ interface SearchableSelectProps {
   options: { value: string; label: string }[];
   value?: string;
   onValueChange: (value: string) => void;
+  onSearchChange?: (term: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
@@ -32,6 +33,7 @@ export function SearchableSelect({
   options,
   value,
   onValueChange,
+  onSearchChange,
   placeholder = "선택하세요",
   searchPlaceholder = "검색...",
   emptyText = "결과가 없습니다.",
@@ -58,7 +60,7 @@ export function SearchableSelect({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput placeholder={searchPlaceholder} onValueChange={onSearchChange} />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>

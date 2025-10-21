@@ -281,19 +281,29 @@ export default function SurveyBuilder() {
     setSessions((data || []) as any[]);
   }, [surveyId, toast]);
 
-  const loadSubjects = useCallback(async () => {
-    const { data, error } = await (supabase as any)
-      .from('v_subject_options')
-      .select('id,title')
-      .order('title')
-      .range(0, 499); // 충분한 limit: 최대 500개
-    
-    if (!error && data) {
-      setSubjects(data as any[]);
-    } else if (error) {
-      console.error('Failed to load subjects:', error);
-    }
-  }, []);
+const loadSubjects = useCallback(async (searchTerm?: string) => {
+  let query = (supabase as any)
+    .from('v_subject_options')
+    .select('id,title');
+
+  if (searchTerm && searchTerm.trim()) {
+    query = query.ilike('title', `%${searchTerm.trim()}%`);
+  }
+
+  const { data, error } = await query
+    .order('title', { ascending: true })
+    .range(0, 1999); // 최대 2000개로 상향
+  
+  if (!error && data) {
+    setSubjects(data as any[]);
+  } else if (error) {
+    console.error('Failed to load subjects:', error);
+  }
+}, []);
+
+  const handleSubjectSearchChange = useCallback((term: string) => {
+    loadSubjects(term);
+  }, [loadSubjects]);
 
   const loadInstructors = useCallback(async () => {
     const { data, error } = await supabase.from('instructors').select('id,name').order('name');
@@ -1559,7 +1569,7 @@ export default function SurveyBuilder() {
             </CardContent>
           </Card>
 
-          {/* 🔷 세션(과목/강사) 관리 */}
+{/* 🔷 세션(과목/강사) 관리 */}
           {survey && (
             <SessionManager
               surveyId={survey.id}
@@ -1567,6 +1577,7 @@ export default function SurveyBuilder() {
               subjects={subjects}
               instructors={instructors}
               onSessionsChange={(next) => setSessions(next)}
+              onSubjectSearchChange={handleSubjectSearchChange}
             />
           )}
 
