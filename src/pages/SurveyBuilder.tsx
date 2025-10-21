@@ -272,7 +272,7 @@ export default function SurveyBuilder() {
       .from('survey_sessions')
       .select(`
         *,
-        course:subjects(id,title),
+        subject:subjects(id,title),
         instructor:instructors(id,name)
       `)
       .eq('survey_id', surveyId)
