@@ -65,9 +65,10 @@ export function SearchableSelect({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? "" : currentValue);
+                  value={option.label}
+                  aria-label={option.label}
+                  onSelect={() => {
+                    onValueChange(option.value);
                     setOpen(false);
                   }}
                 >
