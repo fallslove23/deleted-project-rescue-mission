@@ -284,12 +284,12 @@ const SurveyDetailedAnalysis = () => {
       
       const { data: sessData, error: sessError } = await supabase
         .from('survey_sessions')
-        .select('id, session_name, instructor_id, course_id')
+        .select('id, session_name, instructor_id, subject_id')
         .eq('survey_id', surveyId)
         .order('session_order', { ascending: true });
 
       if (sessError) throw sessError;
-      let raw = (sessData || []).filter((s: any) => s.instructor_id && s.course_id);
+      let raw = (sessData || []).filter((s: any) => s.instructor_id && s.subject_id);
       
       // 강사 사용자의 경우 자신의 세션만 필터링
       if (restrictToInstructorId) {
