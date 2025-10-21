@@ -201,28 +201,6 @@ export function AdminSidebar() {
               </SidebarGroupContent>
             </SidebarGroup>
           ))}
-
-          {/* 개발자 전용 섹션 */}
-          {isDeveloper && (
-            <SidebarGroup className="space-y-3 border-t border-sidebar-border/50 pt-6">
-              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-destructive/80">
-                개발자 도구
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="space-y-1">
-                  {renderMenuItem(
-                    {
-                      title: "테스트 화면",
-                      url: "/developer-test",
-                      icon: Code,
-                      exact: false,
-                    },
-                    { variant: "developer" }
-                  )}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
         </div>
       </SidebarContent>
       
