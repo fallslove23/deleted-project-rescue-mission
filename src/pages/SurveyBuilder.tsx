@@ -282,14 +282,11 @@ export default function SurveyBuilder() {
   }, [surveyId, toast]);
 
   const loadSubjects = useCallback(async () => {
-    // Get program names to exclude from subjects (they were mistakenly added)
-    const { data: programs } = await supabase.from('programs').select('name');
-    const programNames = new Set((programs || []).map(p => p.name));
-    
     const { data, error } = await (supabase as any).from('subjects').select('id,title').order('title');
     if (!error && data) {
-      // Filter out subjects that are actually program names
-      const filtered = data.filter((s: any) => !programNames.has(s.title));
+      // Filter out program names that were mistakenly added as subjects
+      const excludeList = ['BS Basic', 'BS Advanced', 'BS Advanced 운영 만족도'];
+      const filtered = data.filter((s: any) => !excludeList.includes(s.title));
       setSubjects(filtered as any[]);
     }
   }, []);
