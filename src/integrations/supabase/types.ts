@@ -659,6 +659,13 @@ export type Database = {
             referencedRelation: "v_instructor_subject_scores"
             referencedColumns: ["subject_id"]
           },
+          {
+            foreignKeyName: "lectures_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -908,6 +915,13 @@ export type Database = {
             referencedColumns: ["subject_id"]
           },
           {
+            foreignKeyName: "session_subjects_subject_fk"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "session_subjects_subject_id_fkey"
             columns: ["subject_id"]
             isOneToOne: false
@@ -927,6 +941,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_instructor_subject_scores"
             referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "session_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1106,6 +1127,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_instructor_subject_scores"
             referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "subject_canonical_map_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1860,6 +1888,13 @@ export type Database = {
             referencedColumns: ["subject_id"]
           },
           {
+            foreignKeyName: "survey_sessions_subject_fk"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "survey_sessions_survey_id_fkey"
             columns: ["survey_id"]
             isOneToOne: false
@@ -2264,6 +2299,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_instructor_subject_scores"
             referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "surveys_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "surveys_template_id_fkey"
@@ -3268,6 +3310,13 @@ export type Database = {
             referencedRelation: "v_instructor_subject_scores"
             referencedColumns: ["subject_id"]
           },
+          {
+            foreignKeyName: "surveys_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
+          },
         ]
       }
       surveys_list_v2: {
@@ -3432,6 +3481,21 @@ export type Database = {
           position?: number | null
           subject_id?: string | null
           subject_title?: string | null
+        }
+        Relationships: []
+      }
+      v_subject_options: {
+        Row: {
+          id: string | null
+          title: string | null
+        }
+        Insert: {
+          id?: string | null
+          title?: string | null
+        }
+        Update: {
+          id?: string | null
+          title?: string | null
         }
         Relationships: []
       }

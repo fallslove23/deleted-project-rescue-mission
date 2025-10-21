@@ -282,12 +282,16 @@ export default function SurveyBuilder() {
   }, [surveyId, toast]);
 
   const loadSubjects = useCallback(async () => {
-    const { data, error } = await (supabase as any).from('subjects').select('id,title').order('title');
+    const { data, error } = await (supabase as any)
+      .from('v_subject_options')
+      .select('id,title')
+      .order('title')
+      .range(0, 499); // 충분한 limit: 최대 500개
+    
     if (!error && data) {
-      // Filter out program names that were mistakenly added as subjects
-      const excludeList = ['BS Basic', 'BS Advanced', 'BS Advanced 운영 만족도'];
-      const filtered = data.filter((s: any) => !excludeList.includes(s.title));
-      setSubjects(filtered as any[]);
+      setSubjects(data as any[]);
+    } else if (error) {
+      console.error('Failed to load subjects:', error);
     }
   }, []);
 
