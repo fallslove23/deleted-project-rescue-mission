@@ -282,8 +282,16 @@ export default function SurveyBuilder() {
   }, [surveyId, toast]);
 
   const loadSubjects = useCallback(async () => {
+    // Get program names to exclude from subjects (they were mistakenly added)
+    const { data: programs } = await supabase.from('programs').select('name');
+    const programNames = new Set((programs || []).map(p => p.name));
+    
     const { data, error } = await (supabase as any).from('subjects').select('id,title').order('title');
-    if (!error && data) setSubjects(data as any[]);
+    if (!error && data) {
+      // Filter out subjects that are actually program names
+      const filtered = data.filter((s: any) => !programNames.has(s.title));
+      setSubjects(filtered as any[]);
+    }
   }, []);
 
   const loadInstructors = useCallback(async () => {
