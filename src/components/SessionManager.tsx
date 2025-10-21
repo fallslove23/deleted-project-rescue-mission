@@ -14,23 +14,24 @@ import { Plus, Edit3, Trash2, User, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Course { id: string; title: string; }
+interface Subject { id: string; title: string; }
 interface Instructor { id: string; name: string; email?: string; photo_url?: string; bio?: string; }
 export interface SurveySession {
   id: string;
   survey_id: string;
-  course_id: string | null;
+  subject_id: string | null;
+  lecture_id?: string | null;
   instructor_id: string | null;
   session_name: string;
   session_order: number;
-  course?: Course;
+  subject?: Subject;
   instructor?: Instructor;
 }
 
 interface SessionManagerProps {
   surveyId: string;
   sessions: SurveySession[];
-  subjects: Course[];  // subjects (과목) 목록
+  subjects: Subject[];  // subjects (과목) 목록
   instructors: Instructor[];
   onSessionsChange: (sessions: SurveySession[]) => void;
 }
@@ -105,7 +106,7 @@ export const SessionManager = ({
     setEditing(s);
     setForm({
       session_name: s.session_name ?? "",
-      subject_id: s.course_id ?? "none",  // course_id는 실제로 subject_id
+      subject_id: s.subject_id ?? "none",
       instructor_id: s.instructor_id ?? "none",
     });
     // 편집 진입 시엔 사용자가 이미 입력했다고 간주(자동 덮어쓰기 방지)
@@ -170,7 +171,7 @@ export const SessionManager = ({
       const payload = {
         survey_id: surveyId,
         session_name: _name,
-        course_id: form.subject_id === "none" ? null : form.subject_id,  // course_id는 실제로 subject_id 저장
+        subject_id: form.subject_id === "none" ? null : form.subject_id,
         instructor_id: form.instructor_id === "none" ? null : form.instructor_id,
       };
 
@@ -182,7 +183,7 @@ export const SessionManager = ({
           ? {
               ...s,
               ...payload,
-              course: payload.course_id ? subjects.find(c => c.id === payload.course_id) : undefined,
+              subject: payload.subject_id ? subjects.find(c => c.id === payload.subject_id) : undefined,
               instructor: payload.instructor_id ? instructors.find(i => i.id === payload.instructor_id) : undefined,
             }
           : s);
@@ -194,7 +195,7 @@ export const SessionManager = ({
           .insert({ ...payload, session_order: sessions.length })
           .select(`
             *,
-            course:subjects(id,title),
+            subject:subjects(id,title),
             instructor:instructors(id,name,email,photo_url,bio)
           `)
           .single();
@@ -330,8 +331,8 @@ export const SessionManager = ({
         ) : (
           sessions.map((s, idx) => {
             const subjectTitle =
-              s.course?.title ??
-              (s.course_id ? subjects.find(c => c.id === s.course_id)?.title : "") ??
+              s.subject?.title ??
+              (s.subject_id ? subjects.find(c => c.id === s.subject_id)?.title : "") ??
               "과목 미선택";
             const instructorName =
               s.instructor?.name ??

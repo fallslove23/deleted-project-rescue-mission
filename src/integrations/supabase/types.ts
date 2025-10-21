@@ -1767,6 +1767,7 @@ export type Database = {
           lecture_id: string | null
           session_name: string | null
           session_order: number
+          subject_id: string | null
           survey_id: string
           updated_at: string
         }
@@ -1778,6 +1779,7 @@ export type Database = {
           lecture_id?: string | null
           session_name?: string | null
           session_order?: number
+          subject_id?: string | null
           survey_id: string
           updated_at?: string
         }
@@ -1789,6 +1791,7 @@ export type Database = {
           lecture_id?: string | null
           session_name?: string | null
           session_order?: number
+          subject_id?: string | null
           survey_id?: string
           updated_at?: string
         }
@@ -1820,6 +1823,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_session_instructors"
             referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_lecture_fk"
+            columns: ["lecture_id"]
+            isOneToOne: false
+            referencedRelation: "lectures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_lecture_fk"
+            columns: ["lecture_id"]
+            isOneToOne: false
+            referencedRelation: "v_curriculum_tree"
+            referencedColumns: ["lecture_id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_subject_fk"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_subject_fk"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_curriculum_tree"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "survey_sessions_subject_fk"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_subject_scores"
+            referencedColumns: ["subject_id"]
           },
           {
             foreignKeyName: "survey_sessions_survey_id_fkey"

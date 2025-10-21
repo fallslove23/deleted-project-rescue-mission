@@ -740,7 +740,7 @@ export default function SurveyBuilder() {
         const template = templates.find((t) => t.id === templateId);
         return {
           sessionId,
-          sessionName: session?.course?.title || session?.session_name || "세션",
+          sessionName: session?.subject?.title || session?.session_name || "세션",
           instructorName: session?.instructor?.name || null,
           templateId: templateId as string,
           templateName: template?.name || "템플릿",
@@ -781,7 +781,7 @@ export default function SurveyBuilder() {
         if (templateId) {
           await applyTemplateToSession(templateId, sessionId);
           const session = sessions.find(s => s.id === sessionId);
-          appliedSessions.push(session?.course?.title || session?.session_name || '세션');
+          appliedSessions.push(session?.subject?.title || session?.session_name || '세션');
         }
       }
       
@@ -965,7 +965,7 @@ export default function SurveyBuilder() {
       // 이론 과목용 섹션 생성
       if (ts?.length) {
         for (const templateSection of ts) {
-          const sectionName = `이론 - ${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
+          const sectionName = `이론 - ${session.instructor?.name || '강사'} - ${session.subject?.title || session.session_name} - ${templateSection.name}`;
           const { data: newSection } = await supabase
             .from('survey_sections')
             .insert({
@@ -1006,7 +1006,7 @@ export default function SurveyBuilder() {
     // 실습 세션만 필터링 (세션명에 '실습'이 포함되거나 실습 관련 과목)
     const practiceSessions = sessions.filter(session => 
       session.session_name?.toLowerCase().includes('실습') || 
-      session.course?.title?.toLowerCase().includes('실습')
+      session.subject?.title?.toLowerCase().includes('실습')
     );
 
     const targetSessions = practiceSessions.length > 0 ? practiceSessions : sessions;
@@ -1016,7 +1016,7 @@ export default function SurveyBuilder() {
       
       if (ts?.length) {
         for (const templateSection of ts) {
-          const sectionName = `실습 - ${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
+          const sectionName = `실습 - ${session.instructor?.name || '강사'} - ${session.subject?.title || session.session_name} - ${templateSection.name}`;
           const { data: newSection } = await supabase
             .from('survey_sections')
             .insert({
@@ -1146,7 +1146,7 @@ export default function SurveyBuilder() {
       
       if (ts?.length) {
         for (const templateSection of ts) {
-          const sectionName = `${session.instructor?.name || '강사'} - ${session.course?.title || session.session_name} - ${templateSection.name}`;
+          const sectionName = `${session.instructor?.name || '강사'} - ${session.subject?.title || session.session_name} - ${templateSection.name}`;
           const { data: newSection } = await supabase
             .from('survey_sections')
             .insert({
@@ -1226,7 +1226,7 @@ export default function SurveyBuilder() {
       // 섹션 생성 (기존 순서 뒤에 추가)
       if (ts?.length) {
         for (const templateSection of ts) {
-          const sectionName = `${targetSession.instructor?.name || '강사'} - ${targetSession.course?.title || targetSession.session_name} - ${templateSection.name}`;
+          const sectionName = `${targetSession.instructor?.name || '강사'} - ${targetSession.subject?.title || targetSession.session_name} - ${templateSection.name}`;
           const { data: newSection } = await supabase
             .from('survey_sections')
             .insert({
@@ -1275,7 +1275,7 @@ export default function SurveyBuilder() {
 
       toast({ 
         title: "템플릿 적용 완료", 
-        description: `${targetSession.instructor?.name || '강사'} - ${targetSession.course?.title || targetSession.session_name}에 템플릿이 적용되었습니다.` 
+        description: `${targetSession.instructor?.name || '강사'} - ${targetSession.subject?.title || targetSession.session_name}에 템플릿이 적용되었습니다.` 
       });
     } catch (e: any) {
       console.error('Session template application error:', e);
@@ -1751,7 +1751,7 @@ export default function SurveyBuilder() {
                             </div>
                             <div>
                               <h4 className="text-lg font-semibold leading-tight">
-                                {session.instructor?.name} - {session.course?.title || session.session_name}
+                                {session.instructor?.name} - {session.subject?.title || session.session_name}
                               </h4>
                               <p className="text-sm text-muted-foreground">
                                 {sessionQuestions.length}개 질문
@@ -1978,7 +1978,7 @@ export default function SurveyBuilder() {
                                     )}
                                   >
                                     <div className="font-medium">
-                                      {session.course?.title || session.session_name}
+                                      {session.subject?.title || session.session_name}
                                     </div>
                                     <div className="mt-1 text-xs text-muted-foreground">
                                       강사: {session.instructor?.name || "미정"}
@@ -1993,7 +1993,7 @@ export default function SurveyBuilder() {
                             {activeSession && (
                               <div className="rounded-lg border border-dashed bg-muted/50 p-3 text-xs text-muted-foreground">
                                 <div className="font-medium text-foreground">
-                                  {activeSession.course?.title || activeSession.session_name}
+                                  {activeSession.subject?.title || activeSession.session_name}
                                 </div>
                                 <div className="mt-1 flex items-center justify-between">
                                   <span>
@@ -2100,7 +2100,7 @@ export default function SurveyBuilder() {
                                         {isAssignedToActive
                                           ? "선택 완료"
                                           : activeSession
-                                            ? `${activeSession.course?.title || activeSession.session_name}에 적용`
+                                            ? `${activeSession.subject?.title || activeSession.session_name}에 적용`
                                             : "세션을 선택하세요"}
                                       </Button>
                                     </CardFooter>
