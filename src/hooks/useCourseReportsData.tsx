@@ -43,6 +43,7 @@ export const useCourseReportsData = (
   const [instructorIdLoaded, setInstructorIdLoaded] = useState(false);
   const { data, loading, fetchStatistics } = useCourseReportStatistics();
   const [previousData, setPreviousData] = useState<CourseReportStatisticsResponse | null>(null);
+  const [fallbackSessions, setFallbackSessions] = useState<SessionOption[]>([]);
 
   // Load instructor id for instructor role
   useEffect(() => {
@@ -105,6 +106,7 @@ export const useCourseReportsData = (
   const refetch = useCallback(async () => {
     if (!selectedYear) return null;
     if (isInstructor && !instructorIdLoaded) return null; // wait until instructor id lookup completes
+    if (!selectedSessionId) { setPreviousData(null); return null; }
 
     try {
       // selectedSessionId now contains session_id (UUID)
@@ -174,7 +176,34 @@ export const useCourseReportsData = (
     instructorIdLoaded,
   ]);
 
-  const availableSessions = data?.availableSessions ?? [];  // Changed from availableCourses
+  // Load available sessions when no session is selected to avoid RPC error
+  useEffect(() => {
+    const loadSessions = async () => {
+      if (!selectedYear || selectedSessionId) return;
+      const { data, error } = await (supabase as any)
+        .from('program_sessions_v1')
+        .select('session_id, session_title, program, turn, year')
+        .eq('year', selectedYear)
+        .order('program', { ascending: true })
+        .order('turn', { ascending: true });
+      if (error) {
+        console.error('Failed to load available sessions', error);
+        setFallbackSessions([]);
+        return;
+      }
+      const mapped: SessionOption[] = (data || []).map((d: any) => ({
+        sessionId: d.session_id,
+        displayName: `${d.program ?? ''} ${d.turn ?? ''}회차 - ${d.session_title ?? ''}`.trim(),
+        sessionTitle: d.session_title ?? '',
+        programName: d.program ?? '',
+        turn: d.turn ?? 0,
+      }));
+      setFallbackSessions(mapped);
+    };
+    loadSessions();
+  }, [selectedYear, selectedSessionId]);
+
+  const availableSessions = data?.availableSessions ?? fallbackSessions;  // Changed from availableCourses
 
   const availableRounds = useMemo(() => {
     if (!data) return [];

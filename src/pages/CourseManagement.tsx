@@ -172,6 +172,12 @@ const CourseManagement = () => {
           .eq('subject_id', subjectId);
       }
 
+      // Delete any canonical mappings tied to this subject to satisfy FK constraints
+      await (supabase as any)
+        .from('subject_canonical_map')
+        .delete()
+        .eq('subject_id', subjectId);
+
       // Then delete the subject
       const { error } = await (supabase as any)
         .from('subjects')
@@ -185,6 +191,7 @@ const CourseManagement = () => {
         description: "과목이 삭제되었습니다."
       });
       
+      // Refresh list
       fetchData();
     } catch (error) {
       console.error('Error deleting subject:', error);
