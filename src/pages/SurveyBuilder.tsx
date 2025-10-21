@@ -103,7 +103,7 @@ type SurveyQuestion = {
   scope: 'session' | 'operation'; satisfaction_type?: string | null;
 };
 type Section = { id: string; name: string; description?: string };
-type Course = { id: string; title: string };
+type Course = { id: string; title: string };  // 실제로는 Subject (과목)
 type Instructor = { id: string; name: string };
 type TemplateQuestionDetail = {
   id: string;
@@ -136,7 +136,7 @@ export default function SurveyBuilder() {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [sessions, setSessions] = useState<SurveySession[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [subjects, setSubjects] = useState<Course[]>([]);  // subjects (과목) 목록
   const [instructors, setInstructors] = useState<Instructor[]>([]);
 
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
@@ -272,7 +272,7 @@ export default function SurveyBuilder() {
       .from('survey_sessions')
       .select(`
         *,
-        course:courses(id,title),
+        course:subjects(id,title),
         instructor:instructors(id,name)
       `)
       .eq('survey_id', surveyId)
@@ -281,9 +281,9 @@ export default function SurveyBuilder() {
     setSessions((data || []) as any[]);
   }, [surveyId, toast]);
 
-  const loadCourses = useCallback(async () => {
-    const { data, error } = await (supabase as any).from('courses').select('id,title').order('title');
-    if (!error && data) setCourses(data as any[]);
+  const loadSubjects = useCallback(async () => {
+    const { data, error } = await (supabase as any).from('subjects').select('id,title').order('title');
+    if (!error && data) setSubjects(data as any[]);
   }, []);
 
   const loadInstructors = useCallback(async () => {
@@ -382,11 +382,11 @@ export default function SurveyBuilder() {
       loadQuestions(),
       loadSections(),
       loadSessions(),
-      loadCourses(),
+      loadSubjects(),
       loadInstructors(),
       loadTemplates(),
     ]);
-  }, [loadSurvey, loadCourseNames, loadQuestions, loadSections, loadSessions, loadCourses, loadInstructors, loadTemplates]);
+  }, [loadSurvey, loadCourseNames, loadQuestions, loadSections, loadSessions, loadSubjects, loadInstructors, loadTemplates]);
 
   useEffect(() => {
     reloadAll();
@@ -1555,7 +1555,7 @@ export default function SurveyBuilder() {
             <SessionManager
               surveyId={survey.id}
               sessions={sessions}
-              courses={courses}
+              subjects={subjects}
               instructors={instructors}
               onSessionsChange={(next) => setSessions(next)}
             />

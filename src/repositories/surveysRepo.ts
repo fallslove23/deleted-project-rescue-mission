@@ -30,6 +30,13 @@ export interface SurveyListItem {
   creator_email: string | null;
   instructor_name: string | null;
   course_title: string | null;
+  // session 기반 필드 추가 (optional)
+  session_id?: string | null;
+  program_id?: string | null;
+  subject_id?: string | null;
+  program_name?: string | null;
+  session_title?: string | null;
+  subject_title?: string | null;
 }
 
 export interface SurveyFilters {
@@ -176,7 +183,7 @@ export const SurveysRepository = {
     if (ids.length === 0) return [];
     const { data, error } = await supabase.from("surveys_list_v1").select("*").in("id", ids);
     if (error) throw error;
-    return (data || []) as SurveyListItem[];
+    return (data || []) as unknown as SurveyListItem[];
   },
 
   async getAvailableYears(): Promise<number[]> {
@@ -245,7 +252,7 @@ export const SurveysRepository = {
       creator_email: null,
       instructor_name: null,
       course_title: null
-    } as SurveyListItem;
+    } as unknown as SurveyListItem;
   },
 
   async updateStatus(id: string, status: "draft" | "active" | "public" | "completed") {
@@ -283,7 +290,7 @@ export const SurveysRepository = {
       creator_email: null,
       instructor_name: null,
       course_title: null
-    } as SurveyListItem;
+    } as unknown as SurveyListItem;
   },
 
   async duplicateMany(ids: string[]) {

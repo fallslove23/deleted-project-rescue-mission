@@ -30,57 +30,73 @@ export interface SurveySession {
 interface SessionManagerProps {
   surveyId: string;
   sessions: SurveySession[];
-  courses: Course[];
+  subjects: Course[];  // subjects (과목) 목록
   instructors: Instructor[];
   onSessionsChange: (sessions: SurveySession[]) => void;
 }
 
 export const SessionManager = ({
-  surveyId, sessions, courses, instructors, onSessionsChange
+  surveyId, sessions, subjects, instructors, onSessionsChange
 }: SessionManagerProps) => {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SurveySession | null>(null);
-  const [instructorCourses, setInstructorCourses] = useState<Array<{instructor_id: string, course_id: string}>>([]);
+  const [instructorSubjects, setInstructorSubjects] = useState<Array<{instructor_id: string, subject_id: string}>>([]);
 
   // ▽ 사용자가 이름 입력을 직접 수정했는지 추적 (코스 선택 시 자동 채우기 제어)
   const [userEditedName, setUserEditedName] = useState(false);
 
   const [form, setForm] = useState({
     session_name: "",
-    course_id: "none" as string,
+    subject_id: "none" as string,
     instructor_id: "none" as string,
   });
 
-  // instructor_courses 데이터 가져오기
+  // instructor_subjects 데이터 가져오기 (instructor_lectures → subjects 경로)
   useEffect(() => {
-    const fetchInstructorCourses = async () => {
+    const fetchInstructorSubjects = async () => {
       try {
-        const { data, error } = await (supabase as any)
-          .from('instructor_courses')
-          .select('instructor_id, course_id');
+        // instructor_lectures → lectures → subjects 경로로 강사-과목 매핑 가져오기
+        const { data, error } = await supabase
+          .from('instructor_lectures')
+          .select('instructor_id, lecture:lectures(subject_id)')
+          .not('lecture', 'is', null);
         
         if (error) throw error;
-        setInstructorCourses(data || []);
+        
+        // subject_id로 매핑 변환
+        const mappings = (data || [])
+          .filter((item: any) => item.lecture?.subject_id)
+          .map((item: any) => ({
+            instructor_id: item.instructor_id,
+            subject_id: item.lecture.subject_id
+          }));
+        
+        // 중복 제거
+        const uniqueMappings = Array.from(
+          new Map(mappings.map(m => [`${m.instructor_id}_${m.subject_id}`, m])).values()
+        );
+        
+        setInstructorSubjects(uniqueMappings);
       } catch (error) {
-        console.error('Error fetching instructor courses:', error);
+        console.error('Error fetching instructor subjects:', error);
       }
     };
 
-    fetchInstructorCourses();
+    fetchInstructorSubjects();
   }, []);
 
   useEffect(() => {
     if (!dialogOpen) {
       setEditing(null);
-      setForm({ session_name: "", course_id: "none", instructor_id: "none" });
+      setForm({ session_name: "", subject_id: "none", instructor_id: "none" });
       setUserEditedName(false);
     }
   }, [dialogOpen]);
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ session_name: "", course_id: "none", instructor_id: "none" });
+    setForm({ session_name: "", subject_id: "none", instructor_id: "none" });
     setUserEditedName(false);
     setDialogOpen(true);
   };
@@ -89,7 +105,7 @@ export const SessionManager = ({
     setEditing(s);
     setForm({
       session_name: s.session_name ?? "",
-      course_id: s.course_id ?? "none",
+      subject_id: s.course_id ?? "none",  // course_id는 실제로 subject_id
       instructor_id: s.instructor_id ?? "none",
     });
     // 편집 진입 시엔 사용자가 이미 입력했다고 간주(자동 덮어쓰기 방지)
@@ -97,17 +113,17 @@ export const SessionManager = ({
     setDialogOpen(true);
   };
 
-  // ▽ 코스 변경 시: 사용자가 이름을 아직 직접 손대지 않았다면 자동으로 코스명 입력
-  const handleCourseChange = (value: string) => {
+  // ▽ 과목 변경 시: 사용자가 이름을 아직 직접 손대지 않았다면 자동으로 과목명 입력
+  const handleSubjectChange = (value: string) => {
     setForm(prev => {
-      const next = { ...prev, course_id: value, instructor_id: "none" }; // 과목 변경 시 강사 초기화
+      const next = { ...prev, subject_id: value, instructor_id: "none" }; // 과목 변경 시 강사 초기화
       if (!userEditedName) {
         if (value === "none") {
           // 과목 관련 평가가 아닐 때: 이름은 비워 둔 상태 유지(사용자가 직접 입력)
           next.session_name = "";
         } else {
-          const courseTitle = courses.find(c => c.id === value)?.title ?? "";
-          next.session_name = courseTitle;
+          const subjectTitle = subjects.find(s => s.id === value)?.title ?? "";
+          next.session_name = subjectTitle;
         }
       }
       return next;
@@ -116,14 +132,14 @@ export const SessionManager = ({
 
   // 선택된 과목에 연결된 강사들만 필터링
   const getFilteredInstructors = () => {
-    if (form.course_id === "none") {
+    if (form.subject_id === "none") {
       return instructors; // 과목 미선택시 모든 강사 표시
     }
     
-    // instructor_courses 테이블에서 선택된 과목과 연결된 강사 ID들 가져오기
-    const connectedInstructorIds = instructorCourses
-      .filter(ic => ic.course_id === form.course_id)
-      .map(ic => ic.instructor_id);
+    // instructor_subjects에서 선택된 과목과 연결된 강사 ID들 가져오기
+    const connectedInstructorIds = instructorSubjects
+      .filter(is => is.subject_id === form.subject_id)
+      .map(is => is.instructor_id);
     
     // 연결된 강사 ID들에 해당하는 강사 정보만 반환
     return instructors.filter(instructor => connectedInstructorIds.includes(instructor.id));
@@ -138,8 +154,8 @@ export const SessionManager = ({
     try {
       // 세션 이름 비어 있고 과목을 선택했다면 마지막 안전 자동채움
       let _name = form.session_name.trim();
-      if (!_name && form.course_id !== "none") {
-        _name = courses.find(c => c.id === form.course_id)?.title ?? "";
+      if (!_name && form.subject_id !== "none") {
+        _name = subjects.find(s => s.id === form.subject_id)?.title ?? "";
       }
       if (!_name) {
         // 과목 미선택(공통 평가)인 경우에도 세션 이름은 필요: 운영평가/일반/공통 등으로 입력 요청
@@ -154,7 +170,7 @@ export const SessionManager = ({
       const payload = {
         survey_id: surveyId,
         session_name: _name,
-        course_id: form.course_id === "none" ? null : form.course_id,
+        course_id: form.subject_id === "none" ? null : form.subject_id,  // course_id는 실제로 subject_id 저장
         instructor_id: form.instructor_id === "none" ? null : form.instructor_id,
       };
 
@@ -166,7 +182,7 @@ export const SessionManager = ({
           ? {
               ...s,
               ...payload,
-              course: payload.course_id ? courses.find(c => c.id === payload.course_id) : undefined,
+              course: payload.course_id ? subjects.find(c => c.id === payload.course_id) : undefined,
               instructor: payload.instructor_id ? instructors.find(i => i.id === payload.instructor_id) : undefined,
             }
           : s);
@@ -178,7 +194,7 @@ export const SessionManager = ({
           .insert({ ...payload, session_order: sessions.length })
           .select(`
             *,
-            course:courses(id,title),
+            course:subjects(id,title),
             instructor:instructors(id,name,email,photo_url,bio)
           `)
           .single();
@@ -266,10 +282,10 @@ export const SessionManager = ({
                 <SearchableSelect
                   options={[
                     { value: 'none', label: '선택 안함' },
-                    ...courses.map(c => ({ value: c.id, label: c.title }))
+                    ...subjects.map(s => ({ value: s.id, label: s.title }))
                   ]}
-                  value={form.course_id}
-                  onValueChange={handleCourseChange}
+                  value={form.subject_id}
+                  onValueChange={handleSubjectChange}
                   placeholder="선택(옵션)"
                   searchPlaceholder="과목명 검색..."
                   emptyText="검색 결과가 없습니다."
@@ -285,12 +301,12 @@ export const SessionManager = ({
                   ]}
                   value={form.instructor_id}
                   onValueChange={(v) => setForm(p => ({ ...p, instructor_id: v }))}
-                  placeholder={form.course_id === "none" ? "선택(옵션)" : "과목 연결 강사 선택"}
+                  placeholder={form.subject_id === "none" ? "선택(옵션)" : "과목 연결 강사 선택"}
                   searchPlaceholder="강사명 검색..."
                   emptyText="검색 결과가 없습니다."
-                  disabled={form.course_id !== "none" && getFilteredInstructors().length === 0}
+                  disabled={form.subject_id !== "none" && getFilteredInstructors().length === 0}
                 />
-                {form.course_id !== "none" && getFilteredInstructors().length === 0 && (
+                {form.subject_id !== "none" && getFilteredInstructors().length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     선택한 과목에 연결된 강사가 없습니다.
                   </p>
@@ -313,9 +329,9 @@ export const SessionManager = ({
           </div>
         ) : (
           sessions.map((s, idx) => {
-            const courseTitle =
+            const subjectTitle =
               s.course?.title ??
-              (s.course_id ? courses.find(c => c.id === s.course_id)?.title : "") ??
+              (s.course_id ? subjects.find(c => c.id === s.course_id)?.title : "") ??
               "과목 미선택";
             const instructorName =
               s.instructor?.name ??
@@ -330,7 +346,7 @@ export const SessionManager = ({
                     <span className="text-xs text-muted-foreground">({s.session_order + 1}위치)</span>
                   </div>
                   <div className="text-sm text-muted-foreground truncate">
-                    <span className="font-medium">{courseTitle}</span>
+                    <span className="font-medium">{subjectTitle}</span>
                     <span className="mx-1">•</span>
                     <span className="inline-flex items-center gap-1"><User size={12} />{instructorName}</span>
                   </div>
