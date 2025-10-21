@@ -154,50 +154,42 @@ const CourseManagement = () => {
 
   const handleDeleteSubject = async (subjectId: string) => {
     try {
-      // First delete related lectures
-      const subjectLectures = lectures.filter(l => l.subject_id === subjectId);
-      if (subjectLectures.length > 0) {
-        const lectureIds = subjectLectures.map(l => l.id);
-        
-        // Delete instructor-lecture assignments
-        await (supabase as any)
-          .from('instructor_lectures')
-          .delete()
-          .in('lecture_id', lectureIds);
-        
-        // Delete lectures
-        await (supabase as any)
-          .from('lectures')
-          .delete()
-          .eq('subject_id', subjectId);
-      }
-
-      // Delete any canonical mappings tied to this subject to satisfy FK constraints
-      await (supabase as any)
+      // Delete subject_canonical_map first (FK constraint)
+      const { error: mapError } = await (supabase as any)
         .from('subject_canonical_map')
         .delete()
         .eq('subject_id', subjectId);
 
-      // Then delete the subject
-      const { error } = await (supabase as any)
+      if (mapError) {
+        console.error('Error deleting subject_canonical_map:', mapError);
+      }
+
+      // Delete the subject (lectures.subject_id will automatically become NULL due to ON DELETE SET NULL)
+      const { error: deleteError } = await (supabase as any)
         .from('subjects')
         .delete()
         .eq('id', subjectId);
 
-      if (error) throw error;
+      if (deleteError) {
+        console.error('Error deleting subject:', deleteError);
+        throw new Error(deleteError.message || '과목 삭제에 실패했습니다.');
+      }
 
+      // Update local state immediately
+      setSubjects(prev => prev.filter(s => s.id !== subjectId));
+      
       toast({
         title: "성공",
         description: "과목이 삭제되었습니다."
       });
       
-      // Refresh list
-      fetchData();
-    } catch (error) {
+      // Refresh all data to ensure consistency
+      await fetchData();
+    } catch (error: any) {
       console.error('Error deleting subject:', error);
       toast({
         title: "오류",
-        description: "과목 삭제 중 오류가 발생했습니다.",
+        description: error.message || "과목 삭제 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     }
