@@ -266,7 +266,7 @@ const SurveyParticipateSession = () => {
         .from('survey_sessions')
         .select(`
           *,
-          course:courses(id, title),
+          subject:subjects(id, title),
           instructor:instructors(id, name, email, photo_url, bio)
         `)
         .eq('survey_id', surveyId)

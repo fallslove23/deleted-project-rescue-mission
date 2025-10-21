@@ -246,7 +246,7 @@ const SurveyPreview = () => {
           id,
           session_name,
           session_order,
-          courses(title)
+          subjects(title)
         `)
         .eq('survey_id', surveyId);
 
