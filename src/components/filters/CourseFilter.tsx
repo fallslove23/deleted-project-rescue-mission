@@ -55,6 +55,11 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
   // Display options from fetched courses (session-based with "연도+차수+과정명" format)
   const displayOptions = courses.map(c => ({ value: c.value, label: c.label }));
 
+  // Determine the current display label
+  const currentLabel = value ? 
+    (displayOptions.find(opt => opt.value === value)?.label || '과정 선택') : 
+    (includeAll ? '전체 과정' : '과정 선택');
+
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">{label}</label>
@@ -63,13 +68,20 @@ const CourseFilter: React.FC<CourseFilterProps> = ({
         onValueChange={(newValue) => {
           const actualValue = newValue === 'all' ? '' : newValue;
           const selectedOption = displayOptions.find(opt => opt.value === actualValue);
-          onChange(actualValue, selectedOption?.label);
+          onChange(actualValue, selectedOption?.label || (newValue === 'all' ? '전체 과정' : undefined));
         }} 
         disabled={loading}
       >
         <SelectTrigger>
-          <SelectValue placeholder={loading ? '로딩 중...' : '과정 선택'}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <SelectValue placeholder={loading ? '로딩 중...' : currentLabel}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin inline" />
+                로딩 중...
+              </>
+            ) : (
+              currentLabel
+            )}
           </SelectValue>
         </SelectTrigger>
         <SelectContent className="z-50 bg-background border shadow-md">

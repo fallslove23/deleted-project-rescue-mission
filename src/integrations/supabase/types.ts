@@ -834,6 +834,13 @@ export type Database = {
             foreignKeyName: "session_subjects_session_fk"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "session_subjects_session_fk"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_summary"
             referencedColumns: ["session_id"]
           },
@@ -864,6 +871,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_course_report_min"
             referencedColumns: ["course_id"]
+          },
+          {
+            foreignKeyName: "session_subjects_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "session_subjects_session_id_fkey"
@@ -2182,6 +2196,13 @@ export type Database = {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_summary"
             referencedColumns: ["session_id"]
           },
@@ -3178,6 +3199,13 @@ export type Database = {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "surveys_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_session_summary"
             referencedColumns: ["session_id"]
           },
@@ -3299,6 +3327,33 @@ export type Database = {
           year: number | null
         }
         Relationships: []
+      }
+      v_session_course_canonical: {
+        Row: {
+          created_at: string | null
+          education_round: number | null
+          education_year: number | null
+          program_id: string | null
+          program_name: string | null
+          session_id: string | null
+          session_title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_session_instructors: {
         Row: {

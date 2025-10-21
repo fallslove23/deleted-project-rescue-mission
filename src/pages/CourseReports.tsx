@@ -58,7 +58,7 @@ const CourseReportsContent: React.FC = () => {
   });
 
   const [selectedSessionKey, setSelectedSessionKey] = useState<string>('');
-  const [selectedCourseLabel, setSelectedCourseLabel] = useState<string>('');
+  const [selectedCourseLabel, setSelectedCourseLabel] = useState<string>('전체 과정');
   const [dashboardCounts, setDashboardCounts] = useState<DashboardCounts | null>(null);
   const [loadingCounts, setLoadingCounts] = useState(false);
 
@@ -115,7 +115,7 @@ const CourseReportsContent: React.FC = () => {
       setSelectedSessionKey(filters.courseId);
     } else {
       setSelectedSessionKey('');
-      setSelectedCourseLabel('');
+      setSelectedCourseLabel('전체 과정');
     }
   }, [filters.courseId]);
 

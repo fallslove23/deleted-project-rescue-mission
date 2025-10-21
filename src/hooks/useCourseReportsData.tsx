@@ -107,12 +107,13 @@ export const useCourseReportsData = (
     if (isInstructor && !instructorIdLoaded) return null; // wait until instructor id lookup completes
 
     try {
-      // Use selectedCourse directly as courseName parameter - no need for complex resolution
-      const courseNameParam = selectedCourse || null;
+      // selectedCourse now contains session_id (UUID) instead of course name
+      // Pass null for courseName since we're using session-based filtering
+      const sessionIdParam = selectedCourse || null;
 
       const current = await fetchStatistics({
         year: selectedYear,
-        courseName: courseNameParam,
+        courseName: sessionIdParam, // This will be treated as session_id filter in RPC
         round: selectedRound ?? null,
         instructorId: instructorFilter,
         includeTestData,
@@ -122,7 +123,7 @@ export const useCourseReportsData = (
         try {
           const previous = await CourseReportsRepositoryFixed.fetchStatistics({
             year: selectedYear - 1,
-            courseName: current.summary.courseName ?? courseNameParam,
+            courseName: current.summary.courseName ?? sessionIdParam,
             round: selectedRound ?? null,
             instructorId: instructorFilter,
             includeTestData,
