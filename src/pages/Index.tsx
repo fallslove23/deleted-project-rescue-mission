@@ -229,7 +229,7 @@ const Index = () => {
   useEffect(() => {
     const loadFilterOptions = async () => {
       try {
-        const { data: courseData, error: courseError } = await supabase
+        const { data: courseData, error: courseError } = await (supabase as any)
           .from('courses')
           .select('id, title')
           .order('title');

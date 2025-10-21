@@ -262,7 +262,7 @@ const SurveyParticipateSession = () => {
       setSurvey(surveyData);
 
       // 세션 데이터 로드
-      const { data: sessionsData, error: sessionsError } = await supabase
+      const { data: sessionsData, error: sessionsError } = await (supabase as any)
         .from('survey_sessions')
         .select(`
           *,

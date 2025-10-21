@@ -56,7 +56,7 @@ export const SessionManager = ({
   useEffect(() => {
     const fetchInstructorCourses = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('instructor_courses')
           .select('instructor_id, course_id');
         

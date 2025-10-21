@@ -157,7 +157,7 @@ const Dashboard = () => {
           ? supabase.from('instructors').select('id', { count: 'exact', head: true })
           : Promise.resolve({ count: 0 } as any),
         isAdmin
-          ? supabase.from('courses').select('id', { count: 'exact', head: true })
+          ? (supabase as any).from('courses').select('id', { count: 'exact', head: true })
           : Promise.resolve({ count: 0 } as any),
         (async () => {
           const base: any = await responsesBase();

@@ -282,7 +282,7 @@ export default function SurveyBuilder() {
   }, [surveyId, toast]);
 
   const loadCourses = useCallback(async () => {
-    const { data, error } = await supabase.from('courses').select('id,title').order('title');
+    const { data, error } = await (supabase as any).from('courses').select('id,title').order('title');
     if (!error && data) setCourses(data as any[]);
   }, []);
 

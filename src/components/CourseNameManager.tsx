@@ -40,7 +40,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
 
   const fetchCourses = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('courses')
         .select('id, title, description, created_at')
         .order('title');
@@ -73,7 +73,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
 
     try {
       if (editingCourse) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('courses')
           .update({
             title: form.title.trim(),
@@ -84,7 +84,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
         if (error) throw error;
         toast({ title: "성공", description: "과정명이 수정되었습니다." });
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('courses')
           .insert([{ title: form.title.trim(), description: form.description.trim() || null }]);
 
@@ -118,7 +118,7 @@ export default function CourseNameManager({ selectedCourse, onCourseSelect }: Co
     if (!confirm("이 과정명을 삭제하시겠습니까? 관련된 세션/데이터에 영향을 줄 수 있습니다.")) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('courses')
         .delete()
         .eq('id', id);

@@ -123,7 +123,7 @@ export const SurveysRepository = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = supabase.from("surveys_list_v1").select("*", { count: "exact" });
+    let query = supabase.from("surveys_list_v1").select("*", { count: "exact" }) as any;
 
     if (filters.year) query = query.eq("education_year", filters.year);
     if (filters.courseName) query = query.eq("course_name", filters.courseName);
