@@ -129,10 +129,14 @@ export function VirtualizedTable<T>({
   }
 
   return (
-    <div className={`border rounded-md overflow-hidden ${className}`}>
-      <div className="overflow-x-auto">
-        <Table className="min-w-full">
-          <TableHeader>
+    <div className={`border rounded-md ${className}`}>
+      <div 
+        ref={parentRef}
+        className="relative overflow-auto"
+        style={{ height }}
+      >
+        <Table>
+          <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
               {columns.map((column) => (
                 <TableHead 
@@ -140,18 +144,14 @@ export function VirtualizedTable<T>({
                   className={`${column.className} whitespace-nowrap`}
                   style={{ 
                     width: column.width, 
-                    minWidth: column.minWidth,
-                    position: 'sticky',
-                    top: 0,
-                    backgroundColor: 'hsl(var(--background))',
-                    zIndex: 10,
+                    minWidth: column.minWidth 
                   }}
                 >
                   {column.sortable && onSort ? (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="-ml-3 h-8 data-[state=open]:bg-accent"
+                      className="-ml-3 h-8"
                       onClick={() => onSort(column.key)}
                     >
                       <span>{column.title}</span>
@@ -172,35 +172,24 @@ export function VirtualizedTable<T>({
               ))}
             </TableRow>
           </TableHeader>
-        </Table>
-
-        <div 
-          ref={parentRef}
-          className="relative overflow-y-auto"
-          style={{ height }}
-        >
-          <div 
+          <TableBody 
             style={{
               height: virtualizer.getTotalSize(),
               position: 'relative',
             }}
           >
-            <Table className="min-w-full">
-              <TableBody>
-                {virtualizer.getVirtualItems().map((virtualRow) => 
-                  renderRow(virtualRow.index, {
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: virtualRow.size,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+            {virtualizer.getVirtualItems().map((virtualRow) => 
+              renderRow(virtualRow.index, {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: virtualRow.size,
+                transform: `translateY(${virtualRow.start}px)`,
+              })
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
