@@ -130,66 +130,69 @@ export function VirtualizedTable<T>({
 
   return (
     <div className={`border rounded-md ${className}`}>
+      {/* Header table (separate from scroll area) */}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((column) => (
+              <TableHead 
+                key={column.key}
+                className={`${column.className} whitespace-nowrap`}
+                style={{ 
+                  width: column.width, 
+                  minWidth: column.minWidth 
+                }}
+              >
+                {column.sortable && onSort ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-ml-3 h-8"
+                    onClick={() => onSort(column.key)}
+                  >
+                    <span>{column.title}</span>
+                    {sortKey === column.key ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="ml-2 h-4 w-4" />
+                      ) : (
+                        <ArrowDown className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    )}
+                  </Button>
+                ) : (
+                  column.title
+                )}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+      </Table>
+
+      {/* Scrollable body virtualization */}
       <div 
         ref={parentRef}
         className="relative overflow-auto"
         style={{ height }}
       >
-        <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
-            <TableRow>
-              {columns.map((column) => (
-                <TableHead 
-                  key={column.key}
-                  className={`${column.className} whitespace-nowrap`}
-                  style={{ 
-                    width: column.width, 
-                    minWidth: column.minWidth 
-                  }}
-                >
-                  {column.sortable && onSort ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="-ml-3 h-8"
-                      onClick={() => onSort(column.key)}
-                    >
-                      <span>{column.title}</span>
-                      {sortKey === column.key ? (
-                        sortDirection === 'asc' ? (
-                          <ArrowUp className="ml-2 h-4 w-4" />
-                        ) : (
-                          <ArrowDown className="ml-2 h-4 w-4" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                      )}
-                    </Button>
-                  ) : (
-                    column.title
-                  )}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody 
-            style={{
-              height: virtualizer.getTotalSize(),
-              position: 'relative',
-            }}
-          >
-            {virtualizer.getVirtualItems().map((virtualRow) => 
-              renderRow(virtualRow.index, {
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: virtualRow.size,
-                transform: `translateY(${virtualRow.start}px)`,
-              })
-            )}
-          </TableBody>
-        </Table>
+        <TableBody 
+          style={{
+            height: virtualizer.getTotalSize(),
+            position: 'relative',
+          }}
+        >
+          {virtualizer.getVirtualItems().map((virtualRow) => 
+            renderRow(virtualRow.index, {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: virtualRow.size,
+              transform: `translateY(${virtualRow.start}px)`,
+            })
+          )}
+        </TableBody>
       </div>
     </div>
   );
