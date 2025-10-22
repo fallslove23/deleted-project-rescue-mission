@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useCumulativeSurveyStats } from '@/hooks/useCumulativeSurveyStats';
 import { formatSatisfaction } from '@/utils/satisfaction';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +41,8 @@ const getStatusLabel = (status: string | null) => {
 
 const CumulativeDataTable = () => {
   const includeTestData = false; // 테스트 데이터 제외
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
 
   const {
     data,
@@ -61,17 +63,87 @@ const CumulativeDataTable = () => {
     getExportData,
   } = useCumulativeSurveyStats({ includeTestData, pageSize: 50 });
 
+  const handleSort = useCallback((key: string) => {
+    if (sortKey === key) {
+      // 같은 컬럼 클릭: asc -> desc -> null
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortKey(null);
+        setSortDirection(null);
+      }
+    } else {
+      // 새 컬럼 클릭: asc로 시작
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  }, [sortKey, sortDirection]);
+
+  const sortedData = useMemo(() => {
+    if (!sortKey || !sortDirection) return data;
+
+    return [...data].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortKey) {
+        case 'title':
+          aValue = a.title ?? '';
+          bValue = b.title ?? '';
+          break;
+        case 'yearRound':
+          aValue = (a.education_year ?? 0) * 1000 + (a.education_round ?? 0);
+          bValue = (b.education_year ?? 0) * 1000 + (b.education_round ?? 0);
+          break;
+        case 'course':
+          aValue = a.course_name ?? '';
+          bValue = b.course_name ?? '';
+          break;
+        case 'instructor':
+          aValue = getInstructorDisplay(a);
+          bValue = getInstructorDisplay(b);
+          break;
+        case 'responses':
+          aValue = getResponseCount(a, includeTestData);
+          bValue = getResponseCount(b, includeTestData);
+          break;
+        case 'satisfaction':
+          aValue = getAverageSatisfactionValue(a, includeTestData) ?? 0;
+          bValue = getAverageSatisfactionValue(b, includeTestData) ?? 0;
+          break;
+        case 'status':
+          aValue = a.status ?? '';
+          bValue = b.status ?? '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      return sortDirection === 'asc' 
+        ? (aValue > bValue ? 1 : -1)
+        : (bValue > aValue ? 1 : -1);
+    });
+  }, [data, sortKey, sortDirection, includeTestData]);
+
   const columns = useMemo<VirtualizedColumn<SurveyCumulativeRow>[]>(() => [
     {
       key: 'title',
       title: '설문 제목',
       minWidth: 220,
+      sortable: true,
       render: (row) => row.title ?? '-',
     },
     {
       key: 'yearRound',
       title: '연도/회차',
       minWidth: 140,
+      sortable: true,
       render: (row) =>
         row.education_year && row.education_round
           ? `${row.education_year}년 ${row.education_round}차`
@@ -81,18 +153,21 @@ const CumulativeDataTable = () => {
       key: 'course',
       title: '과정명',
       minWidth: 200,
+      sortable: true,
       render: (row) => row.course_name ?? '-',
     },
     {
       key: 'instructor',
       title: '담당 강사',
       minWidth: 180,
+      sortable: true,
       render: (row) => getInstructorDisplay(row),
     },
     {
       key: 'responses',
       title: '응답 수',
       minWidth: 120,
+      sortable: true,
       render: (row) => {
         const count = getResponseCount(row, includeTestData);
         return (
@@ -106,6 +181,7 @@ const CumulativeDataTable = () => {
       key: 'satisfaction',
       title: '평균 만족도',
       minWidth: 140,
+      sortable: true,
       render: (row) => {
         const value = getAverageSatisfactionValue(row, includeTestData);
         if (value === null || !Number.isFinite(value)) {
@@ -128,6 +204,7 @@ const CumulativeDataTable = () => {
       key: 'status',
       title: '상태',
       minWidth: 120,
+      sortable: true,
       render: (row) => (
         <Badge variant={row.status === 'completed' ? 'default' : 'outline'}>
           {getStatusLabel(row.status)}
@@ -334,7 +411,7 @@ const CumulativeDataTable = () => {
             <div className="text-center py-8 text-muted-foreground">조건에 맞는 데이터가 없습니다.</div>
           ) : (
             <VirtualizedTable
-              data={data}
+              data={sortedData}
               columns={columns}
               height={520}
               itemHeight={56}
@@ -342,6 +419,9 @@ const CumulativeDataTable = () => {
               loadingRows={4}
               onLoadMore={loadMore}
               hasMore={hasMore}
+              sortKey={sortKey}
+              sortDirection={sortDirection}
+              onSort={handleSort}
             />
           )}
         </CardContent>

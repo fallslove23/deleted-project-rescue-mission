@@ -2,6 +2,8 @@ import React, { useMemo, CSSProperties } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface VirtualizedColumn<T> {
   key: string;
@@ -10,6 +12,7 @@ export interface VirtualizedColumn<T> {
   minWidth?: number;
   render?: (item: T, index: number) => React.ReactNode;
   className?: string;
+  sortable?: boolean;
 }
 
 export interface VirtualizedTableProps<T> {
@@ -23,6 +26,9 @@ export interface VirtualizedTableProps<T> {
   hasMore?: boolean;
   className?: string;
   emptyMessage?: string;
+  sortKey?: string | null;
+  sortDirection?: 'asc' | 'desc' | null;
+  onSort?: (key: string) => void;
 }
 
 export function VirtualizedTable<T>({
@@ -35,7 +41,10 @@ export function VirtualizedTable<T>({
   onLoadMore,
   hasMore = false,
   className = "",
-  emptyMessage = "데이터가 없습니다."
+  emptyMessage = "데이터가 없습니다.",
+  sortKey = null,
+  sortDirection = null,
+  onSort,
 }: VirtualizedTableProps<T>) {
   const parentRef = React.useRef<HTMLDivElement>(null);
 
@@ -117,7 +126,27 @@ export function VirtualizedTable<T>({
                   minWidth: column.minWidth 
                 }}
               >
-                {column.title}
+                {column.sortable && onSort ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-ml-3 h-8 data-[state=open]:bg-accent"
+                    onClick={() => onSort(column.key)}
+                  >
+                    <span>{column.title}</span>
+                    {sortKey === column.key ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp className="ml-2 h-4 w-4" />
+                      ) : (
+                        <ArrowDown className="ml-2 h-4 w-4" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    )}
+                  </Button>
+                ) : (
+                  column.title
+                )}
               </TableHead>
             ))}
           </TableRow>
