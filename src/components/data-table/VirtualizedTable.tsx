@@ -80,9 +80,16 @@ export function VirtualizedTable<T>({
     
     if (isLoadingRow) {
       return (
-        <TableRow key={`loading-${index}`} style={style} className="absolute inset-x-0">
+        <TableRow key={`loading-${index}`} style={style} className="absolute inset-x-0 border-b">
           {columns.map((column, colIndex) => (
-            <TableCell key={colIndex} className={column.className}>
+            <TableCell 
+              key={colIndex} 
+              className={column.className}
+              style={{ 
+                minWidth: column.minWidth,
+                padding: '0.75rem 1rem',
+              }}
+            >
               <Skeleton className="h-4 w-full" />
             </TableCell>
           ))}
@@ -94,10 +101,19 @@ export function VirtualizedTable<T>({
     if (!item) return null;
 
     return (
-      <TableRow key={index} style={style} className="absolute inset-x-0">
+      <TableRow key={index} style={style} className="absolute inset-x-0 border-b hover:bg-muted/50">
         {columns.map((column) => (
-          <TableCell key={column.key} className={column.className}>
-            {column.render ? column.render(item, index) : (item as any)[column.key]}
+          <TableCell 
+            key={column.key} 
+            className={`${column.className} align-middle`}
+            style={{ 
+              minWidth: column.minWidth,
+              padding: '0.75rem 1rem',
+            }}
+          >
+            <div className="flex items-center min-h-[2rem]">
+              {column.render ? column.render(item, index) : (item as any)[column.key]}
+            </div>
           </TableCell>
         ))}
       </TableRow>
@@ -113,68 +129,78 @@ export function VirtualizedTable<T>({
   }
 
   return (
-    <div className={`border rounded-md ${className}`}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {columns.map((column) => (
-              <TableHead 
-                key={column.key}
-                className={column.className}
-                style={{ 
-                  width: column.width, 
-                  minWidth: column.minWidth 
-                }}
-              >
-                {column.sortable && onSort ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-ml-3 h-8 data-[state=open]:bg-accent"
-                    onClick={() => onSort(column.key)}
-                  >
-                    <span>{column.title}</span>
-                    {sortKey === column.key ? (
-                      sortDirection === 'asc' ? (
-                        <ArrowUp className="ml-2 h-4 w-4" />
+    <div className={`border rounded-md overflow-hidden ${className}`}>
+      <div className="overflow-x-auto">
+        <Table className="min-w-full">
+          <TableHeader>
+            <TableRow>
+              {columns.map((column) => (
+                <TableHead 
+                  key={column.key}
+                  className={`${column.className} whitespace-nowrap`}
+                  style={{ 
+                    width: column.width, 
+                    minWidth: column.minWidth,
+                    position: 'sticky',
+                    top: 0,
+                    backgroundColor: 'hsl(var(--background))',
+                    zIndex: 10,
+                  }}
+                >
+                  {column.sortable && onSort ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8 data-[state=open]:bg-accent"
+                      onClick={() => onSort(column.key)}
+                    >
+                      <span>{column.title}</span>
+                      {sortKey === column.key ? (
+                        sortDirection === 'asc' ? (
+                          <ArrowUp className="ml-2 h-4 w-4" />
+                        ) : (
+                          <ArrowDown className="ml-2 h-4 w-4" />
+                        )
                       ) : (
-                        <ArrowDown className="ml-2 h-4 w-4" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-                    )}
-                  </Button>
-                ) : (
-                  column.title
-                )}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-      </Table>
+                        <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
+                      )}
+                    </Button>
+                  ) : (
+                    column.title
+                  )}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+        </Table>
 
-      <div 
-        ref={parentRef}
-        className="relative overflow-auto"
-        style={{ height }}
-      >
-        <TableBody 
-          style={{
-            height: virtualizer.getTotalSize(),
-            position: 'relative',
-          }}
+        <div 
+          ref={parentRef}
+          className="relative overflow-y-auto"
+          style={{ height }}
         >
-          {virtualizer.getVirtualItems().map((virtualRow) => 
-            renderRow(virtualRow.index, {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: virtualRow.size,
-              transform: `translateY(${virtualRow.start}px)`,
-            })
-          )}
-        </TableBody>
+          <div 
+            style={{
+              height: virtualizer.getTotalSize(),
+              position: 'relative',
+            }}
+          >
+            <Table className="min-w-full">
+              <TableBody>
+                {virtualizer.getVirtualItems().map((virtualRow) => 
+                  renderRow(virtualRow.index, {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: virtualRow.size,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
     </div>
   );

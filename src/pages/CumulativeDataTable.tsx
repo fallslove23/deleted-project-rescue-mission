@@ -135,43 +135,52 @@ const CumulativeDataTable = () => {
     {
       key: 'title',
       title: '설문 제목',
-      minWidth: 220,
+      minWidth: 250,
       sortable: true,
-      render: (row) => row.title ?? '-',
+      render: (row) => (
+        <span className="line-clamp-2 text-sm">{row.title ?? '-'}</span>
+      ),
     },
     {
       key: 'yearRound',
       title: '연도/회차',
-      minWidth: 140,
+      minWidth: 130,
       sortable: true,
-      render: (row) =>
-        row.education_year && row.education_round
-          ? `${row.education_year}년 ${row.education_round}차`
-          : '-',
+      render: (row) => (
+        <span className="text-sm whitespace-nowrap">
+          {row.education_year && row.education_round
+            ? `${row.education_year}년 ${row.education_round}차`
+            : '-'}
+        </span>
+      ),
     },
     {
       key: 'course',
       title: '과정명',
       minWidth: 200,
       sortable: true,
-      render: (row) => row.course_name ?? '-',
+      render: (row) => (
+        <span className="line-clamp-2 text-sm">{row.course_name ?? '-'}</span>
+      ),
     },
     {
       key: 'instructor',
       title: '담당 강사',
-      minWidth: 180,
+      minWidth: 150,
       sortable: true,
-      render: (row) => getInstructorDisplay(row),
+      render: (row) => (
+        <span className="text-sm whitespace-nowrap">{getInstructorDisplay(row)}</span>
+      ),
     },
     {
       key: 'responses',
       title: '응답 수',
-      minWidth: 120,
+      minWidth: 110,
       sortable: true,
       render: (row) => {
         const count = getResponseCount(row, includeTestData);
         return (
-          <Badge variant={count > 0 ? 'default' : 'secondary'}>
+          <Badge variant={count > 0 ? 'default' : 'secondary'} className="whitespace-nowrap">
             {count.toLocaleString()}명
           </Badge>
         );
@@ -180,7 +189,7 @@ const CumulativeDataTable = () => {
     {
       key: 'satisfaction',
       title: '평균 만족도',
-      minWidth: 140,
+      minWidth: 120,
       sortable: true,
       render: (row) => {
         const value = getAverageSatisfactionValue(row, includeTestData);
@@ -188,12 +197,11 @@ const CumulativeDataTable = () => {
           return <span className="text-muted-foreground">-</span>;
         }
 
-        // Ensure finite number for badge variant calculation
         const safeValue = Number.isFinite(value) && !Number.isNaN(value) ? value : 0;
         const badgeVariant = safeValue >= 8 ? 'default' : safeValue >= 6 ? 'secondary' : 'destructive';
         
         try {
-          return <Badge variant={badgeVariant}>{formatSatisfaction(safeValue)}</Badge>;
+          return <Badge variant={badgeVariant} className="whitespace-nowrap">{formatSatisfaction(safeValue)}</Badge>;
         } catch (error) {
           console.error('Error formatting satisfaction in table:', error, value);
           return <Badge variant="secondary">-</Badge>;
@@ -203,10 +211,10 @@ const CumulativeDataTable = () => {
     {
       key: 'status',
       title: '상태',
-      minWidth: 120,
+      minWidth: 100,
       sortable: true,
       render: (row) => (
-        <Badge variant={row.status === 'completed' ? 'default' : 'outline'}>
+        <Badge variant={row.status === 'completed' ? 'default' : 'outline'} className="whitespace-nowrap">
           {getStatusLabel(row.status)}
         </Badge>
       ),
@@ -397,7 +405,7 @@ const CumulativeDataTable = () => {
         <CardHeader>
           <CardTitle className="text-base sm:text-lg">누적 데이터 목록</CardTitle>
         </CardHeader>
-        <CardContent className="px-2 sm:px-6">
+        <CardContent className="p-0">
           {loading && data.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
@@ -414,7 +422,7 @@ const CumulativeDataTable = () => {
               data={sortedData}
               columns={columns}
               height={520}
-              itemHeight={56}
+              itemHeight={64}
               loading={loadingMore}
               loadingRows={4}
               onLoadMore={loadMore}
