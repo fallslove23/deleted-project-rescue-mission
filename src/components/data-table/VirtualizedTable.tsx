@@ -64,6 +64,12 @@ export function VirtualizedTable<T>({
     overscan: 5,
   });
 
+  const virtualItems = virtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length ? virtualItems[0].start : 0;
+  const paddingBottom = virtualItems.length
+    ? virtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+    : 0;
+
   // 무한 스크롤 트리거
   React.useEffect(() => {
     const [lastItem] = [...virtualizer.getVirtualItems()].reverse();
@@ -80,7 +86,7 @@ export function VirtualizedTable<T>({
     
     if (isLoadingRow) {
       return (
-        <TableRow key={`loading-${index}`} style={style} className="absolute inset-x-0 border-b">
+        <TableRow key={`loading-${index}`} style={style} className="border-b">
           {columns.map((column, colIndex) => (
             <TableCell 
               key={colIndex} 
@@ -101,7 +107,7 @@ export function VirtualizedTable<T>({
     if (!item) return null;
 
     return (
-      <TableRow key={index} style={style} className="absolute inset-x-0 border-b hover:bg-muted/50">
+      <TableRow key={index} style={style} className="border-b hover:bg-muted/50">
         {columns.map((column) => (
           <TableCell 
             key={column.key} 
@@ -135,7 +141,7 @@ export function VirtualizedTable<T>({
         className="relative overflow-auto"
         style={{ height }}
       >
-        <Table>
+        <Table className="w-full table-fixed">
           <TableHeader className="sticky top-0 bg-background z-10 border-b">
             <TableRow>
               {columns.map((column) => (
@@ -172,21 +178,19 @@ export function VirtualizedTable<T>({
               ))}
             </TableRow>
           </TableHeader>
-          <TableBody 
-            style={{
-              height: virtualizer.getTotalSize(),
-              position: 'relative',
-            }}
-          >
+          <TableBody>
+            {paddingTop > 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="p-0" style={{ height: paddingTop }} />
+              </TableRow>
+            )}
             {virtualizer.getVirtualItems().map((virtualRow) => 
-              renderRow(virtualRow.index, {
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: virtualRow.size,
-                transform: `translateY(${virtualRow.start}px)`,
-              })
+              renderRow(virtualRow.index, { height: itemHeight })
+            )}
+            {paddingBottom > 0 && (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="p-0" style={{ height: paddingBottom }} />
+              </TableRow>
             )}
           </TableBody>
         </Table>
