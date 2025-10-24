@@ -84,29 +84,36 @@ const CourseReportsContent: React.FC = () => {
     false,
   );
 
-  // Fetch dashboard counts when year or sessionKey changes
+  // Fetch dashboard counts when year or sessionKey changes (with debounce)
   useEffect(() => {
-    const loadDashboardCounts = async () => {
-      setLoadingCounts(true);
-      try {
-        const counts = await fetchDashboardCounts(
-          filters.year || CURRENT_YEAR,
-          selectedSessionKey || null
-        );
-        setDashboardCounts(counts);
-      } catch (error) {
-        console.error('Failed to load dashboard counts:', error);
-        toast({
-          title: '오류',
-          description: '대시보드 통계를 불러오지 못했습니다.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoadingCounts(false);
-      }
-    };
+    const timeoutId = setTimeout(() => {
+      const loadDashboardCounts = async () => {
+        setLoadingCounts(true);
+        console.log('🔍 Fetching dashboard counts:', { year: filters.year || CURRENT_YEAR, sessionKey: selectedSessionKey || null });
+        
+        try {
+          const counts = await fetchDashboardCounts(
+            filters.year || CURRENT_YEAR,
+            selectedSessionKey || null
+          );
+          console.log('✅ Dashboard counts received:', counts);
+          setDashboardCounts(counts);
+        } catch (error) {
+          console.error('❌ Failed to load dashboard counts:', error);
+          toast({
+            title: '오류',
+            description: '대시보드 통계를 불러오지 못했습니다.',
+            variant: 'destructive',
+          });
+        } finally {
+          setLoadingCounts(false);
+        }
+      };
 
-    loadDashboardCounts();
+      loadDashboardCounts();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [filters.year, selectedSessionKey, toast]);
 
   // Sync session key from filters.courseId (which now contains sessionKey UUID)
@@ -300,6 +307,7 @@ const CourseReportsContent: React.FC = () => {
       )}
       
       <CourseStatsCards
+        key={`${selectedSessionKey || 'all'}-${filters.year || CURRENT_YEAR}`}
         totalSurveys={dashboardCounts?.survey_count || 0}
         totalResponses={dashboardCounts?.respondent_count || 0}
         instructorCount={dashboardCounts?.instructor_count || 0}
