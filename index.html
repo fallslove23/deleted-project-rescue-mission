@@ -64,8 +64,10 @@
                 }
               });
 
-              // Force check for updates
-              registration.update();
+              // Force check for updates (with null check to prevent console errors)
+              if (registration?.update) {
+                registration.update().catch(() => {/* Ignore update errors */});
+              }
             })
             .catch((registrationError) => {
               console.log('SW registration failed: ', registrationError);

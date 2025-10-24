@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bs-edu-feedback-v4';
+const CACHE_NAME = 'bs-edu-feedback-v5'; // Cache bust for p_session_id fix
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
