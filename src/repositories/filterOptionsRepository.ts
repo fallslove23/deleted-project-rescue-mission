@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CourseOption {
-  value: string;  // session_key UUID
+  value: string;  // session_id UUID
   label: string;  // "YYYY년 N차 과정명"
   course_key: string;
   year: number;

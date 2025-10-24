@@ -5,8 +5,8 @@ import { fetchCourseOptions, CourseOption } from '@/repositories/filterOptionsRe
 import { useToast } from '@/hooks/use-toast';
 
 interface CourseFilterProps {
-  value: string;  // session_key UUID
-  onChange: (sessionKey: string, label?: string) => void;
+  value: string;  // session_id UUID
+  onChange: (sessionId: string, label?: string) => void;
   year?: number | null;
   label?: string;
   includeAll?: boolean;

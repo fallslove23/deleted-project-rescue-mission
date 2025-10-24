@@ -111,13 +111,9 @@ const CourseReportsContent: React.FC = () => {
 
   // Sync session key from filters.courseId (which now contains sessionKey UUID)
   useEffect(() => {
-    if (filters.courseId) {
-      setSelectedSessionKey(filters.courseId);
-    } else {
-      setSelectedSessionKey('');
-      setSelectedCourseLabel('전체 과정');
-    }
-  }, [filters.courseId]);
+    setSelectedSessionKey(filters.courseId || '');
+    setSelectedCourseLabel((filters as any).meta?.courseTitle || '전체 과정');
+  }, [filters.courseId, (filters as any).meta?.courseTitle]);
 
   const currentCourseName = useMemo(() => {
     return selectedCourseLabel || '전체 과정';
@@ -204,6 +200,10 @@ const CourseReportsContent: React.FC = () => {
   const hasExportable = useMemo(() => {
     return (dashboardCounts?.survey_count ?? 0) > 0;
   }, [dashboardCounts]);
+
+  const showNoResponsesBanner = useMemo(() => {
+    return !!selectedSessionKey && !loading && !loadingCounts && !!dashboardCounts && (dashboardCounts.survey_count === 0);
+  }, [selectedSessionKey, loading, loadingCounts, dashboardCounts]);
 
   const handleShareReport = () => {
     if (!hasExportable) {
@@ -293,12 +293,9 @@ const CourseReportsContent: React.FC = () => {
     </div>
   ) : dashboardCounts ? (
     <>
-      {selectedSessionKey && dashboardCounts.survey_count === 0 && (
+      {showNoResponsesBanner && (
         <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 text-sm">
-          선택한 세션으로 귀속된 응답이 없어 요약 지표가 0으로 표시됩니다. 
-          <span className="block mt-1 text-xs">
-            (관리자 안내: 응답의 <code className="px-1 py-0.5 bg-amber-100 rounded">session_id</code> 매핑 필요)
-          </span>
+          선택한 세션 조건에서 집계된 응답이 없어 요약 지표가 0으로 표시됩니다.
         </div>
       )}
       

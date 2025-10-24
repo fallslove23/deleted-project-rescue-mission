@@ -17,7 +17,7 @@ export async function fetchDashboardCounts(
   sessionKey?: string | null
 ): Promise<DashboardCounts> {
   try {
-    const { data, error } = await (supabase as any).rpc('rpc_dashboard_counts', {
+    const { data, error } = await supabase.rpc('rpc_dashboard_counts' as any, {
       p_year: year ?? null,
       p_session_id: sessionKey || null,
     }) as { data: DashboardCounts[] | null; error: any };
