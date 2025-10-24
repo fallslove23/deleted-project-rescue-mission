@@ -201,8 +201,12 @@ const CourseReportsContent: React.FC = () => {
     navigate(`/dashboard/instructor-details/${instructorIdValue}?year=${filters.year || CURRENT_YEAR}`);
   };
 
+  const hasExportable = useMemo(() => {
+    return (dashboardCounts?.survey_count ?? 0) > 0;
+  }, [dashboardCounts]);
+
   const handleShareReport = () => {
-    if (!dashboardCounts) {
+    if (!hasExportable) {
       toast({
         title: '공유할 데이터가 없습니다.',
         description: '데이터를 불러온 후 다시 시도해 주세요.',
@@ -239,7 +243,7 @@ const CourseReportsContent: React.FC = () => {
   };
 
   const handlePDFExport = () => {
-    if (!dashboardCounts) {
+    if (!hasExportable) {
       toast({
         title: '내보낼 데이터가 없습니다.',
         description: '데이터를 불러온 후 다시 시도해 주세요.',
@@ -289,6 +293,15 @@ const CourseReportsContent: React.FC = () => {
     </div>
   ) : dashboardCounts ? (
     <>
+      {selectedSessionKey && dashboardCounts.survey_count === 0 && (
+        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 text-sm">
+          선택한 세션으로 귀속된 응답이 없어 요약 지표가 0으로 표시됩니다. 
+          <span className="block mt-1 text-xs">
+            (관리자 안내: 응답의 <code className="px-1 py-0.5 bg-amber-100 rounded">session_id</code> 매핑 필요)
+          </span>
+        </div>
+      )}
+      
       <CourseStatsCards
         totalSurveys={dashboardCounts?.survey_count || 0}
         totalResponses={dashboardCounts?.respondent_count || 0}
@@ -438,10 +451,24 @@ const CourseReportsContent: React.FC = () => {
             </div>
             {dashboardCounts && (
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleShareReport} className="bg-white/70">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleShareReport} 
+                  className="bg-white/70"
+                  disabled={!hasExportable}
+                  title={!hasExportable ? '내보낼 데이터가 없습니다' : ''}
+                >
                   <Share2 className="mr-2 h-4 w-4" /> 공유하기
                 </Button>
-                <Button variant="outline" size="sm" onClick={handlePDFExport} className="bg-white/70">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handlePDFExport} 
+                  className="bg-white/70"
+                  disabled={!hasExportable}
+                  title={!hasExportable ? '내보낼 데이터가 없습니다' : ''}
+                >
                   <Download className="mr-2 h-4 w-4" /> PDF 다운로드
                 </Button>
               </div>

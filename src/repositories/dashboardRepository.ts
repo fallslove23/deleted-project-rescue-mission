@@ -9,17 +9,17 @@ export interface DashboardCounts {
 
 /**
  * Fetch dashboard summary counts using RPC
- * @param year - Education year
+ * @param year - Education year (nullable)
  * @param sessionKey - Optional session_key UUID to filter by specific course/session
  */
 export async function fetchDashboardCounts(
-  year: number,
+  year: number | null,
   sessionKey?: string | null
 ): Promise<DashboardCounts> {
   try {
     const { data, error } = await (supabase as any).rpc('rpc_dashboard_counts', {
-      p_year: year,
-      p_session_key: sessionKey || null,
+      p_year: year ?? null,
+      p_session_id: sessionKey || null,
     }) as { data: DashboardCounts[] | null; error: any };
 
     if (error) {
