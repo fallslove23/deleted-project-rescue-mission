@@ -12,12 +12,16 @@ export function RoleSwitcher() {
   
   const currentView = searchParams.get('view');
   const isAdmin = userRoles.includes('admin');
+  const isOperator = userRoles.includes('operator');
   const isDirector = userRoles.includes('director');
   const isInstructor = userRoles.includes('instructor');
-  const isDeveloper = user?.email === 'sethetrend87@osstem.com';
+  const isDeveloper = userRoles.includes('developer');
   
-  // Only show role switcher if user has multiple roles or is developer
-  const showSwitcher = (isAdmin || isDirector) && isInstructor || isDeveloper;
+  // 관리자 역할 (admin, operator, director)
+  const hasAdminRole = isAdmin || isOperator || isDirector;
+  
+  // 역할 전환기는 관리자이면서 강사인 경우 또는 개발자인 경우에만 표시
+  const showSwitcher = (hasAdminRole && isInstructor) || isDeveloper;
   
   if (!showSwitcher) return null;
 
@@ -32,7 +36,7 @@ export function RoleSwitcher() {
   };
 
   const roleOptions = [
-    ...(isAdmin || isDirector || isDeveloper ? [{
+    ...(hasAdminRole || isDeveloper ? [{
       key: 'admin',
       label: '관리자 뷰',
       icon: Shield,
@@ -49,8 +53,8 @@ export function RoleSwitcher() {
   const getCurrentRole = () => {
     if (currentView === 'admin') return roleOptions.find(r => r.key === 'admin');
     if (currentView === 'instructor') return roleOptions.find(r => r.key === 'instructor');
-    // Default based on primary role
-    return (isAdmin || isDirector) ? roleOptions.find(r => r.key === 'admin') : roleOptions.find(r => r.key === 'instructor');
+    // 기본값: 관리자 역할이 있으면 admin, 없으면 instructor
+    return hasAdminRole ? roleOptions.find(r => r.key === 'admin') : roleOptions.find(r => r.key === 'instructor');
   };
 
   const current = getCurrentRole();
