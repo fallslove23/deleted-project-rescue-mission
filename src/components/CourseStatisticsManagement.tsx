@@ -35,6 +35,7 @@ interface CourseStatistic {
 const CourseStatisticsManagement = () => {
   const [statistics, setStatistics] = useState<CourseStatistic[]>([]);
   const [allStatistics, setAllStatistics] = useState<CourseStatistic[]>([]);
+  const [standardCourseNames, setStandardCourseNames] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedRound, setSelectedRound] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
@@ -61,17 +62,37 @@ const CourseStatisticsManagement = () => {
     return Number.isFinite(parsed) ? parsed : null;
   };
   
-  // 필터링된 통계에서 사용 가능한 차수와 과정명 추출
+  // 필터링된 통계에서 사용 가능한 차수 추출
   const availableRounds = [...new Set(allStatistics.filter(stat => stat.year === selectedYear).map(stat => stat.round))].sort((a, b) => a - b);
-  const availableCourses = [...new Set(allStatistics.filter(stat => stat.year === selectedYear && (selectedRound === 'all' || stat.round === parseInt(selectedRound))).map(stat => stat.course_name))].sort();
+  
+  // 표준 과정명 목록 사용 (course_names 테이블에서 가져온 것)
+  const availableCourses = standardCourseNames;
 
   useEffect(() => {
     fetchAllStatistics();
+    fetchStandardCourseNames();
   }, []);
 
   useEffect(() => {
     applyFilters();
   }, [selectedYear, selectedRound, selectedCourse, allStatistics]);
+
+  const fetchStandardCourseNames = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('course_names')
+        .select('name')
+        .order('name');
+
+      if (error) throw error;
+      setStandardCourseNames((data || []).map(d => d.name));
+    } catch (error) {
+      console.error('Error fetching course names:', error);
+      // Fallback to extracting from statistics if course_names table fails
+      const coursesFromStats = [...new Set(allStatistics.map(stat => stat.course_name))].sort();
+      setStandardCourseNames(coursesFromStats);
+    }
+  };
 
   const fetchAllStatistics = async () => {
     setLoading(true);
