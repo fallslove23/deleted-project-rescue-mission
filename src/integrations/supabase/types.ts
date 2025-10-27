@@ -4190,6 +4190,15 @@ export type Database = {
           year: number
         }[]
       }
+      rpc_dashboard_counts: {
+        Args: { p_session_id?: string; p_year?: number }
+        Returns: {
+          avg_score: number
+          instructor_count: number
+          respondent_count: number
+          survey_count: number
+        }[]
+      }
       rpc_session_filter_options: {
         Args: { p_year?: number }
         Returns: {
