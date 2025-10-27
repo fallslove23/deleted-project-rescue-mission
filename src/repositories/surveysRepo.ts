@@ -159,7 +159,6 @@ export const SurveysRepository = {
       query = query.or(
         [
           `title.ilike.${like}`,
-          `course_title.ilike.${like}`,
           `course_name.ilike.${like}`,
           `instructor_name.ilike.${like}`,
           `creator_email.ilike.${like}`,
