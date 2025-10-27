@@ -48,9 +48,15 @@ export async function fetchDashboardCounts(
   sessionKey?: string | null
 ): Promise<DashboardCounts> {
   try {
+    // Convert sessionKey to UUID if provided, otherwise pass null
+    let sessionIdParam: string | null = null;
+    if (sessionKey && sessionKey.trim() !== '') {
+      sessionIdParam = sessionKey;
+    }
+
     const { data, error } = await supabase.rpc('rpc_dashboard_counts' as any, {
       p_year: year ?? null,
-      p_session_id: sessionKey || null,
+      p_session_id: sessionIdParam,
     }) as { data: RawDashboardCounts[] | null; error: any };
 
     if (error) {
@@ -62,7 +68,7 @@ export async function fetchDashboardCounts(
     const rawResult = data?.[0];
     const result = normalizeDashboardCounts(rawResult);
 
-    console.log('📊 Dashboard counts normalized:', { raw: rawResult, normalized: result });
+    console.log('📊 Dashboard counts normalized:', { raw: rawResult, normalized: result, sessionId: sessionIdParam });
     return result;
   } catch (error) {
     console.error('Error in fetchDashboardCounts:', error);

@@ -106,15 +106,14 @@ export const useCourseReportsData = (
   const refetch = useCallback(async () => {
     if (!selectedYear) return null;
     if (isInstructor && !instructorIdLoaded) return null; // wait until instructor id lookup completes
-    if (!selectedSessionId) { setPreviousData(null); return null; }
 
     try {
-      // selectedSessionId now contains session_id (UUID)
+      // selectedSessionId can be empty for "전체 과정" (All Courses) view
       const sessionIdParam = selectedSessionId || null;
 
       const current = await fetchStatistics({
         year: selectedYear,
-        sessionId: sessionIdParam,  // Changed from courseName
+        sessionId: sessionIdParam,  // Can be null for year-wide view
         round: selectedRound ?? null,
         instructorId: instructorFilter,
         includeTestData,
@@ -124,7 +123,7 @@ export const useCourseReportsData = (
         try {
           const previous = await CourseReportsRepositoryFixed.fetchStatistics({
             year: selectedYear - 1,
-            sessionId: current.summary.sessionId ?? sessionIdParam,  // Changed
+            sessionId: current.summary.sessionId ?? sessionIdParam,
             round: selectedRound ?? null,
             instructorId: instructorFilter,
             includeTestData,
