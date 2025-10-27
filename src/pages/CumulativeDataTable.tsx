@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { useCumulativeSurveyStats } from '@/hooks/useCumulativeSurveyStats';
 import { formatSatisfaction } from '@/utils/satisfaction';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +43,13 @@ const getStatusLabel = (status: string | null) => {
 
 const CumulativeDataTable = () => {
   const includeTestData = false; // 테스트 데이터 제외
+  const [searchParams] = useSearchParams();
+  const { instructorId, userRoles } = useAuth();
+  
+  const currentView = searchParams.get('view');
+  const isInstructorView = currentView === 'instructor' && userRoles.includes('instructor');
+  const filterInstructorId = isInstructorView ? instructorId : null;
+  
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
 
@@ -61,7 +70,11 @@ const CumulativeDataTable = () => {
     availableCourses,
     loadMore,
     getExportData,
-  } = useCumulativeSurveyStats({ includeTestData, pageSize: 50 });
+  } = useCumulativeSurveyStats({ 
+    includeTestData, 
+    instructorId: filterInstructorId,
+    pageSize: 50 
+  });
 
   const handleSort = useCallback((key: string) => {
     if (sortKey === key) {

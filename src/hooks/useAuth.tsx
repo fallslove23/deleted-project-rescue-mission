@@ -7,6 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   userRoles: string[];
+  instructorId: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [instructorId, setInstructorId] = useState<string | null>(null);
 
   // 역할 우선순위 정의 (instructor가 최하위)
   const getRolePriority = (role: string): number => {
@@ -29,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return priorities[role] || 99;
   };
 
-  // 사용자 역할 가져오기 함수
+  // 사용자 역할 및 강사 ID 가져오기 함수
   const fetchUserRoles = async (userId: string) => {
     try {
       const { data, error } = await supabase.rpc('get_user_roles', { target_user_id: userId });
@@ -39,9 +41,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const sortedRoles = roles.sort((a: string, b: string) => getRolePriority(a) - getRolePriority(b));
         setUserRoles(sortedRoles);
       }
+      
+      // 강사 ID 가져오기
+      const { data: instructorData } = await supabase
+        .from('instructors')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      setInstructorId(instructorData?.id ?? null);
     } catch (error) {
       console.error('Error fetching user roles:', error);
       setUserRoles([]);
+      setInstructorId(null);
     }
   };
 
@@ -85,6 +97,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       // 상태 정리
       setUserRoles([]);
+      setInstructorId(null);
       setUser(null);
       setSession(null);
       
@@ -126,7 +139,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, userRoles, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, userRoles, instructorId, signOut }}>
       {children}
     </AuthContext.Provider>
   );

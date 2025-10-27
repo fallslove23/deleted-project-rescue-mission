@@ -10,6 +10,7 @@ import {
 
 interface UseCumulativeSurveyStatsOptions {
   includeTestData: boolean;
+  instructorId?: string | null;
   pageSize?: number;
 }
 
@@ -44,6 +45,7 @@ const DEFAULT_SUMMARY: CumulativeSummary = {
 
 export function useCumulativeSurveyStats({
   includeTestData,
+  instructorId = null,
   pageSize = 50,
 }: UseCumulativeSurveyStatsOptions): UseCumulativeSurveyStatsResult {
   const [data, setData] = useState<SurveyCumulativeRow[]>([]);
@@ -79,8 +81,9 @@ export function useCumulativeSurveyStats({
       searchTerm: debouncedSearch,
       educationYear: selectedYear,
       courseName: selectedCourse,
+      instructorId,
     }),
-    [debouncedSearch, selectedYear, selectedCourse]
+    [debouncedSearch, selectedYear, selectedCourse, instructorId]
   );
 
   const refreshFilters = useCallback(async () => {
@@ -136,6 +139,7 @@ export function useCumulativeSurveyStats({
         searchTerm: appliedFilters.searchTerm,
         educationYear: appliedFilters.educationYear,
         courseName: appliedFilters.courseName,
+        instructorId: appliedFilters.instructorId,
         includeTestData,
       });
       setSummary(result || DEFAULT_SUMMARY);
@@ -162,6 +166,7 @@ export function useCumulativeSurveyStats({
           searchTerm: appliedFilters.searchTerm,
           educationYear: appliedFilters.educationYear,
           courseName: appliedFilters.courseName,
+          instructorId: appliedFilters.instructorId,
         });
 
         const total = count ?? 0;
@@ -218,6 +223,7 @@ export function useCumulativeSurveyStats({
       searchTerm: appliedFilters.searchTerm,
       educationYear: appliedFilters.educationYear,
       courseName: appliedFilters.courseName,
+      instructorId: appliedFilters.instructorId,
       pageSize: Math.max(pageSize, 200),
     });
   }, [appliedFilters, includeTestData, pageSize]);

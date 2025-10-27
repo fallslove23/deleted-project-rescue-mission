@@ -143,6 +143,7 @@ export interface CumulativeStatsQuery {
   searchTerm?: string | null;
   educationYear?: number | null;
   courseName?: string | null;
+  instructorId?: string | null;
   includeTestData: boolean;
 }
 
@@ -208,6 +209,7 @@ export async function fetchCumulativeStats({
   searchTerm,
   educationYear,
   courseName,
+  instructorId,
   includeTestData,
 }: CumulativeStatsQuery): Promise<CumulativeStatsResult> {
   const safePage = Math.max(1, page);
@@ -220,6 +222,22 @@ export async function fetchCumulativeStats({
   type SurveyWithStatsRow = SurveyRow & {
     survey_cumulative_stats: SurveyCumulativeStatsRow | null;
   };
+
+  // If instructor filter is set, first get survey IDs for that instructor
+  let instructorSurveyIds: string[] | null = null;
+  if (instructorId) {
+    const { data: instructorSurveys } = await supabase
+      .from('survey_instructors')
+      .select('survey_id')
+      .eq('instructor_id', instructorId);
+    
+    instructorSurveyIds = instructorSurveys?.map(s => s.survey_id) ?? [];
+    
+    // If no surveys found for instructor, return empty result
+    if (instructorSurveyIds.length === 0) {
+      return { data: [], count: 0 };
+    }
+  }
 
   // Query directly from survey_cumulative_stats to avoid FK join issues
   let query = supabase
@@ -266,6 +284,10 @@ export async function fetchCumulativeStats({
     .order('title', { ascending: true });
 
   // Apply filters
+  if (instructorSurveyIds) {
+    query = query.in('survey_id', instructorSurveyIds);
+  }
+  
   if (!includeTestData) {
     query = query.or('survey_is_test.eq.false,survey_is_test.is.null');
   }
@@ -345,13 +367,15 @@ export async function fetchCumulativeSummary({
   searchTerm,
   educationYear,
   courseName,
+  instructorId,
   includeTestData,
-}: Pick<CumulativeStatsQuery, 'searchTerm' | 'educationYear' | 'courseName' | 'includeTestData'>): Promise<CumulativeSummary | null> {
+}: Pick<CumulativeStatsQuery, 'searchTerm' | 'educationYear' | 'courseName' | 'instructorId' | 'includeTestData'>): Promise<CumulativeSummary | null> {
   try {
     const { data, error } = await supabase.rpc('get_survey_cumulative_summary', {
       search_term: searchTerm ?? null,
       education_year: educationYear ?? null,
       course_name: courseName ?? null,
+      instructor_id: instructorId ?? null,
       include_test_data: includeTestData,
     });
 
@@ -466,6 +490,7 @@ export async function fetchCumulativeExportData(
       searchTerm,
       educationYear,
       courseName,
+      instructorId,
       includeTestData,
     });
 
