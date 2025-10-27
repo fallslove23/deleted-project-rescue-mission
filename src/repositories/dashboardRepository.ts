@@ -7,6 +7,37 @@ export interface DashboardCounts {
   avg_score: number | null;
 }
 
+// Raw RPC response may have different field names (legacy compatibility)
+interface RawDashboardCounts {
+  survey_count?: number;
+  respondent_count?: number;
+  respondent_cc?: number; // Legacy field name
+  instructor_count?: number;
+  instructor_cc?: number; // Legacy field name
+  avg_score?: number | null;
+}
+
+// Normalize RPC response to standard field names
+function normalizeDashboardCounts(raw: RawDashboardCounts | null | undefined): DashboardCounts {
+  if (!raw) {
+    return {
+      survey_count: 0,
+      respondent_count: 0,
+      instructor_count: 0,
+      avg_score: null,
+    };
+  }
+
+  return {
+    survey_count: raw.survey_count ?? 0,
+    respondent_count: raw.respondent_count ?? raw.respondent_cc ?? 0,
+    instructor_count: raw.instructor_count ?? raw.instructor_cc ?? 0,
+    avg_score: (typeof raw.avg_score === 'number' && Number.isFinite(raw.avg_score)) 
+      ? raw.avg_score 
+      : null,
+  };
+}
+
 /**
  * Fetch dashboard summary counts using RPC
  * @param year - Education year (nullable)
@@ -20,30 +51,22 @@ export async function fetchDashboardCounts(
     const { data, error } = await supabase.rpc('rpc_dashboard_counts' as any, {
       p_year: year ?? null,
       p_session_id: sessionKey || null,
-    }) as { data: DashboardCounts[] | null; error: any };
+    }) as { data: RawDashboardCounts[] | null; error: any };
 
     if (error) {
       console.error('RPC error in fetchDashboardCounts:', error);
       throw error;
     }
 
-    // RPC returns array with single row
-    const result = data?.[0] || {
-      survey_count: 0,
-      respondent_count: 0,
-      instructor_count: 0,
-      avg_score: null,
-    };
+    // RPC returns array with single row - normalize field names
+    const rawResult = data?.[0];
+    const result = normalizeDashboardCounts(rawResult);
 
+    console.log('📊 Dashboard counts normalized:', { raw: rawResult, normalized: result });
     return result;
   } catch (error) {
     console.error('Error in fetchDashboardCounts:', error);
-    // Fail-safe: return zeros
-    return {
-      survey_count: 0,
-      respondent_count: 0,
-      instructor_count: 0,
-      avg_score: null,
-    };
+    // Fail-safe: return zeros via normalizer
+    return normalizeDashboardCounts(null);
   }
 }

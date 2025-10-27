@@ -38,6 +38,14 @@ const toFixedOrZero = (value: number | null | undefined, digits = 1) => {
   return Number.isFinite(rounded) && !Number.isNaN(rounded) ? rounded : 0;
 };
 
+// Safe integer formatter with fallback
+const formatInt = (value: number | null | undefined): string => {
+  if (value === null || value === undefined) return '0';
+  if (typeof value !== 'number') return '0';
+  if (!Number.isFinite(value) || Number.isNaN(value)) return '0';
+  return value.toLocaleString();
+};
+
 const CourseReports: React.FC = () => {
   return (
     <PageErrorBoundary pageName="Course Reports">
@@ -265,12 +273,12 @@ const CourseReportsContent: React.FC = () => {
         year: filters.year || CURRENT_YEAR,
         round: undefined,
         courseName: currentCourseName,
-        totalSurveys: dashboardCounts.survey_count,
-        totalResponses: dashboardCounts.respondent_count,
-        instructorCount: dashboardCounts.instructor_count,
-        avgInstructorSatisfaction: dashboardCounts.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
-        avgCourseSatisfaction: dashboardCounts.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
-        avgOperationSatisfaction: dashboardCounts.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
+        totalSurveys: dashboardCounts?.survey_count ?? 0,
+        totalResponses: dashboardCounts?.respondent_count ?? 0,
+        instructorCount: dashboardCounts?.instructor_count ?? 0,
+        avgInstructorSatisfaction: dashboardCounts?.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
+        avgCourseSatisfaction: dashboardCounts?.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
+        avgOperationSatisfaction: dashboardCounts?.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0,
         instructorStats: instructorStatsDisplay.map((stat) => ({
           name: stat.instructor_name,
           surveyCount: stat.survey_count,
@@ -350,11 +358,11 @@ const CourseReportsContent: React.FC = () => {
               </div>
               <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-xs sm:text-sm text-muted-foreground">응답한 인원수</span>
-                <span className="font-semibold">{dashboardCounts?.respondent_count.toLocaleString() || 0}명</span>
+                <span className="font-semibold">{formatInt(dashboardCounts?.respondent_count)}명</span>
               </div>
               <div className="flex items-center justify-between text-sm sm:text-base">
                 <span className="text-xs sm:text-sm text-muted-foreground">참여 강사</span>
-                <span className="font-semibold">{dashboardCounts?.instructor_count.toLocaleString() || 0}명</span>
+                <span className="font-semibold">{formatInt(dashboardCounts?.instructor_count)}명</span>
               </div>
               <div className="flex items-center justify-between border-t pt-3 sm:pt-4">
                 <div>
