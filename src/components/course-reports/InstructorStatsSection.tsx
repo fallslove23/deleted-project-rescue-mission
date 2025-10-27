@@ -25,8 +25,16 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
   comparisonLabel = '이전 기간',
   onInstructorClick
 }) => {
+  // Filter out instructors with no responses or invalid satisfaction scores
+  const validInstructorStats = instructorStats.filter(stat => 
+    stat.response_count > 0 && 
+    typeof stat.avg_satisfaction === 'number' && 
+    Number.isFinite(stat.avg_satisfaction) &&
+    stat.avg_satisfaction > 0
+  );
+
   // Vertical Bar Chart용 데이터 준비 (현재 차수와 이전 차수 비교)
-  const verticalChartData = instructorStats
+  const verticalChartData = validInstructorStats
     .map((stat) => {
       const previousStat = previousStats.find(prev => prev.instructor_id === stat.instructor_id);
       const displayName = stat.instructor_name.length > 6 ? stat.instructor_name.substring(0, 5) + '...' : stat.instructor_name;
@@ -84,9 +92,9 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
             }
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {instructorStats.length > 0 ? (
-            <ChartErrorBoundary fallbackDescription="강사 통계 차트를 표시하는 중 오류가 발생했습니다.">
+          <CardContent>
+            {validInstructorStats.length > 0 ? (
+              <ChartErrorBoundary fallbackDescription="강사 통계 차트를 표시하는 중 오류가 발생했습니다.">
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart 
                   data={verticalChartData} 
@@ -151,7 +159,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {instructorStats.map((stat) => {
+            {validInstructorStats.map((stat) => {
               const previousStat = previousStats.find(prev => prev.instructor_id === stat.instructor_id);
               const hasChange = previousStat && previousStat.avg_satisfaction !== stat.avg_satisfaction;
               const change = hasChange ? stat.avg_satisfaction - previousStat.avg_satisfaction : 0;
@@ -179,7 +187,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                       <span className="text-sm text-muted-foreground">평균 만족도</span>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-primary">
-                          {!isNaN(stat.avg_satisfaction) ? stat.avg_satisfaction.toFixed(1) : '0.0'}점
+                          {stat.avg_satisfaction > 0 ? stat.avg_satisfaction.toFixed(1) : '-'}점
                         </span>
                         {hasChange && (
                           <span className={`text-xs font-medium ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -199,10 +207,10 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                       <span className="font-medium">{stat.response_count}개</span>
                     </div>
 
-                    {previousStat && (
+                    {previousStat && previousStat.avg_satisfaction > 0 && (
                       <div className="pt-2 border-t border-border">
                         <div className="text-xs text-muted-foreground">
-                          이전 기간: {!isNaN(previousStat.avg_satisfaction) ? previousStat.avg_satisfaction.toFixed(1) : '0.0'}점
+                          이전 기간: {previousStat.avg_satisfaction.toFixed(1)}점
                         </div>
                       </div>
                     )}
