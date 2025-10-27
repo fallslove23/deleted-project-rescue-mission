@@ -318,7 +318,7 @@ const CourseReportsContent: React.FC = () => {
         key={`${selectedSessionKey || 'all'}-${filters.year || CURRENT_YEAR}`}
         totalSurveys={dashboardCounts?.survey_count || 0}
         totalResponses={dashboardCounts?.respondent_count || 0}
-        instructorCount={dashboardCounts?.instructor_count || 0}
+        instructorCount={instructorStatsDisplay.length > 0 ? instructorStatsDisplay.length : (dashboardCounts?.instructor_count || 0)}
         avgSatisfaction={dashboardCounts?.avg_score ? toFixedOrZero(dashboardCounts.avg_score) : 0}
       />
 

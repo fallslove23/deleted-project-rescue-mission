@@ -26,6 +26,7 @@ import DashboardUserManagement from "./pages/DashboardUserManagement";
 import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
 import DashboardCumulativeData from "./pages/DashboardCumulativeData";
+import DashboardInstructorDetails from "./pages/DashboardInstructorDetails";
 import AccessDenied from "./pages/AccessDenied";
 import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagementV2 from "./pages/SurveyManagementV2";
@@ -325,6 +326,15 @@ function AppContent() {
         element={
           <ProtectedRoute allowedRoles={["admin", "operator", "director", "instructor"]}>
             <DashboardCourseReports />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/instructor-details/:instructorId"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator", "director", "instructor"]}>
+            <DashboardInstructorDetails />
           </ProtectedRoute>
         }
       />
