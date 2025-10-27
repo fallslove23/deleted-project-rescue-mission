@@ -288,6 +288,27 @@ export type Database = {
             foreignKeyName: "course_name_to_session_map_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_instructor_session_stats"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_override"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "course_name_to_session_map_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_subject_filter_options"
             referencedColumns: ["subject_id"]
           },
@@ -790,7 +811,7 @@ export type Database = {
           course_id: string
           created_at?: string
           id?: string
-          session_keyword: string
+          session_keyword?: string
           survey_id: string
         }
         Update: {
@@ -848,13 +869,6 @@ export type Database = {
             foreignKeyName: "session_subjects_session_fk"
             columns: ["session_id"]
             isOneToOne: false
-            referencedRelation: "v_session_course_canonical"
-            referencedColumns: ["session_id"]
-          },
-          {
-            foreignKeyName: "session_subjects_session_fk"
-            columns: ["session_id"]
-            isOneToOne: false
             referencedRelation: "v_session_summary"
             referencedColumns: ["session_id"]
           },
@@ -885,13 +899,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_course_report_min"
             referencedColumns: ["course_id"]
-          },
-          {
-            foreignKeyName: "session_subjects_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "v_session_course_canonical"
-            referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "session_subjects_session_id_fkey"
@@ -1523,6 +1530,27 @@ export type Database = {
             foreignKeyName: "survey_questions_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
+            referencedRelation: "v_instructor_session_stats"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_override"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_questions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
             referencedRelation: "v_subject_filter_options"
             referencedColumns: ["subject_id"]
           },
@@ -1626,6 +1654,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_session_stats"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_override"
+            referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "survey_responses_session_id_fkey"
@@ -2276,13 +2325,6 @@ export type Database = {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
-            referencedRelation: "v_session_course_canonical"
-            referencedColumns: ["session_id"]
-          },
-          {
-            foreignKeyName: "surveys_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
             referencedRelation: "v_session_summary"
             referencedColumns: ["session_id"]
           },
@@ -2682,6 +2724,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_session_stats"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_override"
+            referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "survey_responses_session_id_fkey"
@@ -3293,13 +3356,6 @@ export type Database = {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
-            referencedRelation: "v_session_course_canonical"
-            referencedColumns: ["session_id"]
-          },
-          {
-            foreignKeyName: "surveys_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
             referencedRelation: "v_session_summary"
             referencedColumns: ["session_id"]
           },
@@ -3381,6 +3437,13 @@ export type Database = {
           },
         ]
       }
+      v_course_filter_options: {
+        Row: {
+          education_year: number | null
+          program_name: string | null
+        }
+        Relationships: []
+      }
       v_course_report_min: {
         Row: {
           course_id: string | null
@@ -3411,6 +3474,56 @@ export type Database = {
           session_id: string | null
         }
         Relationships: []
+      }
+      v_instructor_session_stats: {
+        Row: {
+          avg_course_satisfaction: number | null
+          avg_instructor_satisfaction: number | null
+          avg_operation_satisfaction: number | null
+          avg_overall_satisfaction: number | null
+          created_at: string | null
+          education_round: number | null
+          education_year: number | null
+          instructor_id: string | null
+          instructor_name: string | null
+          last_response_at: string | null
+          program_id: string | null
+          program_name: string | null
+          response_count: number | null
+          session_id: string | null
+          session_title: string | null
+          survey_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_survey_aggregates"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_subject_scores"
+            referencedColumns: ["instructor_id"]
+          },
+          {
+            foreignKeyName: "surveys_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_instructors"
+            referencedColumns: ["instructor_id"]
+          },
+        ]
       }
       v_instructor_subject_scores: {
         Row: {
@@ -3561,13 +3674,6 @@ export type Database = {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
-            referencedRelation: "v_session_course_canonical"
-            referencedColumns: ["session_id"]
-          },
-          {
-            foreignKeyName: "surveys_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
             referencedRelation: "v_session_summary"
             referencedColumns: ["session_id"]
           },
@@ -3587,6 +3693,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_session_stats"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_canonical"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "v_session_course_override"
+            referencedColumns: ["session_id"]
           },
           {
             foreignKeyName: "survey_responses_session_id_fkey"
@@ -3670,22 +3797,14 @@ export type Database = {
           session_id: string | null
           session_title: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "sessions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "sessions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
+      }
+      v_session_course_override: {
+        Row: {
+          course_id: string | null
+          session_id: string | null
+        }
+        Relationships: []
       }
       v_session_instructors: {
         Row: {
@@ -4067,36 +4186,21 @@ export type Database = {
       is_instructor: { Args: never; Returns: boolean }
       is_operator: { Args: never; Returns: boolean }
       is_user_admin: { Args: { user_id: string }; Returns: boolean }
+      map_session_to_course: {
+        Args: { p_course_id: string; p_survey_id: string }
+        Returns: undefined
+      }
       normalize_course_name: { Args: { input_name: string }; Returns: string }
       refresh_dashboard_materialized_views: { Args: never; Returns: undefined }
       rpc_course_filter_options: {
         Args: { p_year: number }
         Returns: {
+          course_key: string
           label: string
-          program: string
           value: string
           year: number
         }[]
       }
-      rpc_dashboard_counts:
-        | {
-            Args: { p_session_id?: string; p_year?: number }
-            Returns: {
-              avg_score: number
-              instructor_count: number
-              respondent_count: number
-              survey_count: number
-            }[]
-          }
-        | {
-            Args: never
-            Returns: {
-              average_satisfaction: number
-              program_name: string
-              total_instructor_count: number
-              total_survey_count: number
-            }[]
-          }
       rpc_session_filter_options: {
         Args: { p_year?: number }
         Returns: {
