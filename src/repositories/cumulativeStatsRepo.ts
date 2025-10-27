@@ -166,43 +166,6 @@ export interface CumulativeFilterResult {
   coursesByYear: Record<number, string[]>;
 }
 
-function applyFilters(
-  query: any,
-  {
-    searchTerm,
-    educationYear,
-    courseName,
-    includeTestData,
-  }: Pick<CumulativeStatsQuery, 'searchTerm' | 'educationYear' | 'courseName' | 'includeTestData'>
-) {
-  let filtered = query;
-
-  if (!includeTestData) {
-    filtered = filtered.or('is_test.eq.false,is_test.is.null');
-  }
-
-  if (educationYear !== null && educationYear !== undefined) {
-    filtered = filtered.eq('education_year', educationYear);
-  }
-
-  if (courseName !== null && courseName !== undefined) {
-    filtered = filtered.eq('course_name', courseName);
-  }
-
-  if (searchTerm && searchTerm.trim()) {
-    const like = `%${searchTerm.trim()}%`;
-    filtered = filtered.or(
-      [
-        `title.ilike.${like}`,
-        `course_name.ilike.${like}`,
-        `survey_cumulative_stats.instructor_names_text.ilike.${like}`,
-      ].join(',')
-    );
-  }
-
-  return filtered;
-}
-
 export async function fetchCumulativeStats({
   page,
   pageSize,
@@ -216,12 +179,6 @@ export async function fetchCumulativeStats({
   const safePageSize = Math.max(1, pageSize);
   const from = (safePage - 1) * safePageSize;
   const to = from + safePageSize - 1;
-
-  type SurveyRow = Database['public']['Tables']['surveys']['Row'];
-  type SurveyCumulativeStatsRow = Database['public']['Views']['survey_cumulative_stats']['Row'];
-  type SurveyWithStatsRow = SurveyRow & {
-    survey_cumulative_stats: SurveyCumulativeStatsRow | null;
-  };
 
   // If instructor filter is set, first get survey IDs for that instructor
   let instructorSurveyIds: string[] | null = null;
@@ -278,7 +235,7 @@ export async function fetchCumulativeStats({
       `,
       { count: 'exact' }
     )
-    .in('status', ['completed', 'active'])
+    .or('status.in.(completed,active),status.is.null')
     .order('education_year', { ascending: false })
     .order('education_round', { ascending: false })
     .order('title', { ascending: true });
@@ -371,11 +328,14 @@ export async function fetchCumulativeSummary({
   includeTestData,
 }: Pick<CumulativeStatsQuery, 'searchTerm' | 'educationYear' | 'courseName' | 'instructorId' | 'includeTestData'>): Promise<CumulativeSummary | null> {
   try {
+    // Note: instructorId is not passed to RPC yet - requires RPC function update
+    // TODO: Add instructor_id parameter to get_survey_cumulative_summary RPC function
     const { data, error } = await supabase.rpc('get_survey_cumulative_summary', {
       search_term: searchTerm ?? null,
       education_year: educationYear ?? null,
       course_name: courseName ?? null,
       include_test_data: includeTestData,
+      // instructor_id: instructorId ?? null, // Uncomment when RPC supports this parameter
     });
 
     if (error) {
