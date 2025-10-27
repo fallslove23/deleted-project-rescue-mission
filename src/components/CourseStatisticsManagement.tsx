@@ -737,7 +737,7 @@ const CourseStatisticsManagement = () => {
                       <TableHead>과정명</TableHead>
                       <TableHead>기간</TableHead>
                       <TableHead>상태</TableHead>
-                      <TableHead>수강/누적</TableHead>
+                      <TableHead>누적/수강</TableHead>
                       <TableHead>종합만족도</TableHead>
                       <TableHead>작업</TableHead>
                     </TableRow>
@@ -760,7 +760,7 @@ const CourseStatisticsManagement = () => {
                             {stat.status}
                           </span>
                         </TableCell>
-                        <TableCell>{stat.enrolled_count} / {stat.cumulative_count}</TableCell>
+                        <TableCell>{stat.cumulative_count} / {stat.enrolled_count}</TableCell>
                         <TableCell>
                           {stat.total_satisfaction ? `${stat.total_satisfaction}/10` : '-'}
                         </TableCell>
