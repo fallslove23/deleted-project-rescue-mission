@@ -15,8 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import CourseStatsCards from '@/components/course-reports/CourseStatsCards';
 import InstructorStatsSection from '@/components/course-reports/InstructorStatsSection';
-import { DonutChart } from '@/components/charts/DonutChart';
 import { AreaChart } from '@/components/charts/AreaChart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { KeywordCloud } from '@/components/course-reports/KeywordCloud';
 import { YearFilter, CourseFilter } from '@/components/filters';
 import { useFilterState } from '@/hooks/useFilterState';
@@ -323,7 +323,7 @@ const CourseReportsContent: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-2">
-        <Card className="shadow-lg">
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -333,7 +333,50 @@ const CourseReportsContent: React.FC = () => {
           </CardHeader>
           <CardContent className="h-[280px] sm:h-[320px]">
             <ChartErrorBoundary fallbackDescription="만족도 차트를 표시할 수 없습니다.">
-              <DonutChart data={satisfactionChartData} />
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={satisfactionChartData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                  <XAxis 
+                    type="number" 
+                    domain={[0, 10]}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => `${value}점`}
+                  />
+                  <YAxis 
+                    type="category" 
+                    dataKey="name"
+                    tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                    width={100}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value.toFixed(1)}점`, '만족도']}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      padding: '8px 12px'
+                    }}
+                    cursor={{ fill: 'hsl(var(--accent))', opacity: 0.1 }}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    radius={[0, 8, 8, 0]}
+                    maxBarSize={40}
+                  >
+                    {satisfactionChartData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.color}
+                        className="transition-opacity hover:opacity-80"
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </ChartErrorBoundary>
           </CardContent>
         </Card>
