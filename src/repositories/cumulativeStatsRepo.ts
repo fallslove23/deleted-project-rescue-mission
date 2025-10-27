@@ -375,7 +375,6 @@ export async function fetchCumulativeSummary({
       search_term: searchTerm ?? null,
       education_year: educationYear ?? null,
       course_name: courseName ?? null,
-      instructor_id: instructorId ?? null,
       include_test_data: includeTestData,
     });
 
@@ -474,6 +473,7 @@ export async function fetchCumulativeExportData(
     searchTerm,
     educationYear,
     courseName,
+    instructorId,
     includeTestData,
     pageSize: requestedPageSize,
   } = params;
@@ -490,7 +490,7 @@ export async function fetchCumulativeExportData(
       searchTerm,
       educationYear,
       courseName,
-      instructorId,
+      instructorId: instructorId,
       includeTestData,
     });
 
