@@ -540,12 +540,10 @@ const SurveyResults = () => {
     base.forEach((item) => {
       const key = buildCourseKey(item.education_year, item.education_round, item.course_name);
       if (!map.has(key)) {
-        // 타이틀에서 '3일차'와 같은 일차 정보를 추출해 라벨에 반영
-        const dayMatch = (item.title || '').match(/(\d+일차)/);
-        const daySuffix = dayMatch ? ` ${dayMatch[1]}` : '';
+        // 과정별 결과 보고와 동일한 형식: "연도+차수+과정명" (일차 정보 제외)
         map.set(key, {
           key,
-          label: `${item.education_year}년 ${item.education_round}차 ${item.course_name ?? '과정 미정'}${daySuffix}`,
+          label: `${item.education_year}년 ${item.education_round}차 ${item.course_name ?? '과정 미정'}`,
         });
       }
     });
