@@ -111,11 +111,9 @@ export function useInstructorStats(options: UseInstructorStatsOptions): UseInstr
   }, [enabled, instructorId]);
 
   const displayableRecords = useMemo(() => {
-    return records.filter(record => {
-      const metrics = getCombinedRecordMetrics(record, includeTestData);
-      return metrics.responseCount > 0 || metrics.textResponseCount > 0;
-    });
-  }, [records, includeTestData]);
+    // Include records even with zero responses to reflect assigned surveys
+    return records;
+  }, [records]);
 
   const filteredRecords = useMemo(() => applyFilters(displayableRecords, filters), [displayableRecords, filters]);
 
@@ -172,10 +170,24 @@ export function useInstructorStats(options: UseInstructorStatsOptions): UseInstr
   const questionInsights = useMemo(() => aggregateQuestionStats(filteredRecords, includeTestData), [filteredRecords, includeTestData]);
 
   const hasData = useMemo(() => {
-    return filteredRecords.some(record => {
+    if (filteredRecords.length === 0) return false;
+
+    const anyResponses = filteredRecords.some(record => {
       const metrics = getCombinedRecordMetrics(record, includeTestData);
       return metrics.responseCount > 0 || metrics.textResponseCount > 0;
     });
+
+    const anyAssigned = filteredRecords.some(record => {
+      const surveyTotal = includeTestData
+        ? (record.surveyCount + record.testSurveyCount)
+        : record.surveyCount;
+      const activeTotal = includeTestData
+        ? (record.activeSurveyCount + record.testActiveSurveyCount)
+        : record.activeSurveyCount;
+      return surveyTotal > 0 || activeTotal > 0;
+    });
+
+    return anyResponses || anyAssigned;
   }, [filteredRecords, includeTestData]);
 
   return {
