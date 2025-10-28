@@ -65,7 +65,9 @@ export const CourseReportsRepositoryFixed = {
 
     const { data, error } = await supabase.rpc('get_course_reports_working', {
       p_year: filters.year,
-      p_session_id: sessionIdParam,  // Changed from p_course_name
+      // IMPORTANT: avoid PostgREST overload ambiguity by sending empty string when session is not selected
+      // This forces the text signature of the RPC to be chosen; the function already treats '' as NULL
+      p_session_id: sessionIdParam ?? '',
       p_round: filters.round ?? null,
       p_instructor_id: filters.instructorId ?? null,
       p_include_test: filters.includeTestData ?? false,
