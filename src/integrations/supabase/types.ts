@@ -1019,6 +1019,27 @@ export type Database = {
             referencedRelation: "programs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options_v2"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options_v3"
+            referencedColumns: ["program_id"]
+          },
         ]
       }
       short_urls: {
@@ -2476,6 +2497,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "surveys_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options_v2"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "surveys_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options_v3"
+            referencedColumns: ["program_id"]
+          },
+          {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
@@ -3619,6 +3661,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "surveys_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options_v2"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "surveys_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options_v3"
+            referencedColumns: ["program_id"]
+          },
+          {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
@@ -3744,6 +3807,40 @@ export type Database = {
             referencedColumns: ["instructor_id"]
           },
         ]
+      }
+      v_analysis_course_options: {
+        Row: {
+          program_id: string | null
+          program_name: string | null
+          session_count: number | null
+          survey_count: number | null
+          year: number | null
+        }
+        Relationships: []
+      }
+      v_analysis_course_options_v2: {
+        Row: {
+          max_turn: number | null
+          min_turn: number | null
+          program_id: string | null
+          program_name: string | null
+          session_count: number | null
+          survey_count: number | null
+          year: number | null
+        }
+        Relationships: []
+      }
+      v_analysis_course_options_v3: {
+        Row: {
+          max_turn: number | null
+          min_turn: number | null
+          program_id: string | null
+          program_name: string | null
+          session_count: number | null
+          survey_count: number | null
+          year: number | null
+        }
+        Relationships: []
       }
       v_course_filter_options: {
         Row: {
@@ -4441,16 +4538,27 @@ export type Database = {
           updated_at: string
         }[]
       }
-      get_course_reports_working: {
-        Args: {
-          p_include_test?: boolean
-          p_instructor_id?: string
-          p_round?: number
-          p_session_id?: string
-          p_year: number
-        }
-        Returns: Json
-      }
+      get_course_reports_working:
+        | {
+            Args: {
+              p_include_test?: boolean
+              p_instructor_id?: string
+              p_round?: number
+              p_session_id?: string
+              p_year: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_include_test?: boolean
+              p_instructor_id?: string
+              p_round?: number
+              p_session_id?: string
+              p_year: number
+            }
+            Returns: Json
+          }
       get_course_statistics: {
         Args: {
           p_course_name?: string
@@ -4620,6 +4728,43 @@ export type Database = {
       }
       normalize_course_name: { Args: { input_name: string }; Returns: string }
       refresh_dashboard_materialized_views: { Args: never; Returns: undefined }
+      rpc_analysis_course_options: {
+        Args: { p_year?: number }
+        Returns: {
+          course_key: string
+          label: string
+          session_count: number
+          survey_count: number
+          value: string
+          year: number
+        }[]
+      }
+      rpc_analysis_course_options_v2: {
+        Args: { p_year?: number }
+        Returns: {
+          course_key: string
+          label: string
+          max_turn: number
+          min_turn: number
+          session_count: number
+          survey_count: number
+          value: string
+          year: number
+        }[]
+      }
+      rpc_analysis_course_options_v3: {
+        Args: { p_year?: number }
+        Returns: {
+          course_key: string
+          label: string
+          max_turn: number
+          min_turn: number
+          session_count: number
+          survey_count: number
+          value: string
+          year: number
+        }[]
+      }
       rpc_course_filter_options: {
         Args: { p_year: number }
         Returns: {
