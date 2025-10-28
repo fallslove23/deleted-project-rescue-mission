@@ -169,11 +169,17 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
           responses: 0,
           averageRating: 0,
           totalRatings: 0,
-          ratingCount: 0
+          ratingCount: 0,
+          courseTitles: [] as string[]
         };
       }
 
       roundStats[roundKey].surveys += 1;
+      
+      // 과정명 추가 (중복 제거)
+      if (survey.title && !roundStats[roundKey].courseTitles.includes(survey.title)) {
+        roundStats[roundKey].courseTitles.push(survey.title);
+      }
       
       // 해당 설문의 응답 수
       const surveyResponses = responses.filter(r => r.survey_id === survey.id);
@@ -281,29 +287,42 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
         </CardHeader>
         <CardContent>
           {roundStats.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsBarChart data={roundStats}>
-                  <CartesianGrid strokeDasharray="3 3" />
+            <div className="w-full max-w-4xl mx-auto">
+              <ResponsiveContainer width="100%" height={350}>
+                <RechartsBarChart 
+                  data={roundStats}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis 
                     dataKey="round" 
-                    fontSize={12}
+                    fontSize={11}
                     angle={-45}
                     textAnchor="end"
-                    height={60}
+                    height={70}
+                    stroke="hsl(var(--muted-foreground))"
                   />
                   <YAxis 
                     domain={[0, 10]}
                     tickCount={6}
                     fontSize={12}
+                    stroke="hsl(var(--muted-foreground))"
+                    label={{ value: '만족도 (점)', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
                   />
-                  <Tooltip />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
                   <Legend />
                   <Bar 
                     dataKey="averageRating" 
-                    fill="#8884d8" 
+                    fill="hsl(var(--primary))" 
                     name="평균 만족도"
-                    radius={[4, 4, 0, 0]}
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={60}
                   />
                 </RechartsBarChart>
               </ResponsiveContainer>
@@ -319,12 +338,21 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
       {/* 회차별 상세 통계 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {(roundStats as any[]).map((stat: any, index) => (
-          <Card key={index}>
-            <CardHeader className="pb-2">
+          <Card key={index} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Hash className="h-4 w-4" />
+                <Hash className="h-4 w-4 text-primary" />
                 {stat.round}
               </CardTitle>
+              {stat.courseTitles && stat.courseTitles.length > 0 && (
+                <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                  {stat.courseTitles.map((title: string, idx: number) => (
+                    <div key={idx} className="truncate" title={title}>
+                      📚 {title}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex justify-between text-sm">
@@ -335,10 +363,10 @@ const SurveyStatsByRound = ({ instructorId }: SurveyStatsByRoundProps) => {
                 <span className="text-muted-foreground">총 응답:</span>
                 <span className="font-medium">{stat.responses}건</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-sm items-center">
                 <span className="text-muted-foreground">평균 만족도:</span>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{stat.averageRating}</span>
+                  <span className="font-bold text-lg text-primary">{stat.averageRating}</span>
                   <Badge 
                     variant={stat.averageRating >= 8 ? 'default' : stat.averageRating >= 6 ? 'secondary' : 'destructive'}
                     className="text-xs"
