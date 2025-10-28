@@ -121,16 +121,45 @@ export const useCourseReportsData = (
 
       if (current) {
         try {
-          const previous = await CourseReportsRepositoryFixed.fetchStatistics({
-            year: selectedYear - 1,
-            sessionId: current.summary.sessionId ?? sessionIdParam,
-            round: selectedRound ?? null,
-            instructorId: instructorFilter,
-            includeTestData,
-          });
-          setPreviousData(previous);
+          // 이전 회차 데이터를 가져오기 위해 availableRounds에서 현재 회차보다 작은 가장 큰 회차 찾기
+          const currentRound = current.summary.educationRound;
+          const availableRounds = current.summary.availableRounds || [];
+          
+          let previousRound: number | null = null;
+          if (currentRound !== null && availableRounds.length > 0) {
+            // 현재 회차보다 작은 회차들을 필터링하고 그 중 가장 큰 값 선택
+            const previousRounds = availableRounds
+              .filter(r => r < currentRound)
+              .sort((a, b) => b - a); // 내림차순 정렬
+            
+            if (previousRounds.length > 0) {
+              previousRound = previousRounds[0];
+            }
+          }
+          
+          // 이전 회차가 있으면 같은 년도, 같은 세션의 이전 회차 데이터 가져오기
+          if (previousRound !== null) {
+            const previous = await CourseReportsRepositoryFixed.fetchStatistics({
+              year: selectedYear,  // 같은 년도
+              sessionId: current.summary.sessionId ?? sessionIdParam,  // 같은 세션
+              round: previousRound,  // 이전 회차
+              instructorId: instructorFilter,
+              includeTestData,
+            });
+            setPreviousData(previous);
+          } else {
+            // 이전 회차가 없으면 이전 년도 데이터 시도
+            const previous = await CourseReportsRepositoryFixed.fetchStatistics({
+              year: selectedYear - 1,
+              sessionId: current.summary.sessionId ?? sessionIdParam,
+              round: selectedRound ?? null,
+              instructorId: instructorFilter,
+              includeTestData,
+            });
+            setPreviousData(previous);
+          }
         } catch (prevError) {
-          console.error('Failed to fetch previous year statistics', prevError);
+          console.error('Failed to fetch previous statistics', prevError);
           setPreviousData(null);
         }
       } else {

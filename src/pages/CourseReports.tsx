@@ -460,6 +460,7 @@ const CourseReportsContent: React.FC = () => {
         <InstructorStatsSection
           instructorStats={instructorStatsDisplay}
           previousStats={previousInstructorStatsDisplay}
+          comparisonLabel={previousSummary?.educationRound ? `${previousSummary.educationRound}차` : '이전 회차'}
           onInstructorClick={handleInstructorClick}
         />
       )}
