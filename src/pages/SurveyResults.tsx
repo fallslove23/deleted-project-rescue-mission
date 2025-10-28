@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CourseFilter } from '@/components/filters';
+import { useCourseOptions } from '@/hooks/useCourseOptions';
 import {
   Table,
   TableBody,
@@ -136,7 +136,7 @@ const SurveyResults = () => {
   const [hasBaseAggregates, setHasBaseAggregates] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedRound, setSelectedRound] = useState<string>('all');
-  const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
   const [selectedSurveyId, setSelectedSurveyId] = useState<string | null>(null);
   const [responses, setResponses] = useState<SurveyResponseRow[]>([]);
@@ -275,9 +275,9 @@ const SurveyResults = () => {
     () =>
       selectedYear !== 'all' ||
       selectedRound !== 'all' ||
-      selectedCourse !== 'all' ||
+      selectedProgramId !== null ||
       (canViewAll && selectedInstructor !== 'all'),
-    [canViewAll, selectedCourse, selectedInstructor, selectedRound, selectedYear],
+    [canViewAll, selectedProgramId, selectedInstructor, selectedRound, selectedYear],
   );
 
   const filtersAppliedRef = useRef(filtersApplied);
@@ -427,12 +427,12 @@ const SurveyResults = () => {
     if (profileLoading) return;
 
     const restrictToInstructorId = !canViewAll && isInstructor ? profile?.instructor_id ?? null : null;
-    const courseFilters = parseCourseKey(selectedCourse);
     const selectedYearNumber = selectedYear !== 'all' ? Number(selectedYear) : null;
     const selectedRoundNumber = selectedRound !== 'all' ? Number(selectedRound) : null;
-    const yearFilter = selectedYearNumber ?? courseFilters?.year ?? null;
-    const roundFilter = selectedRoundNumber ?? courseFilters?.round ?? null;
-    const courseNameFilter = courseFilters?.courseName ?? null;
+    const yearFilter = selectedYearNumber;
+    const roundFilter = selectedRoundNumber;
+    // TODO: program_id로 필터링하도록 추후 survey_aggregates 조회 로직 수정 필요
+    const courseNameFilter = null; // selectedProgramId 사용하도록 변경 필요
     const instructorFilter = canViewAll && selectedInstructor !== 'all' ? selectedInstructor : null;
 
     const noFiltersApplied =
@@ -494,11 +494,12 @@ const SurveyResults = () => {
     isInstructor,
     profile?.instructor_id,
     profileLoading,
-    selectedCourse,
+    selectedProgramId,
     selectedInstructor,
     selectedRound,
     selectedYear,
     toast,
+    fetchAggregatesWithInstructorNames,
   ]);
 
   useEffect(() => {
@@ -528,52 +529,20 @@ const SurveyResults = () => {
     return Array.from(unique).sort((a, b) => b - a);
   }, [allAggregates, selectedYear]);
 
-  const courses = useMemo(() => {
-    let base = allAggregates;
-    if (selectedYear !== 'all') {
-      base = base.filter((item) => item.education_year.toString() === selectedYear);
-    }
-    if (selectedRound !== 'all') {
-      base = base.filter((item) => item.education_round.toString() === selectedRound);
-    }
-    const map = new Map<string, { key: string; label: string }>();
-    base.forEach((item) => {
-      // 차수 필터를 별도로 제공하므로 과정 키에서는 차수를 제외해 과목 혼합을 줄임
-      const key = buildCourseKey(item.education_year, null, item.course_name);
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          label: `${item.education_year}년 ${item.course_name ?? '과정 미정'}`,
-        });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => b.label.localeCompare(a.label, 'ko'));
-  }, [allAggregates, selectedRound, selectedYear]);
-
-  const courseIncludesRound = useMemo(() => {
-    return courses.some((course) => {
-      const parsed = parseCourseKey(course.key);
-      return parsed?.round !== null && parsed?.round !== undefined;
-    });
-  }, [courses]);
+  // 과정 옵션은 새로운 RPC를 통해 가져옴
+  const selectedYearNumber = selectedYear !== 'all' ? Number(selectedYear) : null;
+  const { options: courseOptions, loading: courseOptionsLoading } = useCourseOptions(selectedYearNumber);
 
   const instructors = useMemo(() => {
     return allInstructorsList;
   }, [allInstructorsList]);
 
+  // 선택된 과정이 옵션에 없으면 초기화
   useEffect(() => {
-    if (selectedCourse === 'all') return;
-    if (!courses.some((course) => course.key === selectedCourse)) {
-      setSelectedCourse('all');
+    if (selectedProgramId && !courseOptions.some((opt) => opt.value === selectedProgramId)) {
+      setSelectedProgramId(null);
     }
-  }, [courses, selectedCourse]);
-
-  // 과정 키에 차수가 포함되어 있으면 별도 차수 필터를 초기화하여 중복 필터링을 방지
-  useEffect(() => {
-    if (courseIncludesRound && selectedRound !== 'all') {
-      setSelectedRound('all');
-    }
-  }, [courseIncludesRound, selectedRound]);
+  }, [courseOptions, selectedProgramId]);
 
   useEffect(() => {
     if (aggregates.length === 0) {
@@ -867,15 +836,25 @@ const SurveyResults = () => {
 
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">과정</span>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <Select 
+                value={selectedProgramId ?? 'all'} 
+                onValueChange={(val) => setSelectedProgramId(val === 'all' ? null : val)}
+                disabled={courseOptionsLoading}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="전체 과정" />
+                  <SelectValue placeholder={courseOptionsLoading ? '로딩 중...' : '전체 과정'}>
+                    {courseOptionsLoading ? '로딩 중...' : (
+                      selectedProgramId 
+                        ? courseOptions.find(opt => opt.value === selectedProgramId)?.label ?? '전체 과정'
+                        : '전체 과정'
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="bg-popover border shadow-lg z-50">
                   <SelectItem value="all">전체 과정</SelectItem>
-                  {courses.map((course) => (
-                    <SelectItem key={course.key} value={course.key}>
-                      {course.label}
+                  {courseOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
