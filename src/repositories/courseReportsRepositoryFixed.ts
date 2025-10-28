@@ -69,7 +69,7 @@ export const CourseReportsRepositoryFixed = {
       // This forces the text signature of the RPC to be chosen; the function already treats '' as NULL
       p_session_id: sessionIdParam ?? '',
       p_round: filters.round ?? null,
-      p_instructor_id: filters.instructorId ?? null,
+      p_instructor_id: filters.instructorId ?? '',
       p_include_test: filters.includeTestData ?? false,
     });
 
