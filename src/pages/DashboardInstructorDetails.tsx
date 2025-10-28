@@ -19,7 +19,7 @@ const DashboardInstructorDetails: React.FC = () => {
 
   const { loading, summary, hasData, records } = useInstructorStats({
     instructorId: instructorId,
-    includeTestData: false,
+    includeTestData: true,
     filters: {
       year: Number.isFinite(selectedYear) ? selectedYear : 'all',
       round: 'all',
