@@ -26,7 +26,7 @@ export function useCourseOptions(year: number | null) {
       
       try {
         const { data, error: rpcError } = await (supabase as any).rpc(
-          "rpc_analysis_course_options_v2",
+          "rpc_analysis_course_options_v3",
           { p_year: year }
         ) as { data: CourseOption[] | null; error: any };
         
