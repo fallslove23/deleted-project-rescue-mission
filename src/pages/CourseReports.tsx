@@ -172,17 +172,17 @@ const CourseReportsContent: React.FC = () => {
       .filter(item => item['강사 만족도'] > 0 || item['과정 만족도'] > 0 || item['운영 만족도'] > 0);
   }, [trend]);
 
-  const instructorStatsDisplay = useMemo(
-    () =>
-      instructorStats.map((stat) => ({
-        instructor_id: stat.instructorId ?? '',
-        instructor_name: stat.instructorName,
-        survey_count: stat.surveyCount,
-        response_count: stat.responseCount,
-        avg_satisfaction: toFixedOrZero(stat.avgSatisfaction),
-      })),
-    [instructorStats],
-  );
+  const instructorStatsDisplay = useMemo(() => {
+    const result = instructorStats.map((stat) => ({
+      instructor_id: stat.instructorId ?? '',
+      instructor_name: stat.instructorName,
+      survey_count: stat.surveyCount,
+      response_count: stat.responseCount,
+      avg_satisfaction: toFixedOrZero(stat.avgSatisfaction),
+    }));
+    console.log('👨‍🏫 Instructor stats display:', result);
+    return result;
+  }, [instructorStats]);
 
   const previousInstructorStatsDisplay = useMemo(
     () =>
