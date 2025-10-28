@@ -538,12 +538,12 @@ const SurveyResults = () => {
     }
     const map = new Map<string, { key: string; label: string }>();
     base.forEach((item) => {
-      const key = buildCourseKey(item.education_year, item.education_round, item.course_name);
+      // 차수 필터를 별도로 제공하므로 과정 키에서는 차수를 제외해 과목 혼합을 줄임
+      const key = buildCourseKey(item.education_year, null, item.course_name);
       if (!map.has(key)) {
-        // 과정별 결과 보고와 동일한 형식: "연도+차수+과정명" (일차 정보 제외)
         map.set(key, {
           key,
-          label: `${item.education_year}년 ${item.education_round}차 ${item.course_name ?? '과정 미정'}`,
+          label: `${item.education_year}년 ${item.course_name ?? '과정 미정'}`,
         });
       }
     });
@@ -830,7 +830,7 @@ const SurveyResults = () => {
           <CardHeader className="px-4 sm:px-6 py-3 sm:py-4">
             <CardTitle className="text-base sm:text-lg">필터</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 px-4 sm:px-6">
+          <CardContent className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 px-4 sm:px-6">
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">연도</span>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -842,6 +842,23 @@ const SurveyResults = () => {
                   {years.map((year) => (
                     <SelectItem key={year} value={year.toString()}>
                       {year}년
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-sm text-muted-foreground">차수</span>
+              <Select value={selectedRound} onValueChange={setSelectedRound}>
+                <SelectTrigger>
+                  <SelectValue placeholder="전체 차수" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border shadow-lg z-50">
+                  <SelectItem value="all">전체 차수</SelectItem>
+                  {rounds.map((round) => (
+                    <SelectItem key={round} value={round.toString()}>
+                      {round}차
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -897,7 +914,6 @@ const SurveyResults = () => {
                 </p>
               )}
             </div>
-
           </CardContent>
         </Card>
 
