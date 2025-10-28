@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BarChart3, TrendingUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 
 interface InstructorStats {
@@ -33,7 +33,17 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
     stat.avg_satisfaction > 0
   );
 
-  // Vertical Bar Chart용 데이터 준비 (현재 차수와 이전 차수 비교)
+  // 과정 전체 평균 계산 (현재 차수)
+  const overallAverage = validInstructorStats.length > 0 
+    ? validInstructorStats.reduce((sum, stat) => sum + stat.avg_satisfaction, 0) / validInstructorStats.length 
+    : 0;
+
+  // 과정 전체 평균 계산 (이전 차수)
+  const previousOverallAverage = previousStats.length > 0
+    ? previousStats.reduce((sum, stat) => sum + stat.avg_satisfaction, 0) / previousStats.length
+    : 0;
+
+  // Vertical Bar Chart용 데이터 준비 (현재 차수와 이전 차수 비교 + 전체 평균 라인)
   const verticalChartData = validInstructorStats
     .map((stat) => {
       const previousStat = previousStats.find(prev => prev.instructor_id === stat.instructor_id);
@@ -49,6 +59,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
         name: displayName,
         현재차수: current,
         이전차수: prev,
+        과정평균: Number(overallAverage.toFixed(1)),
         응답수: stat.response_count,
         설문수: stat.survey_count,
         full_name: stat.instructor_name,
@@ -87,8 +98,8 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
           </CardTitle>
           <CardDescription>
             {hasComparisonData 
-              ? '현재 차수와 이전 차수의 강사별 만족도를 비교할 수 있습니다' 
-              : '강사별 만족도 현황을 세로 막대그래프로 확인할 수 있습니다'
+              ? '현재 차수와 이전 차수의 강사별 만족도를 비교하고, 과정 전체 평균을 확인할 수 있습니다' 
+              : '강사별 만족도 현황과 과정 전체 평균을 세로 막대그래프로 확인할 수 있습니다'
             }
           </CardDescription>
         </CardHeader>
@@ -96,7 +107,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
             {validInstructorStats.length > 0 ? (
               <ChartErrorBoundary fallbackDescription="강사 통계 차트를 표시하는 중 오류가 발생했습니다.">
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart 
+                <ComposedChart 
                   data={verticalChartData} 
                   margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                 >
@@ -113,32 +124,44 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                     label={{ value: '만족도 (점)', angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
-                    formatter={(value: number, name: string) => [
-                      `${value}점`, 
-                      name === '현재차수' ? '현재 차수' : name === '이전차수' ? comparisonLabel : name
-                    ]}
+                    formatter={(value: number, name: string) => {
+                      if (name === '과정평균') return [`${value}점`, '과정 전체 평균'];
+                      return [
+                        `${value}점`, 
+                        name === '현재차수' ? '현재 차수' : name === '이전차수' ? comparisonLabel : name
+                      ];
+                    }}
                     labelFormatter={(label: string, payload: any) => {
                       const data = payload?.[0]?.payload;
                       return `강사: ${data?.full_name || label}`;
                     }}
                   />
                   <Legend />
-                  <Bar 
-                    dataKey="현재차수" 
-                    name="현재 차수"
-                    fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]}
-                  />
                   {hasComparisonData && (
                     <Bar 
                       dataKey="이전차수" 
                       name={comparisonLabel}
                       fill="hsl(var(--muted-foreground))" 
                       radius={[4, 4, 0, 0]}
-                      opacity={0.7}
+                      opacity={0.5}
                     />
                   )}
-                </BarChart>
+                  <Bar 
+                    dataKey="현재차수" 
+                    name="현재 차수"
+                    fill="hsl(var(--primary))" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="과정평균" 
+                    name="과정 전체 평균"
+                    stroke="hsl(var(--destructive))" 
+                    strokeWidth={2.5}
+                    dot={{ fill: 'hsl(var(--destructive))', r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </ChartErrorBoundary>
           ) : (
