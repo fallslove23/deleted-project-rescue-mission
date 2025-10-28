@@ -21,7 +21,7 @@ const DashboardInstructorDetails: React.FC = () => {
     instructorId: instructorId,
     includeTestData: true,
     filters: {
-      year: Number.isFinite(selectedYear) ? selectedYear : 'all',
+      year: 'all', // 모든 연도의 데이터를 표시
       round: 'all',
       course: 'all',
     },
@@ -47,10 +47,16 @@ const DashboardInstructorDetails: React.FC = () => {
         {!hasData ? (
           <Card>
             <CardHeader>
-              <CardTitle>데이터가 없습니다</CardTitle>
+              <CardTitle>설문 데이터가 없습니다</CardTitle>
             </CardHeader>
-            <CardContent>
-              선택한 연도에 대한 통계가 없습니다. 다른 연도나 조건으로 다시 시도해 주세요.
+            <CardContent className="space-y-2">
+              <p className="text-muted-foreground">
+                이 강사에게 할당된 설문이 없습니다.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                • 설문 관리 페이지에서 설문을 생성하고 강사를 할당해주세요.<br/>
+                • 또는 surveys 테이블의 instructor_id가 올바르게 설정되었는지 확인해주세요.
+              </p>
             </CardContent>
           </Card>
         ) : (
