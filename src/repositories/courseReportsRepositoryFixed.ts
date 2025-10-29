@@ -63,6 +63,14 @@ export const CourseReportsRepositoryFixed = {
     // Use sessionId parameter directly
     const sessionIdParam = filters.sessionId ?? null;
 
+    console.log('🔍 Calling get_course_reports_working with:', {
+      p_year: filters.year,
+      p_session_id: sessionIdParam ?? '',
+      p_round: filters.round ?? null,
+      p_instructor_id: filters.instructorId ?? '',
+      p_include_test: filters.includeTestData ?? false,
+    });
+
     const { data, error } = await supabase.rpc('get_course_reports_working', {
       p_year: filters.year,
       // IMPORTANT: avoid PostgREST overload ambiguity by sending empty string when session is not selected
@@ -73,12 +81,15 @@ export const CourseReportsRepositoryFixed = {
       p_include_test: filters.includeTestData ?? false,
     });
 
+    console.log('📦 RPC Response:', { data, error });
+
     if (error) {
       console.error('Failed to execute get_course_reports_working RPC', error);
       throw error;
     }
 
     if (!data) {
+      console.log('⚠️ No data returned from RPC');
       return null;
     }
 
@@ -165,7 +176,13 @@ export const CourseReportsRepositoryFixed = {
       };
     });
 
+    console.log('📊 Raw data keys:', Object.keys(rawData));
+    console.log('📊 instructor_stats in rawData:', rawData.instructor_stats);
+    console.log('📊 instructorStats in rawData:', (rawData as any).instructorStats);
+    
     const rawInstructorStats = ensureArray(rawData.instructor_stats);
+    console.log('📊 Raw instructor stats array:', rawInstructorStats);
+    
     const instructorStats: CourseInstructorStat[] = rawInstructorStats.map((item) => {
       const stat = ensureObject(item);
       return {
@@ -176,6 +193,8 @@ export const CourseReportsRepositoryFixed = {
         avgSatisfaction: toNumberOrNull(stat.avgSatisfaction),
       };
     });
+    
+    console.log('✅ Mapped instructor stats:', instructorStats);
 
     const rawTextualResponses = ensureArray(rawData.textual_responses);
     const textualResponses: string[] = rawTextualResponses
