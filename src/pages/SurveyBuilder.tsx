@@ -272,13 +272,42 @@ export default function SurveyBuilder() {
       .from('survey_sessions')
       .select(`
         *,
-        subject:subjects(id,title),
         instructor:instructors(id,name)
       `)
       .eq('survey_id', surveyId)
       .order('session_order');
     if (error) { toast({ title: "세션 로드 실패", description: error.message, variant: "destructive" }); return; }
-    setSessions((data || []) as any[]);
+    
+    // subjects 정보를 별도로 조회 (session_id → sessions → session_subjects → subjects)
+    if (data && data.length > 0) {
+      const sessionIds = data.map(s => s.session_id).filter(Boolean);
+      if (sessionIds.length > 0) {
+        const { data: sessionSubjects } = await supabase
+          .from('session_subjects')
+          .select('session_id, subjects(id, title)')
+          .in('session_id', sessionIds);
+        
+        // subjects 정보를 매핑
+        const subjectMap = new Map();
+        sessionSubjects?.forEach((ss: any) => {
+          if (ss.session_id && ss.subjects) {
+            subjectMap.set(ss.session_id, ss.subjects);
+          }
+        });
+        
+        // data에 subject 정보 추가
+        const enrichedData = data.map(session => ({
+          ...session,
+          subject: session.session_id ? subjectMap.get(session.session_id) : null
+        }));
+        
+        setSessions(enrichedData as any[]);
+      } else {
+        setSessions(data as any[]);
+      }
+    } else {
+      setSessions([]);
+    }
   }, [surveyId, toast]);
 
 const loadSubjects = useCallback(async (searchTerm?: string) => {
