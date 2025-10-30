@@ -196,12 +196,12 @@ export const SessionManager = ({
           .insert({ ...payload, session_order: sessions.length })
           .select(`
             *,
-            subject:subjects(id,title),
             instructor:instructors(id,name,email,photo_url,bio)
           `)
           .single();
         if (error) throw error;
-        onSessionsChange([...sessions, data as any]);
+        const subjectObj = payload.subject_id ? subjects.find(c => c.id === payload.subject_id) : undefined;
+        onSessionsChange([...(sessions as any[]), { ...(data as any), subject: subjectObj }]);
         toast({ title: "성공", description: "세션이 추가되었습니다." });
       }
       setDialogOpen(false);
