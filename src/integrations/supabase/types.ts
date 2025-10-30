@@ -4792,6 +4792,7 @@ export type Database = {
         }
         Returns: string
       }
+      current_instructor_id: { Args: never; Returns: string }
       fn_course_filter_options:
         | {
             Args: { p_search?: string; p_year?: number }
@@ -5040,13 +5041,19 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
         }[]
       }
-      has_role: {
-        Args: { check_role: Database["public"]["Enums"]["user_role"] }
-        Returns: boolean
-      }
+      has_role:
+        | { Args: { role_name: string }; Returns: boolean }
+        | {
+            Args: { check_role: Database["public"]["Enums"]["user_role"] }
+            Returns: boolean
+          }
       is_admin: { Args: never; Returns: boolean }
       is_director: { Args: never; Returns: boolean }
       is_instructor: { Args: never; Returns: boolean }
+      is_instructor_for_survey: {
+        Args: { survey_id_param: string }
+        Returns: boolean
+      }
       is_operator: { Args: never; Returns: boolean }
       is_user_admin: { Args: { user_id: string }; Returns: boolean }
       map_session_to_course: {
