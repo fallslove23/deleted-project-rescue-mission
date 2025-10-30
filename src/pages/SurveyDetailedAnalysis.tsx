@@ -669,8 +669,29 @@ const SurveyDetailedAnalysis = () => {
       return wcount > 0 ? wsum / wcount : null;
     };
 
+    // 선택된 세션의 질문에 답변한 고유 응답 ID 수집
+    const uniqueResponseIds = new Set<string>();
+    (detailStats?.distributions?.items || []).forEach((q: any) => {
+      if (q.sessionId && sessionSet.has(q.sessionId)) {
+        // 각 질문의 응답 ID들을 수집
+        if (q.responseIds && Array.isArray(q.responseIds)) {
+          q.responseIds.forEach((id: string) => uniqueResponseIds.add(id));
+        }
+      }
+    });
+
+    // 텍스트 답변에서도 응답 ID 수집
+    (detailStats?.textAnswers?.items || []).forEach((a: any) => {
+      if (a.sessionId && sessionSet.has(a.sessionId) && a.responseId) {
+        uniqueResponseIds.add(a.responseId);
+      }
+    });
+
+    // uniqueResponseIds가 없으면 filteredResponses 길이 사용
+    const responseCount = uniqueResponseIds.size > 0 ? uniqueResponseIds.size : filteredResponses.length;
+
     return {
-      responseCount: filteredResponses.length,
+      responseCount,
       avgOverall: weightedAvg(qs),
       avgCourse: weightedAvg(qs, 'course'),
       avgInstructor: weightedAvg(qs, 'instructor'),
