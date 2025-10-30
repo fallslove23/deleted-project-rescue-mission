@@ -2525,6 +2525,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "surveys_instructor_id_fkey"
             columns: ["instructor_id"]
             isOneToOne: false
@@ -2914,6 +2921,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "surveys_instructor_id_fkey"
             columns: ["instructor_id"]
             isOneToOne: false
@@ -3213,6 +3227,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "surveys_instructor_id_fkey"
@@ -3668,6 +3689,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "surveys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_current_user"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "surveys_instructor_id_fkey"
             columns: ["instructor_id"]
             isOneToOne: false
@@ -3906,6 +3934,24 @@ export type Database = {
           survey_cnt: number | null
           turn: number | null
           year: number | null
+        }
+        Relationships: []
+      }
+      v_current_user: {
+        Row: {
+          instructor_id: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          instructor_id?: string | null
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          instructor_id?: string | null
+          role?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -5047,10 +5093,6 @@ export type Database = {
       }
       is_director: { Args: never; Returns: boolean }
       is_instructor: { Args: never; Returns: boolean }
-      is_instructor_for_survey: {
-        Args: { _survey_id: string }
-        Returns: boolean
-      }
       is_operator: { Args: never; Returns: boolean }
       is_user_admin: { Args: { user_id: string }; Returns: boolean }
       map_session_to_course: {
