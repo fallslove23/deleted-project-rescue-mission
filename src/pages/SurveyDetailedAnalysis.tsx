@@ -138,6 +138,7 @@ const SurveyDetailedAnalysis = () => {
   const [instructorOptions, setInstructorOptions] = useState<InstructorOption[]>([]);
   const [activeInstructor, setActiveInstructor] = useState<string>('all');
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
+  const [sessionsByInstructor, setSessionsByInstructor] = useState<Record<string, string[]>>({});
   const [activeTab, setActiveTab] = useState<string>('all');
   // 상태 추가
   const [deletingAnswerId, setDeletingAnswerId] = useState<string | null>(null);
@@ -284,12 +285,12 @@ const SurveyDetailedAnalysis = () => {
       
       const { data: sessData, error: sessError } = await supabase
         .from('survey_sessions')
-        .select('id, session_name, instructor_id, subject_id')
+        .select('id, session_name, instructor_id')
         .eq('survey_id', surveyId)
-        .order('session_order', { ascending: true });
+        .order('session_name', { ascending: true });
 
       if (sessError) throw sessError;
-      let raw = (sessData || []).filter((s: any) => s.instructor_id && s.subject_id);
+      let raw = (sessData || []).filter((s: any) => s.instructor_id);
       
       // 강사 사용자의 경우 자신의 세션만 필터링
       if (restrictToInstructorId) {
@@ -315,6 +316,7 @@ const SurveyDetailedAnalysis = () => {
       };
 
       const group = new Map<string, string[]>();
+      const byInstructor = new Map<string, string[]>();
       raw.forEach((s: any) => {
         const instr = nameMap.get(s.instructor_id) ?? '';
         const base = toBase(s.session_name ?? '');
@@ -327,6 +329,10 @@ const SurveyDetailedAnalysis = () => {
         const arr = group.get(label) ?? [];
         arr.push(s.id);
         group.set(label, arr);
+
+        const instArr = byInstructor.get(s.instructor_id) ?? [];
+        instArr.push(s.id);
+        byInstructor.set(s.instructor_id, instArr);
       });
 
       const options: SubjectOption[] = Array.from(group.entries()).map(([label, ids]) => ({
@@ -336,6 +342,7 @@ const SurveyDetailedAnalysis = () => {
       }));
 
       setSubjectOptions(options);
+      setSessionsByInstructor(Object.fromEntries(byInstructor));
     } catch (err) {
       console.error('Error loading sessions:', err);
       setSubjectOptions([]);
@@ -544,11 +551,19 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  // 과목(강사-과목) 기준 필터링
+  // 과목(강사-과목) 기준 + 강사 기준 필터링
   const selectedSessionIds = useMemo(() => {
-    if (activeTab === 'all') return null;
-    return subjectOptions.find((o) => o.key === activeTab)?.sessionIds ?? null;
-  }, [activeTab, subjectOptions]);
+    const subjectIds = activeTab === 'all' ? null : (subjectOptions.find((o) => o.key === activeTab)?.sessionIds ?? null);
+    const instructorIds = activeInstructor === 'all' ? null : (sessionsByInstructor[activeInstructor] ?? []);
+
+    if (subjectIds && instructorIds) {
+      const instSet = new Set(instructorIds);
+      return subjectIds.filter((id) => instSet.has(id));
+    }
+    if (subjectIds) return subjectIds;
+    if (instructorIds && instructorIds.length) return instructorIds;
+    return null;
+  }, [activeTab, subjectOptions, activeInstructor, sessionsByInstructor]);
 
   // 세션 ID 기준 필터링 - 분포 데이터
   const filteredQuestions = useMemo(() => {
