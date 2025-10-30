@@ -5041,17 +5041,14 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
         }[]
       }
-      has_role:
-        | { Args: { role_name: string }; Returns: boolean }
-        | {
-            Args: { check_role: Database["public"]["Enums"]["user_role"] }
-            Returns: boolean
-          }
-      is_admin: { Args: never; Returns: boolean }
+      has_role: {
+        Args: { check_role: Database["public"]["Enums"]["user_role"] }
+        Returns: boolean
+      }
       is_director: { Args: never; Returns: boolean }
       is_instructor: { Args: never; Returns: boolean }
       is_instructor_for_survey: {
-        Args: { survey_id_param: string }
+        Args: { _survey_id: string }
         Returns: boolean
       }
       is_operator: { Args: never; Returns: boolean }
