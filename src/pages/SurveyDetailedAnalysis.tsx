@@ -801,12 +801,12 @@ const SurveyDetailedAnalysis = () => {
         </div>
       </div>
 
-      {/* 과목-강사 필터 */}
-      {subjectOptions.length > 0 && (
+      {/* 강사별/과목별 필터 */}
+      {(instructorOptions.length > 0 || subjectOptions.length > 0) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              과목별 분석
+              분석 필터
               {!canViewAll && isInstructor && (
                 <Badge variant="secondary" className="text-xs">
                   내 데이터만 표시
@@ -814,32 +814,63 @@ const SurveyDetailedAnalysis = () => {
               )}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              강사-과목을 선택하여 상세 분석을 확인하세요.
+              강사 또는 과목을 선택하여 상세 분석을 확인하세요.
             </p>
           </CardHeader>
            <CardContent>
-             <Select 
-               value={activeTab} 
-               onValueChange={!canViewAll && isInstructor ? undefined : setActiveTab}
-               disabled={!canViewAll && isInstructor}
-             >
-               <SelectTrigger className={`w-64 ${!canViewAll && isInstructor ? 'opacity-50' : ''}`}>
-                 <SelectValue placeholder="전체" />
-               </SelectTrigger>
-               <SelectContent className="bg-background border shadow-lg z-50">
-                 <SelectItem value="all">전체</SelectItem>
-                 {subjectOptions.map((option) => (
-                   <SelectItem key={option.key} value={option.key}>
-                     {option.label}
-                   </SelectItem>
-                 ))}
-               </SelectContent>
-             </Select>
-             {!canViewAll && isInstructor && (
-               <p className="text-xs text-muted-foreground mt-1">
-                 강사는 자신의 과목만 조회할 수 있습니다.
-               </p>
-             )}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               {/* 강사별 필터 */}
+               {instructorOptions.length > 0 && (
+                 <div className="space-y-2">
+                   <label className="text-sm font-medium">강사 선택</label>
+                   <Select 
+                     value={activeInstructor} 
+                     onValueChange={setActiveInstructor}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="강사 선택" />
+                     </SelectTrigger>
+                     <SelectContent className="bg-background border shadow-lg z-50">
+                       <SelectItem value="all">전체 강사</SelectItem>
+                       {instructorOptions.map((option) => (
+                         <SelectItem key={option.key} value={option.key}>
+                           {option.label}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
+               )}
+               
+               {/* 과목별 필터 */}
+               {subjectOptions.length > 0 && (
+                 <div className="space-y-2">
+                   <label className="text-sm font-medium">과목 선택</label>
+                   <Select 
+                     value={activeTab} 
+                     onValueChange={!canViewAll && isInstructor ? undefined : setActiveTab}
+                     disabled={!canViewAll && isInstructor}
+                   >
+                     <SelectTrigger className={`${!canViewAll && isInstructor ? 'opacity-50' : ''}`}>
+                       <SelectValue placeholder="전체" />
+                     </SelectTrigger>
+                     <SelectContent className="bg-background border shadow-lg z-50">
+                       <SelectItem value="all">전체</SelectItem>
+                       {subjectOptions.map((option) => (
+                         <SelectItem key={option.key} value={option.key}>
+                           {option.label}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                   {!canViewAll && isInstructor && (
+                     <p className="text-xs text-muted-foreground mt-1">
+                       강사는 자신의 과목만 조회할 수 있습니다.
+                     </p>
+                   )}
+                 </div>
+               )}
+             </div>
            </CardContent>
         </Card>
       )}
