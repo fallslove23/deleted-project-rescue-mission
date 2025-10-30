@@ -551,19 +551,11 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  // 과목(강사-과목) 기준 + 강사 기준 필터링
+  // 강사 기준 필터링만 사용
   const selectedSessionIds = useMemo(() => {
-    const subjectIds = activeTab === 'all' ? null : (subjectOptions.find((o) => o.key === activeTab)?.sessionIds ?? null);
-    const instructorIds = activeInstructor === 'all' ? null : (sessionsByInstructor[activeInstructor] ?? []);
-
-    if (subjectIds && instructorIds) {
-      const instSet = new Set(instructorIds);
-      return subjectIds.filter((id) => instSet.has(id));
-    }
-    if (subjectIds) return subjectIds;
-    if (instructorIds && instructorIds.length) return instructorIds;
-    return null;
-  }, [activeTab, subjectOptions, activeInstructor, sessionsByInstructor]);
+    if (activeInstructor === 'all') return null;
+    return sessionsByInstructor[activeInstructor] ?? [];
+  }, [activeInstructor, sessionsByInstructor]);
 
   // 세션 ID 기준 필터링 - 분포 데이터
   const filteredQuestions = useMemo(() => {
@@ -641,10 +633,10 @@ const SurveyDetailedAnalysis = () => {
       });
   }, [filteredQuestions]);
 
-  // 선택한 강사-과목(세션) 기준 요약값 재계산
+  // 선택한 강사 기준 요약값 재계산
   const filteredSummary = useMemo(() => {
     if (!detailStats) return null;
-    if (activeTab === 'all' || !selectedSessionIds) return null;
+    if (activeInstructor === 'all' || !selectedSessionIds || selectedSessionIds.length === 0) return null;
 
     const isRating = (q: any) => RATING_QUESTION_TYPES.has(q.questionType);
 
@@ -684,7 +676,7 @@ const SurveyDetailedAnalysis = () => {
       avgInstructor: weightedAvg(qs, 'instructor'),
       avgOperation: weightedAvg(qs, 'operation'),
     };
-  }, [detailStats, activeTab, selectedSessionIds, filteredResponses]);
+  }, [detailStats, activeInstructor, selectedSessionIds, filteredResponses]);
 
   const summaryToShow = filteredSummary ?? detailStats?.summary;
 
@@ -816,75 +808,38 @@ const SurveyDetailedAnalysis = () => {
         </div>
       </div>
 
-      {/* 강사별/과목별 필터 */}
-      {(instructorOptions.length > 0 || subjectOptions.length > 0) && (
+      {/* 강사별 필터 */}
+      {instructorOptions.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              분석 필터
+              강사 또는 과목을 선택하여 상세 분석을 확인하세요.
               {!canViewAll && isInstructor && (
                 <Badge variant="secondary" className="text-xs">
                   내 데이터만 표시
                 </Badge>
               )}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              강사 또는 과목을 선택하여 상세 분석을 확인하세요.
-            </p>
           </CardHeader>
            <CardContent>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {/* 강사별 필터 */}
-               {instructorOptions.length > 0 && (
-                 <div className="space-y-2">
-                   <label className="text-sm font-medium">강사 선택</label>
-                   <Select 
-                     value={activeInstructor} 
-                     onValueChange={setActiveInstructor}
-                   >
-                     <SelectTrigger>
-                       <SelectValue placeholder="강사 선택" />
-                     </SelectTrigger>
-                     <SelectContent className="bg-background border shadow-lg z-50">
-                       <SelectItem value="all">전체 강사</SelectItem>
-                       {instructorOptions.map((option) => (
-                         <SelectItem key={option.key} value={option.key}>
-                           {option.label}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                 </div>
-               )}
-               
-               {/* 과목별 필터 */}
-               {subjectOptions.length > 0 && (
-                 <div className="space-y-2">
-                   <label className="text-sm font-medium">과목 선택</label>
-                   <Select 
-                     value={activeTab} 
-                     onValueChange={!canViewAll && isInstructor ? undefined : setActiveTab}
-                     disabled={!canViewAll && isInstructor}
-                   >
-                     <SelectTrigger className={`${!canViewAll && isInstructor ? 'opacity-50' : ''}`}>
-                       <SelectValue placeholder="전체" />
-                     </SelectTrigger>
-                     <SelectContent className="bg-background border shadow-lg z-50">
-                       <SelectItem value="all">전체</SelectItem>
-                       {subjectOptions.map((option) => (
-                         <SelectItem key={option.key} value={option.key}>
-                           {option.label}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                   {!canViewAll && isInstructor && (
-                     <p className="text-xs text-muted-foreground mt-1">
-                       강사는 자신의 과목만 조회할 수 있습니다.
-                     </p>
-                   )}
-                 </div>
-               )}
+             <div className="space-y-2">
+               <label className="text-sm font-medium">강사 선택</label>
+               <Select 
+                 value={activeInstructor} 
+                 onValueChange={setActiveInstructor}
+               >
+                 <SelectTrigger className="w-full md:w-96">
+                   <SelectValue placeholder="강사 선택" />
+                 </SelectTrigger>
+                 <SelectContent className="bg-background border shadow-lg z-50">
+                   <SelectItem value="all">전체 강사</SelectItem>
+                   {instructorOptions.map((option) => (
+                     <SelectItem key={option.key} value={option.key}>
+                       {option.label}
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
              </div>
            </CardContent>
         </Card>
@@ -1010,7 +965,7 @@ const SurveyDetailedAnalysis = () => {
                  <p className="text-sm text-muted-foreground">
                    {(() => {
                      const feedbackCount = textFeedbacks.reduce((total: number, group: any) => total + (group.answers?.length || 0), 0);
-                     return `${feedbackCount}개의 피드백이 있습니다.${activeInstructor !== 'all' ? ' (선택된 강사 기준)' : ''}`;
+                     return `${feedbackCount}개의 피드백이 있습니다.`;
                    })()}
                  </p>
               </CardHeader>
