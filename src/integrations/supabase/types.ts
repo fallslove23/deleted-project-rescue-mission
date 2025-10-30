@@ -845,70 +845,35 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "session_subjects_session_fk"
+            foreignKeyName: "session_subjects_session_id_sessions_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "courses"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "session_subjects_session_fk"
+            foreignKeyName: "session_subjects_session_id_sessions_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "program_sessions_v1"
             referencedColumns: ["session_id"]
           },
           {
-            foreignKeyName: "session_subjects_session_fk"
+            foreignKeyName: "session_subjects_session_id_sessions_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "session_subjects_session_fk"
+            foreignKeyName: "session_subjects_session_id_sessions_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "v_course_report_min"
             referencedColumns: ["course_id"]
           },
           {
-            foreignKeyName: "session_subjects_session_fk"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "v_session_summary"
-            referencedColumns: ["session_id"]
-          },
-          {
-            foreignKeyName: "session_subjects_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_subjects_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "program_sessions_v1"
-            referencedColumns: ["session_id"]
-          },
-          {
-            foreignKeyName: "session_subjects_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "session_subjects_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "v_course_report_min"
-            referencedColumns: ["course_id"]
-          },
-          {
-            foreignKeyName: "session_subjects_session_id_fkey"
+            foreignKeyName: "session_subjects_session_id_sessions_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "v_session_summary"
@@ -965,6 +930,34 @@ export type Database = {
           },
           {
             foreignKeyName: "session_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_subject_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_subjects_subject_id_subjects_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_subjects_subject_id_subjects_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_curriculum_tree"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "session_subjects_subject_id_subjects_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "v_instructor_subject_scores"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "session_subjects_subject_id_subjects_fkey"
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "v_subject_options"
