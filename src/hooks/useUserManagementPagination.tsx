@@ -57,19 +57,43 @@ export function useUserManagementPagination(initialPageSize: number = 20) {
       setLoading(true);
       setError(null);
 
-      const [usersRes, instructorsRes] = await Promise.all([
-        supabase.rpc('get_all_profiles_for_admin', { requesting_user_id: user?.id || '' }),
-        supabase.from('instructors').select('id, name, email, photo_url')
-      ]);
+      // First try RPC, fallback to direct query if RPC fails
+      let profilesData: UserProfile[] = [];
+      
+      try {
+        const rpcRes = await supabase.rpc('get_all_profiles_for_admin', { 
+          requesting_user_id: user?.id || '' 
+        });
+        
+        if (rpcRes.error) {
+          console.warn('RPC failed, falling back to direct query:', rpcRes.error);
+          throw rpcRes.error;
+        }
+        
+        profilesData = rpcRes.data || [];
+      } catch (rpcError) {
+        // Fallback: direct query to profiles table
+        const { data: directData, error: directError } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (directError) throw directError;
+        profilesData = directData || [];
+      }
 
-      if (usersRes.error) throw usersRes.error;
-      if (instructorsRes.error) throw instructorsRes.error;
+      const { data: instructorsData, error: instructorsError } = await supabase
+        .from('instructors')
+        .select('id, name, email, photo_url');
 
-      setUsers(usersRes.data || []);
-      setInstructors(instructorsRes.data || []);
+      if (instructorsError) throw instructorsError;
+
+      setUsers(profilesData);
+      setInstructors(instructorsData || []);
 
       await fetchUserRoles();
     } catch (err: any) {
+      console.error('Error fetching users:', err);
       setError(err.message || 'Failed to fetch users');
       setUsers([]);
     } finally {

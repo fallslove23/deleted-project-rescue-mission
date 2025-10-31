@@ -175,26 +175,32 @@ export async function fetchCumulativeStats({
   instructorId,
   includeTestData,
 }: CumulativeStatsQuery): Promise<CumulativeStatsResult> {
-  const safePage = Math.max(1, page);
-  const safePageSize = Math.max(1, pageSize);
-  const from = (safePage - 1) * safePageSize;
-  const to = from + safePageSize - 1;
+  try {
+    const safePage = Math.max(1, page);
+    const safePageSize = Math.max(1, pageSize);
+    const from = (safePage - 1) * safePageSize;
+    const to = from + safePageSize - 1;
 
-  // If instructor filter is set, first get survey IDs for that instructor
-  let instructorSurveyIds: string[] | null = null;
-  if (instructorId) {
-    const { data: instructorSurveys } = await supabase
-      .from('survey_instructors')
-      .select('survey_id')
-      .eq('instructor_id', instructorId);
-    
-    instructorSurveyIds = instructorSurveys?.map(s => s.survey_id) ?? [];
-    
-    // If no surveys found for instructor, return empty result
-    if (instructorSurveyIds.length === 0) {
-      return { data: [], count: 0 };
+    // If instructor filter is set, first get survey IDs for that instructor
+    let instructorSurveyIds: string[] | null = null;
+    if (instructorId) {
+      const { data: instructorSurveys, error: instructorError } = await supabase
+        .from('survey_instructors')
+        .select('survey_id')
+        .eq('instructor_id', instructorId);
+      
+      if (instructorError) {
+        console.error('Error fetching instructor surveys:', instructorError);
+        return { data: [], count: 0 };
+      }
+      
+      instructorSurveyIds = instructorSurveys?.map(s => s.survey_id) ?? [];
+      
+      // If no surveys found for instructor, return empty result
+      if (instructorSurveyIds.length === 0) {
+        return { data: [], count: 0 };
+      }
     }
-  }
 
   // Query directly from survey_cumulative_stats to avoid FK join issues
   let query = supabase
@@ -314,10 +320,14 @@ export async function fetchCumulativeStats({
     return acc;
   }, []);
 
-  return {
-    data: transformedData,
-    count: count ?? 0,
-  };
+    return {
+      data: transformedData,
+      count: count ?? 0,
+    };
+  } catch (error) {
+    console.error('Error in fetchCumulativeStats:', error);
+    throw error;
+  }
 }
 
 export async function fetchCumulativeSummary({
@@ -429,41 +439,46 @@ export async function fetchCumulativeFilters(includeTestData: boolean): Promise<
 export async function fetchCumulativeExportData(
   params: Omit<CumulativeStatsQuery, 'page' | 'pageSize'> & { pageSize?: number }
 ): Promise<SurveyCumulativeRow[]> {
-  const {
-    searchTerm,
-    educationYear,
-    courseName,
-    instructorId,
-    includeTestData,
-    pageSize: requestedPageSize,
-  } = params;
-
-  const pageSize = Math.max(50, requestedPageSize ?? 200);
-  let page = 1;
-  let hasMore = true;
-  const results: SurveyCumulativeRow[] = [];
-
-  while (hasMore) {
-    const { data, count } = await fetchCumulativeStats({
-      page,
-      pageSize,
+  try {
+    const {
       searchTerm,
       educationYear,
       courseName,
-      instructorId: instructorId,
+      instructorId,
       includeTestData,
-    });
+      pageSize: requestedPageSize,
+    } = params;
 
-    results.push(...data);
+    const pageSize = Math.max(50, requestedPageSize ?? 200);
+    let page = 1;
+    let hasMore = true;
+    const results: SurveyCumulativeRow[] = [];
 
-    const expectedTotal = count ?? results.length;
-    hasMore = results.length < expectedTotal && data.length === pageSize;
-    page += 1;
+    while (hasMore) {
+      const { data, count } = await fetchCumulativeStats({
+        page,
+        pageSize,
+        searchTerm,
+        educationYear,
+        courseName,
+        instructorId: instructorId,
+        includeTestData,
+      });
 
-    if (!data.length) {
-      break;
+      results.push(...data);
+
+      const expectedTotal = count ?? results.length;
+      hasMore = results.length < expectedTotal && data.length === pageSize;
+      page += 1;
+
+      if (!data.length) {
+        break;
+      }
     }
-  }
 
-  return results;
+    return results;
+  } catch (error) {
+    console.error('Error in fetchCumulativeExportData:', error);
+    return [];
+  }
 }
