@@ -1124,7 +1124,7 @@ const SurveyDetailedAnalysis = () => {
         onOpenChange={setSendDialogOpen}
         surveyId={surveyId!}
         surveyTitle={survey.title}
-        responseCount={detailStats?.summary?.totalResponses || 0}
+        responseCount={detailStats?.summary?.responseCount || 0}
         instructorId={profile?.instructor_id}
         isInstructor={isInstructor}
       />
