@@ -136,6 +136,16 @@ export const SendSurveyResultsDialog = ({
 
   const handleNextStep = async () => {
     if (step === 1) {
+      // 응답이 없으면 경고
+      if (responseCount === 0) {
+        toast({
+          title: '전송 불가',
+          description: '응답이 없는 설문은 이메일을 전송할 수 없습니다.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // 수신자가 없으면 경고
       if (selectedRoles.length === 0 && additionalEmails.length === 0) {
         toast({
@@ -159,7 +169,7 @@ export const SendSurveyResultsDialog = ({
           },
         });
 
-      if (error) throw error;
+        if (error) throw error;
 
         setEmailPreview(data);
         setStep(2);

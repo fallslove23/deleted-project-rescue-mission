@@ -395,7 +395,23 @@ const SurveyResults = () => {
             restrictToInstructorId,
           });
 
-        setAllAggregates(baseAggregates);
+        // 질문이 있는 설문만 필터링
+        const surveysWithQuestions = await Promise.all(
+          baseAggregates.map(async (survey) => {
+            const { count } = await supabase
+              .from('survey_questions')
+              .select('id', { count: 'exact', head: true })
+              .eq('survey_id', survey.survey_id);
+            
+            return { survey, hasQuestions: (count || 0) > 0 };
+          })
+        );
+
+        const validSurveys = surveysWithQuestions
+          .filter(item => item.hasQuestions)
+          .map(item => item.survey);
+
+        setAllAggregates(validSurveys);
         setBaseSummary(baseSummaryResult);
       } catch (error) {
         console.error('Failed to load aggregated survey results', error);
