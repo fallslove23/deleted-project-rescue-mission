@@ -5124,6 +5124,7 @@ export type Database = {
         Args: { check_role: Database["public"]["Enums"]["user_role"] }
         Returns: boolean
       }
+      is_admin: { Args: never; Returns: boolean }
       is_director: { Args: never; Returns: boolean }
       is_instructor: { Args: never; Returns: boolean }
       is_operator: { Args: never; Returns: boolean }
