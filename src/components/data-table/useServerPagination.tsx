@@ -79,9 +79,11 @@ export function useServerPagination<T>(
     }
   }, [fetchFn, pagination.page, pagination.pageSize, ...deps]);
 
-  const goToPage = useCallback((page: number) => {
-    setPagination(prev => ({ ...prev, page: Math.max(1, Math.min(page, prev.totalPages)) }));
-  }, []);
+  const goToPage = useCallback(async (page: number) => {
+    const newPage = Math.max(1, Math.min(page, pagination.totalPages || 1));
+    setPagination(prev => ({ ...prev, page: newPage }));
+    await fetchData({ page: newPage, pageSize: pagination.pageSize });
+  }, [fetchData, pagination.totalPages, pagination.pageSize]);
 
   const goToNextPage = useCallback(() => {
     goToPage(pagination.page + 1);
@@ -91,9 +93,10 @@ export function useServerPagination<T>(
     goToPage(pagination.page - 1);
   }, [goToPage, pagination.page]);
 
-  const setPageSize = useCallback((pageSize: number) => {
+  const setPageSize = useCallback(async (pageSize: number) => {
     setPagination(prev => ({ ...prev, pageSize, page: 1 }));
-  }, []);
+    await fetchData({ page: 1, pageSize });
+  }, [fetchData]);
 
   const refresh = useCallback(() => fetchData(), [fetchData]);
 

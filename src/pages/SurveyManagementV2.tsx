@@ -1623,8 +1623,14 @@ export default function SurveyManagementV2() {
               pageSize={paginationHook.pagination.pageSize}
               total={paginationHook.pagination.total}
               totalPages={paginationHook.pagination.totalPages}
-              onPageChange={(page) => setCurrentPage(page)}
-              onPageSizeChange={paginationHook.setPageSize}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                paginationHook.goToPage(page);
+              }}
+              onPageSizeChange={(size) => {
+                setCurrentPage(1);
+                paginationHook.setPageSize(size);
+              }}
               loading={paginationHook.loading}
               className="mt-6"
             />
