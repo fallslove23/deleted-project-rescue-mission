@@ -387,6 +387,19 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [surveyId, loadInstructorOptions, loadSessions, profileLoading]);
 
+  // URL 쿼리 파라미터에서 instructorId를 읽어 필터 자동 설정
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const instructorIdFromUrl = searchParams.get('instructorId');
+    
+    if (instructorIdFromUrl && instructorOptions.length > 0) {
+      const matchedOption = instructorOptions.find(opt => opt.instructorId === instructorIdFromUrl);
+      if (matchedOption) {
+        setActiveInstructor(matchedOption.key);
+      }
+    }
+  }, [location.search, instructorOptions]);
+
   // 강사 사용자인 경우 자신의 ID로 필터 자동 설정
   useEffect(() => {
     if (!canViewAll && isInstructor && profile?.instructor_id && instructorOptions.length > 0) {

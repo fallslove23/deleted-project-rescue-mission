@@ -274,8 +274,8 @@ const CourseReportsContent: React.FC = () => {
         return;
       }
 
-      // 첫 번째 설문의 상세 분석 페이지로 이동
-      navigate(`/survey-detailed-analysis/${uniqueSurveys[0].id}`);
+      // 첫 번째 설문의 상세 분석 페이지로 이동 (강사 ID를 쿼리 파라미터로 전달)
+      navigate(`/survey-detailed-analysis/${uniqueSurveys[0].id}?instructorId=${instructorIdValue}`);
     } catch (error) {
       console.error('Error in handleInstructorClick', error);
       toast({
