@@ -112,10 +112,10 @@ const handler = async (req: Request): Promise<Response> => {
       courses: courseInfo
     };
 
-    // Idempotency & dedup guard
+    // Idempotency & dedup guard (skip for preview mode)
     // 1) 과거 로그 조회: 전체 성공이면 즉시 건너뜀, 부분 성공이면 이미 보낸 수신자는 제외하고 진행
     let alreadySentSet = new Set<string>();
-    if (!force) {
+    if (!force && !previewOnly) {
       const { data: priorLogs } = await supabaseClient
         .from("email_logs")
         .select("id, status, created_at, results")
