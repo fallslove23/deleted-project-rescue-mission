@@ -592,10 +592,7 @@ export default function SurveyManagementV2() {
     setTotalPages(paginationHook.pagination.totalPages);
     setLoading(paginationHook.loading);
     setError(paginationHook.error);
-    if (paginationHook.pagination.page !== currentPage) {
-      setCurrentPage(paginationHook.pagination.page);
-    }
-  }, [paginationHook.data, paginationHook.pagination, paginationHook.loading, paginationHook.error]);
+  }, [paginationHook.data, paginationHook.pagination.total, paginationHook.pagination.totalPages, paginationHook.loading, paginationHook.error]);
 
   const loadSessions = async (year: number | null) => {
     try {
@@ -1622,11 +1619,11 @@ export default function SurveyManagementV2() {
 
             {/* 페이지네이션 */}
             <PaginationControls
-              page={paginationHook.pagination.page}
+              page={currentPage}
               pageSize={paginationHook.pagination.pageSize}
               total={paginationHook.pagination.total}
               totalPages={paginationHook.pagination.totalPages}
-              onPageChange={paginationHook.goToPage}
+              onPageChange={(page) => setCurrentPage(page)}
               onPageSizeChange={paginationHook.setPageSize}
               loading={paginationHook.loading}
               className="mt-6"
