@@ -358,15 +358,15 @@ const SurveyDetailedAnalysis = () => {
     
     try {
       // 먼저 설문에 질문이 있는지 확인
-      const { data: questionCheck, error: checkError } = await supabase
+      const { count: questionCount, error: checkError } = await supabase
         .from('survey_questions')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .eq('survey_id', surveyId);
 
       if (checkError) throw checkError;
 
       // 질문이 없으면 에러 표시
-      if (questionCheck === null || (questionCheck as any)?.count === 0) {
+      if (!questionCount || questionCount === 0) {
         setError('이 설문에는 질문이 없습니다. 설문 구성을 확인해주세요.');
         return;
       }

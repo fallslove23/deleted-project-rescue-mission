@@ -174,28 +174,40 @@ const CourseReportsContent: React.FC = () => {
   }, [trend]);
 
   const instructorStatsDisplay = useMemo(() => {
-    const result = instructorStats.map((stat) => ({
-      instructor_id: stat.instructorId ?? '',
-      instructor_name: stat.instructorName,
-      survey_count: stat.surveyCount,
-      response_count: stat.responseCount,
-      avg_satisfaction: toFixedOrZero(stat.avgSatisfaction),
-    }));
-    console.log('👨‍🏫 Instructor stats display:', result);
-    return result;
-  }, [instructorStats]);
-
-  const previousInstructorStatsDisplay = useMemo(
-    () =>
-      previousInstructorStats.map((stat) => ({
+    // 운영 만족도 전용 강사 ID 목록 (실제 강의를 하지 않고 운영 세션만 담당)
+    const operationalOnlyInstructors = new Set([
+      '1a72370e-ec17-4338-b501-aed48a7ace5b', // 최효동
+    ]);
+    
+    const result = instructorStats
+      .filter((stat) => !operationalOnlyInstructors.has(stat.instructorId ?? ''))
+      .map((stat) => ({
         instructor_id: stat.instructorId ?? '',
         instructor_name: stat.instructorName,
         survey_count: stat.surveyCount,
         response_count: stat.responseCount,
         avg_satisfaction: toFixedOrZero(stat.avgSatisfaction),
-      })),
-    [previousInstructorStats],
-  );
+      }));
+    console.log('👨‍🏫 Instructor stats display:', result);
+    return result;
+  }, [instructorStats]);
+
+  const previousInstructorStatsDisplay = useMemo(() => {
+    // 운영 만족도 전용 강사 제외
+    const operationalOnlyInstructors = new Set([
+      '1a72370e-ec17-4338-b501-aed48a7ace5b', // 최효동
+    ]);
+    
+    return previousInstructorStats
+      .filter((stat) => !operationalOnlyInstructors.has(stat.instructorId ?? ''))
+      .map((stat) => ({
+        instructor_id: stat.instructorId ?? '',
+        instructor_name: stat.instructorName,
+        survey_count: stat.surveyCount,
+        response_count: stat.responseCount,
+        avg_satisfaction: toFixedOrZero(stat.avgSatisfaction),
+      }));
+  }, [previousInstructorStats]);
 
   const overallSatisfaction = useMemo(() => {
     if (!dashboardCounts || !dashboardCounts.avg_score) return 0;
