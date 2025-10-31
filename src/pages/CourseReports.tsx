@@ -212,32 +212,60 @@ const CourseReportsContent: React.FC = () => {
     if (!instructorIdValue) return;
     
     try {
-      // 현재 선택된 연도와 과정에서 해당 강사의 설문 찾기
-      let query = supabase
+      // 1. surveys 테이블에서 직접 instructor_id로 조회
+      let baseQuery = supabase
         .from('surveys')
-        .select('id, title')
-        .eq('instructor_id', instructorIdValue)
+        .select('id, title, created_at')
         .eq('education_year', filters.year || CURRENT_YEAR)
         .order('created_at', { ascending: false });
 
-      // 과정 필터가 있으면 추가
       if (selectedSessionKey) {
-        query = query.eq('session_id', selectedSessionKey);
+        baseQuery = baseQuery.eq('session_id', selectedSessionKey);
       }
 
-      const { data: surveys, error } = await query.limit(1);
+      const surveyFromMain = baseQuery.eq('instructor_id', instructorIdValue);
+      
+      // 2. survey_sessions를 통한 조회
+      const surveyFromSessions = supabase
+        .from('survey_sessions')
+        .select('survey_id, surveys!inner(id, title, created_at, education_year, session_id)')
+        .eq('instructor_id', instructorIdValue);
 
-      if (error) {
-        console.error('Failed to fetch instructor surveys', error);
-        toast({
-          title: '오류',
-          description: '강사의 설문을 불러오는 중 오류가 발생했습니다.',
-          variant: 'destructive',
-        });
-        return;
+      // 두 쿼리를 병렬로 실행
+      const [mainResult, sessionsResult] = await Promise.all([
+        surveyFromMain,
+        surveyFromSessions
+      ]);
+
+      // 결과 합치기
+      const allSurveys: Array<{id: string, title: string}> = [];
+      
+      if (mainResult.data && mainResult.data.length > 0) {
+        allSurveys.push(...mainResult.data.map(s => ({ id: s.id, title: s.title })));
+      }
+      
+      if (sessionsResult.data && sessionsResult.data.length > 0) {
+        const sessionSurveys = sessionsResult.data
+          .map(ss => ss.surveys)
+          .filter((s): s is NonNullable<typeof s> => {
+            if (!s || typeof s !== 'object' || !('id' in s)) return false;
+            const survey = s as any;
+            // 연도와 세션 필터 적용
+            if (survey.education_year !== (filters.year || CURRENT_YEAR)) return false;
+            if (selectedSessionKey && survey.session_id !== selectedSessionKey) return false;
+            return true;
+          })
+          .map(s => ({ id: (s as any).id, title: (s as any).title }));
+        
+        allSurveys.push(...sessionSurveys);
       }
 
-      if (!surveys || surveys.length === 0) {
+      // 중복 제거
+      const uniqueSurveys = Array.from(
+        new Map(allSurveys.map(s => [s.id, s])).values()
+      );
+
+      if (uniqueSurveys.length === 0) {
         toast({
           title: '설문이 없습니다',
           description: '해당 강사의 설문을 찾을 수 없습니다.',
@@ -247,7 +275,7 @@ const CourseReportsContent: React.FC = () => {
       }
 
       // 첫 번째 설문의 상세 분석 페이지로 이동
-      navigate(`/survey-detailed-analysis/${surveys[0].id}`);
+      navigate(`/survey-detailed-analysis/${uniqueSurveys[0].id}`);
     } catch (error) {
       console.error('Error in handleInstructorClick', error);
       toast({
