@@ -211,10 +211,20 @@ export const SendSurveyResultsDialog = ({
 
       setSendResult(data);
       
-      toast({
-        title: '전송 완료',
-        description: `${data.sent?.length || 0}명에게 이메일이 전송되었습니다.`,
-      });
+      const sentCount = typeof data?.sent === 'number' ? data.sent : Array.isArray(data?.sent) ? data.sent.length : 0;
+      const totalCount = typeof data?.total === 'number' ? data.total : (Array.isArray(data?.recipients) ? data.recipients.length : sentCount);
+
+      if (data?.alreadySent) {
+        toast({
+          title: '이미 발송됨',
+          description: `이 설문은 이전에 전송 완료되어 재전송이 건너뛰어졌습니다. (대상: ${totalCount}명)`,
+        });
+      } else {
+        toast({
+          title: data?.success ? '전송 완료' : '전송 완료(일부 실패)',
+          description: `${sentCount}명에게 이메일이 전송되었습니다${typeof data?.failed === 'number' && data.failed > 0 ? ` (실패 ${data.failed}명)` : ''}.`,
+        });
+      }
 
       // 성공 후 다이얼로그 닫기
       setTimeout(() => {

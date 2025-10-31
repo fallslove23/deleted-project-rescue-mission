@@ -562,9 +562,13 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         console.log(`Attempting to send email to: ${email}`);
         
-        // Check for common Resend setup issues
+        // Check for common Resend setup issues first
+        if (!resendApiKey || typeof resendApiKey !== 'string' || resendApiKey.trim() === '') {
+          throw new Error('RESEND_API_KEY is missing or empty. Please check your environment configuration.');
+        }
+        
         if (!resendApiKey.startsWith('re_')) {
-          throw new Error('Invalid Resend API key format. Please check your RESEND_API_KEY.');
+          throw new Error('Invalid Resend API key format. API key should start with "re_". Please check your RESEND_API_KEY.');
         }
         
         const emailResponse = await resend.emails.send({
