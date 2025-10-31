@@ -238,10 +238,14 @@ const CourseReportsContent: React.FC = () => {
       ]);
 
       // 결과 합치기
-      const allSurveys: Array<{id: string, title: string}> = [];
+      const allSurveys: Array<{id: string, title: string, created_at: string}> = [];
       
       if (mainResult.data && mainResult.data.length > 0) {
-        allSurveys.push(...mainResult.data.map(s => ({ id: s.id, title: s.title })));
+        allSurveys.push(...mainResult.data.map(s => ({ 
+          id: s.id, 
+          title: s.title,
+          created_at: s.created_at 
+        })));
       }
       
       if (sessionsResult.data && sessionsResult.data.length > 0) {
@@ -255,15 +259,19 @@ const CourseReportsContent: React.FC = () => {
             if (selectedSessionKey && survey.session_id !== selectedSessionKey) return false;
             return true;
           })
-          .map(s => ({ id: (s as any).id, title: (s as any).title }));
+          .map(s => ({ 
+            id: (s as any).id, 
+            title: (s as any).title,
+            created_at: (s as any).created_at
+          }));
         
         allSurveys.push(...sessionSurveys);
       }
 
-      // 중복 제거
+      // 중복 제거 및 최신순 정렬
       const uniqueSurveys = Array.from(
         new Map(allSurveys.map(s => [s.id, s])).values()
-      );
+      ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       if (uniqueSurveys.length === 0) {
         toast({
@@ -274,7 +282,16 @@ const CourseReportsContent: React.FC = () => {
         return;
       }
 
-      // 첫 번째 설문의 상세 분석 페이지로 이동 (강사 ID를 쿼리 파라미터로 전달)
+      // 여러 설문이 있고 과정 필터가 없는 경우 안내 메시지 표시
+      if (uniqueSurveys.length > 1 && !selectedSessionKey) {
+        toast({
+          title: '여러 설문 중 최근 설문 표시',
+          description: '해당 강사의 여러 설문 중 최근 설문을 표시합니다. 다른 설문을 보려면 과정 필터를 사용하세요.',
+          duration: 5000,
+        });
+      }
+
+      // 첫 번째(최신) 설문의 상세 분석 페이지로 이동
       navigate(`/survey-detailed-analysis/${uniqueSurveys[0].id}?instructorId=${instructorIdValue}`);
     } catch (error) {
       console.error('Error in handleInstructorClick', error);
