@@ -59,8 +59,13 @@ export const SendSurveyResultsDialog = ({
   
   // Step 3: 전송 결과
   const [sendResult, setSendResult] = useState<any>(null);
+  
+  // 발송 이력 및 강제 재전송
+  const [previousLogs, setPreviousLogs] = useState<any[]>([]);
+  const [forceResend, setForceResend] = useState(false);
+  const [checkingLogs, setCheckingLogs] = useState(false);
 
-  // 다이얼로그가 열릴 때 초기화
+  // 다이얼로그가 열릴 때 초기화 및 이전 발송 로그 확인
   useEffect(() => {
     if (open) {
       setStep(1);
@@ -69,8 +74,32 @@ export const SendSurveyResultsDialog = ({
       setNewEmail('');
       setEmailPreview(null);
       setSendResult(null);
+      setPreviousLogs([]);
+      setForceResend(false);
+      
+      // 이전 발송 이력 확인
+      checkPreviousLogs();
     }
-  }, [open, isInstructor]);
+  }, [open, isInstructor, surveyId]);
+
+  const checkPreviousLogs = async () => {
+    setCheckingLogs(true);
+    try {
+      const { data, error } = await supabase
+        .from('email_logs')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setPreviousLogs(data || []);
+    } catch (error) {
+      console.error('Failed to load previous logs:', error);
+    } finally {
+      setCheckingLogs(false);
+    }
+  };
 
   const handleRoleToggle = (role: string) => {
     // 강사는 자신에게만 전송 가능
@@ -203,7 +232,7 @@ export const SendSurveyResultsDialog = ({
         body: {
           surveyId,
           recipients: allRecipients,
-          force: false,
+          force: forceResend, // 강제 재전송 플래그 사용
         },
       });
 
@@ -372,6 +401,53 @@ export const SendSurveyResultsDialog = ({
                     onLoadPreset={handleLoadPreset}
                     currentRecipients={[...selectedRoles, ...additionalEmails]}
                   />
+                </div>
+              )}
+
+              {/* 이전 발송 이력 */}
+              {previousLogs.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">발송 이력</Label>
+                  <Alert variant={previousLogs.some(log => log.status === 'success') ? 'default' : 'destructive'}>
+                    <AlertDescription>
+                      <div className="space-y-2">
+                        {previousLogs.slice(0, 3).map((log, index) => (
+                          <div key={log.id} className="text-sm">
+                            <strong>{index + 1}.</strong> {new Date(log.created_at).toLocaleString('ko-KR')} - 
+                            <span className={`ml-1 font-semibold ${
+                              log.status === 'success' ? 'text-green-600' : 
+                              log.status === 'partial' ? 'text-amber-600' : 'text-red-600'
+                            }`}>
+                              {log.status === 'success' ? '전체 성공' : 
+                               log.status === 'partial' ? '부분 성공' : '실패'}
+                            </span>
+                            {' '}({log.sent_count || 0}명 발송)
+                          </div>
+                        ))}
+                        {previousLogs.some(log => log.status === 'success') && !forceResend && (
+                          <div className="mt-3 pt-3 border-t">
+                            <p className="text-sm font-medium text-amber-700">
+                              ⚠️ 이미 성공적으로 발송된 이력이 있습니다. 중복 발송을 방지하기 위해 이전에 발송된 수신자는 제외됩니다.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="flex items-center space-x-2 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                    <Checkbox
+                      id="force-resend"
+                      checked={forceResend}
+                      onCheckedChange={(checked) => setForceResend(checked as boolean)}
+                    />
+                    <Label
+                      htmlFor="force-resend"
+                      className="text-sm cursor-pointer"
+                    >
+                      <strong>강제 재전송</strong> (이전 발송 이력 무시하고 모든 수신자에게 다시 전송)
+                    </Label>
+                  </div>
                 </div>
               )}
 

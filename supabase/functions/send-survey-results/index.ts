@@ -112,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       courses: courseInfo
     };
 
-    // Idempotency & dedup guard (skip for preview mode)
+    // Idempotency & dedup guard (force=true이면 건너뜀)
     // 1) 과거 로그 조회: 전체 성공이면 즉시 건너뜀, 부분 성공이면 이미 보낸 수신자는 제외하고 진행
     let alreadySentSet = new Set<string>();
     if (!force && !previewOnly) {
@@ -125,12 +125,12 @@ const handler = async (req: Request): Promise<Response> => {
 
       const hasFullSuccess = priorLogs?.some((l: any) => l.status === "success");
       if (hasFullSuccess) {
-        console.log("Existing full success email log found, skipping send");
+        console.log("Existing full success email log found, skipping send (use force=true to override)");
         return new Response(
           JSON.stringify({
             success: true,
             alreadySent: true,
-            message: "이미 모든 수신자에게 성공적으로 발송된 설문입니다.",
+            message: "이미 모든 수신자에게 성공적으로 발송된 설문입니다. 재전송하려면 '강제 재전송' 옵션을 선택하세요.",
             surveyId,
           }),
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -148,6 +148,8 @@ const handler = async (req: Request): Promise<Response> => {
           // ignore JSON structure differences
         }
       });
+    } else if (force) {
+      console.log("Force resend enabled - ignoring previous send history");
     }
 
     // Resolve recipients (support role tokens and defaults)
