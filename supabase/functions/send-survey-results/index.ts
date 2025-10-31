@@ -406,6 +406,29 @@ const handler = async (req: Request): Promise<Response> => {
           questionSummary += `<div style="margin: 3px 0;">• ${option}: <strong>${count}명</strong></div>`;
         });
         questionSummary += '</div>';
+      } else if (qa.type === 'text' && qa.answers.length > 0) {
+        // 주관식 응답 표시
+        questionSummary += `
+          <div style="font-size: 13px; color: #4b5563;">
+            <p style="margin: 5px 0 10px 0; font-weight: 600;">${qa.answers.length}건의 응답:</p>
+            <div style="max-height: 400px; overflow-y: auto; border-left: 3px solid #e5e7eb; padding-left: 12px;">
+        `;
+        qa.answers.forEach((answer: string, index: number) => {
+          const escapedAnswer = String(answer)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;')
+            .replace(/\n/g, '<br>');
+          questionSummary += `
+            <div style="margin: 8px 0; padding: 10px; background-color: white; border-radius: 6px; border: 1px solid #e5e7eb;">
+              <span style="display: inline-block; padding: 2px 6px; background-color: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 6px;">응답 ${index + 1}</span>
+              <div style="color: #374151; line-height: 1.6;">${escapedAnswer}</div>
+            </div>
+          `;
+        });
+        questionSummary += '</div></div>';
       } else {
         questionSummary += `<p style="margin: 5px 0; color: #4b5563; font-size: 13px;">${qa.answers.length}건의 응답</p>`;
       }
