@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { ChartErrorBoundary, PageErrorBoundary, HookErrorBoundary, DataProcessingErrorBoundary } from '@/components/error-boundaries';
 import { fetchDashboardCounts, type DashboardCounts } from '@/repositories/dashboardRepository';
+import { supabase } from '@/integrations/supabase/client';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -207,9 +208,54 @@ const CourseReportsContent: React.FC = () => {
     return null;
   }, []);
 
-  const handleInstructorClick = (instructorIdValue: string) => {
+  const handleInstructorClick = async (instructorIdValue: string) => {
     if (!instructorIdValue) return;
-    navigate(`/dashboard/instructor-details/${instructorIdValue}?year=${filters.year || CURRENT_YEAR}`);
+    
+    try {
+      // 현재 선택된 연도와 과정에서 해당 강사의 설문 찾기
+      let query = supabase
+        .from('surveys')
+        .select('id, title')
+        .eq('instructor_id', instructorIdValue)
+        .eq('education_year', filters.year || CURRENT_YEAR)
+        .order('created_at', { ascending: false });
+
+      // 과정 필터가 있으면 추가
+      if (selectedSessionKey) {
+        query = query.eq('session_id', selectedSessionKey);
+      }
+
+      const { data: surveys, error } = await query.limit(1);
+
+      if (error) {
+        console.error('Failed to fetch instructor surveys', error);
+        toast({
+          title: '오류',
+          description: '강사의 설문을 불러오는 중 오류가 발생했습니다.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!surveys || surveys.length === 0) {
+        toast({
+          title: '설문이 없습니다',
+          description: '해당 강사의 설문을 찾을 수 없습니다.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // 첫 번째 설문의 상세 분석 페이지로 이동
+      navigate(`/survey-detailed-analysis/${surveys[0].id}`);
+    } catch (error) {
+      console.error('Error in handleInstructorClick', error);
+      toast({
+        title: '오류',
+        description: '강사 설문을 여는 중 오류가 발생했습니다.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const hasExportable = useMemo(() => {
