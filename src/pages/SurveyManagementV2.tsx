@@ -549,7 +549,7 @@ export default function SurveyManagementV2() {
   }, [filters, sortBy, sortDir, currentPage]);
 
   // 서버 페이지네이션 페치 함수
-  const fetchSurveysWithPagination = async (params: ServerPaginationParams) => {
+  const fetchSurveysWithPagination = useCallback(async (params: ServerPaginationParams) => {
     const result = await SurveysRepository.fetchSurveyList(
       params.page, 
       params.pageSize, 
@@ -564,13 +564,13 @@ export default function SurveyManagementV2() {
       pageSize: params.pageSize,
       totalPages: result.totalPages
     };
-  };
+  }, [filters, sortBy, sortDir]);
 
   // 서버 페이지네이션 훅 사용
   const paginationHook = useServerPagination(
     fetchSurveysWithPagination,
     PAGE_SIZE,
-    [filters, sortBy, sortDir]
+    []
   );
 
   // 기존 데이터 로드 (호환성 유지)
