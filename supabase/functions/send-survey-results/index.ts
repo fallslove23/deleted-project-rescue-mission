@@ -43,20 +43,73 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Fetch survey data with instructor and course info
+    // Fetch survey data
     const { data: survey, error: surveyError } = await supabaseClient
       .from("surveys")
-      .select(`
-        *,
-        instructors (name, email),
-        courses (title)
-      `)
+      .select("*")
       .eq("id", surveyId)
       .single();
 
     if (surveyError || !survey) {
+      console.error("Survey fetch error:", surveyError);
       throw new Error("Survey not found");
     }
+
+    // Fetch instructor info separately (surveys can have multiple instructors)
+    let instructorInfo: { name?: string; email?: string } | null = null;
+    
+    // First try direct instructor_id if available
+    if (survey.instructor_id) {
+      const { data: instructor } = await supabaseClient
+        .from("instructors")
+        .select("name, email")
+        .eq("id", survey.instructor_id)
+        .single();
+      
+      if (instructor) {
+        instructorInfo = instructor;
+      }
+    }
+    
+    // If no direct instructor, try survey_instructors mapping
+    if (!instructorInfo) {
+      const { data: surveyInstructors } = await supabaseClient
+        .from("survey_instructors")
+        .select(`
+          instructor_id,
+          instructors (name, email)
+        `)
+        .eq("survey_id", surveyId)
+        .limit(1);
+      
+      if (surveyInstructors && surveyInstructors.length > 0) {
+        const firstInstructor = surveyInstructors[0];
+        if (firstInstructor.instructors) {
+          instructorInfo = firstInstructor.instructors as any;
+        }
+      }
+    }
+
+    // Fetch course info if available
+    let courseInfo: { title?: string } | null = null;
+    if (survey.course_id) {
+      const { data: course } = await supabaseClient
+        .from("courses")
+        .select("title")
+        .eq("id", survey.course_id)
+        .single();
+      
+      if (course) {
+        courseInfo = course;
+      }
+    }
+
+    // Merge the fetched data into survey object for backward compatibility
+    const surveyWithRelations = {
+      ...survey,
+      instructors: instructorInfo,
+      courses: courseInfo
+    };
 
     // Idempotency & dedup guard
     // 1) 과거 로그 조회: 전체 성공이면 즉시 건너뜀, 부분 성공이면 이미 보낸 수신자는 제외하고 진행
@@ -110,8 +163,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Include instructor email when requested or when no recipients provided (default)
     if (inputRecipients.length === 0 || roleTokens.includes("instructor")) {
-      const instructorEmail = survey.instructors?.email as string | undefined;
-      const instructorName = survey.instructors?.name as string | undefined;
+      const instructorEmail = surveyWithRelations.instructors?.email as string | undefined;
+      const instructorName = surveyWithRelations.instructors?.name as string | undefined;
       if (instructorEmail && emailRegex.test(instructorEmail)) {
         resolvedSet.add(instructorEmail);
         if (instructorName) {
@@ -254,8 +307,8 @@ const handler = async (req: Request): Promise<Response> => {
       .in("response_id", responses?.map(r => r.id) || []);
 
     const responseCount = responses?.length || 0;
-    const instructorName = survey.instructors?.name || '미등록';
-    const courseTitle = survey.courses?.title || '강의';
+    const instructorName = surveyWithRelations.instructors?.name || '미등록';
+    const courseTitle = surveyWithRelations.courses?.title || surveyWithRelations.course_name || '강의';
 
     // Generate question analysis (robust parsing)
     const questionAnalysis: Record<string, any> = {};
@@ -372,7 +425,7 @@ const handler = async (req: Request): Promise<Response> => {
           from: FROM_ADDRESS,
           to: [email],
           reply_to: REPLY_TO_EMAIL,
-          subject: `📊 설문 결과 발송: ${survey.title}`,
+          subject: `📊 설문 결과 발송: ${surveyWithRelations.title}`,
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
               <!-- Header -->
@@ -387,7 +440,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <div style="display: grid; gap: 12px;">
                   <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
                     <span style="color: #64748b; font-weight: 500;">설문 제목</span>
-                    <span style="color: #334155; font-weight: 600;">${survey.title}</span>
+                    <span style="color: #334155; font-weight: 600;">${surveyWithRelations.title}</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
                     <span style="color: #64748b; font-weight: 500;">강사명</span>
@@ -399,11 +452,11 @@ const handler = async (req: Request): Promise<Response> => {
                   </div>
                   <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
                     <span style="color: #64748b; font-weight: 500;">교육년도</span>
-                    <span style="color: #334155; font-weight: 600;">${survey.education_year}년</span>
+                    <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_year}년</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
                     <span style="color: #64748b; font-weight: 500;">교육차수</span>
-                    <span style="color: #334155; font-weight: 600;">${survey.education_round}차</span>
+                    <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_round}차</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; padding: 8px 0;">
                     <span style="color: #64748b; font-weight: 500;">총 응답 수</span>
