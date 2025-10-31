@@ -3992,6 +3992,14 @@ export type Database = {
         }
         Relationships: []
       }
+      v_duplicate_surveys: {
+        Row: {
+          cnt: number | null
+          ids: string[] | null
+          normalized_title: string | null
+        }
+        Relationships: []
+      }
       v_instructor_session_map: {
         Row: {
           education_round: number | null
@@ -5000,6 +5008,7 @@ export type Database = {
           total_responses: number
         }[]
       }
+      get_my_role: { Args: never; Returns: string }
       get_rls_policies: {
         Args: never
         Returns: {
