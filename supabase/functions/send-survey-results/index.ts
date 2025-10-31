@@ -14,6 +14,7 @@ interface SendResultsRequest {
   surveyId: string;
   recipients: string[];
   force?: boolean;
+  previewOnly?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -24,8 +25,8 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("Edge function called with request");
     
-    const { surveyId, recipients, force }: SendResultsRequest = await req.json();
-    console.log("Parsed request:", { surveyId, recipients, force });
+    const { surveyId, recipients, force, previewOnly }: SendResultsRequest = await req.json();
+    console.log("Parsed request:", { surveyId, recipients, force, previewOnly });
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     console.log("Resend API key check:", resendApiKey ? "✓ Key found" : "✗ Key missing");
@@ -384,37 +385,154 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending emails to recipients:", recipientsToSend);
     
+    // Generate email content for preview or sending
+    let questionSummary = '';
+    Object.values(questionAnalysis).forEach((qa: any) => {
+      questionSummary += `
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
+          <h4 style="color: #374151; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">${qa.question}</h4>
+      `;
+      
+      if (qa.stats.average) {
+        questionSummary += `
+          <p style="margin: 5px 0; color: #4b5563; font-size: 13px;">
+            <strong>평균 점수:</strong> <span style="color: #059669; font-weight: 600;">${qa.stats.average}점</span> 
+            (${qa.stats.count}명 응답)
+          </p>
+        `;
+      } else if (qa.stats.distribution) {
+        questionSummary += '<div style="font-size: 13px; color: #4b5563;">';
+        Object.entries(qa.stats.distribution).forEach(([option, count]) => {
+          questionSummary += `<div style="margin: 3px 0;">• ${option}: <strong>${count}명</strong></div>`;
+        });
+        questionSummary += '</div>';
+      } else {
+        questionSummary += `<p style="margin: 5px 0; color: #4b5563; font-size: 13px;">${qa.answers.length}건의 응답</p>`;
+      }
+      
+      questionSummary += '</div>';
+    });
+
+    const emailSubject = `📊 설문 결과 발송: ${surveyWithRelations.title}`;
+    const emailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px;">
+          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">📊 설문 결과 알림</h1>
+          <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">BS교육원 설문 시스템</p>
+        </div>
+        
+        <!-- Survey Info -->
+        <div style="background-color: #f8fafc; padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #3b82f6;">
+          <h2 style="color: #1e40af; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">📋 설문 정보</h2>
+          <div style="display: grid; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+              <span style="color: #64748b; font-weight: 500;">설문 제목</span>
+              <span style="color: #334155; font-weight: 600;">${surveyWithRelations.title}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+              <span style="color: #64748b; font-weight: 500;">강사명</span>
+              <span style="color: #334155; font-weight: 600;">${instructorName}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+              <span style="color: #64748b; font-weight: 500;">강의명</span>
+              <span style="color: #334155; font-weight: 600;">${courseTitle}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+              <span style="color: #64748b; font-weight: 500;">교육년도</span>
+              <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_year}년</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+              <span style="color: #64748b; font-weight: 500;">교육차수</span>
+              <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_round}차</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span style="color: #64748b; font-weight: 500;">총 응답 수</span>
+              <span style="color: #059669; font-weight: 700; font-size: 16px;">${responseCount}명</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span style="color: #64748b; font-weight: 500;">작성자</span>
+              <span style="color: #334155; font-weight: 600;">${authorDisplayName} (${REPLY_TO_EMAIL})</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Statistics -->
+        <div style="background-color: #ecfdf5; padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #10b981;">
+          <h2 style="color: #047857; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">📈 주요 통계</h2>
+          <div style="display: grid; gap: 12px;">
+            <div style="background-color: white; padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${responseCount}</div>
+              <div style="color: #6b7280; font-size: 14px;">총 응답자 수</div>
+            </div>
+            <div style="color: #374151; font-size: 14px; line-height: 1.5;">
+              <strong>설문 기간:</strong> ${survey.start_date ? new Date(survey.start_date).toLocaleDateString('ko-KR') : '미정'} ~ ${survey.end_date ? new Date(survey.end_date).toLocaleDateString('ko-KR') : '미정'}
+            </div>
+          </div>
+        </div>
+
+        <!-- Question Analysis -->
+        <div style="margin-bottom: 24px;">
+          <h2 style="color: #374151; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">📝 문항별 분석 결과</h2>
+          ${questionSummary}
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; text-align: center; margin-top: 30px;">
+          <p style="margin: 0 0 8px 0; color: #64748b; font-size: 14px; font-weight: 500;">
+            🔍 상세한 분석 결과는 설문 관리 시스템에서 확인하실 수 있습니다.
+          </p>
+          <p style="margin: 0; color: #94a3b8; font-size: 12px;">
+            이 메일은 자동으로 발송된 메일입니다. 문의사항이 있으시면 관리자에게 연락해 주세요.
+          </p>
+        </div>
+      </div>
+    `;
+
+    // Generate plain text version
+    let textContent = `설문 결과 발송: ${surveyWithRelations.title}\n\n`;
+    textContent += `=== 설문 정보 ===\n`;
+    textContent += `설문 제목: ${surveyWithRelations.title}\n`;
+    textContent += `강사명: ${instructorName}\n`;
+    textContent += `강의명: ${courseTitle}\n`;
+    textContent += `교육년도: ${surveyWithRelations.education_year}년\n`;
+    textContent += `교육차수: ${surveyWithRelations.education_round}차\n`;
+    textContent += `총 응답 수: ${responseCount}명\n\n`;
+    textContent += `=== 문항별 분석 결과 ===\n\n`;
+    Object.values(questionAnalysis).forEach((qa: any) => {
+      textContent += `${qa.question}\n`;
+      if (qa.stats.average) {
+        textContent += `평균 점수: ${qa.stats.average}점 (${qa.stats.count}명 응답)\n`;
+      } else if (qa.stats.distribution) {
+        Object.entries(qa.stats.distribution).forEach(([option, count]) => {
+          textContent += `• ${option}: ${count}명\n`;
+        });
+      } else {
+        textContent += `${qa.answers.length}건의 응답\n`;
+      }
+      textContent += `\n`;
+    });
+
+    // If preview only, return the email content without sending
+    if (previewOnly) {
+      console.log("Preview mode - returning email content without sending");
+      return new Response(
+        JSON.stringify({
+          subject: emailSubject,
+          htmlContent: emailHtml,
+          textContent: textContent,
+          recipients: recipientsToSend,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+    
     for (const email of recipientsToSend) {
       try {
         console.log(`Attempting to send email to: ${email}`);
-        let questionSummary = '';
-        Object.values(questionAnalysis).forEach((qa: any) => {
-          questionSummary += `
-            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
-              <h4 style="color: #374151; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">${qa.question}</h4>
-          `;
-          
-          if (qa.stats.average) {
-            questionSummary += `
-              <p style="margin: 5px 0; color: #4b5563; font-size: 13px;">
-                <strong>평균 점수:</strong> <span style="color: #059669; font-weight: 600;">${qa.stats.average}점</span> 
-                (${qa.stats.count}명 응답)
-              </p>
-            `;
-          } else if (qa.stats.distribution) {
-            questionSummary += '<div style="font-size: 13px; color: #4b5563;">';
-            Object.entries(qa.stats.distribution).forEach(([option, count]) => {
-              questionSummary += `<div style="margin: 3px 0;">• ${option}: <strong>${count}명</strong></div>`;
-            });
-            questionSummary += '</div>';
-          } else {
-            questionSummary += `<p style="margin: 5px 0; color: #4b5563; font-size: 13px;">${qa.answers.length}건의 응답</p>`;
-          }
-          
-          questionSummary += '</div>';
-        });
-
-        console.log(`Calling Resend API for ${email}...`);
         
         // Check for common Resend setup issues
         if (!resendApiKey.startsWith('re_')) {
@@ -425,81 +543,8 @@ const handler = async (req: Request): Promise<Response> => {
           from: FROM_ADDRESS,
           to: [email],
           reply_to: REPLY_TO_EMAIL,
-          subject: `📊 설문 결과 발송: ${surveyWithRelations.title}`,
-          html: `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
-              <!-- Header -->
-              <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px;">
-                <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">📊 설문 결과 알림</h1>
-                <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 14px;">BS교육원 설문 시스템</p>
-              </div>
-              
-              <!-- Survey Info -->
-              <div style="background-color: #f8fafc; padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #3b82f6;">
-                <h2 style="color: #1e40af; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">📋 설문 정보</h2>
-                <div style="display: grid; gap: 12px;">
-                  <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                    <span style="color: #64748b; font-weight: 500;">설문 제목</span>
-                    <span style="color: #334155; font-weight: 600;">${surveyWithRelations.title}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                    <span style="color: #64748b; font-weight: 500;">강사명</span>
-                    <span style="color: #334155; font-weight: 600;">${instructorName}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                    <span style="color: #64748b; font-weight: 500;">강의명</span>
-                    <span style="color: #334155; font-weight: 600;">${courseTitle}</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                    <span style="color: #64748b; font-weight: 500;">교육년도</span>
-                    <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_year}년</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                    <span style="color: #64748b; font-weight: 500;">교육차수</span>
-                    <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_round}차</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                    <span style="color: #64748b; font-weight: 500;">총 응답 수</span>
-                    <span style="color: #059669; font-weight: 700; font-size: 16px;">${responseCount}명</span>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                    <span style="color: #64748b; font-weight: 500;">작성자</span>
-                    <span style="color: #334155; font-weight: 600;">${authorDisplayName} (${REPLY_TO_EMAIL})</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Statistics -->
-              <div style="background-color: #ecfdf5; padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #10b981;">
-                <h2 style="color: #047857; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">📈 주요 통계</h2>
-                <div style="display: grid; gap: 12px;">
-                  <div style="background-color: white; padding: 16px; border-radius: 8px; text-align: center;">
-                    <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${responseCount}</div>
-                    <div style="color: #6b7280; font-size: 14px;">총 응답자 수</div>
-                  </div>
-                  <div style="color: #374151; font-size: 14px; line-height: 1.5;">
-                    <strong>설문 기간:</strong> ${survey.start_date ? new Date(survey.start_date).toLocaleDateString('ko-KR') : '미정'} ~ ${survey.end_date ? new Date(survey.end_date).toLocaleDateString('ko-KR') : '미정'}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Question Analysis -->
-              <div style="margin-bottom: 24px;">
-                <h2 style="color: #374151; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">📝 문항별 분석 결과</h2>
-                ${questionSummary}
-              </div>
-
-              <!-- Footer -->
-              <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; text-align: center; margin-top: 30px;">
-                <p style="margin: 0 0 8px 0; color: #64748b; font-size: 14px; font-weight: 500;">
-                  🔍 상세한 분석 결과는 설문 관리 시스템에서 확인하실 수 있습니다.
-                </p>
-                <p style="margin: 0; color: #94a3b8; font-size: 12px;">
-                  이 메일은 자동으로 발송된 메일입니다. 문의사항이 있으시면 관리자에게 연락해 주세요.
-                </p>
-              </div>
-            </div>
-          `,
+          subject: emailSubject,
+          html: emailHtml,
         });
 
         console.log(`Resend API response for ${email}:`, emailResponse);

@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatSatisfaction, formatSatisfactionType } from "@/utils/satisfaction";
+import { SendSurveyResultsDialog } from '@/components/SendSurveyResultsDialog';
 
 interface Survey {
   id: string;
@@ -132,7 +133,7 @@ const SurveyDetailedAnalysis = () => {
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [loadingSurvey, setLoadingSurvey] = useState(true);
-  const [sendingResults, setSendingResults] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
 
   // 강사별/과목별 필터링 상태
   const [instructorOptions, setInstructorOptions] = useState<InstructorOption[]>([]);
@@ -428,32 +429,9 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [surveyId, loadDetailStats]);
 
-  const handleSendResults = useCallback(async () => {
-    if (!surveyId) return;
-
-    setSendingResults(true);
-    try {
-      const { error: sendError } = await supabase.functions.invoke('send-survey-results', {
-        body: { surveyId },
-      });
-
-      if (sendError) throw sendError;
-
-      toast({
-        title: '전송 완료',
-        description: '설문 결과가 이메일로 전송되었습니다.',
-      });
-    } catch (err) {
-      console.error('Error sending results:', err);
-      toast({
-        title: '전송 실패',
-        description: '결과 전송 중 오류가 발생했습니다.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSendingResults(false);
-    }
-  }, [surveyId, toast]);
+  const handleSendResults = useCallback(() => {
+    setSendDialogOpen(true);
+  }, []);
 
   const handleDeleteAnswer = useCallback(async (answerId: string) => {
     if (!isAdmin) {
@@ -824,15 +802,8 @@ const SurveyDetailedAnalysis = () => {
             <Download className="h-4 w-4 mr-2" />
             CSV 다운로드
           </Button>
-          <Button
-            onClick={handleSendResults}
-            disabled={sendingResults}
-          >
-            {sendingResults ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Mail className="h-4 w-4 mr-2" />
-            )}
+          <Button onClick={handleSendResults}>
+            <Mail className="h-4 w-4 mr-2" />
             결과 전송
           </Button>
           <Button variant="outline" onClick={() => window.print()}>
@@ -1146,6 +1117,17 @@ const SurveyDetailedAnalysis = () => {
           </Collapsible>
         </>
       )}
+
+      {/* 이메일 전송 다이얼로그 */}
+      <SendSurveyResultsDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        surveyId={surveyId!}
+        surveyTitle={survey.title}
+        responseCount={detailStats?.summary?.totalResponses || 0}
+        instructorId={profile?.instructor_id}
+        isInstructor={isInstructor}
+      />
     </div>
   );
 };
