@@ -10,11 +10,11 @@ interface BaseLayoutProps {
 export function BaseLayout({ children }: BaseLayoutProps) {
   return (
     <LayoutProvider>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}>
         <div className="flex min-h-screen w-full bg-background">
           <AdminSidebar />
-          <main className="flex-1 flex flex-col min-w-0 w-full">
-            <div className="w-full h-full overflow-x-hidden">
+          <main className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">
+            <div className="w-full h-full">
               {children}
             </div>
           </main>

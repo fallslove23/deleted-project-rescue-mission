@@ -145,7 +145,7 @@ export function AdminSidebar() {
               asChild
               isActive={isActive}
               className={cn(
-                "group/menu-button relative overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                "group/menu-button relative overflow-hidden rounded-lg sm:rounded-xl px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 min-h-touch",
                 variant === "developer"
                   ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
                   : isActive
@@ -153,10 +153,10 @@ export function AdminSidebar() {
                   : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
               )}
             >
-              <span className="flex w-full items-center gap-3 relative z-10">
+              <span className="flex w-full items-center gap-2 sm:gap-3 relative z-10">
                 <item.icon
                   className={cn(
-                    "h-4 w-4 flex-shrink-0 transition-all duration-200",
+                    "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 transition-all duration-200",
                     isActive ? "text-white drop-shadow-sm" : "text-sidebar-foreground/70"
                   )}
                 />
@@ -168,7 +168,7 @@ export function AdminSidebar() {
                   <Badge 
                     variant="secondary" 
                     className={cn(
-                      "text-[0.6rem] h-4 px-1.5 ml-auto font-medium",
+                      "text-[0.55rem] sm:text-[0.6rem] h-4 px-1 sm:px-1.5 ml-auto font-medium",
                       isActive 
                         ? "bg-white/25 text-white border-0 drop-shadow-sm font-semibold" 
                         : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
@@ -186,16 +186,16 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic">
-      <SidebarContent className="bg-gradient-soft px-3 py-6 text-sidebar-foreground sidebar-scroll">
-        <div className="space-y-6">
+    <Sidebar className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic" collapsible="icon">
+      <SidebarContent className="bg-gradient-soft px-2 sm:px-3 py-4 sm:py-6 text-sidebar-foreground sidebar-scroll">
+        <div className="space-y-4 sm:space-y-6">
           {menuItems.map((section) => (
-            <SidebarGroup key={section.title} className="space-y-3">
-              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-muted-foreground/80">
+            <SidebarGroup key={section.title} className="space-y-2 sm:space-y-3">
+              <SidebarGroupLabel className="px-2 sm:px-3 text-[0.65rem] sm:text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-muted-foreground/80">
                 {section.title}
               </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu className="space-y-1">
+                <SidebarMenu className="space-y-0.5 sm:space-y-1">
                   {section.items.map((item) => renderMenuItem(item))}
                 </SidebarMenu>
               </SidebarGroupContent>
