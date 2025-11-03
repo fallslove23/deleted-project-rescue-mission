@@ -11,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -38,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 export function AdminSidebar() {
   const { userRoles, user } = useAuth();
   const [searchParams] = useSearchParams();
+  const { open } = useSidebar();
 
   const viewMode = searchParams.get('view'); // URL에서 view 파라미터 읽기
   const isAdmin = userRoles.includes('admin');
@@ -144,8 +146,10 @@ export function AdminSidebar() {
             <SidebarMenuButton
               asChild
               isActive={isActive}
+              tooltip={!open ? item.title : undefined}
               className={cn(
-                "group/menu-button relative overflow-hidden rounded-lg sm:rounded-xl px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 min-h-touch",
+                "group/menu-button relative overflow-hidden rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 min-h-touch",
+                open ? "px-2 sm:px-3" : "px-0 justify-center",
                 variant === "developer"
                   ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
                   : isActive
@@ -153,29 +157,36 @@ export function AdminSidebar() {
                   : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
               )}
             >
-              <span className="flex w-full items-center gap-2 sm:gap-3 relative z-10">
+              <span className={cn(
+                "flex items-center relative z-10",
+                open ? "w-full gap-2 sm:gap-3" : "justify-center"
+              )}>
                 <item.icon
                   className={cn(
                     "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 transition-all duration-200",
                     isActive ? "text-white drop-shadow-sm" : "text-sidebar-foreground/70"
                   )}
                 />
-                <span className={cn(
-                  "truncate leading-5 flex-1 font-medium",
-                  isActive ? "text-white drop-shadow-sm font-semibold" : ""
-                )}>{item.title}</span>
-                {item.badge && (
-                  <Badge 
-                    variant="secondary" 
-                    className={cn(
-                      "text-[0.55rem] sm:text-[0.6rem] h-4 px-1 sm:px-1.5 ml-auto font-medium",
-                      isActive 
-                        ? "bg-white/25 text-white border-0 drop-shadow-sm font-semibold" 
-                        : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
+                {open && (
+                  <>
+                    <span className={cn(
+                      "truncate leading-5 flex-1 font-medium",
+                      isActive ? "text-white drop-shadow-sm font-semibold" : ""
+                    )}>{item.title}</span>
+                    {item.badge && (
+                      <Badge 
+                        variant="secondary" 
+                        className={cn(
+                          "text-[0.55rem] sm:text-[0.6rem] h-4 px-1 sm:px-1.5 ml-auto font-medium",
+                          isActive 
+                            ? "bg-white/25 text-white border-0 drop-shadow-sm font-semibold" 
+                            : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
+                        )}
+                      >
+                        {item.badge}
+                      </Badge>
                     )}
-                  >
-                    {item.badge}
-                  </Badge>
+                  </>
                 )}
               </span>
             </SidebarMenuButton>
@@ -191,9 +202,11 @@ export function AdminSidebar() {
         <div className="space-y-4 sm:space-y-6">
           {menuItems.map((section) => (
             <SidebarGroup key={section.title} className="space-y-2 sm:space-y-3">
-              <SidebarGroupLabel className="px-2 sm:px-3 text-[0.65rem] sm:text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-muted-foreground/80">
-                {section.title}
-              </SidebarGroupLabel>
+              {open && (
+                <SidebarGroupLabel className="px-2 sm:px-3 text-[0.65rem] sm:text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-muted-foreground/80">
+                  {section.title}
+                </SidebarGroupLabel>
+              )}
               <SidebarGroupContent>
                 <SidebarMenu className="space-y-0.5 sm:space-y-1">
                   {section.items.map((item) => renderMenuItem(item))}
