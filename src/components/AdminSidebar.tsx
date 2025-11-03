@@ -141,26 +141,25 @@ export function AdminSidebar() {
     
     return (
       <SidebarMenuItem key={item.url}>
-        <NavLink to={item.url} end={item.exact} className="block">
-          {({ isActive }) => (
-            <SidebarMenuButton
-              asChild
-              isActive={isActive}
-              tooltip={!open ? item.title : undefined}
-              className={cn(
-                "group/menu-button relative overflow-hidden rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 min-h-touch",
-                open ? "px-2 sm:px-3" : "px-0 justify-center",
-                variant === "developer"
-                  ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
-                  : isActive
-                  ? "bg-gradient-primary text-sidebar-primary-foreground shadow-purple-glow"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
-              )}
-            >
-              <span className={cn(
-                "flex items-center relative z-10",
-                open ? "w-full gap-2 sm:gap-3" : "justify-center"
-              )}>
+        <SidebarMenuButton
+          asChild
+          tooltip={!open ? item.title : undefined}
+        >
+          <NavLink 
+            to={item.url} 
+            end={item.exact}
+            className={({ isActive }) => cn(
+              "flex items-center relative overflow-hidden rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 min-h-touch",
+              open ? "px-2 sm:px-3 gap-2 sm:gap-3" : "px-0 justify-center w-10 h-10",
+              variant === "developer"
+                ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
+                : isActive
+                ? "bg-gradient-primary text-sidebar-primary-foreground shadow-purple-glow"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
+            )}
+          >
+            {({ isActive }) => (
+              <>
                 <item.icon
                   className={cn(
                     "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 transition-all duration-200",
@@ -188,10 +187,10 @@ export function AdminSidebar() {
                     )}
                   </>
                 )}
-              </span>
-            </SidebarMenuButton>
-          )}
-        </NavLink>
+              </>
+            )}
+          </NavLink>
+        </SidebarMenuButton>
       </SidebarMenuItem>
     );
   };
