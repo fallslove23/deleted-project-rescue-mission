@@ -163,7 +163,7 @@ export function AdminSidebar() {
                 <item.icon
                   className={cn(
                     "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 transition-all duration-200",
-                    isActive ? "text-white drop-shadow-sm" : "text-sidebar-foreground/70"
+                    isActive ? "text-white drop-shadow-sm" : "text-sidebar-foreground"
                   )}
                 />
                 {open && (
@@ -202,7 +202,7 @@ export function AdminSidebar() {
           {menuItems.map((section) => (
             <SidebarGroup key={section.title} className="space-y-2 sm:space-y-3">
               {open && (
-                <SidebarGroupLabel className="px-2 sm:px-3 text-[0.65rem] sm:text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-muted-foreground/80">
+                <SidebarGroupLabel className="px-2 sm:px-3 text-[0.65rem] sm:text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-foreground">
                   {section.title}
                 </SidebarGroupLabel>
               )}
