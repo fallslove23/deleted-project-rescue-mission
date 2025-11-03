@@ -11,7 +11,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -39,7 +38,6 @@ import { Badge } from "@/components/ui/badge";
 export function AdminSidebar() {
   const { userRoles, user } = useAuth();
   const [searchParams] = useSearchParams();
-  const { open } = useSidebar();
 
   const viewMode = searchParams.get('view'); // URL에서 view 파라미터 읽기
   const isAdmin = userRoles.includes('admin');
@@ -141,16 +139,12 @@ export function AdminSidebar() {
     
     return (
       <SidebarMenuItem key={item.url}>
-        <SidebarMenuButton
-          asChild
-          tooltip={!open ? item.title : undefined}
-        >
+        <SidebarMenuButton asChild>
           <NavLink 
             to={item.url} 
             end={item.exact}
             className={({ isActive }) => cn(
-              "flex items-center relative overflow-hidden rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-medium transition-all duration-200 min-h-touch",
-              open ? "px-2 sm:px-3 gap-2 sm:gap-3" : "px-0 justify-center w-10 h-10",
+              "flex items-center gap-3 relative overflow-hidden rounded-xl py-2.5 px-3 text-sm font-medium transition-all duration-200",
               variant === "developer"
                 ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
                 : isActive
@@ -162,30 +156,26 @@ export function AdminSidebar() {
               <>
                 <item.icon
                   className={cn(
-                    "h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 transition-all duration-200",
+                    "h-5 w-5 flex-shrink-0 transition-all duration-200",
                     isActive ? "text-white drop-shadow-sm" : "text-sidebar-foreground"
                   )}
                 />
-                {open && (
-                  <>
-                    <span className={cn(
-                      "truncate leading-5 flex-1 font-medium",
-                      isActive ? "text-white drop-shadow-sm font-semibold" : ""
-                    )}>{item.title}</span>
-                    {item.badge && (
-                      <Badge 
-                        variant="secondary" 
-                        className={cn(
-                          "text-[0.55rem] sm:text-[0.6rem] h-4 px-1 sm:px-1.5 ml-auto font-medium",
-                          isActive 
-                            ? "bg-white/25 text-white border-0 drop-shadow-sm font-semibold" 
-                            : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
-                        )}
-                      >
-                        {item.badge}
-                      </Badge>
+                <span className={cn(
+                  "truncate leading-5 flex-1 font-medium",
+                  isActive ? "text-white drop-shadow-sm font-semibold" : ""
+                )}>{item.title}</span>
+                {item.badge && (
+                  <Badge 
+                    variant="secondary" 
+                    className={cn(
+                      "text-[0.6rem] h-4 px-1.5 ml-auto font-medium",
+                      isActive 
+                        ? "bg-white/25 text-white border-0 drop-shadow-sm font-semibold" 
+                        : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
                     )}
-                  </>
+                  >
+                    {item.badge}
+                  </Badge>
                 )}
               </>
             )}
@@ -196,18 +186,16 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic" collapsible="icon">
-      <SidebarContent className="bg-gradient-soft px-2 sm:px-3 py-4 sm:py-6 text-sidebar-foreground sidebar-scroll">
-        <div className="space-y-4 sm:space-y-6">
+    <Sidebar className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic">
+      <SidebarContent className="bg-gradient-soft px-3 py-6 text-sidebar-foreground sidebar-scroll">
+        <div className="space-y-6">
           {menuItems.map((section) => (
-            <SidebarGroup key={section.title} className="space-y-2 sm:space-y-3">
-              {open && (
-                <SidebarGroupLabel className="px-2 sm:px-3 text-[0.65rem] sm:text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-foreground">
-                  {section.title}
-                </SidebarGroupLabel>
-              )}
+            <SidebarGroup key={section.title} className="space-y-3">
+              <SidebarGroupLabel className="px-3 text-[0.7rem] font-semibold uppercase tracking-widest text-sidebar-foreground">
+                {section.title}
+              </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu className="space-y-0.5 sm:space-y-1">
+                <SidebarMenu className="space-y-1">
                   {section.items.map((item) => renderMenuItem(item))}
                 </SidebarMenu>
               </SidebarGroupContent>
