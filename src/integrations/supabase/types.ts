@@ -5009,6 +5009,14 @@ export type Database = {
         }[]
       }
       get_my_role: { Args: never; Returns: string }
+      get_my_survey_stats: {
+        Args: never
+        Returns: {
+          instructor_name: string
+          response_count: number
+          survey_count: number
+        }[]
+      }
       get_rls_policies: {
         Args: never
         Returns: {
