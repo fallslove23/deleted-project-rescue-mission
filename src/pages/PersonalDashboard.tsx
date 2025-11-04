@@ -233,6 +233,14 @@ const PersonalDashboard: FC = () => {
     return instructorId; // 기본적으로는 자신의 instructor_id 사용
   }, [isInstructor, canViewAll, instructorId, selectedInstructor]);
 
+  // 관리자가 처음 들어왔을 때 강사 자동 선택
+  useEffect(() => {
+    if (canViewAll && !isInstructor && !effectiveInstructorId && selectedInstructor === 'all' && allInstructorsList.length > 0) {
+      setSelectedInstructor(allInstructorsList[0].id);
+    }
+    // isPreviewingInstructor인 경우는 URL로 지정되므로 자동 선택하지 않음
+  }, [canViewAll, isInstructor, effectiveInstructorId, selectedInstructor, allInstructorsList]);
+
   const filters = useMemo(() => ({
     year: selectedYear === 'all' ? 'all' as const : Number(selectedYear),
     round: 'all' as const,
