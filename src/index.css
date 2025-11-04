@@ -90,15 +90,15 @@ All colors MUST be HSL.
 
     /* Sidebar neumorphic theme */
     --sidebar-background: 250 100% 99%;
-    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-foreground: 222.2 47% 11%;
     --sidebar-primary: 251 91% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 250 100% 96%;
-    --sidebar-accent-foreground: 251 91% 64%;
+    --sidebar-accent-foreground: 222.2 47% 11%;
     --sidebar-border: 250 100% 94%;
     --sidebar-ring: 251 91% 64%;
     --sidebar-muted: 250 100% 97%;
-    --sidebar-muted-foreground: 222.2 84% 4.9%;
+    --sidebar-muted-foreground: 222.2 47% 11%;
   }
 
   .dark {

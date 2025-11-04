@@ -10,7 +10,7 @@ interface BaseLayoutProps {
 export function BaseLayout({ children }: BaseLayoutProps) {
   return (
     <LayoutProvider>
-      <SidebarProvider defaultOpen={false}>
+      <SidebarProvider defaultOpen={true}>
         <div className="flex min-h-screen w-full bg-background">
           <AdminSidebar />
           <main className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">

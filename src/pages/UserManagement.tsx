@@ -71,6 +71,7 @@ const UserManagement = () => {
     if (!editingUser) return;
 
     try {
+      // Update roles in user_roles table
       const { error } = await supabase.rpc('admin_set_user_roles_safe', {
         target_user_id: editingUser.id,
         roles: selectedRoles as unknown as ('operator' | 'instructor' | 'admin' | 'director')[]
@@ -78,7 +79,19 @@ const UserManagement = () => {
 
       if (error) throw error;
 
+      // Clear legacy role field in profiles table to avoid conflicts
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ role: null })
+        .eq('id', editingUser.id);
+
+      if (profileError) {
+        console.warn('Could not clear legacy role field:', profileError);
+      }
+
       await fetchUserRoles();
+      await fetchUsers();
+      
       toast({
         title: "성공",
         description: "사용자 역할이 업데이트되었습니다."
