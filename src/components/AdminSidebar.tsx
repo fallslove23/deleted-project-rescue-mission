@@ -34,6 +34,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RoleSwitcher } from "./RoleSwitcher";
 import { Badge } from "@/components/ui/badge";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function AdminSidebar() {
   const { userRoles, user } = useAuth();
@@ -44,6 +45,7 @@ export function AdminSidebar() {
   const isInstructor = userRoles.includes('instructor');
   const isOperator = userRoles.includes('operator');
   const isDeveloper = user?.email === 'sethetrend87@osstem.com';
+  const isMobile = useIsMobile();
 
   type MenuItem = {
     title: string;
@@ -157,12 +159,12 @@ export function AdminSidebar() {
                 <item.icon
                   className={cn(
                     "h-5 w-5 flex-shrink-0 transition-all duration-200",
-                    isActive ? "text-white drop-shadow-sm" : "text-sidebar-foreground"
+                    isActive ? "text-sidebar-primary-foreground drop-shadow-sm" : "text-sidebar-foreground"
                   )}
                 />
                 <span className={cn(
                   "truncate leading-5 flex-1 font-medium",
-                  isActive ? "text-white drop-shadow-sm font-semibold" : ""
+                  isActive ? "text-sidebar-primary-foreground drop-shadow-sm font-semibold" : "text-sidebar-foreground"
                 )}>{item.title}</span>
                 {item.badge && (
                   <Badge 
@@ -170,7 +172,7 @@ export function AdminSidebar() {
                     className={cn(
                       "text-[0.6rem] h-4 px-1.5 ml-auto font-medium",
                       isActive 
-                        ? "bg-white/25 text-white border-0 drop-shadow-sm font-semibold" 
+                        ? "bg-sidebar-primary/20 text-sidebar-primary-foreground border-0 drop-shadow-sm font-semibold" 
                         : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
                     )}
                   >
@@ -186,7 +188,7 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic">
+    <Sidebar collapsible={isMobile ? "offcanvas" : "none"} className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic">
       <SidebarContent className="bg-gradient-soft px-3 py-6 text-sidebar-foreground sidebar-scroll">
         <div className="space-y-6">
           {menuItems.map((section) => (
