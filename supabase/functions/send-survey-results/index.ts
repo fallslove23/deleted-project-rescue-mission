@@ -58,6 +58,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Fetch instructor info separately (surveys can have multiple instructors)
     let instructorInfo: { name?: string; email?: string } | null = null;
+    let allInstructors: Array<{ name?: string; email?: string }> = [];
     
     // First try direct instructor_id if available
     if (survey.instructor_id) {
@@ -69,26 +70,33 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (instructor) {
         instructorInfo = instructor;
+        allInstructors.push(instructor);
       }
     }
     
-    // If no direct instructor, try survey_instructors mapping
-    if (!instructorInfo) {
-      const { data: surveyInstructors } = await supabaseClient
-        .from("survey_instructors")
-        .select(`
-          instructor_id,
-          instructors (name, email)
-        `)
-        .eq("survey_id", surveyId)
-        .limit(1);
-      
-      if (surveyInstructors && surveyInstructors.length > 0) {
-        const firstInstructor = surveyInstructors[0];
-        if (firstInstructor.instructors) {
-          instructorInfo = firstInstructor.instructors as any;
+    // Also try survey_instructors mapping to get all instructors
+    const { data: surveyInstructors } = await supabaseClient
+      .from("survey_instructors")
+      .select(`
+        instructor_id,
+        instructors (name, email)
+      `)
+      .eq("survey_id", surveyId);
+    
+    if (surveyInstructors && surveyInstructors.length > 0) {
+      surveyInstructors.forEach((si: any) => {
+        if (si.instructors) {
+          const inst = si.instructors as any;
+          // 중복 제거 (이미 추가된 강사는 제외)
+          if (!allInstructors.some(existing => existing.email === inst.email)) {
+            allInstructors.push(inst);
+          }
+          // 첫 번째 강사를 기본 instructorInfo로 설정 (이전 호환성)
+          if (!instructorInfo) {
+            instructorInfo = inst;
+          }
         }
-      }
+      });
     }
 
     // Fetch course info if available
@@ -164,16 +172,19 @@ const handler = async (req: Request): Promise<Response> => {
     const resolvedSet = new Set<string>(explicitEmails);
     const recipientNames = new Map<string, string>(); // 이메일 -> 이름 매핑
 
-    // Include instructor email when requested or when no recipients provided (default)
+    // Include instructor emails when requested or when no recipients provided (default)
+    // 모든 강사에게 발송 (여러 명일 경우 모두 포함)
     if (inputRecipients.length === 0 || roleTokens.includes("instructor")) {
-      const instructorEmail = surveyWithRelations.instructors?.email as string | undefined;
-      const instructorName = surveyWithRelations.instructors?.name as string | undefined;
-      if (instructorEmail && emailRegex.test(instructorEmail)) {
-        resolvedSet.add(instructorEmail);
-        if (instructorName) {
-          recipientNames.set(instructorEmail, instructorName);
+      allInstructors.forEach((instructor) => {
+        const instructorEmail = instructor.email;
+        const instructorName = instructor.name;
+        if (instructorEmail && emailRegex.test(instructorEmail)) {
+          resolvedSet.add(instructorEmail);
+          if (instructorName) {
+            recipientNames.set(instructorEmail, instructorName);
+          }
         }
-      }
+      });
     }
 
     // Determine which roles to include

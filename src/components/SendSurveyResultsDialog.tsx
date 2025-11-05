@@ -31,7 +31,7 @@ interface EmailPreview {
 const ROLE_LABELS: Record<string, string> = {
   admin: '관리자',
   operator: '운영자',
-  director: '감독자',
+  director: '조직장',
   instructor: '강사',
 };
 
