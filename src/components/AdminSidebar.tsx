@@ -150,7 +150,7 @@ export function AdminSidebar() {
               variant === "developer"
                 ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
                 : isActive
-                ? "bg-gradient-primary text-sidebar-primary-foreground shadow-purple-glow"
+                ? "bg-primary text-primary-foreground shadow-purple-glow"
                 : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
             )}
           >
@@ -159,12 +159,12 @@ export function AdminSidebar() {
                 <item.icon
                   className={cn(
                     "h-5 w-5 flex-shrink-0 transition-all duration-200",
-                    isActive ? "text-sidebar-primary-foreground drop-shadow-sm" : "text-sidebar-foreground"
+                    isActive ? "text-primary-foreground" : "text-sidebar-foreground"
                   )}
                 />
                 <span className={cn(
                   "truncate leading-5 flex-1 font-medium",
-                  isActive ? "text-sidebar-primary-foreground drop-shadow-sm font-semibold" : "text-sidebar-foreground"
+                  isActive ? "text-primary-foreground font-semibold" : "text-sidebar-foreground"
                 )}>{item.title}</span>
                 {item.badge && (
                   <Badge 
@@ -172,7 +172,7 @@ export function AdminSidebar() {
                     className={cn(
                       "text-[0.6rem] h-4 px-1.5 ml-auto font-medium",
                       isActive 
-                        ? "bg-sidebar-primary/20 text-sidebar-primary-foreground border-0 drop-shadow-sm font-semibold" 
+                        ? "bg-primary-foreground/20 text-primary-foreground border-0 font-semibold" 
                         : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
                     )}
                   >
