@@ -1,5 +1,5 @@
 // src/components/AdminSidebar.tsx
-import { NavLink, useSearchParams } from "react-router-dom";
+import { NavLink, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Sidebar,
@@ -132,6 +132,9 @@ export function AdminSidebar() {
   };
 
   const menuItems = getMenuItems();
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const isItemActive = (item: MenuItem) => (item.exact ? currentPath === item.url : currentPath.startsWith(item.url));
 
   const renderMenuItem = (
     item: MenuItem,
@@ -141,46 +144,48 @@ export function AdminSidebar() {
     
     return (
       <SidebarMenuItem key={item.url}>
-        <SidebarMenuButton asChild>
-          <NavLink 
-            to={item.url} 
-            end={item.exact}
-            className={({ isActive }) => cn(
-              "flex items-center gap-3 relative overflow-hidden rounded-xl py-2.5 px-3 text-sm font-medium transition-all duration-200",
-              variant === "developer"
-                ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
-                : isActive
-                ? "bg-primary text-primary-foreground shadow-purple-glow"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
-            )}
-          >
-            {({ isActive }) => (
-              <>
-                <item.icon
-                  className={cn(
-                    "h-5 w-5 flex-shrink-0 transition-all duration-200",
-                    isActive ? "text-primary-foreground" : "text-sidebar-foreground"
-                  )}
-                />
-                <span className={cn(
-                  "truncate leading-5 flex-1 font-medium",
-                  isActive ? "text-primary-foreground font-semibold" : "text-sidebar-foreground"
-                )}>{item.title}</span>
-                {item.badge && (
-                  <Badge 
-                    variant="secondary" 
+        <SidebarMenuButton
+          asChild
+          isActive={isItemActive(item)}
+          className={cn(
+            "rounded-xl transition-all duration-200",
+            "data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-purple-glow",
+            variant === "developer"
+              ? "text-destructive hover:bg-destructive/10 hover:text-destructive data-[active=true]:bg-destructive data-[active=true]:text-destructive-foreground shadow-neumorphic-soft"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-neumorphic-soft"
+          )}
+        >
+          <NavLink to={item.url} end={item.exact}>
+            {(() => {
+              const active = isItemActive(item);
+              return (
+                <>
+                  <item.icon
                     className={cn(
-                      "text-[0.6rem] h-4 px-1.5 ml-auto font-medium",
-                      isActive 
-                        ? "bg-primary-foreground/20 text-primary-foreground border-0 font-semibold" 
-                        : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
+                      "h-5 w-5 flex-shrink-0 transition-all duration-200",
+                      active ? "text-primary-foreground" : "text-sidebar-foreground"
                     )}
-                  >
-                    {item.badge}
-                  </Badge>
-                )}
-              </>
-            )}
+                  />
+                  <span className={cn(
+                    "truncate leading-5 flex-1 font-medium",
+                    active ? "text-primary-foreground font-semibold" : "text-sidebar-foreground"
+                  )}>{item.title}</span>
+                  {item.badge && (
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        "text-[0.6rem] h-4 px-1.5 ml-auto font-medium",
+                        active 
+                          ? "bg-primary-foreground/20 text-primary-foreground border-0 font-semibold" 
+                          : "bg-sidebar-primary/10 text-sidebar-primary border-sidebar-primary/20"
+                      )}
+                    >
+                      {item.badge}
+                    </Badge>
+                  )}
+                </>
+              );
+            })()}
           </NavLink>
         </SidebarMenuButton>
       </SidebarMenuItem>
