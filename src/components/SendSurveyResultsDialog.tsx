@@ -410,20 +410,61 @@ export const SendSurveyResultsDialog = ({
                   <Label className="text-base font-semibold">발송 이력</Label>
                   <Alert variant={previousLogs.some(log => log.status === 'success') ? 'default' : 'destructive'}>
                     <AlertDescription>
-                      <div className="space-y-2">
-                        {previousLogs.slice(0, 3).map((log, index) => (
-                          <div key={log.id} className="text-sm">
-                            <strong>{index + 1}.</strong> {new Date(log.created_at).toLocaleString('ko-KR')} - 
-                            <span className={`ml-1 font-semibold ${
-                              log.status === 'success' ? 'text-green-600' : 
-                              log.status === 'partial' ? 'text-amber-600' : 'text-red-600'
-                            }`}>
-                              {log.status === 'success' ? '전체 성공' : 
-                               log.status === 'partial' ? '부분 성공' : '실패'}
-                            </span>
-                            {' '}({log.sent_count || 0}명 발송)
-                          </div>
-                        ))}
+                      <div className="space-y-3">
+                        {previousLogs.slice(0, 3).map((log, index) => {
+                          const surveyInfo = log.results?.survey_info;
+                          const emailResults = log.results?.emailResults || [];
+                          const sentRecipients = emailResults.filter((r: any) => r.status === 'sent');
+                          const failedRecipients = emailResults.filter((r: any) => r.status === 'failed');
+                          
+                          return (
+                            <div key={log.id} className="space-y-2 pb-3 border-b last:border-b-0">
+                              <div className="text-sm">
+                                <strong>{index + 1}.</strong> {new Date(log.created_at).toLocaleString('ko-KR')} - 
+                                <span className={`ml-1 font-semibold ${
+                                  log.status === 'success' ? 'text-green-600' : 
+                                  log.status === 'partial' ? 'text-amber-600' : 'text-red-600'
+                                }`}>
+                                  {log.status === 'success' ? '전체 성공' : 
+                                   log.status === 'partial' ? '부분 성공' : '실패'}
+                                </span>
+                                {' '}({log.sent_count || 0}명 발송)
+                              </div>
+                              
+                              {surveyInfo && (
+                                <div className="text-xs text-muted-foreground pl-5">
+                                  강사: {surveyInfo.instructor || '미등록'} · {surveyInfo.course || '강의'} ({surveyInfo.year}-{surveyInfo.round}차)
+                                </div>
+                              )}
+                              
+                              {sentRecipients.length > 0 && (
+                                <div className="pl-5 text-xs">
+                                  <div className="font-medium text-green-600 mb-1">✓ 발송 성공 ({sentRecipients.length}명):</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {sentRecipients.map((r: any, idx: number) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-green-50 border-green-200 text-green-700">
+                                        {r.name} {r.to && `<${r.to}>`}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {failedRecipients.length > 0 && (
+                                <div className="pl-5 text-xs">
+                                  <div className="font-medium text-red-600 mb-1">✗ 발송 실패 ({failedRecipients.length}명):</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {failedRecipients.map((r: any, idx: number) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-red-50 border-red-200 text-red-700">
+                                        {r.name} {r.to && `<${r.to}>`}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                         {previousLogs.some(log => log.status === 'success') && !forceResend && (
                           <div className="mt-3 pt-3 border-t">
                             <p className="text-sm font-medium text-amber-700">
