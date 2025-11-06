@@ -28,26 +28,55 @@ export async function fetchCourseOptions(params: {
       return [];
     }
 
+    // Primary: use RPC that returns session-based options
     const { data, error } = await (supabase as any).rpc('rpc_course_filter_options', {
       p_year: params.year,
     }) as { data: any[] | null; error: any };
 
-    if (error) {
-      console.error('RPC error in fetchCourseOptions:', error);
-      throw error;
-    }
+    let options: CourseOption[] = [];
 
-    const options = (data ?? []).map((row: any) => ({
-      value: row.value,
-      label: row.label,
-      course_key: row.course_key,
-      year: row.year,
-    }));
+    if (!error && Array.isArray(data) && data.length > 0) {
+      options = (data ?? []).map((row: any) => ({
+        value: row.value,
+        label: row.label,
+        course_key: row.course_key,
+        year: row.year,
+      }));
+    } else {
+      console.warn('RPC rpc_course_filter_options returned no data. Falling back to program_sessions_v1.');
+      // Fallback: derive options from program_sessions_v1 materialized view
+      const { data: sess, error: sessErr } = await (supabase as any)
+        .from('program_sessions_v1')
+        .select('session_id, session_title, program, turn, year')
+        .eq('year', params.year)
+        .order('program', { ascending: true })
+        .order('turn', { ascending: true });
+
+      if (sessErr) {
+        console.error('Fallback program_sessions_v1 error:', sessErr);
+        return [];
+      }
+
+      const seen = new Set<string>();
+      options = (sess || []).map((row: any) => {
+        const courseKey = `${row.year}-${row.turn}-${row.program}`;
+        const label = `${row.year}년 ${row.turn}차 ${row.program}`;
+        // Ensure uniqueness by session_id
+        if (seen.has(row.session_id)) return null;
+        seen.add(row.session_id);
+        return {
+          value: row.session_id,
+          label,
+          course_key: courseKey,
+          year: row.year,
+        } as CourseOption;
+      }).filter(Boolean) as CourseOption[];
+    }
 
     // Apply client-side search filter if provided
     if (params.search && params.search.trim()) {
       const searchLower = params.search.toLowerCase();
-      return options.filter((opt: CourseOption) =>
+      options = options.filter((opt: CourseOption) =>
         opt.label.toLowerCase().includes(searchLower) ||
         opt.course_key.toLowerCase().includes(searchLower)
       );

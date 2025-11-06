@@ -252,6 +252,7 @@ export default function SurveyManagementV2() {
     year: params.get("year") ? parseInt(params.get("year") as string) : null,
     status: (params.get("status") as any) || null,
     sessionId: params.get("session") || null,
+    courseName: params.get("course") || null,
     q: params.get("q") || null,
   });
 
@@ -295,6 +296,7 @@ export default function SurveyManagementV2() {
       year: typeof input?.year === "number" ? input.year : input?.year ? parseInt(String(input.year), 10) : null,
       status: (input?.status as SurveyFilters["status"]) ?? null,
       sessionId: (input?.sessionId as string) ?? null,
+      courseName: input?.courseName ? String(input.courseName) : null,
       q: input?.q ? String(input.q).trim() || null : null,
     };
   }, []);
@@ -307,6 +309,7 @@ export default function SurveyManagementV2() {
         (na.year ?? null) === (nb.year ?? null) &&
         (na.status ?? null) === (nb.status ?? null) &&
         (na.sessionId ?? null) === (nb.sessionId ?? null) &&
+        (na.courseName ?? null) === (nb.courseName ?? null) &&
         (na.q ?? null) === (nb.q ?? null)
       );
     },
@@ -321,6 +324,8 @@ export default function SurveyManagementV2() {
       if (normalized.sessionId) {
         const session = availableSessions.find(s => s.value === normalized.sessionId);
         if (session) items.push({ label: "세션(과정)", value: session.label });
+      } else if (normalized.courseName) {
+        items.push({ label: "과정", value: normalized.courseName });
       }
       if (normalized.status) {
         const statusInfo = STATUS_CONFIG[normalized.status];
@@ -599,13 +604,31 @@ export default function SurveyManagementV2() {
       const { data, error } = await (supabase as any).rpc('rpc_session_filter_options', {
         p_year: year
       });
-      if (error) throw error;
-      setAvailableSessions((data || []).map((item: any) => ({
-        value: item.value,
-        label: item.label
-      })));
+
+      let sessionOptions: Array<{ value: string; label: string }> = [];
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        sessionOptions = (data || []).map((item: any) => ({ value: item.value, label: item.label }));
+      } else {
+        console.warn('rpc_session_filter_options returned empty. Falling back to program_sessions_v1');
+        const { data: sess, error: sessErr } = await (supabase as any)
+          .from('program_sessions_v1')
+          .select('session_id, program, turn, year')
+          .eq('year', year)
+          .order('program', { ascending: true })
+          .order('turn', { ascending: true });
+        if (!sessErr) {
+          sessionOptions = (sess || []).map((row: any) => ({
+            value: row.session_id,
+            label: `${row.year}년 ${row.turn}차 ${row.program}`,
+          }));
+        }
+      }
+
+      setAvailableSessions(sessionOptions);
+
       // 현재 선택된 세션이 목록에 없으면 초기화
-      if (filters.sessionId && !data?.some((s: any) => s.value === filters.sessionId)) {
+      if (filters.sessionId && !sessionOptions.some((s: any) => s.value === filters.sessionId)) {
         setFilters((p) => ({ ...p, sessionId: null }));
       }
     } catch (e) {
