@@ -4804,6 +4804,46 @@ export type Database = {
           },
         ]
       }
+      v_ui_session_filter: {
+        Row: {
+          course_key: string | null
+          label: string | null
+          program_id: string | null
+          turn: number | null
+          value: string | null
+          year: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "v_analysis_course_options_v3"
+            referencedColumns: ["program_id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_link_profile_to_instructor: {
@@ -5206,16 +5246,27 @@ export type Database = {
           survey_count: number
         }[]
       }
-      rpc_session_filter_options: {
-        Args: { p_year?: number }
-        Returns: {
-          label: string
-          program_name: string
-          turn: number
-          value: string
-          year: number
-        }[]
-      }
+      rpc_session_filter_options:
+        | {
+            Args: { only_with_surveys?: boolean; p_year: number }
+            Returns: {
+              course_key: string
+              label: string
+              turn: number
+              value: string
+              year: number
+            }[]
+          }
+        | {
+            Args: { p_year?: number }
+            Returns: {
+              label: string
+              program_name: string
+              turn: number
+              value: string
+              year: number
+            }[]
+          }
       safe_numeric_convert: { Args: { input_text: string }; Returns: number }
       save_answers_bulk: { Args: { p_answers: Json }; Returns: undefined }
       update_course_statistics: { Args: never; Returns: undefined }
