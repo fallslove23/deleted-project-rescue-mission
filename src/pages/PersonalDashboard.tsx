@@ -362,7 +362,6 @@ export default function PersonalDashboard() {
                         borderRadius: '6px',
                       }}
                     />
-                    <Legend />
                     <Line 
                       type="monotone" 
                       dataKey="satisfaction" 
@@ -370,14 +369,6 @@ export default function PersonalDashboard() {
                       strokeWidth={2}
                       name="만족도"
                       dot={{ fill: 'hsl(var(--primary))' }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="responses" 
-                      stroke="hsl(var(--chart-2))" 
-                      strokeWidth={2}
-                      name="응답 수"
-                      dot={{ fill: 'hsl(var(--chart-2))' }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
