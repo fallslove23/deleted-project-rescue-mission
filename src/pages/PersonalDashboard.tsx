@@ -445,16 +445,17 @@ export default function PersonalDashboard() {
               {stats.courseBreakdown.length === 0 ? (
                 <ChartEmptyState description="과정별 데이터가 없습니다" />
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={stats.courseBreakdown}>
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={stats.courseBreakdown} margin={{ bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
                       dataKey="courseName" 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                       angle={-45}
                       textAnchor="end"
-                      height={80}
+                      height={100}
+                      interval={0}
                     />
                     <YAxis 
                       className="text-xs"
