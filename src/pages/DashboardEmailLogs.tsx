@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layouts';
-import { Mail, CheckCircle, XCircle, Clock, RefreshCw, Clipboard, Download, ListChecks } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, Clock, RefreshCw, Clipboard, Download, ListChecks, FileText, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EmailLog {
@@ -320,11 +320,11 @@ const DashboardEmailLogs = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>설문 제목</TableHead>
-                    <TableHead>수신자 수</TableHead>
-                    <TableHead>발송 상태</TableHead>
-                    <TableHead>성공/실패</TableHead>
-                    <TableHead>발송 시간</TableHead>
+                    <TableHead>설문 정보</TableHead>
+                    <TableHead>수신자</TableHead>
+                    <TableHead>상태</TableHead>
+                    <TableHead>발송 결과</TableHead>
+                    <TableHead>상세</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -340,31 +340,174 @@ const DashboardEmailLogs = () => {
 
                       return (
                         <TableRow key={log.id}>
-                          <TableCell className="font-medium min-w-[220px]">
-                            <div className="flex flex-col gap-1">
-                              <span>{surveyInfo.title}</span>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="font-medium">{surveyInfo.title}</div>
                               {surveyInfo.meta && (
-                                <span className="text-xs text-muted-foreground">
-                                  {surveyInfo.meta}
-                                </span>
+                                <div className="text-xs text-muted-foreground">{surveyInfo.meta}</div>
                               )}
-                              <span className="text-xs text-muted-foreground break-all">
-                                ID: {log.survey_id}
-                              </span>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(log.created_at).toLocaleString('ko-KR')}
+                              </div>
                             </div>
                           </TableCell>
-                          <TableCell>{log.recipients?.length || 0}명</TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {log.results?.emailResults ? (
+                                <div className="text-sm">
+                                  {log.results.emailResults.slice(0, 3).map((result: any, idx: number) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      {result.status === 'sent' ? (
+                                        <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                      ) : (
+                                        <XCircle className="h-3 w-3 text-red-600" />
+                                      )}
+                                      <span className="font-medium">{result.name || result.to?.split('@')[0]}</span>
+                                      <span className="text-xs text-muted-foreground">({result.to})</span>
+                                    </div>
+                                  ))}
+                                  {log.results.emailResults.length > 3 && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      외 {log.results.emailResults.length - 3}명
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-sm">{log.recipients?.length || 0}명</span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{getStatusBadge(log.status)}</TableCell>
                           <TableCell>
-                            <div className="text-sm">
-                              <span className="text-green-600">{log.sent_count || 0}건 성공</span>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-green-600">
+                                <CheckCircle2 className="h-4 w-4" />
+                                <span>성공: {log.sent_count || 0}명</span>
+                              </div>
                               {log.failed_count > 0 && (
-                                <> / <span className="text-red-600">{log.failed_count}건 실패</span></>
+                                <div className="flex items-center gap-2 text-red-600">
+                                  <XCircle className="h-4 w-4" />
+                                  <span>실패: {log.failed_count}명</span>
+                                </div>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(log.created_at).toLocaleString('ko-KR')}
+                          <TableCell>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  상세
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle>이메일 발송 상세 정보</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-6">
+                                  <div>
+                                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                      <Mail className="h-4 w-4" />
+                                      설문 정보
+                                    </h4>
+                                    <div className="p-3 bg-muted rounded-lg">
+                                      <p className="font-medium">{surveyInfo.title}</p>
+                                      {surveyInfo.meta && (
+                                        <p className="text-sm text-muted-foreground mt-1">{surveyInfo.meta}</p>
+                                      )}
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        발송 시간: {new Date(log.created_at).toLocaleString('ko-KR')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {log.results?.emailResults && (
+                                    <div>
+                                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                        <Users className="h-4 w-4" />
+                                        수신자별 발송 결과 ({log.results.emailResults.length}명)
+                                      </h4>
+                                      <div className="space-y-2">
+                                        {log.results.emailResults.map((result: any, idx: number) => (
+                                          <div 
+                                            key={idx} 
+                                            className={`p-3 rounded-lg border ${
+                                              result.status === 'sent' 
+                                                ? 'bg-green-50 border-green-200' 
+                                                : 'bg-red-50 border-red-200'
+                                            }`}
+                                          >
+                                            <div className="flex items-start justify-between">
+                                              <div className="flex items-start gap-3 flex-1">
+                                                {result.status === 'sent' ? (
+                                                  <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+                                                ) : (
+                                                  <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                                                )}
+                                                <div className="flex-1">
+                                                  <div className="font-medium text-sm">
+                                                    {result.name || result.to?.split('@')[0]}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground mt-1">
+                                                    {result.to}
+                                                  </div>
+                                                  {result.error && (
+                                                    <div className="mt-2 p-2 bg-red-100 rounded text-xs text-red-800">
+                                                      <div className="flex items-start gap-2">
+                                                        <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                                        <div>
+                                                          <strong>오류:</strong> {result.error}
+                                                          {result.errorCode && (
+                                                            <div className="mt-1">(코드: {result.errorCode})</div>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                  {result.messageId && (
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                      Message ID: {result.messageId}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              <Badge variant={result.status === 'sent' ? 'default' : 'destructive'}>
+                                                {result.status === 'sent' ? '발송 완료' : '발송 실패'}
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {!log.results?.emailResults && log.recipients && (
+                                    <div>
+                                      <h4 className="font-semibold mb-3">수신자 목록</h4>
+                                      <div className="text-sm space-y-1">
+                                        {log.recipients.map((recipient: string, idx: number) => (
+                                          <div key={idx} className="p-2 bg-muted rounded">
+                                            {recipient}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {log.results && (
+                                    <div>
+                                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                        <FileText className="h-4 w-4" />
+                                        전체 응답 데이터 (디버깅용)
+                                      </h4>
+                                      <pre className="text-xs bg-muted p-4 rounded-lg overflow-auto max-h-96 font-mono">
+                                        {JSON.stringify(log.results, null, 2)}
+                                      </pre>
+                                    </div>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
                           </TableCell>
                         </TableRow>
                       );
