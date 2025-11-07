@@ -4871,6 +4871,10 @@ export type Database = {
         Args: { new_role: string; old_role: string; user_id: string }
         Returns: boolean
       }
+      cleanup_empty_survey_responses: {
+        Args: { p_survey_ids: string[] }
+        Returns: Json
+      }
       course_report_statistics: {
         Args: {
           p_course_name?: string
