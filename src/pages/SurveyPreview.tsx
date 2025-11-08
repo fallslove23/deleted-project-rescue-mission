@@ -413,6 +413,17 @@ const SurveyPreview = () => {
     return parts.join(' - ');
   };
 
+  const scrollToTop = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // 페이지 전환 시 자동 스크롤
+  useEffect(() => {
+    scrollToTop();
+  }, [currentStep]);
+
   const handleNext = () => {
     if (!validateCurrentStep()) {
       toast({

@@ -413,6 +413,11 @@ const SurveyParticipateSession = () => {
     }
   };
 
+  // 페이지 전환 시 자동 스크롤
+  useEffect(() => {
+    scrollToTop();
+  }, [currentSessionIndex, currentQuestionIndex]);
+
   const handleNext = () => {
     if (!validateCurrentQuestions()) {
       toast({ title: '필수 항목을 완성해 주세요', description: '모든 필수 답변을 입력해 주세요.', variant: 'destructive' });
