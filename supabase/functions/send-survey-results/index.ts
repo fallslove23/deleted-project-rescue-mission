@@ -190,7 +190,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Determine which roles to include
     let rolesForQuery: string[] = [];
     if (inputRecipients.length === 0) {
-      rolesForQuery = ["admin"]; // default: send to admins
+      // 기본값: 해당 설문의 강사에게만 발송 (admin 제거)
+      rolesForQuery = [];
     } else {
       ["admin", "operator", "director"].forEach((r) => {
         if (roleTokens.includes(r)) rolesForQuery.push(r);
