@@ -99,16 +99,27 @@ const CourseManagement = () => {
     try {
       if (editingSubject) {
         // Update existing subject
-        const { error } = await (supabase as any)
+        const { error: subjectError } = await (supabase as any)
           .from('subjects')
           .update(formData)
           .eq('id', editingSubject.id);
 
-        if (error) throw error;
+        if (subjectError) throw subjectError;
+        
+        // 과목 수정 시 해당 과목의 강의 제목도 자동 업데이트
+        const { error: lectureError } = await (supabase as any)
+          .from('lectures')
+          .update({ title: formData.title })
+          .eq('subject_id', editingSubject.id);
+        
+        if (lectureError) {
+          console.error('Error updating lecture titles:', lectureError);
+          // 강의 제목 업데이트 실패해도 과목은 수정되었으므로 계속 진행
+        }
         
         toast({
           title: "성공",
-          description: "과목 정보가 수정되었습니다."
+          description: "과목 및 강의 정보가 수정되었습니다."
         });
       } else {
         // Create new subject
@@ -172,7 +183,33 @@ const CourseManagement = () => {
 
   const handleDeleteSubject = async (subjectId: string) => {
     try {
-      // Delete subject_canonical_map first (FK constraint)
+      // 1. 해당 과목의 강의 ID 조회
+      const subjectLectures = lectures.filter(l => l.subject_id === subjectId);
+      const lectureIds = subjectLectures.map(l => l.id);
+      
+      // 2. 강사-강의 매핑 삭제 (FK constraint)
+      if (lectureIds.length > 0) {
+        const { error: instructorLecturesError } = await (supabase as any)
+          .from('instructor_lectures')
+          .delete()
+          .in('lecture_id', lectureIds);
+        
+        if (instructorLecturesError) {
+          console.error('Error deleting instructor_lectures:', instructorLecturesError);
+        }
+      }
+      
+      // 3. 강의 삭제
+      const { error: lecturesError } = await (supabase as any)
+        .from('lectures')
+        .delete()
+        .eq('subject_id', subjectId);
+      
+      if (lecturesError) {
+        console.error('Error deleting lectures:', lecturesError);
+      }
+      
+      // 4. subject_canonical_map 삭제
       const { error: mapError } = await (supabase as any)
         .from('subject_canonical_map')
         .delete()
@@ -182,7 +219,7 @@ const CourseManagement = () => {
         console.error('Error deleting subject_canonical_map:', mapError);
       }
 
-      // Delete the subject (lectures.subject_id will automatically become NULL due to ON DELETE SET NULL)
+      // 5. 과목 삭제
       const { error: deleteError } = await (supabase as any)
         .from('subjects')
         .delete()
@@ -198,7 +235,7 @@ const CourseManagement = () => {
       
       toast({
         title: "성공",
-        description: "과목이 삭제되었습니다."
+        description: "과목과 관련 강의가 모두 삭제되었습니다."
       });
       
       // Refresh all data to ensure consistency
