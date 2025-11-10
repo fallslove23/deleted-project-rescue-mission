@@ -112,15 +112,33 @@ const CourseManagement = () => {
         });
       } else {
         // Create new subject
-        const { error } = await (supabase as any)
+        const { data: newSubject, error: subjectError } = await (supabase as any)
           .from('subjects')
-          .insert([formData]);
+          .insert([formData])
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (subjectError) throw subjectError;
+        
+        // 과목 추가 시 자동으로 기본 강의 생성
+        if (newSubject) {
+          const { error: lectureError } = await (supabase as any)
+            .from('lectures')
+            .insert([{
+              subject_id: newSubject.id,
+              title: formData.title,
+              position: 1
+            }]);
+          
+          if (lectureError) {
+            console.error('Error creating default lecture:', lectureError);
+            // 강의 생성 실패해도 과목은 생성되었으므로 계속 진행
+          }
+        }
         
         toast({
           title: "성공",
-          description: "새 과목이 추가되었습니다."
+          description: "새 과목과 기본 강의가 추가되었습니다."
         });
       }
 
