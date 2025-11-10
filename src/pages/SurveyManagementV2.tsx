@@ -611,12 +611,20 @@ export default function SurveyManagementV2() {
         sessionOptions = (data || []).map((item: any) => ({ value: item.value, label: item.label }));
       } else {
         console.warn('rpc_session_filter_options returned empty. Falling back to program_sessions_v1');
-        const { data: sess, error: sessErr } = await (supabase as any)
+        // Fallback: query program_sessions_v1
+        let query = (supabase as any)
           .from('program_sessions_v1')
           .select('session_id, program, turn, year')
-          .eq('year', year)
           .order('program', { ascending: true })
           .order('turn', { ascending: true });
+        
+        // year가 null이 아닐 때만 필터링
+        if (year !== null) {
+          query = query.eq('year', year);
+        }
+        
+        const { data: sess, error: sessErr } = await query;
+        
         if (!sessErr) {
           sessionOptions = (sess || []).map((row: any) => ({
             value: row.session_id,
