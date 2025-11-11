@@ -309,42 +309,48 @@ const SurveyDetailedAnalysis = () => {
       const instructorSessions: any[] = [];
       
       (sessData || []).forEach((s: any) => {
-        const subjectTitle = s.subjects?.title || s.session_name || '';
-        const isOperation = subjectTitle.includes('운영') || 
-                           (s.session_name && s.session_name.includes('운영'));
+        const subjectTitle = s.subjects?.title || '';
+        const isOperation = subjectTitle.includes('운영');
         
         if (isOperation) {
           operationSessions.push(s);
-        } else if (s.instructor_id) {
+        } else {
+          // 운영 만족도가 아닌 세션만 강사 세션으로 분류
           instructorSessions.push(s);
         }
       });
       
-      // 강사 사용자의 경우 자신의 세션만 필터링
+      // 강사 사용자의 경우 자신의 데이터만 필터링
       let filteredInstructorSessions = instructorSessions;
+      let filteredOperationSessions = operationSessions;
+      
       if (restrictToInstructorId) {
         filteredInstructorSessions = instructorSessions.filter((s: any) => 
           s.instructor_id === restrictToInstructorId
         );
+        filteredOperationSessions = operationSessions.filter((s: any) => 
+          s.instructor_id === restrictToInstructorId
+        );
       }
 
-      const instructorIds = Array.from(new Set(
-        filteredInstructorSessions.map((s: any) => s.instructor_id)
-      ));
+      const allInstructorIds = Array.from(new Set([
+        ...filteredInstructorSessions.map((s: any) => s.instructor_id),
+        ...filteredOperationSessions.map((s: any) => s.instructor_id)
+      ].filter(id => id)));
       
       let nameMap = new Map<string, string>();
-      if (instructorIds.length) {
+      if (allInstructorIds.length) {
         const { data: instData } = await supabase
           .from('instructors')
           .select('id, name')
-          .in('id', instructorIds);
+          .in('id', allInstructorIds);
         instData?.forEach((i: any) => nameMap.set(i.id, i.name || ''));
       }
 
       const options: SubjectOption[] = [];
       const byInstructor = new Map<string, string[]>();
       
-      // 강사 세션 처리 - 각 세션을 개별 옵션으로 생성 (그룹화 X)
+      // 강사 세션 처리 - 각 세션을 개별 옵션으로 생성
       filteredInstructorSessions.forEach((s: any) => {
         const instr = nameMap.get(s.instructor_id) ?? '';
         const subjectTitle = s.subjects?.title || s.session_name || '과목';
@@ -352,28 +358,38 @@ const SurveyDetailedAnalysis = () => {
         
         // 각 세션을 개별 옵션으로 추가
         options.push({
-          key: `${s.id}`,  // 세션 ID를 키로 사용
+          key: `session_${s.id}`,  // 세션 ID를 키로 사용
           label,
-          sessionIds: [s.id],  // 단일 세션 ID만 포함
+          sessionIds: [s.id],
         });
 
-        const instArr = byInstructor.get(s.instructor_id) ?? [];
-        instArr.push(s.id);
-        byInstructor.set(s.instructor_id, instArr);
+        if (s.instructor_id) {
+          const instArr = byInstructor.get(s.instructor_id) ?? [];
+          instArr.push(s.id);
+          byInstructor.set(s.instructor_id, instArr);
+        }
       });
 
-      // 운영 만족도 세션 처리 (강사와 별도로)
-      if (operationSessions.length > 0) {
-        const operatorName = survey?.operator_name || '운영자';
+      // 운영 만족도 세션 처리 - 각각 개별 옵션으로 추가
+      filteredOperationSessions.forEach((s: any) => {
+        const operatorName = s.instructor_id && nameMap.get(s.instructor_id) 
+          ? nameMap.get(s.instructor_id) 
+          : survey?.operator_name || '운영자';
+        
         const operationLabel = `${operatorName} - 운영 만족도`;
-        const operationSessionIds = operationSessions.map((s: any) => s.id);
         
         options.push({
-          key: `operation_${operationSessionIds.join('_')}`,
+          key: `operation_${s.id}`,
           label: operationLabel,
-          sessionIds: operationSessionIds,
+          sessionIds: [s.id],
         });
-      }
+
+        if (s.instructor_id) {
+          const instArr = byInstructor.get(s.instructor_id) ?? [];
+          instArr.push(s.id);
+          byInstructor.set(s.instructor_id, instArr);
+        }
+      });
 
       setSubjectOptions(options);
       setSessionsByInstructor(Object.fromEntries(byInstructor));
