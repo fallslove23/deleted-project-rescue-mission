@@ -77,8 +77,45 @@ const CourseManagement = () => {
         console.error('Error fetching instructor_lectures:', instructorLecturesRes.error);
       }
 
-      setSubjects(subjectsRes.data || []);
-      setLectures(lecturesRes.data || []);
+      const fetchedSubjects = subjectsRes.data || [];
+      const fetchedLectures = lecturesRes.data || [];
+
+      // 강의가 없는 과목 찾기 및 자동 생성
+      const subjectsWithoutLectures = fetchedSubjects.filter((subject: Subject) => 
+        !fetchedLectures.some((lecture: Lecture) => lecture.subject_id === subject.id)
+      );
+
+      if (subjectsWithoutLectures.length > 0) {
+        console.log('강의가 없는 과목 발견:', subjectsWithoutLectures.map((s: Subject) => s.title));
+        
+        // 각 과목에 대해 기본 강의 생성
+        const newLectures = subjectsWithoutLectures.map((subject: Subject) => ({
+          subject_id: subject.id,
+          title: subject.title,
+          position: 1
+        }));
+
+        const { data: createdLectures, error: createError } = await (supabase as any)
+          .from('lectures')
+          .insert(newLectures)
+          .select();
+
+        if (createError) {
+          console.error('기본 강의 생성 실패:', createError);
+        } else {
+          console.log('기본 강의 생성 완료:', createdLectures);
+          // 생성된 강의를 fetchedLectures에 추가
+          fetchedLectures.push(...(createdLectures || []));
+          
+          toast({
+            title: "알림",
+            description: `${subjectsWithoutLectures.length}개 과목에 기본 강의가 자동 생성되었습니다.`,
+          });
+        }
+      }
+
+      setSubjects(fetchedSubjects);
+      setLectures(fetchedLectures);
       setInstructors(instructorsRes.data || []);
       setInstructorLectures(instructorLecturesRes.data || []);
     } catch (error) {
