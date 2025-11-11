@@ -536,7 +536,7 @@ const InstructorManagement = React.forwardRef<{
   const lecturesBySubject = subjects.map(subject => ({
     subject,
     lectures: lectures.filter(l => l.subject_id === subject.id)
-  })).filter(group => group.lectures.length > 0);
+  }));
 
   // Filter by search query in dialog
   const filteredLecturesBySubject = subjectSearchQuery
@@ -1198,27 +1198,31 @@ const InstructorManagement = React.forwardRef<{
                         <div key={subject.id} className="space-y-2">
                           <h4 className="font-semibold text-sm text-primary">{subject.title}</h4>
                           <div className="space-y-1 pl-2">
-                            {subjectLectures.map((lecture) => (
-                              <div key={lecture.id} className="flex items-center space-x-2 py-1">
-                                <Checkbox
-                                  id={`lecture-${lecture.id}`}
-                                  checked={selectedLectures.includes(lecture.id)}
-                                  onCheckedChange={() => toggleLectureSelection(lecture.id)}
-                                />
-                                <Label htmlFor={`lecture-${lecture.id}`} className="flex-1 text-sm">
-                                  {lecture.title}
-                                  {lecture.position != null && (
-                                    <span className="text-muted-foreground"> (순서: {lecture.position})</span>
-                                  )}
-                                </Label>
-                              </div>
-                            ))}
+                            {subjectLectures.length > 0 ? (
+                              subjectLectures.map((lecture) => (
+                                <div key={lecture.id} className="flex items-center space-x-2 py-1">
+                                  <Checkbox
+                                    id={`lecture-${lecture.id}`}
+                                    checked={selectedLectures.includes(lecture.id)}
+                                    onCheckedChange={() => toggleLectureSelection(lecture.id)}
+                                  />
+                                  <Label htmlFor={`lecture-${lecture.id}`} className="flex-1 text-sm">
+                                    {lecture.title}
+                                    {lecture.position != null && (
+                                      <span className="text-muted-foreground"> (순서: {lecture.position})</span>
+                                    )}
+                                  </Label>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-muted-foreground pl-2">이 과목에는 아직 강의가 없습니다.</p>
+                            )}
                           </div>
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        {subjectSearchQuery ? '검색 결과가 없습니다.' : '등록된 강의가 없습니다.'}
+                        {subjectSearchQuery ? '검색 결과가 없습니다.' : '등록된 과목이 없습니다.'}
                       </p>
                     )}
                   </div>
