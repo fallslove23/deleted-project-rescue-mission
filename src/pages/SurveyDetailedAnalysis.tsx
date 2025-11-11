@@ -341,29 +341,21 @@ const SurveyDetailedAnalysis = () => {
         instData?.forEach((i: any) => nameMap.set(i.id, i.name || ''));
       }
 
-      // 세션명을 과목 단위로 정규화
-      const toBase = (name: string | null, subjectTitle: string | null): string => {
-        // subject title을 우선 사용
-        if (subjectTitle) return subjectTitle;
-        if (!name) return '';
-        let s = name.replace(/\s*-\s*Part\.?\s*\d+.*/i, '');
-        s = s.replace(/\s*-\s*(교육|강의|운영).*/i, '');
-        return s.trim();
-      };
-
-      const group = new Map<string, string[]>();
+      const options: SubjectOption[] = [];
       const byInstructor = new Map<string, string[]>();
       
-      // 강사 세션 처리
+      // 강사 세션 처리 - 각 세션을 개별 옵션으로 생성 (그룹화 X)
       filteredInstructorSessions.forEach((s: any) => {
         const instr = nameMap.get(s.instructor_id) ?? '';
-        const subjectTitle = s.subjects?.title || null;
-        const base = toBase(s.session_name ?? '', subjectTitle);
-        const label = (instr ? `${instr} - ${base}` : base) || '과목';
+        const subjectTitle = s.subjects?.title || s.session_name || '과목';
+        const label = instr ? `${instr} - ${subjectTitle}` : subjectTitle;
         
-        const arr = group.get(label) ?? [];
-        arr.push(s.id);
-        group.set(label, arr);
+        // 각 세션을 개별 옵션으로 추가
+        options.push({
+          key: `${s.id}`,  // 세션 ID를 키로 사용
+          label,
+          sessionIds: [s.id],  // 단일 세션 ID만 포함
+        });
 
         const instArr = byInstructor.get(s.instructor_id) ?? [];
         instArr.push(s.id);
@@ -375,14 +367,13 @@ const SurveyDetailedAnalysis = () => {
         const operatorName = survey?.operator_name || '운영자';
         const operationLabel = `${operatorName} - 운영 만족도`;
         const operationSessionIds = operationSessions.map((s: any) => s.id);
-        group.set(operationLabel, operationSessionIds);
+        
+        options.push({
+          key: `operation_${operationSessionIds.join('_')}`,
+          label: operationLabel,
+          sessionIds: operationSessionIds,
+        });
       }
-
-      const options: SubjectOption[] = Array.from(group.entries()).map(([label, ids]) => ({
-        key: label,
-        label,
-        sessionIds: ids,
-      }));
 
       setSubjectOptions(options);
       setSessionsByInstructor(Object.fromEntries(byInstructor));
