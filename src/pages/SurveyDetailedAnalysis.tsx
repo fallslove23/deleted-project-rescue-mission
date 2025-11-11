@@ -219,24 +219,33 @@ const SurveyDetailedAnalysis = () => {
       // 강사 사용자의 경우 자신의 데이터만 필터링
       const restrictToInstructorId = !canViewAll && isInstructor ? profile?.instructor_id ?? null : null;
       
-      // 해당 설문의 질문들에서 고유한 강사 정보 추출
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('survey_questions')
+      // 해당 설문의 세션들에서 고유한 강사 정보 추출 (운영 세션 제외)
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('survey_sessions')
         .select(`
-          session_id,
-          satisfaction_type,
-          survey_sessions!inner(instructor_id, session_name)
+          id,
+          instructor_id,
+          session_name,
+          subject_id,
+          subjects(title)
         `)
-        .eq('survey_id', surveyId);
+        .eq('survey_id', surveyId)
+        .not('instructor_id', 'is', null)
+        .not('subject_id', 'is', null);  // subject_id가 없는 세션 제외
 
-      if (questionsError) throw questionsError;
+      if (sessionsError) throw sessionsError;
 
       const uniqueInstructors = new Set<string>();
       const instructorMap = new Map<string, { name: string; course: string }>();
 
-      for (const question of questionsData || []) {
-        const instructorId = (question as any).survey_sessions?.instructor_id;
-        if (instructorId) {
+      // 운영 세션 제외하고 강사 추출
+      for (const session of sessionsData || []) {
+        const instructorId = (session as any).instructor_id;
+        const subjectTitle = (session as any).subjects?.title || (session as any).session_name || '';
+        const isOperation = subjectTitle.includes('운영') || 
+                           ((session as any).session_name && (session as any).session_name.includes('운영'));
+        
+        if (instructorId && !isOperation) {
           // 강사 사용자의 경우 자신의 데이터만 포함
           if (restrictToInstructorId && instructorId !== restrictToInstructorId) {
             continue;
@@ -252,9 +261,10 @@ const SurveyDetailedAnalysis = () => {
           .in('id', Array.from(uniqueInstructors));
 
         instructorsData?.forEach((inst: any) => {
-          const sessionName = (questionsData as any)?.find((q: any) => 
-            q.survey_sessions?.instructor_id === inst.id
-          )?.survey_sessions?.session_name || '';
+          const session = (sessionsData as any)?.find((s: any) => 
+            s.instructor_id === inst.id
+          );
+          const sessionName = session?.subjects?.title || session?.session_name || '';
           
           instructorMap.set(inst.id, {
             name: inst.name,
@@ -284,21 +294,44 @@ const SurveyDetailedAnalysis = () => {
       // 강사 사용자의 경우 자신의 데이터만 필터링
       const restrictToInstructorId = !canViewAll && isInstructor ? profile?.instructor_id ?? null : null;
       
+      // 세션 데이터와 과목 정보를 함께 조회
       const { data: sessData, error: sessError } = await supabase
         .from('survey_sessions')
-        .select('id, session_name, instructor_id')
+        .select('id, session_name, instructor_id, subject_id, subjects(title)')
         .eq('survey_id', surveyId)
+        .not('subject_id', 'is', null)  // subject_id가 없는 세션 제외
         .order('session_name', { ascending: true });
 
       if (sessError) throw sessError;
-      let raw = (sessData || []).filter((s: any) => s.instructor_id);
+      
+      // 운영 만족도 세션과 강사 세션을 분리
+      const operationSessions: any[] = [];
+      const instructorSessions: any[] = [];
+      
+      (sessData || []).forEach((s: any) => {
+        const subjectTitle = s.subjects?.title || s.session_name || '';
+        const isOperation = subjectTitle.includes('운영') || 
+                           (s.session_name && s.session_name.includes('운영'));
+        
+        if (isOperation) {
+          operationSessions.push(s);
+        } else if (s.instructor_id) {
+          instructorSessions.push(s);
+        }
+      });
       
       // 강사 사용자의 경우 자신의 세션만 필터링
+      let filteredInstructorSessions = instructorSessions;
       if (restrictToInstructorId) {
-        raw = raw.filter((s: any) => s.instructor_id === restrictToInstructorId);
+        filteredInstructorSessions = instructorSessions.filter((s: any) => 
+          s.instructor_id === restrictToInstructorId
+        );
       }
 
-      const instructorIds = Array.from(new Set(raw.map((s: any) => s.instructor_id)));
+      const instructorIds = Array.from(new Set(
+        filteredInstructorSessions.map((s: any) => s.instructor_id)
+      ));
+      
       let nameMap = new Map<string, string>();
       if (instructorIds.length) {
         const { data: instData } = await supabase
@@ -309,7 +342,9 @@ const SurveyDetailedAnalysis = () => {
       }
 
       // 세션명을 과목 단위로 정규화
-      const toBase = (name: string | null): string => {
+      const toBase = (name: string | null, subjectTitle: string | null): string => {
+        // subject title을 우선 사용
+        if (subjectTitle) return subjectTitle;
         if (!name) return '';
         let s = name.replace(/\s*-\s*Part\.?\s*\d+.*/i, '');
         s = s.replace(/\s*-\s*(교육|강의|운영).*/i, '');
@@ -318,15 +353,14 @@ const SurveyDetailedAnalysis = () => {
 
       const group = new Map<string, string[]>();
       const byInstructor = new Map<string, string[]>();
-      raw.forEach((s: any) => {
+      
+      // 강사 세션 처리
+      filteredInstructorSessions.forEach((s: any) => {
         const instr = nameMap.get(s.instructor_id) ?? '';
-        const base = toBase(s.session_name ?? '');
-        let label = '';
-        if (base.includes('운영') && survey?.operator_name) {
-          label = `${survey.operator_name} - 운영 만족도`;
-        } else {
-          label = (instr ? `${instr} - ${base}` : base) || '과목';
-        }
+        const subjectTitle = s.subjects?.title || null;
+        const base = toBase(s.session_name ?? '', subjectTitle);
+        const label = (instr ? `${instr} - ${base}` : base) || '과목';
+        
         const arr = group.get(label) ?? [];
         arr.push(s.id);
         group.set(label, arr);
@@ -335,6 +369,14 @@ const SurveyDetailedAnalysis = () => {
         instArr.push(s.id);
         byInstructor.set(s.instructor_id, instArr);
       });
+
+      // 운영 만족도 세션 처리 (강사와 별도로)
+      if (operationSessions.length > 0) {
+        const operatorName = survey?.operator_name || '운영자';
+        const operationLabel = `${operatorName} - 운영 만족도`;
+        const operationSessionIds = operationSessions.map((s: any) => s.id);
+        group.set(operationLabel, operationSessionIds);
+      }
 
       const options: SubjectOption[] = Array.from(group.entries()).map(([label, ids]) => ({
         key: label,
