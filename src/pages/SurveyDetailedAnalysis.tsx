@@ -139,6 +139,7 @@ const SurveyDetailedAnalysis = () => {
   const [instructorOptions, setInstructorOptions] = useState<InstructorOption[]>([]);
   const [activeInstructor, setActiveInstructor] = useState<string>('all');
   const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
+  const [activeSubjectKey, setActiveSubjectKey] = useState<string>('all');
   const [sessionsByInstructor, setSessionsByInstructor] = useState<Record<string, string[]>>({});
   const [activeTab, setActiveTab] = useState<string>('all');
   // 상태 추가
@@ -275,7 +276,7 @@ const SurveyDetailedAnalysis = () => {
 
       const options: InstructorOption[] = Array.from(instructorMap.entries()).map(([id, info]) => ({
         key: id,
-        label: `${info.name} - ${info.course}`,
+        label: info.name,
         instructorId: id,
         courseName: info.course,
       }));
@@ -515,6 +516,19 @@ const SurveyDetailedAnalysis = () => {
     }
   }, [canViewAll, isInstructor, profile?.instructor_id, subjectOptions, instructorOptions]);
 
+  const displayedSubjectOptions = useMemo(() => {
+    if (activeInstructor === 'all') return subjectOptions;
+    const ids = new Set(sessionsByInstructor[activeInstructor] ?? []);
+    return subjectOptions.filter(opt => opt.sessionIds.some(id => ids.has(id)));
+  }, [activeInstructor, subjectOptions, sessionsByInstructor]);
+
+  useEffect(() => {
+    const availableKeys = new Set(displayedSubjectOptions.map(o => o.key));
+    if (activeSubjectKey !== 'all' && !availableKeys.has(activeSubjectKey)) {
+      setActiveSubjectKey('all');
+    }
+  }, [activeInstructor, displayedSubjectOptions, activeSubjectKey]);
+
   useEffect(() => {
     if (surveyId) {
       loadDetailStats();
@@ -634,11 +648,15 @@ const SurveyDetailedAnalysis = () => {
     document.body.removeChild(link);
   }, [generateCSV, survey?.title]);
 
-  // 강사 기준 필터링만 사용
+  // 주제(과목/운영) 우선 필터 → 없으면 강사 필터
   const selectedSessionIds = useMemo(() => {
-    if (activeInstructor === 'all') return null;
-    return sessionsByInstructor[activeInstructor] ?? [];
-  }, [activeInstructor, sessionsByInstructor]);
+    if (activeSubjectKey && activeSubjectKey !== 'all') {
+      const opt = subjectOptions.find(o => o.key === activeSubjectKey);
+      return opt?.sessionIds ?? [];
+    }
+    if (activeInstructor !== 'all') return sessionsByInstructor[activeInstructor] ?? [];
+    return null;
+  }, [activeSubjectKey, activeInstructor, subjectOptions, sessionsByInstructor]);
 
   // 세션 ID 기준 필터링 - 분포 데이터
   const filteredQuestions = useMemo(() => {
