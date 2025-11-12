@@ -937,24 +937,46 @@ const SurveyDetailedAnalysis = () => {
             </CardTitle>
           </CardHeader>
            <CardContent>
-             <div className="space-y-2">
-               <label className="text-sm font-medium">강사 선택</label>
-               <Select 
-                 value={activeInstructor} 
-                 onValueChange={setActiveInstructor}
-               >
-                 <SelectTrigger className="w-full md:w-96">
-                   <SelectValue placeholder="강사 선택" />
-                 </SelectTrigger>
-                 <SelectContent className="bg-background border shadow-lg z-50">
-                   <SelectItem value="all">전체 강사</SelectItem>
-                   {instructorOptions.map((option) => (
-                     <SelectItem key={option.key} value={option.key}>
-                       {option.label}
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-               </Select>
+             <div className="grid gap-4 md:grid-cols-2">
+               <div className="space-y-2">
+                 <label className="text-sm font-medium">강사 선택</label>
+                 <Select 
+                   value={activeInstructor} 
+                   onValueChange={setActiveInstructor}
+                 >
+                   <SelectTrigger className="w-full">
+                     <SelectValue placeholder="강사 선택" />
+                   </SelectTrigger>
+                   <SelectContent className="bg-background border shadow-lg z-50">
+                     <SelectItem value="all">전체 강사</SelectItem>
+                     {instructorOptions.map((option) => (
+                       <SelectItem key={option.key} value={option.key}>
+                         {option.label}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </div>
+
+               <div className="space-y-2">
+                 <label className="text-sm font-medium">과목/운영 선택</label>
+                 <Select 
+                   value={activeSubjectKey} 
+                   onValueChange={setActiveSubjectKey}
+                 >
+                   <SelectTrigger className="w-full">
+                     <SelectValue placeholder="과목/운영 선택" />
+                   </SelectTrigger>
+                   <SelectContent className="bg-background border shadow-lg z-50">
+                     <SelectItem value="all">전체</SelectItem>
+                     {displayedSubjectOptions.map((option) => (
+                       <SelectItem key={option.key} value={option.key}>
+                         {option.label}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </div>
              </div>
            </CardContent>
         </Card>
