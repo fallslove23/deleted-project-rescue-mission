@@ -350,18 +350,27 @@ const SurveyDetailedAnalysis = () => {
       const options: SubjectOption[] = [];
       const byInstructor = new Map<string, string[]>();
       
-      // 강사 세션 처리 - 각 세션을 개별 옵션으로 생성
+      // 강사-과목 조합으로 그룹화
+      const instructorSubjectMap = new Map<string, { 
+        sessions: string[], 
+        instructor_id: string, 
+        subject_title: string 
+      }>();
+
       filteredInstructorSessions.forEach((s: any) => {
-        const instr = nameMap.get(s.instructor_id) ?? '';
+        const key = `${s.instructor_id}_${s.subject_id}`;
+        const existing = instructorSubjectMap.get(key);
         const subjectTitle = s.subjects?.title || s.session_name || '과목';
-        const label = instr ? `${instr} - ${subjectTitle}` : subjectTitle;
         
-        // 각 세션을 개별 옵션으로 추가
-        options.push({
-          key: `session_${s.id}`,  // 세션 ID를 키로 사용
-          label,
-          sessionIds: [s.id],
-        });
+        if (existing) {
+          existing.sessions.push(s.id);
+        } else {
+          instructorSubjectMap.set(key, {
+            sessions: [s.id],
+            instructor_id: s.instructor_id,
+            subject_title: subjectTitle
+          });
+        }
 
         if (s.instructor_id) {
           const instArr = byInstructor.get(s.instructor_id) ?? [];
@@ -370,25 +379,46 @@ const SurveyDetailedAnalysis = () => {
         }
       });
 
-      // 운영 만족도 세션 처리 - 각각 개별 옵션으로 추가
-      filteredOperationSessions.forEach((s: any) => {
-        const operatorName = s.instructor_id && nameMap.get(s.instructor_id) 
-          ? nameMap.get(s.instructor_id) 
-          : survey?.operator_name || '운영자';
-        
-        const operationLabel = `${operatorName} - 운영 만족도`;
+      // 그룹화된 강사-과목 옵션 생성
+      instructorSubjectMap.forEach((group, key) => {
+        const instr = nameMap.get(group.instructor_id) ?? '';
+        const label = instr ? `${instr} - ${group.subject_title}` : group.subject_title;
         
         options.push({
-          key: `operation_${s.id}`,
-          label: operationLabel,
-          sessionIds: [s.id],
+          key: `instructor_subject_${key}`,
+          label,
+          sessionIds: group.sessions,
         });
+      });
+
+      // 운영 만족도를 instructor_id별로 그룹화
+      const operationByInstructor = new Map<string, string[]>();
+      filteredOperationSessions.forEach((s: any) => {
+        const instrId = s.instructor_id || 'no_instructor';
+        const sessions = operationByInstructor.get(instrId) || [];
+        sessions.push(s.id);
+        operationByInstructor.set(instrId, sessions);
 
         if (s.instructor_id) {
           const instArr = byInstructor.get(s.instructor_id) ?? [];
           instArr.push(s.id);
           byInstructor.set(s.instructor_id, instArr);
         }
+      });
+
+      // 그룹화된 운영 만족도 옵션 생성
+      operationByInstructor.forEach((sessionIds, instrId) => {
+        const operatorName = instrId !== 'no_instructor' && nameMap.get(instrId)
+          ? nameMap.get(instrId)
+          : survey?.operator_name || '운영자';
+        
+        const operationLabel = `${operatorName} - 운영 만족도`;
+        
+        options.push({
+          key: `operation_${instrId}`,
+          label: operationLabel,
+          sessionIds: sessionIds,
+        });
       });
 
       setSubjectOptions(options);
