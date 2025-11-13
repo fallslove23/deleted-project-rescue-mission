@@ -89,6 +89,54 @@ export const SendSurveyResultsDialog = ({
     }
   }, [open, isInstructor, instructorId, surveyId]);
 
+  const fetchSurveyInstructors = async () => {
+    try {
+      const instructors: { id: string; name: string; email: string | null }[] = [];
+      
+      // 1. survey의 직접 instructor_id 확인
+      const { data: survey, error: surveyError } = await supabase
+        .from('surveys')
+        .select('instructor_id')
+        .eq('id', surveyId)
+        .single();
+      
+      if (surveyError) throw surveyError;
+      
+      if (survey?.instructor_id) {
+        const { data: instructor } = await supabase
+          .from('instructors')
+          .select('id, name, email')
+          .eq('id', survey.instructor_id)
+          .single();
+        
+        if (instructor) {
+          instructors.push(instructor);
+        }
+      }
+      
+      // 2. survey_instructors 테이블에서 연결된 강사들 확인
+      const { data: surveyInstructors, error: siError } = await supabase
+        .from('survey_instructors')
+        .select(`
+          instructor_id,
+          instructors (id, name, email)
+        `)
+        .eq('survey_id', surveyId);
+      
+      if (!siError && surveyInstructors) {
+        surveyInstructors.forEach((si: any) => {
+          if (si.instructors && !instructors.find(i => i.id === si.instructors.id)) {
+            instructors.push(si.instructors);
+          }
+        });
+      }
+      
+      setAvailableInstructors(instructors);
+    } catch (error) {
+      console.error('Failed to fetch survey instructors:', error);
+    }
+  };
+
   const checkPreviousLogs = async () => {
     setCheckingLogs(true);
     try {
@@ -235,12 +283,19 @@ export const SendSurveyResultsDialog = ({
     try {
       const allRecipients = [...selectedRoles, ...additionalEmails];
       
+      const requestBody: any = {
+        surveyId,
+        recipients: allRecipients,
+        force: forceResend,
+      };
+      
+      // 특정 강사가 선택된 경우에만 targetInstructorIds 전달
+      if (selectedInstructorId !== 'all') {
+        requestBody.targetInstructorIds = [selectedInstructorId];
+      }
+      
       const { data, error } = await supabase.functions.invoke('send-survey-results', {
-        body: {
-          surveyId,
-          recipients: allRecipients,
-          force: forceResend, // 강제 재전송 플래그 사용
-        },
+        body: requestBody,
       });
 
       if (error) throw error;
@@ -328,6 +383,29 @@ export const SendSurveyResultsDialog = ({
                     강사는 본인에게만 결과를 전송할 수 있습니다.
                   </AlertDescription>
                 </Alert>
+              )}
+
+              {/* 강사 선택 (다중 강사 설문용) */}
+              {availableInstructors.length > 1 && selectedRoles.includes('instructor') && !isInstructor && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">강사 선택</Label>
+                  <Select value={selectedInstructorId} onValueChange={setSelectedInstructorId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="강사를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">전체 강사</SelectItem>
+                      {availableInstructors.map((instructor) => (
+                        <SelectItem key={instructor.id} value={instructor.id}>
+                          {instructor.name} {instructor.email && `<${instructor.email}>`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    여러 강사가 있는 설문입니다. 특정 강사에게만 전송하려면 선택하세요.
+                  </p>
+                </div>
               )}
 
               {/* 역할 선택 */}
