@@ -10,6 +10,7 @@ import { EmailRecipientPresets } from '@/components/EmailRecipientPresets';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SendSurveyResultsDialogProps {
   open: boolean;
@@ -65,6 +66,10 @@ export const SendSurveyResultsDialog = ({
   const [forceResend, setForceResend] = useState(false);
   const [checkingLogs, setCheckingLogs] = useState(false);
 
+  // 설문에 연결된 강사 목록 및 선택 (다중 강사 설문 대응)
+  const [availableInstructors, setAvailableInstructors] = useState<{ id: string; name: string; email: string | null }[]>([]);
+  const [selectedInstructorId, setSelectedInstructorId] = useState<string>('all');
+
   // 다이얼로그가 열릴 때 초기화 및 이전 발송 로그 확인
   useEffect(() => {
     if (open) {
@@ -76,11 +81,13 @@ export const SendSurveyResultsDialog = ({
       setSendResult(null);
       setPreviousLogs([]);
       setForceResend(false);
+      setSelectedInstructorId(isInstructor && instructorId ? instructorId : 'all');
       
-      // 이전 발송 이력 확인
+      // 이전 발송 이력 확인 및 강사 목록 로드
       checkPreviousLogs();
+      fetchSurveyInstructors();
     }
-  }, [open, isInstructor, surveyId]);
+  }, [open, isInstructor, instructorId, surveyId]);
 
   const checkPreviousLogs = async () => {
     setCheckingLogs(true);

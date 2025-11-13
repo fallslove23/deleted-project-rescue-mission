@@ -15,6 +15,8 @@ interface SendResultsRequest {
   recipients: string[];
   force?: boolean;
   previewOnly?: boolean;
+  // Optional: limit instructor recipients to specific instructor IDs for multi-instructor surveys
+  targetInstructorIds?: string[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -25,8 +27,8 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("Edge function called with request");
     
-    const { surveyId, recipients, force, previewOnly }: SendResultsRequest = await req.json();
-    console.log("Parsed request:", { surveyId, recipients, force, previewOnly });
+    const { surveyId, recipients, force, previewOnly, targetInstructorIds }: SendResultsRequest = await req.json();
+    console.log("Parsed request:", { surveyId, recipients, force, previewOnly, targetInstructorIdsCount: targetInstructorIds?.length || 0 });
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     console.log("Resend API key check:", resendApiKey ? "✓ Key found" : "✗ Key missing");
@@ -57,20 +59,20 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Fetch instructor info separately (surveys can have multiple instructors)
-    let instructorInfo: { name?: string; email?: string } | null = null;
-    let allInstructors: Array<{ name?: string; email?: string }> = [];
+    let instructorInfo: { id?: string; name?: string; email?: string } | null = null;
+    let allInstructors: Array<{ id?: string; name?: string; email?: string }> = [];
     
     // First try direct instructor_id if available
     if (survey.instructor_id) {
       const { data: instructor } = await supabaseClient
         .from("instructors")
-        .select("name, email")
+        .select("id, name, email")
         .eq("id", survey.instructor_id)
         .single();
       
       if (instructor) {
-        instructorInfo = instructor;
-        allInstructors.push(instructor);
+        instructorInfo = instructor as any;
+        allInstructors.push(instructor as any);
       }
     }
     
@@ -79,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from("survey_instructors")
       .select(`
         instructor_id,
-        instructors (name, email)
+        instructors (id, name, email)
       `)
       .eq("survey_id", surveyId);
     
@@ -97,6 +99,15 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
       });
+    }
+
+    // If caller specified a subset of instructors, filter to those only
+    if (Array.isArray(targetInstructorIds) && targetInstructorIds.length > 0) {
+      const targetSet = new Set(targetInstructorIds);
+      allInstructors = allInstructors.filter((i) => i.id && targetSet.has(String(i.id)));
+      if (!allInstructors.find((i) => i.email === instructorInfo?.email)) {
+        instructorInfo = allInstructors[0] || instructorInfo;
+      }
     }
 
     // Fetch course info if available
