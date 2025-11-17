@@ -74,7 +74,8 @@ export const SendSurveyResultsDialog = ({
   useEffect(() => {
     if (open) {
       setStep(1);
-      setSelectedRoles(isInstructor ? ['instructor'] : []);
+      // 강사는 본인만, 관리자/운영자는 강사 + 조직장에게 기본 발송
+      setSelectedRoles(isInstructor ? ['instructor'] : ['instructor', 'director']);
       setAdditionalEmails([]);
       setNewEmail('');
       setEmailPreview(null);
