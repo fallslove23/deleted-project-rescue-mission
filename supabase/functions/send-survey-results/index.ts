@@ -218,46 +218,62 @@ const handler = async (req: Request): Promise<Response> => {
       if (!roleErr && roleRows && roleRows.length > 0) {
         const ids = Array.from(new Set(roleRows.map((r: any) => r.user_id)));
         
-        // 프로필과 강사 정보를 함께 가져오기
+        // 프로필 정보 가져오기 (instructors는 별도 조회)
         const { data: profs } = await supabaseClient
           .from("profiles")
-          .select(`
-            email,
-            instructor_id,
-            instructors (name)
-          `)
+          .select("id, email, instructor_id")
           .in("id", ids);
 
-        profs?.forEach((p: any) => {
-          if (p.email && emailRegex.test(p.email)) {
-            resolvedSet.add(p.email);
-            
-            // 이름 설정: 강사 이름이 있으면 강사명, 없으면 역할명
-            let name = '';
-            if (p.instructors?.name) {
-              name = p.instructors.name;
-            } else {
-              // 해당 사용자의 역할 찾기
-              const userRoles = roleRows.filter((r: any) => 
-                profs.some((prof: any) => prof.email === p.email && ids.includes(r.user_id))
-              );
-              const roleNames = userRoles.map((r: any) => {
-                switch(r.role) {
-                  case 'admin': return '관리자';
-                  case 'operator': return '운영자';
-                  case 'director': return '조직장';
-                  case 'instructor': return '강사';
-                  default: return r.role;
-                }
-              });
-              name = roleNames.join(', ');
-            }
-            
-            if (name) {
-              recipientNames.set(p.email, name);
-            }
+        if (profs && profs.length > 0) {
+          // 강사 정보를 가진 사용자의 instructor_id 수집
+          const instructorIds = profs
+            .map((p: any) => p.instructor_id)
+            .filter((id: any) => id != null);
+
+          // 강사 정보를 별도로 조회 (instructor_id가 잘못된 경우 대비)
+          let instructorMap = new Map<string, string>();
+          if (instructorIds.length > 0) {
+            const { data: instructors } = await supabaseClient
+              .from("instructors")
+              .select("id, name")
+              .in("id", instructorIds);
+
+            instructors?.forEach((inst: any) => {
+              if (inst.id && inst.name) {
+                instructorMap.set(inst.id, inst.name);
+              }
+            });
           }
-        });
+
+          profs.forEach((p: any) => {
+            if (p.email && emailRegex.test(p.email)) {
+              resolvedSet.add(p.email);
+              
+              // 이름 설정: 강사 이름이 있으면 강사명, 없으면 역할명
+              let name = '';
+              if (p.instructor_id && instructorMap.has(p.instructor_id)) {
+                name = instructorMap.get(p.instructor_id) || '';
+              } else {
+                // 해당 사용자의 역할 찾기
+                const userRoles = roleRows.filter((r: any) => r.user_id === p.id);
+                const roleNames = userRoles.map((r: any) => {
+                  switch(r.role) {
+                    case 'admin': return '관리자';
+                    case 'operator': return '운영자';
+                    case 'director': return '조직장';
+                    case 'instructor': return '강사';
+                    default: return r.role;
+                  }
+                });
+                name = roleNames.length > 0 ? roleNames.join(', ') : '수신자';
+              }
+              
+              if (name) {
+                recipientNames.set(p.email, name);
+              }
+            }
+          });
+        }
       }
     }
 
