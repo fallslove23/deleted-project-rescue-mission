@@ -1012,13 +1012,6 @@ export type Database = {
             referencedRelation: "v_analysis_course_options"
             referencedColumns: ["program_id"]
           },
-          {
-            foreignKeyName: "sessions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "v_analysis_course_options_v3"
-            referencedColumns: ["program_id"]
-          },
         ]
       }
       short_urls: {
@@ -2619,13 +2612,6 @@ export type Database = {
             referencedColumns: ["program_id"]
           },
           {
-            foreignKeyName: "surveys_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "v_analysis_course_options_v3"
-            referencedColumns: ["program_id"]
-          },
-          {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
@@ -3783,13 +3769,6 @@ export type Database = {
             referencedColumns: ["program_id"]
           },
           {
-            foreignKeyName: "surveys_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "v_analysis_course_options_v3"
-            referencedColumns: ["program_id"]
-          },
-          {
             foreignKeyName: "surveys_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
@@ -4833,13 +4812,6 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "v_analysis_course_options"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "sessions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "v_analysis_course_options_v3"
             referencedColumns: ["program_id"]
           },
         ]
