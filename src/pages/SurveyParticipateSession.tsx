@@ -547,27 +547,56 @@ const SurveyParticipateSession = () => {
       if (!survey || !survey.id) {
         throw new Error('설문 정보를 찾을 수 없습니다.');
       }
-      
-      console.log('📝 응답 데이터 삽입 중...');
-      const { data: responseId, error: responseError } = await supabase
-        .rpc('create_survey_response', { 
-          p_survey_id: survey.id, 
-          p_respondent_email: null 
-        });
-      
-      if (responseError) {
-        console.error('❌ 응답 데이터 삽입 실패:', responseError);
-        throw responseError;
-      }
-      console.log('✅ 응답 데이터 삽입 성공:', responseId);
 
+      // 세션별로 답변을 그룹화
+      const sessionGroups = new Map<string, Answer[]>();
       const validAnswers = answers.filter((a) =>
         Array.isArray(a.answer) ? a.answer.length > 0 : String(a.answer || '').trim() !== ''
       );
-      console.log('📋 유효한 답변:', validAnswers.length, '개');
 
-        if (validAnswers.length > 0) {
-          const answersData = validAnswers.map((a) => ({
+      for (const answer of validAnswers) {
+        const question = questions.find(q => q.id === answer.questionId);
+        if (!question) continue;
+
+        // 운영 문항이거나 session_id가 없는 경우 'operation_common'으로 그룹화
+        const sessionKey = question.session_id || 'operation_common';
+        
+        if (!sessionGroups.has(sessionKey)) {
+          sessionGroups.set(sessionKey, []);
+        }
+        sessionGroups.get(sessionKey)!.push(answer);
+      }
+
+      console.log('📋 세션별 답변 그룹:', sessionGroups.size, '개 세션');
+
+      // 각 세션별로 별도의 응답 생성
+      for (const [sessionId, sessionAnswers] of sessionGroups.entries()) {
+        const actualSessionId = sessionId === 'operation_common' ? null : sessionId;
+        
+        console.log(`📝 세션 ${sessionId} 응답 데이터 삽입 중... (${sessionAnswers.length}개 답변)`);
+        
+        // survey_responses에 직접 삽입 (session_id 포함)
+        const { data: responseData, error: responseError } = await supabase
+          .from('survey_responses')
+          .insert({
+            survey_id: survey.id,
+            session_id: actualSessionId,
+            respondent_email: null,
+            submitted_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+        
+        if (responseError) {
+          console.error('❌ 응답 데이터 삽입 실패:', responseError);
+          throw responseError;
+        }
+        
+        const responseId = responseData.id;
+        console.log(`✅ 세션 ${sessionId} 응답 데이터 삽입 성공:`, responseId);
+
+        if (sessionAnswers.length > 0) {
+          const answersData = sessionAnswers.map((a) => ({
             response_id: responseId,
             question_id: a.questionId,
             answer_text: Array.isArray(a.answer) ? a.answer.join(', ') : a.answer,
@@ -600,14 +629,18 @@ const SurveyParticipateSession = () => {
               const chunk = answersData.slice(i, i + chunkSize);
               const { error } = await supabase.from('question_answers').insert(chunk);
               if (error) {
-                console.error('❌ 폴백 삽입 실패:', error);
-                throw lastError || error;
+                console.error('❌ 답변 삽입 오류:', error);
+                throw error;
               }
             }
+            console.log('✅ 폴백으로 답변 삽입 완료');
+          } else {
+            console.log('✅ RPC로 답변 일괄 삽입 성공');
           }
-          console.log('✅ 답변 데이터 저장 완료');
         }
+      }
 
+      // 설문 완료 처리
       if (session) {
         try {
           console.log('🎯 설문 완료 마킹 중...');
@@ -622,7 +655,7 @@ const SurveyParticipateSession = () => {
         console.log('💾 로컬 스토리지 완료 표시 저장됨');
       }
 
-      console.log('🎉 세션 설문 제출 완료!');
+      console.log('🎉 세션 설문 제출 완료! 총', sessionGroups.size, '개 세션 응답 생성');
       toast({ title: '설문 참여 완료!', description: '소중한 의견을 주셔서 감사합니다.' });
       navigate('/');
     } catch (error) {
