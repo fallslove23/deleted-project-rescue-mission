@@ -60,17 +60,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false);
         
+        // 역할 정보는 별도로 비동기 처리
         if (session?.user) {
-          // 역할 정보를 먼저 가져온 후 로딩 완료
-          await fetchUserRoles(session.user.id);
+          fetchUserRoles(session.user.id);
         } else {
           setUserRoles([]);
+          setInstructorId(null);
         }
-        setLoading(false);
       }
     );
 
