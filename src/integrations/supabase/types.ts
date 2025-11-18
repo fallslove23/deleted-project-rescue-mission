@@ -4838,6 +4838,8 @@ export type Database = {
       }
       app_role: { Args: never; Returns: string }
       app_uid: { Args: never; Returns: string }
+      can_submit_answer: { Args: { p_response_id: string }; Returns: boolean }
+      can_submit_response: { Args: { p_survey_id: string }; Returns: boolean }
       canonicalize_course_name: { Args: { name: string }; Returns: string }
       check_role_change_allowed: {
         Args: { new_role: string; old_role: string; user_id: string }
