@@ -5166,13 +5166,6 @@ export type Database = {
         Returns: undefined
       }
       normalize_course_name: { Args: { input_name: string }; Returns: string }
-      recover_null_session_ids: {
-        Args: never
-        Returns: {
-          recovered_count: number
-          total_null_count: number
-        }[]
-      }
       refresh_dashboard_materialized_views: { Args: never; Returns: undefined }
       rpc_analysis_course_options: {
         Args: { p_year?: number }

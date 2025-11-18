@@ -63,15 +63,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
         
-        // 역할 정보는 별도로 비동기 처리
         if (session?.user) {
-          fetchUserRoles(session.user.id);
+          // 역할 정보를 비동기로 가져오기
+          setTimeout(() => {
+            fetchUserRoles(session.user.id);
+          }, 0);
         } else {
           setUserRoles([]);
-          setInstructorId(null);
         }
+        setLoading(false);
       }
     );
 

@@ -284,5 +284,3 @@ export const EmailRecipientPresets = ({ onLoadPreset, currentRecipients }: Email
     </div>
   );
 };
-
-// cache-bust marker: 2025-11-18

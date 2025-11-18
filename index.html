@@ -42,67 +42,45 @@
 
   <body>
     <div id="root"></div>
-    
+    <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Service Worker registration only on production domain; unregister on preview/dev to avoid cache issues
-      (function() {
-        const loadApp = () => {
-          const s = document.createElement('script');
-          s.type = 'module';
-          s.src = `/src/main.tsx?cb=${Date.now()}`;
-          document.body.appendChild(s);
-        };
-
-        const isPreview = location.hostname.includes('preview--');
-        const isLocal = location.hostname === 'localhost' || location.hostname.startsWith('127.') || location.hostname.endsWith('.local');
-        if ('serviceWorker' in navigator) {
-          if (!isPreview && !isLocal) {
-            // Production: register SW but load app immediately
-            navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-              .then((registration) => {
-                console.log('SW registered: ', registration);
-                registration.addEventListener('updatefound', () => {
-                  const newWorker = registration.installing;
-                  if (newWorker) {
-                    newWorker.addEventListener('statechange', () => {
-                      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        console.log('New version available, reloading...');
-                        window.location.reload();
-                      }
-                    });
-                  }
-                });
-                if (registration?.update) {
-                  registration.update().catch(() => {/* Ignore update errors */});
+      // Service Worker registration with aggressive update checking
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+              
+              // Check for updates every time the page loads
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      console.log('New version available, reloading...');
+                      window.location.reload();
+                    }
+                  });
                 }
-              })
-              .catch((registrationError) => {
-                console.log('SW registration failed: ', registrationError);
               });
 
-            navigator.serviceWorker.addEventListener('message', (event) => {
-              if (event.data && event.data.type === 'SKIP_WAITING') {
-                window.location.reload();
+              // Force check for updates (with null check to prevent console errors)
+              if (registration?.update) {
+                registration.update().catch(() => {/* Ignore update errors */});
               }
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
             });
+        });
 
-            // Load app right away
-            loadApp();
-          } else {
-            // Preview/Local: aggressively unregister SW then load app
-            navigator.serviceWorker.getRegistrations().then((registrations) => {
-              registrations.forEach((reg) => reg.unregister());
-              if (navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
-              }
-              console.log('Service workers unregistered on preview/dev');
-            }).catch(() => {}).finally(loadApp);
+        // Listen for messages from service worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'SKIP_WAITING') {
+            window.location.reload();
           }
-        } else {
-          // No SW support
-          loadApp();
-        }
-      })();
+        });
+      }
 
       // PWA Install Prompt for iOS and Android
       let deferredPrompt;

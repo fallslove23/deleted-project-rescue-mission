@@ -336,84 +336,38 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: questions } = await supabaseClient
       .from("survey_questions")
-      .select("*, session_id")
+      .select("*")
       .eq("survey_id", surveyId)
       .order("order_index");
-
-    // survey_sessions 정보 조회 (강사 정보 포함)
-    const { data: surveySessions } = await supabaseClient
-      .from("survey_sessions")
-      .select(`
-        id,
-        session_name,
-        instructor_id,
-        instructors (id, name, email)
-      `)
-      .eq("survey_id", surveyId);
-
-    // 세션별 강사 매핑 생성
-    const sessionInstructorMap = new Map<string, { id: string; name: string; email: string | null }>();
-    surveySessions?.forEach((session: any) => {
-      if (session.instructor_id && session.instructors) {
-        sessionInstructorMap.set(session.id, {
-          id: session.instructors.id,
-          name: session.instructors.name,
-          email: session.instructors.email
-        });
-      }
-    });
 
     const { data: answers } = await supabaseClient
       .from("question_answers")
       .select(`
         *,
-        survey_questions (question_text, question_type, satisfaction_type, options, session_id)
+        survey_questions (question_text, question_type, satisfaction_type, options)
       `)
       .in("response_id", responses?.map(r => r.id) || []);
 
     const responseCount = responses?.length || 0;
-    
-    // 모든 강사 이름을 쉼표로 구분하여 표시
-    const allInstructorNames = allInstructors.length > 0 
-      ? allInstructors.map(i => i.name).join(', ')
-      : (surveyWithRelations.instructors?.name || '미등록');
-    
+    const instructorName = surveyWithRelations.instructors?.name || '미등록';
     const courseTitle = surveyWithRelations.courses?.title || surveyWithRelations.course_name || '강의';
 
-    // 강사별로 질문 분석 그룹화
-    const questionAnalysisByInstructor: Record<string, Record<string, any>> = {};
-    const commonQuestions: Record<string, any> = {}; // session_id가 없는 공통 질문들
+    // Generate question analysis (robust parsing)
+    const questionAnalysis: Record<string, any> = {};
     answers?.forEach((answer: any) => {
       const q = answer.survey_questions || {};
       const questionId = answer.question_id;
-      const sessionId = q.session_id;
-      
-      // 세션이 있는 경우 해당 강사의 분석 그룹에 추가, 없으면 공통 질문으로
-      let targetAnalysis: Record<string, any>;
-      if (sessionId && sessionInstructorMap.has(sessionId)) {
-        const instructor = sessionInstructorMap.get(sessionId)!;
-        const instructorKey = instructor.id;
-        
-        if (!questionAnalysisByInstructor[instructorKey]) {
-          questionAnalysisByInstructor[instructorKey] = {};
-        }
-        targetAnalysis = questionAnalysisByInstructor[instructorKey];
-      } else {
-        targetAnalysis = commonQuestions;
-      }
-      
-      if (!targetAnalysis[questionId]) {
-        targetAnalysis[questionId] = {
+      if (!questionAnalysis[questionId]) {
+        questionAnalysis[questionId] = {
           question: q.question_text,
           type: q.question_type,
           satisfaction_type: q.satisfaction_type,
-          sessionId: sessionId,
           answers: [] as any[],
           stats: {}
         };
       }
 
-      const qa = targetAnalysis[questionId];
+      const qa = questionAnalysis[questionId];
       const val = answer.answer_value;
       const text = answer.answer_text;
 
@@ -444,63 +398,27 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    // Calculate statistics for each question (공통 질문)
-    const calculateStats = (analysis: Record<string, any>) => {
-      Object.keys(analysis).forEach((qid) => {
-        const qa = analysis[qid];
-        if (qa.type === 'rating' || qa.type === 'scale') {
-          const numericAnswers: number[] = qa.answers.filter((a: any) => typeof a === 'number' && !isNaN(a));
-          if (numericAnswers.length > 0) {
-            const avg = numericAnswers.reduce((sum: number, val: number) => sum + val, 0) / numericAnswers.length;
-            qa.stats.average = Number(avg.toFixed(1));
-            qa.stats.count = numericAnswers.length;
-          }
-        } else if (qa.type === 'multiple_choice' || qa.type === 'single_choice') {
-          const counts: Record<string, number> = {};
-          qa.answers.forEach((answer: any) => {
-            if (answer) {
-              const key = String(answer);
-              counts[key] = (counts[key] || 0) + 1;
-            }
-          });
-          qa.stats.distribution = counts;
+    // Calculate statistics for each question
+    Object.keys(questionAnalysis).forEach((qid) => {
+      const qa = questionAnalysis[qid];
+      if (qa.type === 'rating' || qa.type === 'scale') {
+        const numericAnswers: number[] = qa.answers.filter((a: any) => typeof a === 'number' && !isNaN(a));
+        if (numericAnswers.length > 0) {
+          const avg = numericAnswers.reduce((sum: number, val: number) => sum + val, 0) / numericAnswers.length;
+          qa.stats.average = Number(avg.toFixed(1));
+          qa.stats.count = numericAnswers.length;
         }
-      });
-    };
-    
-    // 공통 질문 통계 계산
-    calculateStats(commonQuestions);
-    
-    // 각 강사별 질문 통계 계산
-    Object.keys(questionAnalysisByInstructor).forEach((instructorId) => {
-      calculateStats(questionAnalysisByInstructor[instructorId]);
-    });
-    
-    // 종합 만족도 계산 (모든 rating/scale 질문의 평균)
-    let overallSatisfaction: number | null = null;
-    const allSatisfactionScores: number[] = [];
-    
-    // 공통 질문에서 만족도 점수 수집
-    Object.values(commonQuestions).forEach((qa: any) => {
-      if ((qa.type === 'rating' || qa.type === 'scale') && qa.stats.average) {
-        allSatisfactionScores.push(qa.stats.average);
+      } else if (qa.type === 'multiple_choice' || qa.type === 'single_choice') {
+        const counts: Record<string, number> = {};
+        qa.answers.forEach((answer: any) => {
+          if (answer) {
+            const key = String(answer);
+            counts[key] = (counts[key] || 0) + 1;
+          }
+        });
+        qa.stats.distribution = counts;
       }
     });
-    
-    // 강사별 질문에서 만족도 점수 수집
-    Object.values(questionAnalysisByInstructor).forEach((analysis: any) => {
-      Object.values(analysis).forEach((qa: any) => {
-        if ((qa.type === 'rating' || qa.type === 'scale') && qa.stats.average) {
-          allSatisfactionScores.push(qa.stats.average);
-        }
-      });
-    });
-    
-    // 전체 평균 계산
-    if (allSatisfactionScores.length > 0) {
-      const sum = allSatisfactionScores.reduce((acc, score) => acc + score, 0);
-      overallSatisfaction = Number((sum / allSatisfactionScores.length).toFixed(1));
-    }
 
     // Send emails to recipients
     const emailResults = [];
@@ -508,92 +426,56 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending emails to recipients:", recipientsToSend);
     
-    // Helper function to generate question summary HTML
-    const generateQuestionSummaryHtml = (analysis: Record<string, any>) => {
-      let summary = '';
-      Object.values(analysis).forEach((qa: any) => {
-        summary += `
-          <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
-            <h4 style="color: #374151; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">${qa.question}</h4>
-        `;
-        
-        if (qa.stats.average) {
-          summary += `
-            <p style="margin: 5px 0; color: #4b5563; font-size: 13px;">
-              <strong>평균 점수:</strong> <span style="color: #059669; font-weight: 600;">${qa.stats.average}점</span> 
-              (${qa.stats.count}명 응답)
-            </p>
-          `;
-        } else if (qa.stats.distribution) {
-          summary += '<div style="font-size: 13px; color: #4b5563;">';
-          Object.entries(qa.stats.distribution).forEach(([option, count]) => {
-            summary += `<div style="margin: 3px 0;">• ${option}: <strong>${count}명</strong></div>`;
-          });
-          summary += '</div>';
-        } else if (qa.type === 'text' && qa.answers.length > 0) {
-          // 주관식 응답 표시
-          summary += `
-            <div style="font-size: 13px; color: #4b5563;">
-              <p style="margin: 5px 0 10px 0; font-weight: 600;">${qa.answers.length}건의 응답:</p>
-              <div style="max-height: 400px; overflow-y: auto; border-left: 3px solid #e5e7eb; padding-left: 12px;">
-          `;
-          qa.answers.forEach((answer: string, index: number) => {
-            const escapedAnswer = String(answer)
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&#039;')
-              .replace(/\n/g, '<br>');
-            summary += `
-              <div style="margin: 8px 0; padding: 10px; background-color: white; border-radius: 6px; border: 1px solid #e5e7eb;">
-                <span style="display: inline-block; padding: 2px 6px; background-color: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 6px;">응답 ${index + 1}</span>
-                <div style="color: #374151; line-height: 1.6;">${escapedAnswer}</div>
-              </div>
-            `;
-          });
-          summary += '</div></div>';
-        } else {
-          summary += `<p style="margin: 5px 0; color: #4b5563; font-size: 13px;">${qa.answers.length}건의 응답</p>`;
-        }
-        
-        summary += '</div>';
-      });
-      return summary;
-    };
-    
     // Generate email content for preview or sending
     let questionSummary = '';
-    
-    // 공통 질문이 있으면 먼저 표시
-    if (Object.keys(commonQuestions).length > 0) {
+    Object.values(questionAnalysis).forEach((qa: any) => {
       questionSummary += `
-        <div style="margin-bottom: 30px;">
-          <h3 style="color: #1f2937; font-size: 16px; font-weight: 700; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
-            📋 공통 문항
-          </h3>
-          ${generateQuestionSummaryHtml(commonQuestions)}
-        </div>
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
+          <h4 style="color: #374151; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">${qa.question}</h4>
       `;
-    }
-    
-    // 강사별로 질문 표시
-    if (Object.keys(questionAnalysisByInstructor).length > 0) {
-      Object.entries(questionAnalysisByInstructor).forEach(([instructorId, analysis]) => {
-        const instructor = Array.from(sessionInstructorMap.values()).find(i => i.id === instructorId);
-        const instructorDisplayName = instructor?.name || '강사';
-        
+      
+      if (qa.stats.average) {
         questionSummary += `
-          <div style="margin-bottom: 30px;">
-            <h3 style="color: #1f2937; font-size: 16px; font-weight: 700; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #3b82f6; display: flex; align-items: center;">
-              <span style="display: inline-block; width: 8px; height: 24px; background-color: #3b82f6; margin-right: 10px; border-radius: 2px;"></span>
-              👨‍🏫 ${instructorDisplayName} 강사님 평가
-            </h3>
-            ${generateQuestionSummaryHtml(analysis)}
-          </div>
+          <p style="margin: 5px 0; color: #4b5563; font-size: 13px;">
+            <strong>평균 점수:</strong> <span style="color: #059669; font-weight: 600;">${qa.stats.average}점</span> 
+            (${qa.stats.count}명 응답)
+          </p>
         `;
-      });
-    }
+      } else if (qa.stats.distribution) {
+        questionSummary += '<div style="font-size: 13px; color: #4b5563;">';
+        Object.entries(qa.stats.distribution).forEach(([option, count]) => {
+          questionSummary += `<div style="margin: 3px 0;">• ${option}: <strong>${count}명</strong></div>`;
+        });
+        questionSummary += '</div>';
+      } else if (qa.type === 'text' && qa.answers.length > 0) {
+        // 주관식 응답 표시
+        questionSummary += `
+          <div style="font-size: 13px; color: #4b5563;">
+            <p style="margin: 5px 0 10px 0; font-weight: 600;">${qa.answers.length}건의 응답:</p>
+            <div style="max-height: 400px; overflow-y: auto; border-left: 3px solid #e5e7eb; padding-left: 12px;">
+        `;
+        qa.answers.forEach((answer: string, index: number) => {
+          const escapedAnswer = String(answer)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;')
+            .replace(/\n/g, '<br>');
+          questionSummary += `
+            <div style="margin: 8px 0; padding: 10px; background-color: white; border-radius: 6px; border: 1px solid #e5e7eb;">
+              <span style="display: inline-block; padding: 2px 6px; background-color: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 6px;">응답 ${index + 1}</span>
+              <div style="color: #374151; line-height: 1.6;">${escapedAnswer}</div>
+            </div>
+          `;
+        });
+        questionSummary += '</div></div>';
+      } else {
+        questionSummary += `<p style="margin: 5px 0; color: #4b5563; font-size: 13px;">${qa.answers.length}건의 응답</p>`;
+      }
+      
+      questionSummary += '</div>';
+    });
 
     const emailSubject = `📊 설문 결과 발송: ${surveyWithRelations.title}`;
     const emailHtml = `
@@ -619,7 +501,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">강사명</span>
-              <span style="color: #334155; font-weight: 600;">${allInstructorNames}</span>
+              <span style="color: #334155; font-weight: 600;">${instructorName}</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">강의명</span>
@@ -648,15 +530,9 @@ const handler = async (req: Request): Promise<Response> => {
         <div style="background-color: #ecfdf5; padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #10b981;">
           <h2 style="color: #047857; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">📈 주요 통계</h2>
           <div style="display: grid; gap: 12px;">
-            ${overallSatisfaction !== null ? `
-              <div style="background-color: white; padding: 16px; border-radius: 8px; text-align: center;">
-                <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${overallSatisfaction}점</div>
-                <div style="color: #6b7280; font-size: 14px;">종합 만족도</div>
-              </div>
-            ` : ''}
-            <div style="background-color: white; padding: 12px; border-radius: 8px;">
-              <div style="color: #6b7280; font-size: 13px; margin-bottom: 4px;">총 응답자 수</div>
-              <div style="color: #334155; font-size: 18px; font-weight: 600;">${responseCount}명</div>
+            <div style="background-color: white; padding: 16px; border-radius: 8px; text-align: center;">
+              <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${responseCount}</div>
+              <div style="color: #6b7280; font-size: 14px;">총 응답자 수</div>
             </div>
             <div style="color: #374151; font-size: 14px; line-height: 1.5;">
               <strong>설문 기간:</strong> ${survey.start_date ? new Date(survey.start_date).toLocaleDateString('ko-KR') : '미정'} ~ ${survey.end_date ? new Date(survey.end_date).toLocaleDateString('ko-KR') : '미정'}
@@ -683,55 +559,28 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     // Generate plain text version
-    const generateQuestionSummaryText = (analysis: Record<string, any>) => {
-      let text = '';
-      Object.values(analysis).forEach((qa: any) => {
-        text += `${qa.question}\n`;
-        if (qa.stats.average) {
-          text += `평균 점수: ${qa.stats.average}점 (${qa.stats.count}명 응답)\n`;
-        } else if (qa.stats.distribution) {
-          Object.entries(qa.stats.distribution).forEach(([option, count]) => {
-            text += `• ${option}: ${count}명\n`;
-          });
-        } else {
-          text += `${qa.answers.length}건의 응답\n`;
-        }
-        text += `\n`;
-      });
-      return text;
-    };
-    
     let textContent = `설문 결과 발송: ${surveyWithRelations.title}\n\n`;
     textContent += `=== 설문 정보 ===\n`;
     textContent += `설문 제목: ${surveyWithRelations.title}\n`;
-    textContent += `강사명: ${allInstructorNames}\n`;
+    textContent += `강사명: ${instructorName}\n`;
     textContent += `강의명: ${courseTitle}\n`;
     textContent += `교육년도: ${surveyWithRelations.education_year}년\n`;
     textContent += `교육차수: ${surveyWithRelations.education_round}차\n`;
-    if (overallSatisfaction !== null) {
-      textContent += `종합 만족도: ${overallSatisfaction}점\n`;
-    }
     textContent += `총 응답 수: ${responseCount}명\n\n`;
     textContent += `=== 문항별 분석 결과 ===\n\n`;
-    
-    // 공통 질문이 있으면 먼저 표시
-    if (Object.keys(commonQuestions).length > 0) {
-      textContent += `📋 공통 문항\n`;
-      textContent += `${'='.repeat(50)}\n\n`;
-      textContent += generateQuestionSummaryText(commonQuestions);
-    }
-    
-    // 강사별로 질문 표시
-    if (Object.keys(questionAnalysisByInstructor).length > 0) {
-      Object.entries(questionAnalysisByInstructor).forEach(([instructorId, analysis]) => {
-        const instructor = Array.from(sessionInstructorMap.values()).find(i => i.id === instructorId);
-        const instructorDisplayName = instructor?.name || '강사';
-        
-        textContent += `👨‍🏫 ${instructorDisplayName} 강사님 평가\n`;
-        textContent += `${'='.repeat(50)}\n\n`;
-        textContent += generateQuestionSummaryText(analysis);
-      });
-    }
+    Object.values(questionAnalysis).forEach((qa: any) => {
+      textContent += `${qa.question}\n`;
+      if (qa.stats.average) {
+        textContent += `평균 점수: ${qa.stats.average}점 (${qa.stats.count}명 응답)\n`;
+      } else if (qa.stats.distribution) {
+        Object.entries(qa.stats.distribution).forEach(([option, count]) => {
+          textContent += `• ${option}: ${count}명\n`;
+        });
+      } else {
+        textContent += `${qa.answers.length}건의 응답\n`;
+      }
+      textContent += `\n`;
+    });
 
     // If preview only, return the email content without sending
     if (previewOnly) {

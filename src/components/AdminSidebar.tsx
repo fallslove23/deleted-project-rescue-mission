@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RoleSwitcher } from "./RoleSwitcher";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -209,6 +210,10 @@ export function AdminSidebar() {
           ))}
         </div>
       </SidebarContent>
+      
+      <SidebarFooter className="p-0 border-t border-sidebar-border/30">
+        <RoleSwitcher />
+      </SidebarFooter>
     </Sidebar>
   );
 }

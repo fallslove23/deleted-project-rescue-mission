@@ -16,7 +16,6 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const didRedirect = useRef(false);
-  const roleCheckTimeout = useRef<NodeJS.Timeout>();
 
   const needRoleCheck = useMemo(() => !!(allowedRoles && allowedRoles.length > 0), [allowedRoles]);
   const hasAccess = useMemo(
@@ -27,25 +26,6 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     },
     [needRoleCheck, allowedRoles, userRoles]
   );
-
-  useEffect(() => {
-    // 역할 로딩 타임아웃 설정 (5초)
-    if (needRoleCheck && user && userRoles.length === 0 && !loading) {
-      roleCheckTimeout.current = setTimeout(() => {
-        console.warn('Role check timeout - redirecting to auth');
-        if (!didRedirect.current) {
-          didRedirect.current = true;
-          navigate('/auth', { replace: true });
-        }
-      }, 5000);
-    }
-
-    return () => {
-      if (roleCheckTimeout.current) {
-        clearTimeout(roleCheckTimeout.current);
-      }
-    };
-  }, [needRoleCheck, user, userRoles, loading, navigate]);
 
   useEffect(() => {
     if (loading || didRedirect.current) return;
