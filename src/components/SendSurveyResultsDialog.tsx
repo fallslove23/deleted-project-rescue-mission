@@ -412,28 +412,33 @@ export const SendSurveyResultsDialog = ({
               {/* 역할 선택 */}
               <div className="space-y-3">
                 <Label className="text-base font-semibold">역할별 수신자</Label>
+                <p className="text-sm text-muted-foreground">
+                  {isInstructor ? '강사는 본인에게만 결과를 발송할 수 있습니다.' : '체크한 역할의 사용자들에게 이메일이 발송됩니다.'}
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   {Object.entries(ROLE_LABELS).map(([role, label]) => {
                     const isDisabled = isInstructor && role !== 'instructor';
+                    const isChecked = selectedRoles.includes(role);
                     return (
                       <div
                         key={role}
                         className={`flex items-center space-x-2 p-3 rounded-lg border transition-colors ${
-                          selectedRoles.includes(role)
+                          isChecked
                             ? 'border-primary bg-primary/5'
                             : 'border-border hover:border-primary/50'
-                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                         onClick={() => !isDisabled && handleRoleToggle(role)}
                       >
                         <Checkbox
                           id={`role-${role}`}
-                          checked={selectedRoles.includes(role)}
+                          checked={isChecked}
                           disabled={isDisabled}
                           onCheckedChange={() => !isDisabled && handleRoleToggle(role)}
+                          className="pointer-events-none"
                         />
                         <Label
                           htmlFor={`role-${role}`}
-                          className={`flex-1 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                          className={`flex-1 font-medium ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           {label}
                         </Label>
