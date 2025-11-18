@@ -124,7 +124,11 @@ const SurveyDetailedAnalysis = () => {
     () => userRoles?.includes('instructor') ?? false,
     [userRoles]
   );
-  
+  // 강사 전용 사용자 여부(관리자/운영자/조직장 권한이 없는 순수 강사)
+  const isInstructorOnly = useMemo(
+    () => (userRoles?.includes('instructor') ?? false) && !(userRoles?.includes('admin') || userRoles?.includes('operator') || userRoles?.includes('director')),
+    [userRoles]
+  );
   // 데이터 상태
   const [detailStats, setDetailStats] = useState<any>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -1258,7 +1262,7 @@ const SurveyDetailedAnalysis = () => {
         surveyTitle={survey.title}
         responseCount={detailStats?.summary?.responseCount || 0}
         instructorId={profile?.instructor_id}
-        isInstructor={isInstructor}
+        isInstructor={isInstructorOnly}
       />
     </div>
   );
