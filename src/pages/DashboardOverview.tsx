@@ -41,6 +41,7 @@ type Stats = {
   totalInstructors: number;
   totalCourses: number;
   completedSurveys: number;
+  avgScore: number | null;
 };
 
 type ResponseTrendPoint = {
@@ -109,6 +110,7 @@ const DashboardOverview: React.FC = () => {
     totalInstructors: 0,
     totalCourses: 0,
     completedSurveys: 0,
+    avgScore: null,
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -173,6 +175,38 @@ const DashboardOverview: React.FC = () => {
       const completedSurveysCount =
         (completedStatusRes.count || 0) + (overdueActiveRes.count || 0);
 
+      // 평균 만족도 계산 (rating/scale 타입 질문들의 평균)
+      let avgScore: number | null = null;
+      try {
+        const { data: answers } = await supabase
+          .from('question_answers')
+          .select('answer_value, survey_questions!inner(question_type)')
+          .in('survey_questions.question_type', ['rating', 'scale']);
+        
+        if (answers && answers.length > 0) {
+          const numericAnswers: number[] = [];
+          answers.forEach((answer: any) => {
+            const val = answer.answer_value;
+            let n: number | null = null;
+            if (typeof val === 'number') n = val;
+            else if (typeof val === 'string' && !isNaN(Number(val))) n = Number(val);
+            else if (val && typeof val === 'object') {
+              const maybe: any = val.value ?? val.score ?? null;
+              if (maybe != null && !isNaN(Number(maybe))) n = Number(maybe);
+            }
+            if (typeof n === 'number' && !isNaN(n) && n >= 0 && n <= 10) {
+              numericAnswers.push(n);
+            }
+          });
+          
+          if (numericAnswers.length > 0) {
+            avgScore = Number((numericAnswers.reduce((sum, val) => sum + val, 0) / numericAnswers.length).toFixed(1));
+          }
+        }
+      } catch (avgError) {
+        console.error('Failed to calculate average score:', avgError);
+      }
+
       const statsData: Stats = {
         totalSurveys: totalSurveysRes.count || 0,
         activeSurveys: activeSurveysRes.count || 0,
@@ -181,6 +215,7 @@ const DashboardOverview: React.FC = () => {
         totalInstructors: instructorsRes.count || 0,
         totalCourses: coursesRes.count || 0,
         recentResponsesCount: recentResponsesRes.count || 0,
+        avgScore,
       };
 
       setStats(statsData);
@@ -287,13 +322,16 @@ const DashboardOverview: React.FC = () => {
             </CardHeader>
             <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
               <div className="space-y-0.5 sm:space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">총 응답수</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">종합 만족도</p>
                 <div className="flex items-baseline gap-1 sm:gap-2">
                   <span className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {busy ? "-" : stats.totalResponses}
+                    {busy ? "-" : stats.avgScore !== null && stats.avgScore !== undefined ? stats.avgScore.toFixed(1) : "-"}
                   </span>
+                  {!busy && stats.avgScore !== null && stats.avgScore !== undefined && (
+                    <span className="text-sm text-gray-500">점</span>
+                  )}
                 </div>
-                <p className="text-xs text-gray-500 truncate">누적 응답 수</p>
+                <p className="text-xs text-gray-500 truncate">평균 만족도 점수</p>
               </div>
             </CardContent>
           </Card>

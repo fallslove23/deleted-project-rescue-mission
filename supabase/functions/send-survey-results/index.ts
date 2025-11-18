@@ -349,7 +349,10 @@ const handler = async (req: Request): Promise<Response> => {
       .in("response_id", responses?.map(r => r.id) || []);
 
     const responseCount = responses?.length || 0;
-    const instructorName = surveyWithRelations.instructors?.name || '미등록';
+    // 모든 강사명을 포함 (다중 강사 설문 대응)
+    const instructorName = allInstructors.length > 0 
+      ? allInstructors.map(i => i.name).filter(Boolean).join(', ') || '미등록'
+      : '미등록';
     const courseTitle = surveyWithRelations.courses?.title || surveyWithRelations.course_name || '강의';
 
     // Generate question analysis (robust parsing)
@@ -419,6 +422,21 @@ const handler = async (req: Request): Promise<Response> => {
         qa.stats.distribution = counts;
       }
     });
+
+    // Calculate average satisfaction score
+    const ratingQuestions = Object.values(questionAnalysis).filter((qa: any) => 
+      qa.type === 'rating' || qa.type === 'scale'
+    );
+    let avgSatisfaction: number | null = null;
+    if (ratingQuestions.length > 0) {
+      const allRatings: number[] = [];
+      ratingQuestions.forEach((qa: any) => {
+        allRatings.push(...qa.answers.filter((a: any) => typeof a === 'number' && !isNaN(a)));
+      });
+      if (allRatings.length > 0) {
+        avgSatisfaction = Number((allRatings.reduce((sum, val) => sum + val, 0) / allRatings.length).toFixed(1));
+      }
+    }
 
     // Send emails to recipients
     const emailResults = [];
@@ -531,8 +549,8 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="color: #047857; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">📈 주요 통계</h2>
           <div style="display: grid; gap: 12px;">
             <div style="background-color: white; padding: 16px; border-radius: 8px; text-align: center;">
-              <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${responseCount}</div>
-              <div style="color: #6b7280; font-size: 14px;">총 응답자 수</div>
+              <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${avgSatisfaction !== null ? avgSatisfaction + '점' : responseCount + '명'}</div>
+              <div style="color: #6b7280; font-size: 14px;">${avgSatisfaction !== null ? '종합 만족도' : '총 응답자 수'}</div>
             </div>
             <div style="color: #374151; font-size: 14px; line-height: 1.5;">
               <strong>설문 기간:</strong> ${survey.start_date ? new Date(survey.start_date).toLocaleDateString('ko-KR') : '미정'} ~ ${survey.end_date ? new Date(survey.end_date).toLocaleDateString('ko-KR') : '미정'}
