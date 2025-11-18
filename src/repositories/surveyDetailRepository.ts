@@ -347,6 +347,124 @@ export const SurveyDetailRepository = {
       responsesNextCursor = responsesItems.length >= limit ? start + responsesItems.length : null;
     }
 
+    // Fallback: 분포/텍스트가 비어 있으면 직접 집계하여 생성
+    let distributionsItems = distributions;
+    let textAnswersItems = textAnswers;
+
+    if ((distributionsItems?.length ?? 0) === 0 || (textAnswersItems?.length ?? 0) === 0) {
+      // 필요한 기본 데이터 수집
+      const responseIds = (responsesItems || []).map((r) => r.id);
+      const [{ data: qRows }, { data: aRows }] = await Promise.all([
+        supabase
+          .from('survey_questions')
+          .select('id, question_text, question_type, satisfaction_type, order_index, session_id, section_id')
+          .eq('survey_id', surveyId)
+          .order('order_index'),
+        responseIds.length > 0
+          ? supabase
+              .from('question_answers')
+              .select('id, question_id, response_id, answer_text, answer_value, created_at')
+              .in('response_id', responseIds)
+          : Promise.resolve({ data: [] as any[] } as any),
+      ]);
+
+      const questionsById = new Map<string, any>();
+      (qRows || []).forEach((q: any) => questionsById.set(q.id, q));
+
+      // 분포 집계
+      if ((distributionsItems?.length ?? 0) === 0) {
+        const byQuestion: Record<string, any[]> = {};
+        (aRows || []).forEach((a: any) => {
+          if (!byQuestion[a.question_id]) byQuestion[a.question_id] = [];
+          byQuestion[a.question_id].push(a);
+        });
+
+        const SCORE_KEYS = Array.from({ length: 10 }, (_v, i) => i + 1);
+
+        const built: any[] = [];
+        (qRows || []).forEach((q: any) => {
+          const answers = byQuestion[q.id] || [];
+          const dist: Record<number, number> = {} as any;
+          SCORE_KEYS.forEach((k) => (dist[k] = 0));
+
+          let sum = 0;
+          let count = 0;
+          const optionMap = new Map<string, number>();
+
+          answers.forEach((a: any) => {
+            // 숫자 점수 처리
+            const raw = (a.answer_value ?? a.answer_text) as any;
+            const num = typeof raw === 'number' ? raw : Number(String(raw).trim());
+            if (q.question_type === 'rating' || q.question_type === 'scale') {
+              if (Number.isFinite(num)) {
+                const score = Math.max(1, Math.min(10, Math.trunc(num)));
+                dist[score] = (dist[score] || 0) + 1;
+                sum += score;
+                count += 1;
+              }
+            } else if (q.question_type?.startsWith('multiple_choice')) {
+              const text = (a.answer_text ?? '').toString();
+              const parts = text.split(',').map((s) => s.trim()).filter(Boolean);
+              parts.forEach((opt) => optionMap.set(opt, (optionMap.get(opt) || 0) + 1));
+            }
+          });
+
+          // rating/scale 또는 선택형만 분포 아이템 생성
+          if ((q.question_type === 'rating' || q.question_type === 'scale') || optionMap.size > 0) {
+            built.push({
+              questionId: q.id,
+              questionText: q.question_text || '',
+              questionType: q.question_type || '',
+              satisfactionType: q.satisfaction_type ?? null,
+              orderIndex: toInteger(q.order_index),
+              sessionId: q.session_id ?? null,
+              sectionId: q.section_id ?? null,
+              totalAnswers: count > 0 ? count : Array.from(optionMap.values()).reduce((t, v) => t + v, 0),
+              average: count > 0 ? Number((sum / count).toFixed(2)) : null,
+              ratingDistribution: dist,
+              optionCounts: Array.from(optionMap.entries()).map(([option, cnt]) => ({ option, count: cnt })),
+            });
+          }
+        });
+
+        distributionsItems = built.sort((a, b) => {
+          if (a.orderIndex === null && b.orderIndex === null) return a.questionText.localeCompare(b.questionText);
+          if (a.orderIndex === null) return 1;
+          if (b.orderIndex === null) return -1;
+          return a.orderIndex - b.orderIndex;
+        });
+      }
+
+      // 텍스트 답변 집계
+      if ((textAnswersItems?.length ?? 0) === 0) {
+        const textItems: any[] = [];
+        (aRows || []).forEach((a: any) => {
+          const q = questionsById.get(a.question_id);
+          const text = (a.answer_text ?? '').toString().trim();
+          if (!q || !text) return;
+          if (q.question_type === 'text') {
+            textItems.push({
+              answerId: a.id,
+              questionId: q.id,
+              questionText: q.question_text || '',
+              satisfactionType: q.satisfaction_type ?? null,
+              orderIndex: toInteger(q.order_index),
+              sessionId: q.session_id ?? null,
+              sectionId: q.section_id ?? null,
+              answerText: text,
+              createdAt: a.created_at ?? null,
+            });
+          }
+        });
+        textAnswersItems = textItems.sort((a, b) => {
+          if (a.orderIndex === null && b.orderIndex === null) return a.answerId.localeCompare(b.answerId);
+          if (a.orderIndex === null) return 1;
+          if (b.orderIndex === null) return -1;
+          return a.orderIndex - b.orderIndex;
+        });
+      }
+    }
+
     return {
       summary,
       responses: {
@@ -355,12 +473,12 @@ export const SurveyDetailRepository = {
         totalCount: responseTotal,
       },
       distributions: {
-        items: distributions,
+        items: distributionsItems,
         nextCursor: toInteger((row as any)?.distribution_next_cursor),
         totalCount: distributionTotal,
       },
       textAnswers: {
-        items: textAnswers,
+        items: textAnswersItems,
         nextCursor: toInteger((row as any)?.text_next_cursor),
         totalCount: textTotal,
       },
