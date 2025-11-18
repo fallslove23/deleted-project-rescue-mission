@@ -15,26 +15,18 @@ import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
 import DashboardOverview from "./pages/DashboardOverview";
 import DashboardSurveyResults from "./pages/DashboardSurveyResults";
-import DashboardCourseReports from "./pages/DashboardCourseReports";
 import DashboardPolicyManagement from "./pages/DashboardPolicyManagement";
-import DashboardInstructorManagement from "./pages/DashboardInstructorManagement";
 import DashboardTemplateManagement from "./pages/DashboardTemplateManagement";
 import DashboardMyStats from "./pages/DashboardMyStats";
 import DashboardEmailLogs from "./pages/DashboardEmailLogs";
-import DashboardSystemLogs from "./pages/DashboardSystemLogs";
-import DashboardUserManagement from "./pages/DashboardUserManagement";
-import DashboardCourseManagement from "./pages/DashboardCourseManagement";
 import DashboardCourseStatistics from "./pages/DashboardCourseStatistics";
-import DashboardCumulativeData from "./pages/DashboardCumulativeData";
 import DashboardInstructorDetails from "./pages/DashboardInstructorDetails";
 import AccessDenied from "./pages/AccessDenied";
-import InstructorManagement from "./pages/InstructorManagement";
 import SurveyManagementV2 from "./pages/SurveyManagementV2";
 import SurveyBuilder from "./pages/SurveyBuilder";
 import SurveyParticipate from "./pages/SurveyParticipate";
 import SurveyParticipateSession from "./pages/SurveyParticipateSession";
 import SurveyPreview from "./pages/SurveyPreview";
-import TemplateManagement from "./pages/TemplateManagement";
 import TemplateBuilder from "./pages/TemplateBuilder";
 import SurveyResults from "./pages/SurveyResults";
 import SurveyDetailedAnalysis from "./pages/SurveyDetailedAnalysis";
@@ -118,24 +110,6 @@ function AppContent() {
       />
 
       <Route
-        path="/dashboard/instructors"
-        element={
-          <ProtectedRoute allowedRoles={["admin", "operator"]}>
-            <DashboardInstructorManagement />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/dashboard/courses"
-        element={
-          <ProtectedRoute allowedRoles={["admin", "operator"]}>
-            <DashboardCourseManagement />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
         path="/dashboard/course-statistics"
         element={
           <ProtectedRoute allowedRoles={["admin", "operator", "instructor"]}>
@@ -145,28 +119,10 @@ function AppContent() {
       />
 
       <Route
-        path="/dashboard/cumulative-data"
-        element={
-          <ProtectedRoute allowedRoles={["admin", "operator", "director"]}>
-            <DashboardCumulativeData />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
         path="/dashboard/templates"
         element={
           <ProtectedRoute allowedRoles={["admin", "operator"]}>
             <DashboardTemplateManagement />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/instructors"
-        element={
-          <ProtectedRoute>
-            <InstructorManagement />
           </ProtectedRoute>
         }
       />
@@ -218,15 +174,6 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <SurveyBuilder />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/template-management"
-        element={
-          <ProtectedRoute>
-            <TemplateManagement />
           </ProtectedRoute>
         }
       />
@@ -299,33 +246,6 @@ function AppContent() {
         element={
           <ProtectedRoute allowedRoles={["admin", "operator"]}>
             <DashboardEmailLogs />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/dashboard/system-logs"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <DashboardSystemLogs />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/dashboard/users"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <DashboardUserManagement />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/dashboard/course-reports"
-        element={
-          <ProtectedRoute allowedRoles={["admin", "operator", "director", "instructor"]}>
-            <DashboardCourseReports />
           </ProtectedRoute>
         }
       />
