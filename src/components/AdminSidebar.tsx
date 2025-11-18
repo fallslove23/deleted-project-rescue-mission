@@ -78,20 +78,26 @@ export function AdminSidebar() {
           title: "조직 분석", 
           items: [
             { title: "결과분석", url: "/dashboard/results", icon: BarChart3, exact: false },
-            { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false }
+            { title: "과정별 결과 보고", url: "/dashboard/course-reports", icon: TrendingUp, exact: false },
+            { title: "과정 전체 통계", url: "/dashboard/course-statistics", icon: PieChart, exact: false },
+            { title: "누적 데이터", url: "/dashboard/cumulative-data", icon: Database, exact: false }
           ]
         },
         {
           title: "운영 관리",
           items: [
             { title: "설문관리", url: "/surveys-v2", icon: FileText, exact: false },
-            { title: "템플릿관리", url: "/dashboard/templates", icon: FileText, exact: false }
+            { title: "템플릿관리", url: "/dashboard/templates", icon: FileText, exact: false },
+            { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck, exact: false },
+            { title: "사용자관리", url: "/dashboard/users", icon: Users, exact: false },
+            { title: "강의 과목 관리", url: "/dashboard/courses", icon: BookOpen, exact: false }
           ]
         },
         {
           title: "감사 로그",
           items: [
             { title: "이메일 로그", url: "/dashboard/email-logs", icon: Mail, exact: false },
+            { title: "시스템 로그", url: "/dashboard/system-logs", icon: Settings, exact: false },
             { title: "정책 관리", url: "/dashboard/policy-management", icon: Shield, exact: false }
           ]
         }

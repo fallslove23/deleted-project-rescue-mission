@@ -260,6 +260,60 @@ function AppContent() {
       />
 
       <Route
+        path="/dashboard/instructors"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <NotFound />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/users"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <NotFound />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/courses"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <NotFound />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/course-reports"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <NotFound />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/cumulative-data"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <NotFound />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/system-logs"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
+            <NotFound />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/dashboard/policy-management"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
