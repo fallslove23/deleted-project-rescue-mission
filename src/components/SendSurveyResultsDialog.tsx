@@ -413,29 +413,33 @@ export const SendSurveyResultsDialog = ({
               <div className="space-y-3">
                 <Label className="text-base font-semibold">역할별 수신자</Label>
                 <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(ROLE_LABELS).map(([role, label]) => (
-                    <div
-                      key={role}
-                      className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedRoles.includes(role)
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      } ${isInstructor && role !== 'instructor' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      onClick={() => handleRoleToggle(role)}
-                    >
-                      <Checkbox
-                        id={`role-${role}`}
-                        checked={selectedRoles.includes(role)}
-                        disabled={isInstructor && role !== 'instructor'}
-                      />
-                      <Label
-                        htmlFor={`role-${role}`}
-                        className="flex-1 cursor-pointer"
+                  {Object.entries(ROLE_LABELS).map(([role, label]) => {
+                    const isDisabled = isInstructor && role !== 'instructor';
+                    return (
+                      <div
+                        key={role}
+                        className={`flex items-center space-x-2 p-3 rounded-lg border transition-colors ${
+                          selectedRoles.includes(role)
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        onClick={() => !isDisabled && handleRoleToggle(role)}
                       >
-                        {label}
-                      </Label>
-                    </div>
-                  ))}
+                        <Checkbox
+                          id={`role-${role}`}
+                          checked={selectedRoles.includes(role)}
+                          disabled={isDisabled}
+                          onCheckedChange={() => !isDisabled && handleRoleToggle(role)}
+                        />
+                        <Label
+                          htmlFor={`role-${role}`}
+                          className={`flex-1 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          {label}
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
