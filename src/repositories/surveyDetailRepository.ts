@@ -324,11 +324,34 @@ export const SurveyDetailRepository = {
       textTotal,
     });
 
+    // Fallback: 일부 DB에서 RPC가 응답 목록을 비우는 경우 직접 조회하여 채움
+    let responsesItems = responses;
+    let responsesNextCursor = toInteger((row as any)?.response_next_cursor);
+    if ((responsesItems?.length ?? 0) === 0 && responseTotal > 0) {
+      const start = toInteger(params.responseCursor) ?? 0;
+      const limit = params.responseLimit ?? SURVEY_DETAIL_DEFAULTS.responseLimit;
+      const end = start + limit - 1;
+      const { data: rawResponses } = await supabase
+        .from('survey_responses')
+        .select('id, submitted_at, respondent_email, session_id, is_test')
+        .eq('survey_id', surveyId)
+        .order('submitted_at', { ascending: false })
+        .range(start, end);
+      responsesItems = (rawResponses || []).map((r) => ({
+        id: (r as any).id,
+        submittedAt: (r as any).submitted_at ?? null,
+        respondentEmail: (r as any).respondent_email ?? null,
+        sessionId: (r as any).session_id ?? null,
+        isTest: toBoolean((r as any).is_test),
+      }));
+      responsesNextCursor = responsesItems.length >= limit ? start + responsesItems.length : null;
+    }
+
     return {
       summary,
       responses: {
-        items: responses,
-        nextCursor: toInteger((row as any)?.response_next_cursor),
+        items: responsesItems,
+        nextCursor: responsesNextCursor,
         totalCount: responseTotal,
       },
       distributions: {
