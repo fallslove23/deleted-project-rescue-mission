@@ -60,15 +60,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // 역할 정보를 비동기로 가져오기
-          setTimeout(() => {
-            fetchUserRoles(session.user.id);
-          }, 0);
+          // 역할 정보를 먼저 가져온 후 로딩 완료
+          await fetchUserRoles(session.user.id);
         } else {
           setUserRoles([]);
         }
