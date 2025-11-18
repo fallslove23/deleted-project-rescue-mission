@@ -414,7 +414,6 @@ export const SendSurveyResultsDialog = ({
                 <Label className="text-base font-semibold">역할별 수신자</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {Object.entries(ROLE_LABELS).map(([role, label]) => {
-                    const isDisabled = isInstructor && role !== 'instructor';
                     return (
                       <div
                         key={role}
@@ -422,18 +421,23 @@ export const SendSurveyResultsDialog = ({
                           selectedRoles.includes(role)
                             ? 'border-primary bg-primary/5'
                             : 'border-border hover:border-primary/50'
-                        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                        onClick={() => !isDisabled && handleRoleToggle(role)}
+                        } cursor-pointer`}
+                        onClick={() => {
+                          if (selectedRoles.includes(role)) {
+                            setSelectedRoles(prev => prev.filter(r => r !== role));
+                          } else {
+                            setSelectedRoles(prev => [...prev, role]);
+                          }
+                        }}
                       >
                         <Checkbox
                           id={`role-${role}`}
                           checked={selectedRoles.includes(role)}
-                          disabled={isDisabled}
-                          onCheckedChange={() => !isDisabled && handleRoleToggle(role)}
+                          onCheckedChange={() => {}}
                         />
                         <Label
                           htmlFor={`role-${role}`}
-                          className={`flex-1 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                          className="flex-1 cursor-pointer"
                         >
                           {label}
                         </Label>
