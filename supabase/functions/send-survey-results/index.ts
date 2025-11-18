@@ -340,11 +340,28 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("survey_id", surveyId)
       .order("order_index");
 
+    // Get session instructors mapping
+    const { data: sessionInstructors } = await supabaseClient
+      .from("survey_sessions")
+      .select(`
+        id,
+        instructor_id,
+        instructors (name)
+      `)
+      .eq("survey_id", surveyId);
+
+    const sessionInstructorMap = new Map<string, string>();
+    sessionInstructors?.forEach((ss: any) => {
+      if (ss.id && ss.instructors?.name) {
+        sessionInstructorMap.set(ss.id, ss.instructors.name);
+      }
+    });
+
     const { data: answers } = await supabaseClient
       .from("question_answers")
       .select(`
         *,
-        survey_questions (question_text, question_type, satisfaction_type, options)
+        survey_questions (question_text, question_type, satisfaction_type, options, session_id)
       `)
       .in("response_id", responses?.map(r => r.id) || []);
 
@@ -361,10 +378,14 @@ const handler = async (req: Request): Promise<Response> => {
       const q = answer.survey_questions || {};
       const questionId = answer.question_id;
       if (!questionAnalysis[questionId]) {
+        const sessionId = q.session_id;
+        const instructorForQuestion = sessionId ? sessionInstructorMap.get(sessionId) : null;
+        
         questionAnalysis[questionId] = {
           question: q.question_text,
           type: q.question_type,
           satisfaction_type: q.satisfaction_type,
+          instructor: instructorForQuestion || null,
           answers: [] as any[],
           stats: {}
         };
@@ -447,9 +468,10 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate email content for preview or sending
     let questionSummary = '';
     Object.values(questionAnalysis).forEach((qa: any) => {
+      const instructorLabel = qa.instructor ? `<span style="display: inline-block; padding: 2px 8px; background-color: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 12px; font-weight: 600; margin-left: 8px;">${qa.instructor}</span>` : '';
       questionSummary += `
         <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
-          <h4 style="color: #374151; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">${qa.question}</h4>
+          <h4 style="color: #374151; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">${qa.question}${instructorLabel}</h4>
       `;
       
       if (qa.stats.average) {
