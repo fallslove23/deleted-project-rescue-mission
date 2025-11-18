@@ -372,7 +372,12 @@ const handler = async (req: Request): Promise<Response> => {
       .in("response_id", responses?.map(r => r.id) || []);
 
     const responseCount = responses?.length || 0;
-    const instructorName = surveyWithRelations.instructors?.name || '미등록';
+    
+    // 모든 강사 이름을 쉼표로 구분하여 표시
+    const allInstructorNames = allInstructors.length > 0 
+      ? allInstructors.map(i => i.name).join(', ')
+      : (surveyWithRelations.instructors?.name || '미등록');
+    
     const courseTitle = surveyWithRelations.courses?.title || surveyWithRelations.course_name || '강의';
 
     // 강사별로 질문 분석 그룹화
@@ -470,6 +475,32 @@ const handler = async (req: Request): Promise<Response> => {
     Object.keys(questionAnalysisByInstructor).forEach((instructorId) => {
       calculateStats(questionAnalysisByInstructor[instructorId]);
     });
+    
+    // 종합 만족도 계산 (모든 rating/scale 질문의 평균)
+    let overallSatisfaction: number | null = null;
+    const allSatisfactionScores: number[] = [];
+    
+    // 공통 질문에서 만족도 점수 수집
+    Object.values(commonQuestions).forEach((qa: any) => {
+      if ((qa.type === 'rating' || qa.type === 'scale') && qa.stats.average) {
+        allSatisfactionScores.push(qa.stats.average);
+      }
+    });
+    
+    // 강사별 질문에서 만족도 점수 수집
+    Object.values(questionAnalysisByInstructor).forEach((analysis: any) => {
+      Object.values(analysis).forEach((qa: any) => {
+        if ((qa.type === 'rating' || qa.type === 'scale') && qa.stats.average) {
+          allSatisfactionScores.push(qa.stats.average);
+        }
+      });
+    });
+    
+    // 전체 평균 계산
+    if (allSatisfactionScores.length > 0) {
+      const sum = allSatisfactionScores.reduce((acc, score) => acc + score, 0);
+      overallSatisfaction = Number((sum / allSatisfactionScores.length).toFixed(1));
+    }
 
     // Send emails to recipients
     const emailResults = [];
@@ -588,7 +619,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">강사명</span>
-              <span style="color: #334155; font-weight: 600;">${instructorName}</span>
+              <span style="color: #334155; font-weight: 600;">${allInstructorNames}</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">강의명</span>
@@ -617,9 +648,15 @@ const handler = async (req: Request): Promise<Response> => {
         <div style="background-color: #ecfdf5; padding: 24px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #10b981;">
           <h2 style="color: #047857; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">📈 주요 통계</h2>
           <div style="display: grid; gap: 12px;">
-            <div style="background-color: white; padding: 16px; border-radius: 8px; text-align: center;">
-              <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${responseCount}</div>
-              <div style="color: #6b7280; font-size: 14px;">총 응답자 수</div>
+            ${overallSatisfaction !== null ? `
+              <div style="background-color: white; padding: 16px; border-radius: 8px; text-align: center;">
+                <div style="color: #059669; font-size: 28px; font-weight: 700; margin-bottom: 4px;">${overallSatisfaction}점</div>
+                <div style="color: #6b7280; font-size: 14px;">종합 만족도</div>
+              </div>
+            ` : ''}
+            <div style="background-color: white; padding: 12px; border-radius: 8px;">
+              <div style="color: #6b7280; font-size: 13px; margin-bottom: 4px;">총 응답자 수</div>
+              <div style="color: #334155; font-size: 18px; font-weight: 600;">${responseCount}명</div>
             </div>
             <div style="color: #374151; font-size: 14px; line-height: 1.5;">
               <strong>설문 기간:</strong> ${survey.start_date ? new Date(survey.start_date).toLocaleDateString('ko-KR') : '미정'} ~ ${survey.end_date ? new Date(survey.end_date).toLocaleDateString('ko-KR') : '미정'}
@@ -667,10 +704,13 @@ const handler = async (req: Request): Promise<Response> => {
     let textContent = `설문 결과 발송: ${surveyWithRelations.title}\n\n`;
     textContent += `=== 설문 정보 ===\n`;
     textContent += `설문 제목: ${surveyWithRelations.title}\n`;
-    textContent += `강사명: ${instructorName}\n`;
+    textContent += `강사명: ${allInstructorNames}\n`;
     textContent += `강의명: ${courseTitle}\n`;
     textContent += `교육년도: ${surveyWithRelations.education_year}년\n`;
     textContent += `교육차수: ${surveyWithRelations.education_round}차\n`;
+    if (overallSatisfaction !== null) {
+      textContent += `종합 만족도: ${overallSatisfaction}점\n`;
+    }
     textContent += `총 응답 수: ${responseCount}명\n\n`;
     textContent += `=== 문항별 분석 결과 ===\n\n`;
     
