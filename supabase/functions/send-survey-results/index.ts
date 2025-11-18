@@ -6,8 +6,7 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface SendResultsRequest {
@@ -15,8 +14,6 @@ interface SendResultsRequest {
   recipients: string[];
   force?: boolean;
   previewOnly?: boolean;
-  // Optional: limit instructor recipients to specific instructor IDs for multi-instructor surveys
-  targetInstructorIds?: string[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -25,16 +22,10 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log("Edge function called with request");
-    
-    const { surveyId, recipients, force, previewOnly, targetInstructorIds }: SendResultsRequest = await req.json();
-    console.log("Parsed request:", { surveyId, recipients, force, previewOnly, targetInstructorIdsCount: targetInstructorIds?.length || 0 });
-
+    const { surveyId, recipients, force, previewOnly }: SendResultsRequest = await req.json();
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    console.log("Resend API key check:", resendApiKey ? "✓ Key found" : "✗ Key missing");
     
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY environment variable not found");
       return new Response(
         JSON.stringify({ success: false, error: "RESEND_API_KEY not configured" }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -46,335 +37,80 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Fetch survey data
-    const { data: survey, error: surveyError } = await supabaseClient
+    const { data: survey } = await supabaseClient
       .from("surveys")
-      .select("*")
+      .select(`*, courses:session_id (id, title)`)
       .eq("id", surveyId)
       .single();
 
-    if (surveyError || !survey) {
-      console.error("Survey fetch error:", surveyError);
-      throw new Error("Survey not found");
+    if (!survey) throw new Error("Survey not found");
+
+    const { data: allResponses, error: responsesError } = await supabaseClient
+      .from('survey_responses')
+      .select('*, survey_questions(*)')
+      .eq('survey_id', surveyId)
+      .neq('is_test', true);
+
+    if (responsesError) {
+      console.error('Error fetching survey responses:', responsesError);
+      throw new Error('Failed to fetch survey responses');
     }
 
-    // Fetch instructor info separately (surveys can have multiple instructors)
-    let instructorInfo: { id?: string; name?: string; email?: string } | null = null;
-    let allInstructors: Array<{ id?: string; name?: string; email?: string }> = [];
-    
-    // First try direct instructor_id if available
-    if (survey.instructor_id) {
-      const { data: instructor } = await supabaseClient
-        .from("instructors")
-        .select("id, name, email")
-        .eq("id", survey.instructor_id)
-        .single();
-      
-      if (instructor) {
-        instructorInfo = instructor as any;
-        allInstructors.push(instructor as any);
-      }
-    }
-    
-    // Also try survey_instructors mapping to get all instructors
-    const { data: surveyInstructors } = await supabaseClient
-      .from("survey_instructors")
-      .select(`
-        instructor_id,
-        instructors (id, name, email)
-      `)
-      .eq("survey_id", surveyId);
-    
-    if (surveyInstructors && surveyInstructors.length > 0) {
-      surveyInstructors.forEach((si: any) => {
-        if (si.instructors) {
-          const inst = si.instructors as any;
-          // 중복 제거 (이미 추가된 강사는 제외)
-          if (!allInstructors.some(existing => existing.email === inst.email)) {
-            allInstructors.push(inst);
-          }
-          // 첫 번째 강사를 기본 instructorInfo로 설정 (이전 호환성)
-          if (!instructorInfo) {
-            instructorInfo = inst;
-          }
-        }
-      });
+    const responseCount = allResponses?.length || 0;
+
+    // Fetch instructor information
+    const { data: instructors, error: instructorsError } = await supabaseClient
+      .from('instructors')
+      .select('*');
+
+    if (instructorsError) {
+      console.error('Error fetching instructors:', instructorsError);
     }
 
-    // If caller specified a subset of instructors, filter to those only
-    if (Array.isArray(targetInstructorIds) && targetInstructorIds.length > 0) {
-      const targetSet = new Set(targetInstructorIds);
-      allInstructors = allInstructors.filter((i) => i.id && targetSet.has(String(i.id)));
-      if (!allInstructors.find((i) => i.email === instructorInfo?.email)) {
-        instructorInfo = allInstructors[0] || instructorInfo;
-      }
+    const allInstructors = instructors || [];
+
+    // Resolve recipient emails to names
+    const recipientNames = new Map<string, string>();
+    for (const email of recipients) {
+      const name = email.split('@')[0];
+      recipientNames.set(email, name);
     }
 
-    // Fetch course info if available
-    let courseInfo: { title?: string } | null = null;
-    if (survey.course_id) {
-      const { data: course } = await supabaseClient
-        .from("courses")
-        .select("title")
-        .eq("id", survey.course_id)
-        .single();
-      
-      if (course) {
-        courseInfo = course;
-      }
-    }
+    // Resolve instructor name from survey
+    const authorDisplayName = survey.author_name || survey.author;
 
-    // Merge the fetched data into survey object for backward compatibility
-    const surveyWithRelations = {
-      ...survey,
-      instructors: instructorInfo,
-      courses: courseInfo
-    };
-
-    // Idempotency & dedup guard (force=true이면 건너뜀)
-    // 1) 과거 로그 조회: 전체 성공이면 즉시 건너뜀, 부분 성공이면 이미 보낸 수신자는 제외하고 진행
-    let alreadySentSet = new Set<string>();
-    if (!force && !previewOnly) {
-      const { data: priorLogs } = await supabaseClient
-        .from("email_logs")
-        .select("id, status, created_at, results")
-        .eq("survey_id", surveyId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      const hasFullSuccess = priorLogs?.some((l: any) => l.status === "success");
-      if (hasFullSuccess) {
-        console.log("Existing full success email log found, skipping send (use force=true to override)");
-        return new Response(
-          JSON.stringify({
-            success: true,
-            alreadySent: true,
-            message: "이미 모든 수신자에게 성공적으로 발송된 설문입니다. 재전송하려면 '강제 재전송' 옵션을 선택하세요.",
-            surveyId,
-          }),
-          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-
-      // 부분 성공 혹은 실패 기록이 있으면, 이미 성공적으로 전송된 이메일은 재전송하지 않도록 수집
-      priorLogs?.forEach((log: any) => {
-        try {
-          const emailResults = log?.results?.emailResults as Array<any> | undefined;
-          emailResults?.forEach((r) => {
-            if (r?.status === "sent" && r?.to) alreadySentSet.add(String(r.to).toLowerCase());
-          });
-        } catch (_) {
-          // ignore JSON structure differences
-        }
-      });
-    } else if (force) {
-      console.log("Force resend enabled - ignoring previous send history");
-    }
-
-    // Resolve recipients (support role tokens and defaults)
-    const inputRecipients = Array.isArray(recipients) ? recipients : [];
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    const roleTokens = inputRecipients
-      .map((r) => String(r).toLowerCase())
-      .filter((r) => ["admin", "operator", "director", "instructor"].includes(r));
-    const explicitEmails = inputRecipients.filter((r) => emailRegex.test(String(r)));
-
-    const resolvedSet = new Set<string>(explicitEmails);
-    const recipientNames = new Map<string, string>(); // 이메일 -> 이름 매핑
-
-    // Include instructor emails when requested or when no recipients provided (default)
-    // 모든 강사에게 발송 (여러 명일 경우 모두 포함)
-    if (inputRecipients.length === 0 || roleTokens.includes("instructor")) {
-      allInstructors.forEach((instructor) => {
-        const instructorEmail = instructor.email;
-        const instructorName = instructor.name;
-        if (instructorEmail && emailRegex.test(instructorEmail)) {
-          resolvedSet.add(instructorEmail);
-          if (instructorName) {
-            recipientNames.set(instructorEmail, instructorName);
-          }
-        }
-      });
-    }
-
-    // Determine which roles to include
-    let rolesForQuery: string[] = [];
-    if (inputRecipients.length === 0) {
-      // 기본값: 해당 설문의 강사에게만 발송 (admin 제거)
-      rolesForQuery = [];
-    } else {
-      ["admin", "operator", "director"].forEach((r) => {
-        if (roleTokens.includes(r)) rolesForQuery.push(r);
-      });
-    }
-
-    if (rolesForQuery.length > 0) {
-      const { data: roleRows, error: roleErr } = await supabaseClient
-        .from("user_roles")
-        .select("user_id, role")
-        .in("role", rolesForQuery as any);
-
-      if (!roleErr && roleRows && roleRows.length > 0) {
-        const ids = Array.from(new Set(roleRows.map((r: any) => r.user_id)));
-        
-        // 프로필 정보 가져오기 (instructors는 별도 조회)
-        const { data: profs } = await supabaseClient
-          .from("profiles")
-          .select("id, email, instructor_id")
-          .in("id", ids);
-
-        if (profs && profs.length > 0) {
-          // 강사 정보를 가진 사용자의 instructor_id 수집
-          const instructorIds = profs
-            .map((p: any) => p.instructor_id)
-            .filter((id: any) => id != null);
-
-          // 강사 정보를 별도로 조회 (instructor_id가 잘못된 경우 대비)
-          let instructorMap = new Map<string, string>();
-          if (instructorIds.length > 0) {
-            const { data: instructors } = await supabaseClient
-              .from("instructors")
-              .select("id, name")
-              .in("id", instructorIds);
-
-            instructors?.forEach((inst: any) => {
-              if (inst.id && inst.name) {
-                instructorMap.set(inst.id, inst.name);
-              }
-            });
-          }
-
-          profs.forEach((p: any) => {
-            if (p.email && emailRegex.test(p.email)) {
-              resolvedSet.add(p.email);
-              
-              // 이름 설정: 강사 이름이 있으면 강사명, 없으면 역할명
-              let name = '';
-              if (p.instructor_id && instructorMap.has(p.instructor_id)) {
-                name = instructorMap.get(p.instructor_id) || '';
-              } else {
-                // 해당 사용자의 역할 찾기
-                const userRoles = roleRows.filter((r: any) => r.user_id === p.id);
-                const roleNames = userRoles.map((r: any) => {
-                  switch(r.role) {
-                    case 'admin': return '관리자';
-                    case 'operator': return '운영자';
-                    case 'director': return '조직장';
-                    case 'instructor': return '강사';
-                    default: return r.role;
-                  }
-                });
-                name = roleNames.length > 0 ? roleNames.join(', ') : '수신자';
-              }
-              
-              if (name) {
-                recipientNames.set(p.email, name);
-              }
-            }
-          });
-        }
-      }
-    }
-
-    const finalRecipients = Array.from(resolvedSet).map((e) => e.toLowerCase());
-    if (finalRecipients.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error:
-            "유효한 수신자 이메일을 찾을 수 없습니다. (도메인 검증 또는 수신자 선택을 확인하세요)",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // 이미 성공적으로 발송된 이메일 주소는 재발송하지 않음
-    const recipientsToSend = finalRecipients.filter((email) => !alreadySentSet.has(email));
-    if (recipientsToSend.length === 0 && !force) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          alreadySent: true,
-          message: "이미 모든 수신자에게 발송 완료되어 재발송을 건너뜁니다.",
-          surveyId,
-        }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // Sender and reply-to addresses (use secrets; fallback to Resend sandbox)
-    const FROM_ADDRESS = Deno.env.get("RESEND_FROM_ADDRESS") || "onboarding@resend.dev";
-    const REPLY_TO_EMAIL = Deno.env.get("RESEND_REPLY_TO") || FROM_ADDRESS;
-
-    // Display name mapping for author based on reply-to email
-    const SENDER_DISPLAY_MAP: Record<string, string> = {
-      "sseduadmin@osstem.com": "교육운영팀",
-      "admin@osstem.com": "교육운영팀",
-    };
-    const authorDisplayName = SENDER_DISPLAY_MAP[REPLY_TO_EMAIL.toLowerCase()] ?? REPLY_TO_EMAIL;
-
-    // Fetch survey responses and analysis
-    const { data: responses } = await supabaseClient
-      .from("survey_responses")
-      .select("*")
-      .eq("survey_id", surveyId)
-      .neq("is_test", true);
-
-    // 응답이 없는 경우 이메일을 보내지 않음
-    if (!responses || responses.length === 0) {
-      console.log("No survey responses found, skipping email send");
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "응답이 없는 설문입니다. 이메일을 발송하지 않습니다.",
-          responseCount: 0
-        }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    const { data: questions } = await supabaseClient
-      .from("survey_questions")
-      .select("*")
-      .eq("survey_id", surveyId)
-      .order("order_index");
-
-    // Get session instructors mapping
-    const { data: sessionInstructors } = await supabaseClient
-      .from("survey_sessions")
-      .select(`
-        id,
-        instructor_id,
-        instructors (name)
-      `)
-      .eq("survey_id", surveyId);
-
+    // Resolve instructor name from session
     const sessionInstructorMap = new Map<string, string>();
-    sessionInstructors?.forEach((ss: any) => {
-      if (ss.id && ss.instructors?.name) {
-        sessionInstructorMap.set(ss.id, ss.instructors.name);
+    if (survey.session_id) {
+      const { data: sessionInstructors, error: sessionInstructorsError } = await supabaseClient
+        .from('survey_sessions')
+        .select('id, instructor_id, instructors(name)')
+        .eq('survey_id', surveyId);
+
+      if (sessionInstructorsError) {
+        console.error('Error fetching session instructors:', sessionInstructorsError);
+      } else {
+        sessionInstructors?.forEach((session: any) => {
+          const instructorName = session.instructors?.name;
+          if (instructorName) {
+            sessionInstructorMap.set(session.id, instructorName);
+          }
+        });
       }
-    });
+    }
 
-    const { data: answers } = await supabaseClient
-      .from("question_answers")
-      .select(`
-        *,
-        survey_questions (question_text, question_type, satisfaction_type, options, session_id)
-      `)
-      .in("response_id", responses?.map(r => r.id) || []);
-
-    const responseCount = responses?.length || 0;
-    // 모든 강사명을 포함 (다중 강사 설문 대응)
-    const instructorName = allInstructors.length > 0 
-      ? allInstructors.map(i => i.name).filter(Boolean).join(', ') || '미등록'
-      : '미등록';
-    const courseTitle = surveyWithRelations.courses?.title || surveyWithRelations.course_name || '강의';
+    const instructorName =
+      survey.instructor_name ||
+      survey.instructor ||
+      (allInstructors.length === 1 ? allInstructors[0].name : null) ||
+      (allInstructors.length > 1)
+        ? allInstructors.map(i => i.name).filter(Boolean).join(', ') || '미등록'
+        : '미등록';
+    const courseTitle = survey.courses?.title || survey.course_name || '강의';
 
     // Generate question analysis (robust parsing)
     const questionAnalysis: Record<string, any> = {};
-    answers?.forEach((answer: any) => {
+    allResponses?.forEach((answer: any) => {
       const q = answer.survey_questions || {};
       const questionId = answer.question_id;
       if (!questionAnalysis[questionId]) {
@@ -463,7 +199,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResults = [];
     const failedEmails = [];
 
-    console.log("Sending emails to recipients:", recipientsToSend);
+    console.log("Sending emails to recipients:", recipients);
     
     // Generate email content for preview or sending
     let questionSummary = '';
@@ -517,7 +253,7 @@ const handler = async (req: Request): Promise<Response> => {
       questionSummary += '</div>';
     });
 
-    const emailSubject = `📊 설문 결과 발송: ${surveyWithRelations.title}`;
+    const emailSubject = `📊 설문 결과 발송: ${survey.title}`;
     const emailHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
         <!-- Header -->
@@ -537,7 +273,7 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="display: grid; gap: 12px;">
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">설문 제목</span>
-              <span style="color: #334155; font-weight: 600;">${surveyWithRelations.title}</span>
+              <span style="color: #334155; font-weight: 600;">${survey.title}</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">강사명</span>
@@ -549,11 +285,11 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">교육년도</span>
-              <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_year}년</span>
+              <span style="color: #334155; font-weight: 600;">${survey.education_year}년</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
               <span style="color: #64748b; font-weight: 500;">교육차수</span>
-              <span style="color: #334155; font-weight: 600;">${surveyWithRelations.education_round}차</span>
+              <span style="color: #334155; font-weight: 600;">${survey.education_round}차</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding: 8px 0;">
               <span style="color: #64748b; font-weight: 500;">총 응답 수</span>
@@ -599,13 +335,13 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     // Generate plain text version
-    let textContent = `설문 결과 발송: ${surveyWithRelations.title}\n\n`;
+    let textContent = `설문 결과 발송: ${survey.title}\n\n`;
     textContent += `=== 설문 정보 ===\n`;
-    textContent += `설문 제목: ${surveyWithRelations.title}\n`;
+    textContent += `설문 제목: ${survey.title}\n`;
     textContent += `강사명: ${instructorName}\n`;
     textContent += `강의명: ${courseTitle}\n`;
-    textContent += `교육년도: ${surveyWithRelations.education_year}년\n`;
-    textContent += `교육차수: ${surveyWithRelations.education_round}차\n`;
+    textContent += `교육년도: ${survey.education_year}년\n`;
+    textContent += `교육차수: ${survey.education_round}차\n`;
     textContent += `총 응답 수: ${responseCount}명\n\n`;
     textContent += `=== 문항별 분석 결과 ===\n\n`;
     Object.values(questionAnalysis).forEach((qa: any) => {
@@ -630,7 +366,7 @@ const handler = async (req: Request): Promise<Response> => {
           subject: emailSubject,
           htmlContent: emailHtml,
           textContent: textContent,
-          recipients: recipientsToSend,
+          recipients: recipients,
         }),
         {
           status: 200,
@@ -639,7 +375,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    for (const email of recipientsToSend) {
+    for (const email of recipients) {
       try {
         console.log(`Attempting to send email to: ${email}`);
         
@@ -724,7 +460,7 @@ const handler = async (req: Request): Promise<Response> => {
         .from('email_logs')
         .insert({
           survey_id: surveyId,
-          recipients: recipientsToSend,
+          recipients: recipients,
           status: logStatus,
           sent_count: successCount,
           failed_count: failureCount,
@@ -757,8 +493,8 @@ const handler = async (req: Request): Promise<Response> => {
         success: logStatus === 'success',
         sent: successCount,
         failed: failureCount,
-        total: recipientsToSend.length,
-        recipients: recipientsToSend,
+        total: recipients.length,
+        recipients: recipients,
         results: emailResults,
         recipientNames: Object.fromEntries(recipientNames), // 이름 매핑 정보 포함
         message: failureCount === 0 
