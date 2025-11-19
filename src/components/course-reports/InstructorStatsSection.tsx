@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BarChart3, TrendingUp } from 'lucide-react';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 
 interface InstructorStats {
@@ -69,13 +69,6 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
     .sort((a, b) => b.현재차수 - a.현재차수);
 
   const hasComparisonData = previousStats.length > 0;
-
-  // 만족도 구간별 색상 설정 (10점 만점 기준) - 현재 차수용
-  const getBarColor = (satisfaction: number) => {
-    if (satisfaction >= 8.0) return 'hsl(142, 71%, 45%)'; // 우수 - 녹색
-    if (satisfaction >= 6.0) return 'hsl(47, 96%, 53%)';  // 보통 - 노란색
-    return 'hsl(346, 87%, 43%)'; // 개선 필요 - 빨간색
-  };
 
   return (
     <div className="space-y-6">
@@ -154,7 +147,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                   <Bar 
                     dataKey="현재차수" 
                     name="현재 차수"
-                    fill="hsl(142, 71%, 45%)"
+                    fill="hsl(var(--primary))"
                     radius={[4, 4, 0, 0]}
                     onClick={(data) => {
                       if (data && data.instructor_id) {
@@ -162,11 +155,7 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                       }
                     }}
                     cursor="pointer"
-                  >
-                    {verticalChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getBarColor(entry.현재차수)} />
-                    ))}
-                  </Bar>
+                  />
                   <Line 
                     type="monotone" 
                     dataKey="과정평균" 
