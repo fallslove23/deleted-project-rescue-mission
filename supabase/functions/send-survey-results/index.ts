@@ -274,11 +274,39 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     if (previewOnly) {
+      // 미리보기: 역할을 실제 이메일로 확장
+      const expandedEmails: string[] = [];
+      
+      for (const recipient of recipients) {
+        const recipientStr = String(recipient).toLowerCase();
+        
+        // 역할인 경우 해당 역할의 모든 사용자 이메일을 가져옴
+        if (['admin', 'operator', 'director', 'instructor'].includes(recipientStr)) {
+          const { data: users } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('role', recipientStr)
+            .not('email', 'is', null);
+          
+          if (users) {
+            users.forEach((u: any) => {
+              if (u.email) expandedEmails.push(u.email);
+            });
+          }
+        } else {
+          // 이메일 주소인 경우 그대로 추가
+          expandedEmails.push(recipient);
+        }
+      }
+      
+      // 중복 제거
+      const uniqueEmails = Array.from(new Set(expandedEmails));
+      
       // 미리보기: 수신자 중 강사 이메일이 있으면 해당 강사의 결과만 표시
       let previewInstructorId: string | null = null;
       
-      for (const recipient of recipients) {
-        const emailLower = String(recipient).toLowerCase();
+      for (const email of uniqueEmails) {
+        const emailLower = email.toLowerCase();
         if (emailToInstructorId.has(emailLower)) {
           previewInstructorId = emailToInstructorId.get(emailLower) || null;
           break; // 첫 번째 강사의 결과를 미리보기로 사용
@@ -291,7 +319,7 @@ const handler = async (req: Request): Promise<Response> => {
           success: true, 
           subject: content.subject, 
           htmlContent: content.html, 
-          recipients,
+          recipients: uniqueEmails,
           previewNote: previewInstructorId 
             ? "미리보기: 강사님께는 본인의 과목 결과만 전송됩니다." 
             : "미리보기: 전체 결과가 표시됩니다."
