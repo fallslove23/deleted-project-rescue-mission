@@ -121,55 +121,51 @@ export const useCourseReportsData = (
 
       if (current) {
         try {
-          // 이전 회차 데이터를 가져오기 위해 availableRounds에서 현재 회차보다 작은 가장 큰 회차 찾기
+          // 같은 프로그램의 이전 턴 세션 찾기
+          const currentProgramName = current.summary.programName;
+          const availableSessions = current.availableSessions || [];
+          
+          // 현재 회차 정보
           const currentRound = current.summary.educationRound;
-          const availableRounds = current.summary.availableRounds || [];
           
-          let previousRound: number | null = null;
-          if (currentRound !== null && availableRounds.length > 0) {
-            // 현재 회차보다 작은 회차들을 필터링하고 그 중 가장 큰 값 선택
-            const previousRounds = availableRounds
-              .filter(r => r < currentRound)
-              .sort((a, b) => b - a); // 내림차순 정렬
+          if (currentRound !== null && currentProgramName) {
+            // 같은 프로그램의 이전 턴 찾기 (턴이 현재보다 작고 가장 큰 것)
+            const previousSession = availableSessions
+              .filter(s => 
+                s.programName === currentProgramName && 
+                s.turn < currentRound
+              )
+              .sort((a, b) => b.turn - a.turn)[0];
             
-            if (previousRounds.length > 0) {
-              previousRound = previousRounds[0];
+            if (previousSession) {
+              console.log('🔍 Fetching previous session data:', {
+                currentProgram: currentProgramName,
+                currentRound: currentRound,
+                previousSessionId: previousSession.sessionId,
+                previousTurn: previousSession.turn,
+                previousSessionTitle: previousSession.sessionTitle
+              });
+              
+              const previous = await CourseReportsRepositoryFixed.fetchStatistics({
+                year: selectedYear,
+                sessionId: previousSession.sessionId,  // 이전 턴의 세션 ID 사용
+                round: null,  // 세션 ID로 필터링하므로 회차는 불필요
+                instructorId: instructorFilter,
+                includeTestData,
+              });
+              
+              console.log('📊 Previous data fetched:', {
+                hasSummary: !!previous?.summary,
+                instructorStatsCount: previous?.instructorStats?.length ?? 0
+              });
+              setPreviousData(previous);
+            } else {
+              console.log('⚠️ No previous session found for program:', currentProgramName);
+              setPreviousData(null);
             }
-          }
-          
-          // 이전 회차가 있으면 같은 년도의 이전 회차 데이터 가져오기
-          if (previousRound !== null) {
-            console.log('🔍 Fetching previous round data:', {
-              year: selectedYear,
-              round: previousRound,
-              currentRound: currentRound,
-              currentSessionId: current.summary.sessionId,
-              availableRounds
-            });
-            const previous = await CourseReportsRepositoryFixed.fetchStatistics({
-              year: selectedYear,  // 같은 년도
-              sessionId: null,  // sessionId를 null로 해서 해당 년도/회차의 모든 데이터 가져오기
-              round: previousRound,  // 이전 회차
-              instructorId: instructorFilter,
-              includeTestData,
-            });
-            console.log('📊 Previous data fetched:', {
-              hasSummary: !!previous?.summary,
-              instructorStatsCount: previous?.instructorStats?.length ?? 0,
-              instructorStats: previous?.instructorStats
-            });
-            setPreviousData(previous);
           } else {
-            console.log('⚠️ No previous round found, trying previous year');
-            // 이전 회차가 없으면 이전 년도 데이터 시도
-            const previous = await CourseReportsRepositoryFixed.fetchStatistics({
-              year: selectedYear - 1,
-              sessionId: null,  // sessionId를 null로 해서 해당 년도의 모든 데이터 가져오기
-              round: selectedRound ?? null,
-              instructorId: instructorFilter,
-              includeTestData,
-            });
-            setPreviousData(previous);
+            console.log('⚠️ No current round or program name');
+            setPreviousData(null);
           }
         } catch (prevError) {
           console.error('Failed to fetch previous statistics', prevError);
