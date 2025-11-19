@@ -70,11 +70,11 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
 
   const hasComparisonData = previousStats.length > 0;
 
-  // 만족도 구간별 색상 설정 (10점 만점 기준)
+  // 만족도 구간별 색상 설정 (10점 만점 기준) - 현재 차수용
   const getBarColor = (satisfaction: number) => {
-    if (satisfaction >= 8.0) return 'hsl(142, 71%, 45%)'; // 우수
-    if (satisfaction >= 6.0) return 'hsl(47, 96%, 53%)';  // 보통
-    return 'hsl(346, 87%, 43%)'; // 개선 필요
+    if (satisfaction >= 8.0) return 'hsl(142, 71%, 45%)'; // 우수 - 녹색
+    if (satisfaction >= 6.0) return 'hsl(47, 96%, 53%)';  // 보통 - 노란색
+    return 'hsl(346, 87%, 43%)'; // 개선 필요 - 빨간색
   };
 
   return (
@@ -147,14 +147,13 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                     <Bar 
                       dataKey="이전차수" 
                       name={comparisonLabel}
-                      fill="hsl(var(--muted-foreground) / 0.3)" 
+                      fill="hsl(var(--muted) / 0.6)" 
                       radius={[4, 4, 0, 0]}
                     />
                   )}
                   <Bar 
                     dataKey="현재차수" 
                     name="현재 차수"
-                    fill="hsl(var(--chart-1))" 
                     radius={[4, 4, 0, 0]}
                     onClick={(data) => {
                       if (data && data.instructor_id) {
