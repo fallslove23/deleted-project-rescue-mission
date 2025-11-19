@@ -25,6 +25,13 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
   comparisonLabel = '이전 기간',
   onInstructorClick
 }) => {
+  console.log('📊 InstructorStatsSection props:', {
+    instructorStatsCount: instructorStats.length,
+    previousStatsCount: previousStats.length,
+    instructorStats,
+    previousStats,
+    comparisonLabel
+  });
   // Filter out instructors with no responses or invalid satisfaction scores
   const validInstructorStats = instructorStats.filter(stat => 
     stat.response_count > 0 && 
@@ -69,6 +76,13 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
     .sort((a, b) => b.현재차수 - a.현재차수);
 
   const hasComparisonData = previousStats.length > 0;
+  
+  console.log('📊 Chart data preparation:', {
+    hasComparisonData,
+    validInstructorStatsCount: validInstructorStats.length,
+    previousStatsCount: previousStats.length,
+    verticalChartDataSample: verticalChartData.slice(0, 3)
+  });
 
   return (
     <div className="space-y-6">

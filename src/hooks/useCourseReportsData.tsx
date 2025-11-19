@@ -137,21 +137,34 @@ export const useCourseReportsData = (
             }
           }
           
-          // 이전 회차가 있으면 같은 년도, 같은 세션의 이전 회차 데이터 가져오기
+          // 이전 회차가 있으면 같은 년도의 이전 회차 데이터 가져오기
           if (previousRound !== null) {
+            console.log('🔍 Fetching previous round data:', {
+              year: selectedYear,
+              round: previousRound,
+              currentRound: currentRound,
+              currentSessionId: current.summary.sessionId,
+              availableRounds
+            });
             const previous = await CourseReportsRepositoryFixed.fetchStatistics({
               year: selectedYear,  // 같은 년도
-              sessionId: current.summary.sessionId ?? sessionIdParam,  // 같은 세션
+              sessionId: null,  // sessionId를 null로 해서 해당 년도/회차의 모든 데이터 가져오기
               round: previousRound,  // 이전 회차
               instructorId: instructorFilter,
               includeTestData,
             });
+            console.log('📊 Previous data fetched:', {
+              hasSummary: !!previous?.summary,
+              instructorStatsCount: previous?.instructorStats?.length ?? 0,
+              instructorStats: previous?.instructorStats
+            });
             setPreviousData(previous);
           } else {
+            console.log('⚠️ No previous round found, trying previous year');
             // 이전 회차가 없으면 이전 년도 데이터 시도
             const previous = await CourseReportsRepositoryFixed.fetchStatistics({
               year: selectedYear - 1,
-              sessionId: current.summary.sessionId ?? sessionIdParam,
+              sessionId: null,  // sessionId를 null로 해서 해당 년도의 모든 데이터 가져오기
               round: selectedRound ?? null,
               instructorId: instructorFilter,
               includeTestData,
