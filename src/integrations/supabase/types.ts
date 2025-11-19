@@ -445,6 +445,27 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_settings: {
+        Row: {
+          created_at: string | null
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           created_at: string
@@ -5254,6 +5275,7 @@ export type Database = {
           }
       safe_numeric_convert: { Args: { input_text: string }; Returns: number }
       save_answers_bulk: { Args: { p_answers: Json }; Returns: undefined }
+      trigger_auto_send_survey_results: { Args: never; Returns: undefined }
       update_course_statistics: { Args: never; Returns: undefined }
       update_survey_statuses: { Args: never; Returns: undefined }
     }
