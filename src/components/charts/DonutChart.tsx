@@ -65,7 +65,7 @@ export const DonutChart = ({
           fill="white"
           textAnchor={x > cx ? 'start' : 'end'}
           dominantBaseline="central"
-          fontSize="12"
+          className="text-[10px] sm:text-xs"
           fontWeight="bold"
         >
           {`${(percent * 100).toFixed(0)}%`}
@@ -78,7 +78,7 @@ export const DonutChart = ({
   return (
     <div className="h-full w-full">
       {title && (
-        <h3 className="mb-4 text-center font-semibold text-foreground">{title}</h3>
+        <h3 className="mb-2 sm:mb-4 text-center text-sm sm:text-base font-semibold text-foreground">{title}</h3>
       )}
 
       {hasData ? (
@@ -109,14 +109,16 @@ export const DonutChart = ({
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
-                  color: 'hsl(var(--card-foreground))'
+                  color: 'hsl(var(--card-foreground))',
+                  fontSize: '11px'
                 }}
               />
               <Legend
                 wrapperStyle={{
-                  fontSize: '12px',
+                  fontSize: '10px',
                   color: 'hsl(var(--foreground))'
                 }}
+                iconSize={10}
               />
             </PieChart>
           </ResponsiveContainer>

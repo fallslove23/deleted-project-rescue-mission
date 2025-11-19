@@ -59,7 +59,7 @@ export const GaugeChart = ({
   return (
     <div className="flex flex-col items-center">
       {title && (
-        <h3 className="mb-2 text-lg font-semibold" style={{ color: colors.text }}>
+        <h3 className="mb-2 text-sm sm:text-base md:text-lg font-semibold" style={{ color: colors.text }}>
           {title}
         </h3>
       )}
@@ -100,9 +100,9 @@ export const GaugeChart = ({
           className="absolute bottom-0 left-1/2 -translate-x-1/2 transform text-center"
           style={{ color: colors.text }}
         >
-          <div className="text-2xl font-bold">{normalizedValue.toFixed(1)}</div>
+          <div className="text-xl sm:text-2xl font-bold">{normalizedValue.toFixed(1)}</div>
           {subtitle && (
-            <div className="text-sm text-muted-foreground">{subtitle}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">{subtitle}</div>
           )}
         </div>
 
