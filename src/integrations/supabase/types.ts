@@ -472,8 +472,11 @@ export type Database = {
           error: string | null
           failed_count: number
           id: string
+          last_retry_at: string | null
+          max_retries: number | null
           recipients: string[]
           results: Json | null
+          retry_count: number | null
           sent_count: number
           status: string
           survey_id: string | null
@@ -483,8 +486,11 @@ export type Database = {
           error?: string | null
           failed_count?: number
           id?: string
+          last_retry_at?: string | null
+          max_retries?: number | null
           recipients?: string[]
           results?: Json | null
+          retry_count?: number | null
           sent_count?: number
           status: string
           survey_id?: string | null
@@ -494,8 +500,11 @@ export type Database = {
           error?: string | null
           failed_count?: number
           id?: string
+          last_retry_at?: string | null
+          max_retries?: number | null
           recipients?: string[]
           results?: Json | null
+          retry_count?: number | null
           sent_count?: number
           status?: string
           survey_id?: string | null
