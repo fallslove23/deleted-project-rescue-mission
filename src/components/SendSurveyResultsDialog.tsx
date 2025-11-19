@@ -70,6 +70,9 @@ export const SendSurveyResultsDialog = ({
   // 설문에 연결된 강사 목록 및 선택 (다중 강사 설문 대응)
   const [availableInstructors, setAvailableInstructors] = useState<{ id: string; name: string; email: string | null }[]>([]);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string>('all');
+  
+  // 역할별 실제 사용자 수
+  const [roleUserCounts, setRoleUserCounts] = useState<Record<string, number>>({});
 
   // 다이얼로그가 열릴 때 초기화 및 이전 발송 로그 확인
   useEffect(() => {
@@ -88,6 +91,7 @@ export const SendSurveyResultsDialog = ({
       // 이전 발송 이력 확인 및 강사 목록 로드
       checkPreviousLogs();
       fetchSurveyInstructors();
+      fetchRoleUserCounts();
     }
   }, [open, isInstructor, instructorId, surveyId]);
 
@@ -136,6 +140,28 @@ export const SendSurveyResultsDialog = ({
       setAvailableInstructors(instructors);
     } catch (error) {
       console.error('Failed to fetch survey instructors:', error);
+    }
+  };
+
+  const fetchRoleUserCounts = async () => {
+    try {
+      const counts: Record<string, number> = {};
+      
+      // 각 역할별 사용자 수 조회
+      for (const role of ['admin', 'operator', 'director', 'instructor']) {
+        const { count, error } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', role);
+        
+        if (!error && count !== null) {
+          counts[role] = count;
+        }
+      }
+      
+      setRoleUserCounts(counts);
+    } catch (error) {
+      console.error('Failed to fetch role user counts:', error);
     }
   };
 
@@ -335,7 +361,8 @@ export const SendSurveyResultsDialog = ({
     }
   };
 
-  const totalRecipients = selectedRoles.length + additionalEmails.length;
+  // 역할별 실제 사용자 수를 반영하여 총 수신자 수 계산
+  const totalRecipients = selectedRoles.reduce((sum, role) => sum + (roleUserCounts[role] || 0), 0) + additionalEmails.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
