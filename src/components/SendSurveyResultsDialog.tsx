@@ -27,6 +27,7 @@ interface EmailPreview {
   htmlContent: string;
   textContent: string;
   recipients: string[];
+  previewNote?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -659,6 +660,13 @@ export const SendSurveyResultsDialog = ({
                     })}
                   </div>
                 </div>
+                {emailPreview.previewNote && (
+                  <Alert>
+                    <AlertDescription className="text-sm">
+                      ℹ️ {emailPreview.previewNote}
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               <div className="border rounded-lg p-4 bg-background max-h-96 overflow-y-auto">

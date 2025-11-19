@@ -274,9 +274,28 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     if (previewOnly) {
-      const content = buildContent(null);
+      // 미리보기: 수신자 중 강사 이메일이 있으면 해당 강사의 결과만 표시
+      let previewInstructorId: string | null = null;
+      
+      for (const recipient of recipients) {
+        const emailLower = String(recipient).toLowerCase();
+        if (emailToInstructorId.has(emailLower)) {
+          previewInstructorId = emailToInstructorId.get(emailLower) || null;
+          break; // 첫 번째 강사의 결과를 미리보기로 사용
+        }
+      }
+      
+      const content = buildContent(previewInstructorId);
       return new Response(
-        JSON.stringify({ success: true, subject: content.subject, htmlContent: content.html, recipients }),
+        JSON.stringify({ 
+          success: true, 
+          subject: content.subject, 
+          htmlContent: content.html, 
+          recipients,
+          previewNote: previewInstructorId 
+            ? "미리보기: 강사님께는 본인의 과목 결과만 전송됩니다." 
+            : "미리보기: 전체 결과가 표시됩니다."
+        }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
