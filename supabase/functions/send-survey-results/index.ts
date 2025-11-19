@@ -200,7 +200,22 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       let questionSummary = "";
+      let lastInstructor: string | null = null;
+      
       Object.values(qaMap).forEach((qa: any) => {
+        // 강사가 바뀔 때 섹션 헤더 추가
+        if (qa.instructor && qa.instructor !== lastInstructor) {
+          questionSummary += `
+            <div style=\"margin:30px 0 20px 0;padding:12px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;border-left:4px solid #5a67d8;\">
+              <h3 style=\"color:#ffffff;margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;\">
+                <span style=\"margin-right:8px;\">👨‍🏫</span>
+                강사: ${qa.instructor}
+              </h3>
+            </div>
+          `;
+          lastInstructor = qa.instructor;
+        }
+        
         const instructorLabel = qa.instructor
           ? `<span style=\"display:inline-block;padding:2px 8px;background-color:#dbeafe;color:#1e40af;border-radius:4px;font-size:12px;font-weight:600;margin-left:8px;\">${qa.instructor}</span>`
           : "";
