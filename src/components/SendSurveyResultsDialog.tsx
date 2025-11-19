@@ -662,29 +662,13 @@ export const SendSurveyResultsDialog = ({
                   <strong>제목:</strong> {emailPreview.subject}
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm font-semibold">수신자:</div>
-                  <div className="space-y-1 pl-4">
-                    {emailPreview.recipients.map((recipient, idx) => {
-                      // 역할인지 이메일인지 구분
-                      const isRole = ['admin', 'operator', 'director', 'instructor'].includes(recipient);
-                      if (isRole) {
-                        return (
-                          <div key={idx} className="text-sm">
-                            <Badge variant="secondary" className="mr-2">
-                              {ROLE_LABELS[recipient] || recipient}
-                            </Badge>
-                            <span className="text-muted-foreground text-xs">
-                              (역할 기반 - 해당 역할의 모든 사용자에게 발송)
-                            </span>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div key={idx} className="text-sm font-mono">
-                          📧 {recipient}
-                        </div>
-                      );
-                    })}
+                  <div className="text-sm font-semibold">수신자: {emailPreview.recipients.length}명</div>
+                  <div className="space-y-1 pl-4 max-h-40 overflow-y-auto">
+                    {emailPreview.recipients.map((recipient, idx) => (
+                      <div key={idx} className="text-sm font-mono text-muted-foreground">
+                        📧 {recipient}
+                      </div>
+                    ))}
                   </div>
                 </div>
                 {emailPreview.previewNote && (
