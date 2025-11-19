@@ -1,6 +1,6 @@
 import React from 'react';
 import { DashboardLayout } from '@/components/layouts';
-import { FileText, Plus, Edit, Copy } from 'lucide-react';
+import { FileText, Plus, Edit, Copy, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Template {
   id: string;
@@ -26,6 +27,8 @@ const DashboardTemplateManagement = () => {
   
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const fetchTemplates = async () => {
     try {
@@ -116,6 +119,59 @@ const DashboardTemplateManagement = () => {
     }
   };
 
+  const openDeleteDialog = (template: Template) => {
+    setTemplateToDelete(template);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+
+    const templateId = templateToDelete.id;
+    try {
+      // 먼저 템플릿 질문들을 삭제
+      const { error: questionsError } = await supabase
+        .from('template_questions')
+        .delete()
+        .eq('template_id', templateId);
+
+      if (questionsError) throw questionsError;
+
+      // 템플릿 섹션들도 삭제
+      const { error: sectionsError } = await supabase
+        .from('template_sections')
+        .delete()
+        .eq('template_id', templateId);
+
+      if (sectionsError) throw sectionsError;
+
+      // 마지막으로 템플릿 삭제
+      const { error } = await supabase
+        .from('survey_templates')
+        .delete()
+        .eq('id', templateId);
+
+      if (error) throw error;
+
+      toast({
+        title: "성공",
+        description: "템플릿이 삭제되었습니다."
+      });
+
+      fetchTemplates();
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      toast({
+        title: "오류",
+        description: "템플릿 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setTemplateToDelete(null);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
   const actions = (
     <Button onClick={handleCreateTemplate} size="sm">
       <Plus className="h-4 w-4 mr-2" />
@@ -161,14 +217,24 @@ const DashboardTemplateManagement = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => handleCopyTemplate(template)}
+                      title="템플릿 복사"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => handleEditTemplate(template.id)}
+                      title="템플릿 편집"
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => openDeleteDialog(template)}
+                      title="템플릿 삭제"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -193,6 +259,21 @@ const DashboardTemplateManagement = () => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="템플릿 삭제"
+        description={`"${templateToDelete?.name}" 템플릿을 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 템플릿과 관련된 모든 질문이 삭제됩니다.`}
+        primaryAction={{
+          label: "삭제",
+          onClick: handleDeleteTemplate,
+          variant: "destructive"
+        }}
+        secondaryAction={{
+          label: "취소"
+        }}
+      />
     </DashboardLayout>
   );
 };
