@@ -147,13 +147,14 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                     <Bar 
                       dataKey="이전차수" 
                       name={comparisonLabel}
-                      fill="hsl(var(--muted) / 0.6)" 
+                      fill="hsl(var(--muted-foreground) / 0.4)" 
                       radius={[4, 4, 0, 0]}
                     />
                   )}
                   <Bar 
                     dataKey="현재차수" 
                     name="현재 차수"
+                    fill="hsl(142, 71%, 45%)"
                     radius={[4, 4, 0, 0]}
                     onClick={(data) => {
                       if (data && data.instructor_id) {
