@@ -282,15 +282,15 @@ const handler = async (req: Request): Promise<Response> => {
         
         // 역할인 경우 해당 역할의 모든 사용자 이메일을 가져옴
         if (['admin', 'operator', 'director', 'instructor'].includes(recipientStr)) {
-          const { data: users } = await supabase
-            .from('profiles')
-            .select('email')
+          const { data: roleUsers } = await supabase
+            .from('user_roles')
+            .select('user_id, profiles!inner(email)')
             .eq('role', recipientStr)
-            .not('email', 'is', null);
+            .not('profiles.email', 'is', null);
           
-          if (users) {
-            users.forEach((u: any) => {
-              if (u.email) expandedEmails.push(u.email);
+          if (roleUsers) {
+            roleUsers.forEach((ru: any) => {
+              if (ru.profiles?.email) expandedEmails.push(ru.profiles.email);
             });
           }
         } else {
@@ -331,15 +331,35 @@ const handler = async (req: Request): Promise<Response> => {
     const results: any[] = [];
     for (const emailRaw of recipients) {
       const email = String(emailRaw).toLowerCase();
-      const instructorId = emailToInstructorId.get(email) || null;
-      const content = buildContent(instructorId);
-      const sendRes = await resend.emails.send({
-        from: "Lovable <onboarding@resend.dev>",
-        to: [email],
-        subject: content.subject,
-        html: content.html,
-      });
-      results.push({ to: email, status: (sendRes as any)?.error ? "failed" : "sent" });
+      
+      // 역할인 경우 해당 역할의 모든 사용자 이메일로 확장
+      let targetEmails: string[] = [];
+      if (['admin', 'operator', 'director', 'instructor'].includes(email)) {
+        const { data: roleUsers } = await supabase
+          .from('user_roles')
+          .select('user_id, profiles!inner(email)')
+          .eq('role', email)
+          .not('profiles.email', 'is', null);
+        
+        if (roleUsers) {
+          targetEmails = roleUsers.map((ru: any) => ru.profiles?.email).filter(Boolean);
+        }
+      } else {
+        targetEmails = [email];
+      }
+      
+      // 각 이메일에 발송
+      for (const targetEmail of targetEmails) {
+        const instructorId = emailToInstructorId.get(targetEmail.toLowerCase()) || null;
+        const content = buildContent(instructorId);
+        const sendRes = await resend.emails.send({
+          from: "Lovable <onboarding@resend.dev>",
+          to: [targetEmail],
+          subject: content.subject,
+          html: content.html,
+        });
+        results.push({ to: targetEmail, status: (sendRes as any)?.error ? "failed" : "sent" });
+      }
     }
 
     return new Response(

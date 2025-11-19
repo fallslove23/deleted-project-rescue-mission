@@ -147,15 +147,16 @@ export const SendSurveyResultsDialog = ({
     try {
       const counts: Record<string, number> = {};
       
-      // 각 역할별 사용자 수 조회
-      for (const role of ['admin', 'operator', 'director', 'instructor']) {
-        const { count, error } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', role);
+      // 각 역할별 사용자 수 조회 (user_roles 테이블에서)
+      for (const role of ['admin', 'operator', 'director', 'instructor'] as const) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('user_id, profiles!inner(email)')
+          .eq('role', role)
+          .not('profiles.email', 'is', null);
         
-        if (!error && count !== null) {
-          counts[role] = count;
+        if (!error && data) {
+          counts[role] = data.length;
         }
       }
       
