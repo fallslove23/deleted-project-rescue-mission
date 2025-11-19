@@ -41,17 +41,17 @@ export const RadarChart = ({
   return (
     <div className="h-full w-full">
       {title && (
-        <h3 className="mb-4 text-center font-semibold text-foreground">{title}</h3>
+        <h3 className="mb-2 sm:mb-4 text-center text-sm sm:text-base font-semibold text-foreground">{title}</h3>
       )}
 
       {hasData ? (
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsRadarChart data={data} margin={{ top: 20, right: 80, bottom: 20, left: 80 }}>
+          <RechartsRadarChart data={data} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
             <PolarGrid stroke="hsl(var(--chart-1) / 0.2)" strokeWidth={1} radialLines />
             <PolarAngleAxis
               dataKey="subject"
               tick={{
-                fontSize: 12,
+                fontSize: 10,
                 fill: 'hsl(var(--foreground))',
                 fontWeight: 500
               }}
@@ -62,7 +62,7 @@ export const RadarChart = ({
               angle={90}
               domain={[0, 10]}
               tick={{
-                fontSize: 10,
+                fontSize: 9,
                 fill: 'hsl(var(--muted-foreground))',
                 fontWeight: 400
               }}
@@ -75,8 +75,8 @@ export const RadarChart = ({
               stroke={colors.stroke}
               fill={colors.fill}
               fillOpacity={0.4}
-              strokeWidth={3}
-              dot={{ r: 4, fill: colors.stroke, strokeWidth: 2, stroke: 'white' }}
+              strokeWidth={2}
+              dot={{ r: 3, fill: colors.stroke, strokeWidth: 2, stroke: 'white' }}
             />
             <Tooltip
               formatter={(value: number) => [`${value}점`, '점수']}
@@ -84,7 +84,8 @@ export const RadarChart = ({
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                color: 'hsl(var(--card-foreground))'
+                color: 'hsl(var(--card-foreground))',
+                fontSize: '11px'
               }}
             />
           </RechartsRadarChart>

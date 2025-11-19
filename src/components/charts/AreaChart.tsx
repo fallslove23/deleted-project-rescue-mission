@@ -99,7 +99,7 @@ export const AreaChart = ({
   return (
     <div className="h-full w-full">
       {title && (
-        <h3 className="mb-4 text-center font-semibold text-foreground">{title}</h3>
+        <h3 className="mb-2 sm:mb-4 text-center text-sm sm:text-base font-semibold text-foreground">{title}</h3>
       )}
       {hasData ? (
         <DataProcessingErrorBoundary dataSource="Area Chart" fallbackData={[]}>
@@ -108,8 +108,8 @@ export const AreaChart = ({
             data={safeData}
             margin={{
               top: 10,
-              right: 30,
-              left: 20,
+              right: 10,
+              left: 0,
               bottom: 5
             }}
           >
@@ -133,7 +133,7 @@ export const AreaChart = ({
             <XAxis
               type="category"
               dataKey="name"
-              tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }}
               axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
               label={
                 xAxisLabel
@@ -141,7 +141,7 @@ export const AreaChart = ({
                       value: xAxisLabel,
                       position: 'insideBottom',
                       offset: -5,
-                      style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))' }
+                      style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
                     }
                   : undefined
               }
@@ -149,7 +149,7 @@ export const AreaChart = ({
             <YAxis
               type="number"
               domain={[0, 'dataMax + 1']}
-              tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }}
               axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
               label={
                 yAxisLabel
@@ -157,7 +157,7 @@ export const AreaChart = ({
                       value: yAxisLabel,
                       angle: -90,
                       position: 'insideLeft',
-                      style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))' }
+                      style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }
                     }
                   : undefined
               }
@@ -167,14 +167,16 @@ export const AreaChart = ({
                 backgroundColor: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
-                color: 'hsl(var(--card-foreground))'
+                color: 'hsl(var(--card-foreground))',
+                fontSize: '11px'
               }}
             />
             <Legend
               wrapperStyle={{
-                fontSize: '12px',
+                fontSize: '10px',
                 color: 'hsl(var(--foreground))'
               }}
+              iconSize={10}
             />
             {dataKeys.map((item, index) => (
               <Area
