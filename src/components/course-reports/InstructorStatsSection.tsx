@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BarChart3, TrendingUp } from 'lucide-react';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { ChartErrorBoundary } from '@/components/charts/ChartErrorBoundary';
 
 interface InstructorStats {
@@ -109,21 +109,27 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
               <ResponsiveContainer width="100%" height={400}>
                 <ComposedChart 
                   data={verticalChartData} 
-                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                  margin={{ top: 20, right: 20, left: 0, bottom: 60 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis 
                     dataKey="name" 
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }}
                     height={60}
                     interval={0}
                   />
                   <YAxis 
                     domain={[0, 10]}
-                    tick={{ fontSize: 12 }}
-                    label={{ value: '만족도 (점)', angle: -90, position: 'insideLeft' }}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }}
+                    label={{ value: '만족도 (점)', angle: -90, position: 'insideLeft', style: { fontSize: 10 } }}
                   />
                   <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '11px'
+                    }}
                     formatter={(value: number, name: string) => {
                       if (name === '과정평균') return [`${value}점`, '과정 전체 평균'];
                       return [
@@ -136,30 +142,39 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
                       return `강사: ${data?.full_name || label}`;
                     }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
                   {hasComparisonData && (
                     <Bar 
                       dataKey="이전차수" 
                       name={comparisonLabel}
-                      fill="hsl(var(--muted-foreground))" 
+                      fill="hsl(var(--muted-foreground) / 0.3)" 
                       radius={[4, 4, 0, 0]}
-                      opacity={0.5}
                     />
                   )}
                   <Bar 
                     dataKey="현재차수" 
                     name="현재 차수"
-                    fill="hsl(var(--primary))" 
+                    fill="hsl(var(--chart-1))" 
                     radius={[4, 4, 0, 0]}
-                  />
+                    onClick={(data) => {
+                      if (data && data.instructor_id) {
+                        onInstructorClick(data.instructor_id);
+                      }
+                    }}
+                    cursor="pointer"
+                  >
+                    {verticalChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getBarColor(entry.현재차수)} />
+                    ))}
+                  </Bar>
                   <Line 
                     type="monotone" 
                     dataKey="과정평균" 
                     name="과정 전체 평균"
                     stroke="hsl(var(--destructive))" 
-                    strokeWidth={2.5}
-                    dot={{ fill: 'hsl(var(--destructive))', r: 4 }}
-                    activeDot={{ r: 6 }}
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--destructive))', r: 3, strokeWidth: 2, stroke: 'white' }}
+                    activeDot={{ r: 5 }}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
