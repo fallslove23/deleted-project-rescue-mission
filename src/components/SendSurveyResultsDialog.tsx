@@ -149,37 +149,87 @@ export const SendSurveyResultsDialog = ({
       
       // 각 역할별 사용자 수 조회
       for (const role of ['admin', 'operator', 'director', 'instructor'] as const) {
-        // 1단계: user_roles에서 해당 역할의 user_id 가져오기
-        const { data: userRoles, error: roleError } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', role);
-        
-        if (roleError) {
-          console.error(`Error fetching ${role} user_ids:`, roleError);
-          continue;
+        if (role === 'instructor') {
+          // 강사는 현재 설문에 연결된 강사만 카운트
+          // fetchSurveyInstructors가 먼저 실행되어야 하므로 직접 조회
+          const instructors: { id: string; name: string; email: string | null }[] = [];
+          
+          // 1. survey의 직접 instructor_id 확인
+          const { data: survey } = await supabase
+            .from('surveys')
+            .select('instructor_id')
+            .eq('id', surveyId)
+            .single();
+          
+          if (survey?.instructor_id) {
+            const { data: instructor } = await supabase
+              .from('instructors')
+              .select('id, name, email')
+              .eq('id', survey.instructor_id)
+              .single();
+            if (instructor?.email) instructors.push(instructor);
+          }
+          
+          // 2. survey_instructors 테이블에서 연결된 강사 확인
+          const { data: surveyInstructors } = await supabase
+            .from('survey_instructors')
+            .select('instructor_id, instructors(id, name, email)')
+            .eq('survey_id', surveyId);
+          
+          surveyInstructors?.forEach((si: any) => {
+            if (si.instructors?.email && !instructors.find(i => i.id === si.instructors.id)) {
+              instructors.push(si.instructors);
+            }
+          });
+          
+          // 3. survey_sessions 테이블에서 연결된 강사 확인
+          const { data: sessions } = await supabase
+            .from('survey_sessions')
+            .select('instructor_id, instructors(id, name, email)')
+            .eq('survey_id', surveyId)
+            .not('instructor_id', 'is', null);
+          
+          sessions?.forEach((session: any) => {
+            if (session.instructors?.email && !instructors.find(i => i.id === session.instructors.id)) {
+              instructors.push(session.instructors);
+            }
+          });
+          
+          counts[role] = instructors.length;
+        } else {
+          // 다른 역할들은 기존 로직대로
+          // 1단계: user_roles에서 해당 역할의 user_id 가져오기
+          const { data: userRoles, error: roleError } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', role);
+          
+          if (roleError) {
+            console.error(`Error fetching ${role} user_ids:`, roleError);
+            continue;
+          }
+          
+          if (!userRoles || userRoles.length === 0) {
+            counts[role] = 0;
+            continue;
+          }
+          
+          const userIds = userRoles.map(ur => ur.user_id);
+          
+          // 2단계: profiles에서 해당 user_id들의 이메일 가져오기
+          const { data: profiles, error: profileError } = await supabase
+            .from('profiles')
+            .select('email')
+            .in('id', userIds)
+            .not('email', 'is', null);
+          
+          if (profileError) {
+            console.error(`Error fetching ${role} profiles:`, profileError);
+            continue;
+          }
+          
+          counts[role] = profiles?.length || 0;
         }
-        
-        if (!userRoles || userRoles.length === 0) {
-          counts[role] = 0;
-          continue;
-        }
-        
-        const userIds = userRoles.map(ur => ur.user_id);
-        
-        // 2단계: profiles에서 해당 user_id들의 이메일 가져오기
-        const { data: profiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('email')
-          .in('id', userIds)
-          .not('email', 'is', null);
-        
-        if (profileError) {
-          console.error(`Error fetching ${role} profiles:`, profileError);
-          continue;
-        }
-        
-        counts[role] = profiles?.length || 0;
       }
       
       setRoleUserCounts(counts);
