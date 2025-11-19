@@ -147,17 +147,39 @@ export const SendSurveyResultsDialog = ({
     try {
       const counts: Record<string, number> = {};
       
-      // 각 역할별 사용자 수 조회 (user_roles 테이블에서)
+      // 각 역할별 사용자 수 조회
       for (const role of ['admin', 'operator', 'director', 'instructor'] as const) {
-        const { data, error } = await supabase
+        // 1단계: user_roles에서 해당 역할의 user_id 가져오기
+        const { data: userRoles, error: roleError } = await supabase
           .from('user_roles')
-          .select('user_id, profiles!inner(email)')
-          .eq('role', role)
-          .not('profiles.email', 'is', null);
+          .select('user_id')
+          .eq('role', role);
         
-        if (!error && data) {
-          counts[role] = data.length;
+        if (roleError) {
+          console.error(`Error fetching ${role} user_ids:`, roleError);
+          continue;
         }
+        
+        if (!userRoles || userRoles.length === 0) {
+          counts[role] = 0;
+          continue;
+        }
+        
+        const userIds = userRoles.map(ur => ur.user_id);
+        
+        // 2단계: profiles에서 해당 user_id들의 이메일 가져오기
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('email')
+          .in('id', userIds)
+          .not('email', 'is', null);
+        
+        if (profileError) {
+          console.error(`Error fetching ${role} profiles:`, profileError);
+          continue;
+        }
+        
+        counts[role] = profiles?.length || 0;
       }
       
       setRoleUserCounts(counts);

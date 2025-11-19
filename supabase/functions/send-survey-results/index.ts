@@ -282,16 +282,27 @@ const handler = async (req: Request): Promise<Response> => {
         
         // 역할인 경우 해당 역할의 모든 사용자 이메일을 가져옴
         if (['admin', 'operator', 'director', 'instructor'].includes(recipientStr)) {
-          const { data: roleUsers } = await supabase
+          // 1단계: user_roles에서 해당 역할의 user_id 가져오기
+          const { data: userRoles } = await supabase
             .from('user_roles')
-            .select('user_id, profiles!inner(email)')
-            .eq('role', recipientStr)
-            .not('profiles.email', 'is', null);
+            .select('user_id')
+            .eq('role', recipientStr);
           
-          if (roleUsers) {
-            roleUsers.forEach((ru: any) => {
-              if (ru.profiles?.email) expandedEmails.push(ru.profiles.email);
-            });
+          if (userRoles && userRoles.length > 0) {
+            const userIds = userRoles.map((ur: any) => ur.user_id);
+            
+            // 2단계: profiles에서 해당 user_id들의 이메일 가져오기
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('email')
+              .in('id', userIds)
+              .not('email', 'is', null);
+            
+            if (profiles) {
+              profiles.forEach((p: any) => {
+                if (p.email) expandedEmails.push(p.email);
+              });
+            }
           }
         } else {
           // 이메일 주소인 경우 그대로 추가
@@ -335,14 +346,25 @@ const handler = async (req: Request): Promise<Response> => {
       // 역할인 경우 해당 역할의 모든 사용자 이메일로 확장
       let targetEmails: string[] = [];
       if (['admin', 'operator', 'director', 'instructor'].includes(email)) {
-        const { data: roleUsers } = await supabase
+        // 1단계: user_roles에서 해당 역할의 user_id 가져오기
+        const { data: userRoles } = await supabase
           .from('user_roles')
-          .select('user_id, profiles!inner(email)')
-          .eq('role', email)
-          .not('profiles.email', 'is', null);
+          .select('user_id')
+          .eq('role', email);
         
-        if (roleUsers) {
-          targetEmails = roleUsers.map((ru: any) => ru.profiles?.email).filter(Boolean);
+        if (userRoles && userRoles.length > 0) {
+          const userIds = userRoles.map((ur: any) => ur.user_id);
+          
+          // 2단계: profiles에서 해당 user_id들의 이메일 가져오기
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('email')
+            .in('id', userIds)
+            .not('email', 'is', null);
+          
+          if (profiles) {
+            targetEmails = profiles.map((p: any) => p.email).filter(Boolean);
+          }
         }
       } else {
         targetEmails = [email];
