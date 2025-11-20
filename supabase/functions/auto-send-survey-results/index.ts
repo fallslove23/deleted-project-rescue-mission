@@ -150,26 +150,46 @@ serve(async (req) => {
       );
     }
 
-    const results: Array<{ surveyId: string; status: number; data: unknown }> = [];
-
     if (!dryRun) {
-      for (const s of targets) {
-        try {
-          const r = await invokeSendResults(s.id);
-          results.push({ surveyId: s.id, status: r.status, data: r.data });
-        } catch (e) {
-          results.push({ surveyId: s.id, status: 500, data: { error: String(e) } });
+      // Process emails in background to avoid timeout
+      const processEmails = async () => {
+        for (const s of targets) {
+          try {
+            console.log(`Processing survey ${s.id} (${s.title})...`);
+            const r = await invokeSendResults(s.id);
+            console.log(`Survey ${s.id} processed:`, r.status);
+          } catch (e) {
+            console.error(`Failed to process survey ${s.id}:`, e);
+          }
         }
-      }
+      };
+
+      // Start background processing
+      EdgeRuntime.waitUntil(processEmails());
+
+      // Return immediate response
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Started sending emails for ${targets.length} survey(s) in background`,
+          targets: targets.map((t) => ({ id: t.id, title: t.title, status: t.status, end_date: t.end_date })),
+          dryRun: false,
+          partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
+            surveyId,
+            count,
+          })),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        processed: dryRun ? 0 : results.length,
+        processed: 0,
         targets: targets.map((t) => ({ id: t.id, title: t.title, status: t.status, end_date: t.end_date })),
-        results,
-        dryRun,
+        results: [],
+        dryRun: true,
         partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
           surveyId,
           count,
