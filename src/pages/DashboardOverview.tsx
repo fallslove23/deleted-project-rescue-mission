@@ -674,15 +674,19 @@ const DashboardOverview: React.FC = () => {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">신규 설문</span>
-                        <span className="font-semibold text-foreground">{Math.floor(stats.totalSurveys * 0.2)}</span>
+                        <span className="font-semibold text-foreground">{stats.activeSurveys}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">총 참여자</span>
-                        <span className="font-semibold text-foreground">{Math.floor(stats.totalResponses * 0.8)}</span>
+                        <span className="font-semibold text-foreground">{stats.totalResponses}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">만족도 평균</span>
-                        <span className="font-semibold text-foreground">8.5/10.0</span>
+                        <span className="font-semibold text-foreground">
+                          {stats.avgScore !== null && stats.avgScore !== undefined 
+                            ? `${stats.avgScore.toFixed(1)}/10.0` 
+                            : '-'}
+                        </span>
                       </div>
                     </div>
                   </>
