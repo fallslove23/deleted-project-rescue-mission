@@ -82,20 +82,9 @@ const DashboardEmailLogs = () => {
   const fetchEmailLogs = async () => {
     try {
       setLoading(true);
+      // Use RPC function that includes proper permission checks
       const { data, error } = await supabase
-        .from('email_logs')
-        .select(`
-          id,
-          survey_id,
-          recipients,
-          status,
-          sent_count,
-          failed_count,
-          results,
-          created_at
-        `)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .rpc('get_email_logs' as any);
 
       if (error) throw error;
       const normalizedLogs = (data || []) as EmailLog[];
