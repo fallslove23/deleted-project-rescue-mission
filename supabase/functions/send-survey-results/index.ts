@@ -347,6 +347,84 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Prepare survey info and question analysis for email logs
+    const surveyInfo = {
+      year: survey.education_year,
+      round: survey.education_round,
+      title: survey.title || survey.course_name,
+      course: survey.course_name,
+      instructor: allInstructors.map((i) => i.name).filter(Boolean).join(", ") || "미등록",
+      author_name: survey.created_by_name || "Unknown",
+      author_email: survey.created_by_email || "Unknown",
+      response_count: responses.length,
+    };
+
+    // Build question analysis from all answers for logging
+    const logQaMap: Record<string, any> = {};
+    answers?.forEach((a: any) => {
+      const q = a.survey_questions || {};
+      const qid = a.question_id;
+      if (!logQaMap[qid]) {
+        logQaMap[qid] = {
+          question: q.question_text,
+          type: q.question_type,
+          satisfaction_type: q.satisfaction_type,
+          answers: [] as any[],
+          stats: {},
+        };
+      }
+      const row = logQaMap[qid];
+      const val = a.answer_value;
+      const text = a.answer_text;
+      if (row.type === "rating" || row.type === "scale") {
+        let n: number | null = null;
+        if (typeof val === "number") n = val;
+        else if (typeof val === "string" && !isNaN(Number(val))) n = Number(val);
+        else if (val && typeof val === "object") {
+          const maybe: any = (val as any).value ?? (val as any).score ?? null;
+          if (maybe != null && !isNaN(Number(maybe))) n = Number(maybe);
+        } else if (typeof text === "string" && !isNaN(Number(text))) {
+          n = Number(text);
+        }
+        if (typeof n === "number" && !isNaN(n)) row.answers.push(n);
+      } else if (row.type === "multiple_choice" || row.type === "single_choice") {
+        const pushChoice = (s: any) => {
+          if (s == null) return;
+          const v = typeof s === "object" ? (s.label ?? s.value ?? JSON.stringify(s)) : s;
+          const str = String(v).trim();
+          if (str) row.answers.push(str);
+        };
+        if (typeof text === "string" && text.trim()) pushChoice(text);
+        else if (Array.isArray(val)) val.forEach(pushChoice);
+        else if (typeof val === "string") pushChoice(val);
+        else if (typeof val === "object" && val) pushChoice(val);
+      } else if (typeof text === "string" && text.trim()) {
+        row.answers.push(text.trim());
+      }
+    });
+
+    // Calculate stats for each question
+    Object.keys(logQaMap).forEach((k) => {
+      const row = logQaMap[k];
+      if (row.type === "rating" || row.type === "scale") {
+        const nums = row.answers.filter((x: any) => typeof x === "number" && !isNaN(x));
+        if (nums.length > 0) {
+          const avg = nums.reduce((s: number, v: number) => s + v, 0) / nums.length;
+          row.stats.average = Number(avg.toFixed(1));
+          row.stats.count = nums.length;
+        }
+      } else if (row.type === "multiple_choice" || row.type === "single_choice") {
+        const counts: Record<string, number> = {};
+        row.answers.forEach((v: any) => {
+          const key = String(v);
+          counts[key] = (counts[key] || 0) + 1;
+        });
+        row.stats.distribution = counts;
+      }
+    });
+
+    const questionAnalysis = logQaMap;
+
     const results: any[] = [];
     for (const emailRaw of recipients) {
       const email = String(emailRaw).toLowerCase();
@@ -398,8 +476,26 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Save to email_logs
+    const sentCount = results.filter((r) => r.status === "sent").length;
+    const failedCount = results.filter((r) => r.status === "failed").length;
+    const recipientList = [...new Set(results.map((r) => r.to))];
+    
+    try {
+      await supabase.from("email_logs").insert({
+        survey_id: surveyId,
+        recipients: recipientList,
+        status: failedCount === 0 ? "success" : (sentCount > 0 ? "partial" : "failed"),
+        sent_count: sentCount,
+        failed_count: failedCount,
+        results: { emailResults: results, survey_info: surveyInfo, question_analysis: questionAnalysis },
+      });
+    } catch (logErr: any) {
+      console.error("Failed to save email log:", logErr);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, sentCount: results.filter((r) => r.status === "sent").length, results }),
+      JSON.stringify({ success: true, sentCount, results }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (e: any) {

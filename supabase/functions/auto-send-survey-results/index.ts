@@ -151,28 +151,27 @@ serve(async (req) => {
     }
 
     if (!dryRun) {
-      // Process emails in background to avoid timeout
-      const processEmails = async () => {
-        for (const s of targets) {
-          try {
-            console.log(`Processing survey ${s.id} (${s.title})...`);
-            const r = await invokeSendResults(s.id);
-            console.log(`Survey ${s.id} processed:`, r.status);
-          } catch (e) {
-            console.error(`Failed to process survey ${s.id}:`, e);
-          }
+      // Process emails synchronously to ensure completion
+      const results = [];
+      for (const s of targets) {
+        try {
+          console.log(`Processing survey ${s.id} (${s.title})...`);
+          const r = await invokeSendResults(s.id);
+          console.log(`Survey ${s.id} processed: ${r.status}`);
+          results.push({ surveyId: s.id, title: s.title, status: r.status, success: r.status === 200 });
+        } catch (e: any) {
+          console.error(`Failed to process survey ${s.id}:`, e);
+          results.push({ surveyId: s.id, title: s.title, error: e?.message, success: false });
         }
-      };
+      }
 
-      // Start background processing
-      EdgeRuntime.waitUntil(processEmails());
-
-      // Return immediate response
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Started sending emails for ${targets.length} survey(s) in background`,
-          targets: targets.map((t) => ({ id: t.id, title: t.title, status: t.status, end_date: t.end_date })),
+          message: `Sent emails for ${targets.length} survey(s)`,
+          processed: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length,
+          results,
           dryRun: false,
           partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
             surveyId,
