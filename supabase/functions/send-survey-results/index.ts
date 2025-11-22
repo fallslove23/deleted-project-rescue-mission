@@ -466,13 +466,31 @@ const handler = async (req: Request): Promise<Response> => {
       for (const targetEmail of targetEmails) {
         const instructorId = emailToInstructorId.get(targetEmail.toLowerCase()) || null;
         const content = buildContent(instructorId);
-        const sendRes = await resend.emails.send({
-          from: "Lovable <onboarding@resend.dev>",
-          to: [targetEmail],
-          subject: content.subject,
-          html: content.html,
-        });
-        results.push({ to: targetEmail, status: (sendRes as any)?.error ? "failed" : "sent" });
+        
+        const fromAddress = Deno.env.get("RESEND_FROM_ADDRESS") || "onboarding@resend.dev";
+        const replyTo = Deno.env.get("RESEND_REPLY_TO") || undefined;
+        
+        try {
+          console.log(`Sending email to ${targetEmail} from ${fromAddress}`);
+          const sendRes: any = await resend.emails.send({
+            from: fromAddress,
+            to: [targetEmail],
+            reply_to: replyTo,
+            subject: content.subject,
+            html: content.html,
+          });
+          
+          if (sendRes?.error) {
+            console.error(`Failed to send to ${targetEmail}:`, sendRes.error);
+            results.push({ to: targetEmail, status: "failed", error: sendRes.error.message || String(sendRes.error) });
+          } else {
+            console.log(`Successfully sent to ${targetEmail}, ID: ${sendRes?.id}`);
+            results.push({ to: targetEmail, status: "sent", emailId: sendRes?.id });
+          }
+        } catch (emailErr: any) {
+          console.error(`Exception sending to ${targetEmail}:`, emailErr);
+          results.push({ to: targetEmail, status: "failed", error: emailErr?.message || String(emailErr) });
+        }
       }
     }
 
