@@ -46,7 +46,7 @@ export const KeywordCloud = ({ textualResponses }: KeywordCloudProps) => {
     
     return Array.from(wordCount.entries())
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 30)
+      .slice(0, 50)
       .map(([word, count]) => ({
         word,
         count,
@@ -70,7 +70,7 @@ export const KeywordCloud = ({ textualResponses }: KeywordCloudProps) => {
         priority: comment.length // 길이로 우선순위 결정 (실제로는 더 정교한 알고리즘 필요)
       }))
       .sort((a, b) => b.priority - a.priority)
-      .slice(0, 5);
+      .slice(0, 20);
   };
 
   const analyzeCommentSentiment = (comment: string) => {
@@ -141,7 +141,7 @@ export const KeywordCloud = ({ textualResponses }: KeywordCloudProps) => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {positiveKeywords.slice(0, 8).map(({ word, count }, index) => (
+              {positiveKeywords.slice(0, 20).map(({ word, count }, index) => (
                 <Badge 
                   key={index}
                   variant="secondary"
@@ -164,7 +164,7 @@ export const KeywordCloud = ({ textualResponses }: KeywordCloudProps) => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {negativeKeywords.slice(0, 8).map(({ word, count }, index) => (
+              {negativeKeywords.slice(0, 20).map(({ word, count }, index) => (
                 <Badge 
                   key={index}
                   variant="secondary"
@@ -187,7 +187,7 @@ export const KeywordCloud = ({ textualResponses }: KeywordCloudProps) => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {neutralKeywords.slice(0, 8).map(({ word, count }, index) => (
+              {neutralKeywords.slice(0, 20).map(({ word, count }, index) => (
                 <Badge 
                   key={index}
                   variant="secondary"
