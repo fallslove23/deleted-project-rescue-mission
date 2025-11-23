@@ -431,30 +431,30 @@ const DashboardOverview: React.FC = () => {
         )}
 
         {/* 차트 섹션 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
           {/* 응답 트렌드 차트 */}
           <Card className="bg-white border-0 shadow-sm">
-            <CardHeader className="p-4 sm:p-6">
+            <CardHeader className="p-3 sm:p-4 md:p-6">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-foreground">응답 트렌드</h3>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base md:text-lg font-semibold text-foreground">응답 트렌드</h3>
                   <p className="text-xs sm:text-sm text-muted-foreground">최근 7일간 응답 추이</p>
                 </div>
                 {!busy && usingSampleTrendData && (
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                  <Badge variant="outline" className="text-xs text-muted-foreground flex-shrink-0">
                     샘플 데이터
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
               {busy ? (
-                <div className="h-64 flex items-center justify-center">
-                  <Skeleton className="h-40 w-full" />
+                <div className="h-48 sm:h-56 md:h-64 flex items-center justify-center">
+                  <Skeleton className="h-32 sm:h-40 w-full" />
                 </div>
               ) : (
                 <>
-                  <div className="h-64">
+                  <div className="h-48 sm:h-56 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsAreaChart data={responseTrendData}>
                         <defs>
@@ -466,12 +466,12 @@ const DashboardOverview: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                          tick={{ fontSize: 10 }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                          tick={{ fontSize: 10 }}
                           axisLine={false}
                           tickLine={false}
                         />
@@ -489,12 +489,12 @@ const DashboardOverview: React.FC = () => {
                           stroke="hsl(var(--chart-1))"
                           fillOpacity={1}
                           fill="url(#responseGradient)"
-                          strokeWidth={3}
+                          strokeWidth={2}
                         />
                       </RechartsAreaChart>
                     </ResponsiveContainer>
                   </div>
-                  <p className="mt-4 text-xs text-muted-foreground text-center">
+                  <p className="mt-3 sm:mt-4 text-xs text-muted-foreground text-center">
                     {usingSampleTrendData
                       ? "최근 7일 응답 데이터가 없어 샘플 추이를 표시합니다."
                       : "Supabase의 실제 응답 데이터를 기반으로 집계되었습니다."}
@@ -506,18 +506,18 @@ const DashboardOverview: React.FC = () => {
 
           {/* 설문 상태 분포 도넛 차트 */}
           <Card className="bg-white border-0 shadow-sm">
-            <CardHeader>
-              <h3 className="text-lg font-semibold text-foreground">설문 상태 분포</h3>
-              <p className="text-sm text-muted-foreground">설문별 진행 상황</p>
+            <CardHeader className="p-3 sm:p-4 md:p-6">
+              <h3 className="text-sm sm:text-base md:text-lg font-semibold text-foreground">설문 상태 분포</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">설문별 진행 상황</p>
             </CardHeader>
-            <CardContent>
-              <div className="h-64">
+            <CardContent className="p-3 sm:p-4 md:p-6 pt-0">
+              <div className="h-48 sm:h-56 md:h-64">
                 {busy ? (
                   <div className="h-full flex items-center justify-center">
-                    <Skeleton className="h-40 w-full" />
+                    <Skeleton className="h-32 sm:h-40 w-full" />
                   </div>
                 ) : !hasSurveyData ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-sm text-muted-foreground">
+                  <div className="h-full flex flex-col items-center justify-center text-center text-sm text-muted-foreground px-4">
                     <p>표시할 설문 데이터가 없습니다.</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       설문이 생성되면 분포가 자동으로 업데이트됩니다.
@@ -534,8 +534,8 @@ const DashboardOverview: React.FC = () => {
                         ]}
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
+                        innerRadius={35}
+                        outerRadius={60}
                         paddingAngle={5}
                         dataKey="value"
                       >

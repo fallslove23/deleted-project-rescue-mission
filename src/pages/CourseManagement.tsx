@@ -324,17 +324,18 @@ const CourseManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Action Bar */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold">과목 목록</h2>
-          <p className="text-muted-foreground text-sm">과목 정보를 관리하고 강사를 배정하세요</p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-xl font-semibold truncate">과목 목록</h2>
+          <p className="text-muted-foreground text-xs sm:text-sm">과목 정보를 관리하고 강사를 배정하세요</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={openAddDialog} className="flex items-center gap-2">
+          <Button onClick={openAddDialog} className="flex items-center gap-1 sm:gap-2 flex-1 sm:flex-none text-sm">
             <Plus className="h-4 w-4" />
-            새 과목 추가
+            <span className="hidden sm:inline">새 과목 추가</span>
+            <span className="sm:hidden">추가</span>
           </Button>
           
           {/* View Toggle */}
@@ -343,7 +344,7 @@ const CourseManagement = () => {
               variant={viewType === 'card' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewType('card')}
-              className="h-8 px-3"
+              className="h-8 px-2 sm:px-3"
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
@@ -351,7 +352,7 @@ const CourseManagement = () => {
               variant={viewType === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewType('list')}
-              className="h-8 px-3"
+              className="h-8 px-2 sm:px-3"
             >
               <List className="h-4 w-4" />
             </Button>
@@ -371,26 +372,26 @@ const CourseManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center">
-              <BookOpen className="h-8 w-8 text-primary" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">총 과목 수</p>
-                <p className="text-2xl font-bold">{subjects.length}</p>
+              <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0" />
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">총 과목 수</p>
+                <p className="text-xl sm:text-2xl font-bold">{subjects.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center">
-              <Users className="h-8 w-8 text-primary" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">배정된 강사 수</p>
-                <p className="text-2xl font-bold">
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0" />
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">배정된 강사 수</p>
+                <p className="text-xl sm:text-2xl font-bold">
                   {new Set(instructorLectures.map(il => il.instructor_id)).size}
                 </p>
               </div>
@@ -401,7 +402,7 @@ const CourseManagement = () => {
 
       {/* Subjects Grid/List */}
       {viewType === 'card' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
           {filteredSubjects.map((subject) => {
             const subjectInstructors = getSubjectInstructors(subject.id);
             const subjectLectures = lectures.filter(l => l.subject_id === subject.id);

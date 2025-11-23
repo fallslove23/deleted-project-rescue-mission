@@ -104,24 +104,24 @@ export const DataTable = ({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="flex items-center gap-2">
+      <CardHeader className="space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             {title}
-            <Badge variant="secondary">{filteredData.length}개</Badge>
+            <Badge variant="secondary" className="text-xs">{filteredData.length}개</Badge>
           </CardTitle>
           <div className="flex gap-2">
             {exportable && (
-              <Button variant="outline" size="sm" onClick={onExport}>
-                <Download className="h-4 w-4 mr-2" />
-                내보내기
+              <Button variant="outline" size="sm" onClick={onExport} className="text-xs sm:text-sm">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">내보내기</span>
               </Button>
             )}
           </div>
         </div>
 
         {/* 검색 및 필터 */}
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {searchable && (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -144,7 +144,7 @@ export const DataTable = ({
                   value={filters[col.key] || 'all'}
                   onValueChange={(value) => handleFilter(col.key, value)}
                 >
-                  <SelectTrigger className="w-48">
+                  <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder={`${col.label} 필터`} />
                   </SelectTrigger>
                   <SelectContent>
@@ -163,9 +163,9 @@ export const DataTable = ({
       </CardHeader>
 
       <CardContent>
-        {/* 테이블 */}
-        <div className="rounded-md border">
-          <Table>
+        {/* 테이블 - 모바일에서 horizontal scroll */}
+        <div className="rounded-md border overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
                 {columns.map(column => (
@@ -174,7 +174,7 @@ export const DataTable = ({
                     className={column.sortable ? 'cursor-pointer hover:bg-muted/50' : ''}
                     onClick={() => column.sortable && handleSort(column.key)}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
                       {column.label}
                       {column.sortable && sortColumn === column.key && (
                         <span className="text-xs">
@@ -197,7 +197,7 @@ export const DataTable = ({
                 paginatedData.map((row, index) => (
                   <TableRow key={index}>
                     {columns.map(column => (
-                      <TableCell key={column.key}>
+                      <TableCell key={column.key} className="text-sm">
                         {column.render 
                           ? column.render(row[column.key], row)
                           : String(row[column.key] || '-')
@@ -213,20 +213,21 @@ export const DataTable = ({
 
         {/* 페이지네이션 */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mt-4">
+            <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
               {startIndex + 1}-{Math.min(startIndex + pageSize, sortedData.length)} / {sortedData.length}개
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
+                className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium">
+              <span className="text-xs sm:text-sm font-medium min-w-[60px] sm:min-w-[80px] text-center">
                 {currentPage} / {totalPages}
               </span>
               <Button
@@ -234,6 +235,7 @@ export const DataTable = ({
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
+                className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>

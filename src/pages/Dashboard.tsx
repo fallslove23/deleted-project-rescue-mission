@@ -270,32 +270,32 @@ const Dashboard = () => {
           </header>
 
           {/* Content */}
-          <div className="flex-1 container mx-auto px-4 py-4 md:py-6">
+          <div className="flex-1 container mx-auto px-2 sm:px-4 py-3 sm:py-4 md:py-6">
             {/* 탭 네비게이션 */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 border border-gray-200 shadow-sm">
-                <TabsList className={`grid ${isAdmin ? 'grid-cols-5' : isInstructor ? 'grid-cols-4' : 'grid-cols-3'} gap-1 bg-transparent h-auto p-0`}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-1 border border-gray-200 shadow-sm overflow-x-auto touch-scroll">
+                <TabsList className={`grid ${isAdmin ? 'grid-cols-5' : isInstructor ? 'grid-cols-4' : 'grid-cols-3'} gap-1 bg-transparent h-auto p-0 min-w-max`}>
                   <TabsTrigger 
                     value="overview" 
-                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
+                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap"
                   >
-                    <BarChart className="h-4 w-4 mr-2" />
+                    <BarChart className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     개요
                   </TabsTrigger>
                   
                   <TabsTrigger 
                     value="surveys" 
-                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
+                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap"
                   >
-                    <FileText className="h-4 w-4 mr-2" />
+                    <FileText className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     설문관리
                   </TabsTrigger>
                   
                   <TabsTrigger 
                     value="results" 
-                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
+                    className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap"
                   >
-                    <BarChart className="h-4 w-4 mr-2" />
+                    <BarChart className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     결과분석
                   </TabsTrigger>
                   
@@ -303,9 +303,9 @@ const Dashboard = () => {
                   {(isAdmin || isInstructor) && (
                     <TabsTrigger 
                       value="instructors" 
-                      className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
+                      className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap"
                     >
-                      <Users className="h-4 w-4 mr-2" />
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       강사관리
                     </TabsTrigger>
                   )}
@@ -314,9 +314,9 @@ const Dashboard = () => {
                   {isAdmin && (
                     <TabsTrigger 
                       value="templates" 
-                      className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-3 px-4 rounded-lg font-medium"
+                      className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md transition-all duration-200 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap"
                     >
-                      <BookOpen className="h-4 w-4 mr-2" />
+                      <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       템플릿관리
                     </TabsTrigger>
                   )}
@@ -324,9 +324,9 @@ const Dashboard = () => {
               </div>
 
               {/* 개요 탭 */}
-              <TabsContent value="overview" className="space-y-6">
+              <TabsContent value="overview" className="space-y-4 sm:space-y-6">
                 {/* 주요 통계 카드들 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                   <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">전체 설문조사</CardTitle>
@@ -390,7 +390,7 @@ const Dashboard = () => {
 
                 {/* 관리자 전용 통계 */}
                 {isAdmin && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                     <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">전체 강사수</CardTitle>
@@ -439,21 +439,21 @@ const Dashboard = () => {
                 )}
 
                 {/* 차트 섹션 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
                   <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-                    <CardHeader>
-                      <CardTitle className="text-lg font-semibold">설문 현황</CardTitle>
+                    <CardHeader className="pb-2 sm:pb-4">
+                      <CardTitle className="text-base sm:text-lg font-semibold">설문 현황</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-64">
+                      <div className="h-48 sm:h-56 md:h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
                               data={chartData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={40}
-                              outerRadius={80}
+                              innerRadius={30}
+                              outerRadius={60}
                               paddingAngle={5}
                               dataKey="value"
                             >
@@ -464,14 +464,14 @@ const Dashboard = () => {
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
-                      <div className="flex justify-center gap-4 mt-4">
+                      <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mt-3 sm:mt-4">
                         {chartData.map((item, index) => (
-                          <div key={item.name} className="flex items-center gap-2">
+                          <div key={item.name} className="flex items-center gap-1.5 sm:gap-2">
                             <div 
-                              className="w-3 h-3 rounded-full" 
+                              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0" 
                               style={{ backgroundColor: COLORS[index] }}
                             />
-                            <span className="text-sm text-muted-foreground">{item.name}</span>
+                            <span className="text-xs sm:text-sm text-muted-foreground">{item.name}</span>
                           </div>
                         ))}
                       </div>
@@ -479,16 +479,16 @@ const Dashboard = () => {
                   </Card>
 
                   <Card className="bg-white border border-gray-200 hover:border-primary/20 transition-all duration-300">
-                    <CardHeader>
-                      <CardTitle className="text-lg font-semibold">응답 추이</CardTitle>
+                    <CardHeader className="pb-2 sm:pb-4">
+                      <CardTitle className="text-base sm:text-lg font-semibold">응답 추이</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-64">
+                      <div className="h-48 sm:h-56 md:h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <RechartsBarChart data={responseData}>
                             <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="period" />
-                            <YAxis />
+                            <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                            <YAxis tick={{ fontSize: 12 }} />
                             <Bar dataKey="responses" fill="#8884d8" />
                           </RechartsBarChart>
                         </ResponsiveContainer>
