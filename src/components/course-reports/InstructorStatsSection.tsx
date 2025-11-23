@@ -98,25 +98,25 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
       </div>
 
       <Card className="shadow-lg border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-sm sm:text-base lg:text-lg">
+            <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             강사별 만족도 현황 (10점 만점)
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             {hasComparisonData 
               ? '현재 차수와 이전 차수의 강사별 만족도를 비교하고, 과정 전체 평균을 확인할 수 있습니다' 
               : '강사별 만족도 현황과 과정 전체 평균을 세로 막대그래프로 확인할 수 있습니다'
             }
           </CardDescription>
         </CardHeader>
-          <CardContent>
+          <CardContent className="p-2 sm:p-4 md:p-6">
             {validInstructorStats.length > 0 ? (
               <ChartErrorBoundary fallbackDescription="강사 통계 차트를 표시하는 중 오류가 발생했습니다.">
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={350}>
                 <ComposedChart 
                   data={verticalChartData} 
-                  margin={{ top: 20, right: 20, left: 0, bottom: 60 }}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 50 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis 
@@ -192,14 +192,14 @@ const InstructorStatsSection: React.FC<InstructorStatsSectionProps> = ({
 
       {/* 강사별 상세 카드 */}
       <Card>
-        <CardHeader>
-          <CardTitle>상세 통계</CardTitle>
-          <CardDescription>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-sm sm:text-base lg:text-lg">상세 통계</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             각 강사의 설문 수행 현황과 만족도 세부사항
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {validInstructorStats.map((stat) => {
               const previousStat = previousStats.find(prev => prev.instructor_id === stat.instructor_id);
               const hasChange = previousStat && previousStat.avg_satisfaction !== stat.avg_satisfaction;

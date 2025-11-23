@@ -135,13 +135,13 @@ export function VirtualizedTable<T>({
   }
 
   return (
-    <div className={`border rounded-md overflow-hidden ${className}`}>
+    <div className={`border rounded-md overflow-x-auto ${className}`}>
       <div 
         ref={parentRef}
-        className="relative overflow-auto"
+        className="relative overflow-auto touch-scroll"
         style={{ height }}
       >
-        <Table className="w-full table-fixed">
+        <Table className="w-full table-fixed min-w-[800px]">
           <TableHeader className="sticky top-0 bg-background z-10 border-b">
             <TableRow>
               {columns.map((column) => (
