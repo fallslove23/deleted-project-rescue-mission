@@ -454,9 +454,9 @@ const SurveyDetailedAnalysis = () => {
       const stats = await SurveyDetailRepository.fetchSurveyDetailStats({
         surveyId,
         includeTestData: false, // 테스트 데이터 제외
-        responseLimit: 100,
-        distributionLimit: 50,
-        textLimit: 100,
+        responseLimit: 9999,
+        distributionLimit: 9999,
+        textLimit: 9999,
       });
       
       setDetailStats(stats);

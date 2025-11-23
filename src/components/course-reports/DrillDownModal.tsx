@@ -23,8 +23,8 @@ export const DrillDownModal = ({
   textualResponses = [],
   periodData = []
 }: DrillDownModalProps) => {
-  // 타입별로 관련된 코멘트 필터링 (실제로는 더 정교한 필터링 로직 필요)
-  const relevantComments = textualResponses.slice(0, 10);
+  // 타입별로 관련된 코멘트 필터링 - 전체 표시
+  const relevantComments = textualResponses;
 
   // 기간별 데이터 생성 (임시 데이터 - 실제로는 props로 받아야 함)
   const mockPeriodData = [

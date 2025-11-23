@@ -81,9 +81,9 @@ export interface FetchSurveyDetailParams {
 const SCORE_RANGE = Array.from({ length: 10 }, (_value, index) => index + 1);
 
 export const SURVEY_DETAIL_DEFAULTS = {
-  responseLimit: 50,
-  distributionLimit: 20,
-  textLimit: 50,
+  responseLimit: 9999,
+  distributionLimit: 9999,
+  textLimit: 9999,
 } as const;
 
 function toNumber(value: unknown): NullableNumber {
