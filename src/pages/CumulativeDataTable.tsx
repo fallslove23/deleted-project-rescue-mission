@@ -415,10 +415,10 @@ const CumulativeDataTable = () => {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base sm:text-lg">누적 데이터 목록</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-sm sm:text-base lg:text-lg">누적 데이터 목록</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           {loading && data.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <div className="text-center">

@@ -427,33 +427,33 @@ const CourseReportsContent: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-2">
         <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base lg:text-lg">
               <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               영역별 만족도
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">강사, 과정, 운영 만족도를 비교해 보세요.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[280px] sm:h-[320px]">
+          <CardContent className="h-[240px] sm:h-[280px] lg:h-[320px] p-2 sm:p-4">
             <ChartErrorBoundary fallbackDescription="만족도 차트를 표시할 수 없습니다.">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
                   data={satisfactionChartData}
                   layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 5, right: 10, left: 5, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                   <XAxis 
                     type="number" 
                     domain={[0, 10]}
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                     tickFormatter={(value) => `${value}점`}
                   />
                   <YAxis 
                     type="category" 
                     dataKey="name"
-                    tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
-                    width={100}
+                    tick={{ fontSize: 9, fill: 'hsl(var(--foreground))' }}
+                    width={80}
                   />
                   <Tooltip 
                     formatter={(value: number) => [`${value.toFixed(1)}점`, '만족도']}
@@ -535,14 +535,14 @@ const CourseReportsContent: React.FC = () => {
 
       {trendChartData.length > 0 && (
         <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-sm sm:text-base lg:text-lg">
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               만족도 추이
             </CardTitle>
-            <CardDescription>차수별 만족도 변화를 확인해 보세요.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">차수별 만족도 변화를 확인해 보세요.</CardDescription>
           </CardHeader>
-          <CardContent className="h-80">
+          <CardContent className="h-[240px] sm:h-[280px] lg:h-80 p-2 sm:p-4 md:p-6">
             <ChartErrorBoundary fallbackDescription="만족도 추이 차트를 표시할 수 없습니다. 데이터를 확인해 주세요.">
               <AreaChart
                 data={trendChartData}
