@@ -189,11 +189,13 @@ const handler = async (req: Request): Promise<Response> => {
         const qid = a.question_id;
         if (!qaMap[qid]) {
           const sessId = q.session_id || null;
+          const instructorIdForQuestion = sessId ? sessionIdToInstructorId.get(sessId) || null : null;
           qaMap[qid] = {
             question: q.question_text,
             type: q.question_type,
             satisfaction_type: q.satisfaction_type,
             instructor: sessId ? sessionIdToInstructorName.get(sessId) || null : null,
+            instructorId: instructorIdForQuestion,
             answers: [] as any[],
             stats: {},
           };
@@ -247,28 +249,62 @@ const handler = async (req: Request): Promise<Response> => {
         }
       });
 
+      // satisfaction_type별로 만족도 계산
       const ratingRows = Object.values(qaMap).filter((r: any) => r.type === "rating" || r.type === "scale");
-      let avgSatisfaction: number | null = null;
-      if (ratingRows.length > 0) {
-        const all = ratingRows.flatMap((r: any) => r.answers.filter((x: any) => typeof x === "number" && !isNaN(x)));
-        if (all.length > 0) avgSatisfaction = Number((all.reduce((s: number, v: number) => s + v, 0) / all.length).toFixed(1));
-      }
+      
+      const calculateTypeSatisfaction = (satisfactionType: string | null) => {
+        const filtered = satisfactionType 
+          ? ratingRows.filter((r: any) => r.satisfaction_type === satisfactionType)
+          : ratingRows;
+        const all = filtered.flatMap((r: any) => r.answers.filter((x: any) => typeof x === "number" && !isNaN(x)));
+        return all.length > 0 ? Number((all.reduce((s: number, v: number) => s + v, 0) / all.length).toFixed(1)) : null;
+      };
+      
+      const avgInstructorSatisfaction = calculateTypeSatisfaction('instructor');
+      const avgCourseSatisfaction = calculateTypeSatisfaction('course');
+      const avgOperationSatisfaction = calculateTypeSatisfaction('operation');
+      const avgOverallSatisfaction = calculateTypeSatisfaction(null);
+      
+      // 강사별 만족도 계산
+      const instructorSatisfactionMap = new Map<string, { name: string; avg: number; count: number }>();
+      ratingRows.forEach((r: any) => {
+        if (r.satisfaction_type === 'instructor' && r.instructorId && r.answers.length > 0) {
+          const nums = r.answers.filter((x: any) => typeof x === "number" && !isNaN(x));
+          if (nums.length > 0) {
+            const existing = instructorSatisfactionMap.get(r.instructorId);
+            if (existing) {
+              existing.avg = ((existing.avg * existing.count) + nums.reduce((s: number, v: number) => s + v, 0)) / (existing.count + nums.length);
+              existing.count += nums.length;
+            } else {
+              const avg = nums.reduce((s: number, v: number) => s + v, 0) / nums.length;
+              instructorSatisfactionMap.set(r.instructorId, { name: r.instructor || '미등록', avg, count: nums.length });
+            }
+          }
+        }
+      });
 
       let questionSummary = "";
       let lastInstructor: string | null = null;
+      let lastInstructorId: string | null = null;
       
       Object.values(qaMap).forEach((qa: any) => {
-        // 강사가 바뀔 때 섹션 헤더 추가
+        // 강사가 바뀔 때 섹션 헤더 추가 (만족도 포함)
         if (qa.instructor && qa.instructor !== lastInstructor) {
+          const instructorSat = qa.instructorId ? instructorSatisfactionMap.get(qa.instructorId) : null;
+          const satisfactionBadge = instructorSat 
+            ? `<span style=\"margin-left:12px;padding:4px 12px;background:#fff;color:#667eea;border-radius:20px;font-size:14px;font-weight:700;\">만족도: ${instructorSat.avg.toFixed(1)}점</span>`
+            : '';
           questionSummary += `
             <div style=\"margin:30px 0 20px 0;padding:12px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;border-left:4px solid #5a67d8;\">
               <h3 style=\"color:#ffffff;margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;\">
                 <span style=\"margin-right:8px;\">👨‍🏫</span>
                 강사: ${qa.instructor}
+                ${satisfactionBadge}
               </h3>
             </div>
           `;
           lastInstructor = qa.instructor;
+          lastInstructorId = qa.instructorId;
         }
         
         const instructorLabel = qa.instructor
@@ -309,10 +345,34 @@ const handler = async (req: Request): Promise<Response> => {
               <div><strong>교육차수:</strong> ${survey.education_round ?? ''}차</div>
             </div>
           </div>
-          <div style=\"background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:20px;border-radius:8px;margin-bottom:20px;\">
-            <div style=\"background:#fff;padding:16px;border-radius:8px;text-align:center;\">
-              <div style=\"color:#059669;font-size:28px;font-weight:700;margin-bottom:4px;\">${avgSatisfaction !== null ? `${avgSatisfaction}점` : `${filteredResponseIds.size}명`}</div>
-              <div style=\"color:#6b7280;font-size:14px;\">${avgSatisfaction !== null ? '종합 만족도' : '총 응답자 수'}</div>
+          <div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;\">
+            ${avgInstructorSatisfaction !== null ? `
+              <div style=\"background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:16px;border-radius:8px;text-align:center;\">
+                <div style=\"color:#fff;font-size:24px;font-weight:700;margin-bottom:4px;\">${avgInstructorSatisfaction}점</div>
+                <div style=\"color:#fff;opacity:0.9;font-size:13px;\">👨‍🏫 강사 만족도</div>
+              </div>
+            ` : ''}
+            ${avgCourseSatisfaction !== null ? `
+              <div style=\"background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:16px;border-radius:8px;text-align:center;\">
+                <div style=\"color:#fff;font-size:24px;font-weight:700;margin-bottom:4px;\">${avgCourseSatisfaction}점</div>
+                <div style=\"color:#fff;opacity:0.9;font-size:13px;\">📚 과정 만족도</div>
+              </div>
+            ` : ''}
+            ${avgOperationSatisfaction !== null ? `
+              <div style=\"background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);padding:16px;border-radius:8px;text-align:center;\">
+                <div style=\"color:#fff;font-size:24px;font-weight:700;margin-bottom:4px;\">${avgOperationSatisfaction}점</div>
+                <div style=\"color:#fff;opacity:0.9;font-size:13px;\">⚙️ 운영 만족도</div>
+              </div>
+            ` : ''}
+            ${avgOverallSatisfaction !== null && (avgInstructorSatisfaction === null && avgCourseSatisfaction === null && avgOperationSatisfaction === null) ? `
+              <div style=\"background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);padding:16px;border-radius:8px;text-align:center;\">
+                <div style=\"color:#fff;font-size:24px;font-weight:700;margin-bottom:4px;\">${avgOverallSatisfaction}점</div>
+                <div style=\"color:#fff;opacity:0.9;font-size:13px;\">📊 종합 만족도</div>
+              </div>
+            ` : ''}
+            <div style=\"background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);padding:16px;border-radius:8px;text-align:center;\">
+              <div style=\"color:#fff;font-size:24px;font-weight:700;margin-bottom:4px;\">${filteredResponseIds.size}명</div>
+              <div style=\"color:#fff;opacity:0.9;font-size:13px;\">👥 총 응답자</div>
             </div>
           </div>
           <div style=\"margin-bottom:24px;\">
