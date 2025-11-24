@@ -335,8 +335,8 @@ const handler = async (req: Request): Promise<Response> => {
       for (const recipient of recipients) {
         const recipientStr = String(recipient).toLowerCase();
         
-        // 역할인 경우 해당 역할의 모든 사용자 이메일을 가져옴
-        if (['admin', 'operator', 'director', 'instructor'].includes(recipientStr)) {
+        // 역할인 경우 해당 역할의 모든 사용자 이메일을 가져옴 (admin 제외)
+        if (['director', 'manager', 'instructor'].includes(recipientStr)) {
           if (recipientStr === 'instructor') {
             // 강사의 경우 이 설문에 연결된 강사의 이메일만 추가
             allInstructors.forEach((inst: any) => {
@@ -487,9 +487,9 @@ const handler = async (req: Request): Promise<Response> => {
     for (const emailRaw of recipients) {
       const email = String(emailRaw).toLowerCase();
       
-      // 역할인 경우 해당 역할의 모든 사용자 이메일로 확장
+      // 역할인 경우 해당 역할의 모든 사용자 이메일로 확장 (admin 제외)
       let targetEmails: string[] = [];
-      if (['admin', 'operator', 'director', 'instructor'].includes(email)) {
+      if (['director', 'manager', 'instructor'].includes(email)) {
         if (email === 'instructor') {
           // 강사의 경우 이 설문에 연결된 강사의 이메일만
           targetEmails = allInstructors.map((inst: any) => inst.email).filter(Boolean);
@@ -539,10 +539,14 @@ const handler = async (req: Request): Promise<Response> => {
         
         const userRole = emailToRole.get(emailLower);
         
-        // director와 admin은 전체 결과, 나머지는 본인 결과만
+        // director와 manager는 전체 결과, instructor는 본인 결과만 (admin은 발송 대상에서 제외됨)
         let instructorId: string | null = null;
         let dataScope = 'full'; // 'full' 또는 'filtered'
-        if (userRole !== 'director' && userRole !== 'admin') {
+        if (userRole === 'director' || userRole === 'manager') {
+          // 조직장과 운영자는 전체 결과
+          instructorId = null;
+          dataScope = 'full';
+        } else {
           // 강사 또는 다른 역할은 본인 결과만
           instructorId = emailToInstructorId.get(emailLower) || null;
           dataScope = 'filtered';

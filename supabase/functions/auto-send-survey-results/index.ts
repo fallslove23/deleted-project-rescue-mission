@@ -24,7 +24,7 @@ async function invokeSendResults(surveyId: string) {
       Authorization: `Bearer ${serviceKey}`,
       apikey: serviceKey,
     },
-    body: JSON.stringify({ surveyId, recipients: ["instructor", "director", "admin"] }), // default recipients: instructor + director + admin
+    body: JSON.stringify({ surveyId, recipients: ["instructor", "director", "manager"] }), // default recipients: instructor + director + manager (admin excluded)
   });
 
   const data = await resp.json().catch(() => ({}));
