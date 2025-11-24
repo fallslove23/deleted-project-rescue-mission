@@ -50,16 +50,18 @@ const handler = async (req: Request): Promise<Response> => {
     // 2) Sessions + instructors
     const { data: sessions, error: sessErr } = await supabase
       .from("survey_sessions")
-      .select(`id, instructor_id, instructors (id, name, email)`) // ensure FK exists
+      .select(`id, session_name, instructor_id, instructors (id, name, email)`) // ensure FK exists
       .eq("survey_id", surveyId);
     if (sessErr) throw new Error("Failed to fetch sessions");
 
     const sessionIdToInstructorId = new Map<string, string>();
     const sessionIdToInstructorName = new Map<string, string>();
+    const sessionIdToSessionName = new Map<string, string>();
     const instructorsFromSessions: Array<{ id: string; name?: string; email?: string }> = [];
     sessions?.forEach((s: any) => {
       if (s?.id && s?.instructor_id) sessionIdToInstructorId.set(s.id, s.instructor_id);
       if (s?.id && s?.instructors?.name) sessionIdToInstructorName.set(s.id, s.instructors.name);
+      if (s?.id && s?.session_name) sessionIdToSessionName.set(s.id, s.session_name);
       if (s?.instructors?.id && !instructorsFromSessions.find((i) => i.id === s.instructors.id)) {
         instructorsFromSessions.push({ id: s.instructors.id, name: s.instructors.name, email: s.instructors.email });
       }
@@ -194,6 +196,8 @@ const handler = async (req: Request): Promise<Response> => {
             question: q.question_text,
             type: q.question_type,
             satisfaction_type: q.satisfaction_type,
+            sessionId: sessId,
+            sessionName: sessId ? sessionIdToSessionName.get(sessId) || null : null,
             instructor: sessId ? sessionIdToInstructorName.get(sessId) || null : null,
             instructorId: instructorIdForQuestion,
             answers: [] as any[],
@@ -265,54 +269,56 @@ const handler = async (req: Request): Promise<Response> => {
       const avgOperationSatisfaction = calculateTypeSatisfaction('operation');
       const avgOverallSatisfaction = calculateTypeSatisfaction(null);
       
-      // 강사별 만족도 계산
-      const instructorSatisfactionMap = new Map<string, { name: string; avg: number; count: number }>();
+      // 강사별 만족도 계산 (sessionId 기준으로)
+      const sessionSatisfactionMap = new Map<string, { sessionName: string; instructorName: string; avg: number; count: number }>();
       ratingRows.forEach((r: any) => {
-        if (r.satisfaction_type === 'instructor' && r.instructorId && r.answers.length > 0) {
+        if (r.satisfaction_type === 'instructor' && r.sessionId && r.answers.length > 0) {
           const nums = r.answers.filter((x: any) => typeof x === "number" && !isNaN(x));
           if (nums.length > 0) {
-            const existing = instructorSatisfactionMap.get(r.instructorId);
+            const existing = sessionSatisfactionMap.get(r.sessionId);
             if (existing) {
               existing.avg = ((existing.avg * existing.count) + nums.reduce((s: number, v: number) => s + v, 0)) / (existing.count + nums.length);
               existing.count += nums.length;
             } else {
               const avg = nums.reduce((s: number, v: number) => s + v, 0) / nums.length;
-              instructorSatisfactionMap.set(r.instructorId, { name: r.instructor || '미등록', avg, count: nums.length });
+              sessionSatisfactionMap.set(r.sessionId, { 
+                sessionName: r.sessionName || '과목 미정', 
+                instructorName: r.instructor || '미등록', 
+                avg, 
+                count: nums.length 
+              });
             }
           }
         }
       });
 
       let questionSummary = "";
-      let lastInstructor: string | null = null;
-      let lastInstructorId: string | null = null;
+      let lastSessionId: string | null = null;
       
       Object.values(qaMap).forEach((qa: any) => {
-        // 강사가 바뀔 때 섹션 헤더 추가 (만족도 포함)
-        if (qa.instructor && qa.instructor !== lastInstructor) {
-          const instructorSat = qa.instructorId ? instructorSatisfactionMap.get(qa.instructorId) : null;
-          const satisfactionBadge = instructorSat 
-            ? `<span style=\"margin-left:12px;padding:4px 12px;background:#fff;color:#667eea;border-radius:20px;font-size:14px;font-weight:700;\">만족도: ${instructorSat.avg.toFixed(1)}점</span>`
+        // 세션(과목)이 바뀔 때 섹션 헤더 추가 (과목명, 강사명, 만족도 포함)
+        if (qa.sessionId && qa.sessionId !== lastSessionId) {
+          const sessionSat = qa.sessionId ? sessionSatisfactionMap.get(qa.sessionId) : null;
+          const satisfactionBadge = sessionSat 
+            ? `<span style=\"margin-left:12px;padding:4px 12px;background:#fff;color:#667eea;border-radius:20px;font-size:14px;font-weight:700;\">만족도: ${sessionSat.avg.toFixed(1)}점</span>`
             : '';
           questionSummary += `
             <div style=\"margin:30px 0 20px 0;padding:12px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;border-left:4px solid #5a67d8;\">
-              <h3 style=\"color:#ffffff;margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;\">
-                <span style=\"margin-right:8px;\">👨‍🏫</span>
-                강사: ${qa.instructor}
+              <h3 style=\"color:#ffffff;margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;\">
+                <span style=\"margin-right:8px;\">📚</span>
+                <span>${qa.sessionName || '과목 미정'}</span>
+                <span style=\"margin:0 8px;opacity:0.7;\">|</span>
+                <span style=\"opacity:0.9;\">👨‍🏫 ${qa.instructor || '강사 미정'}</span>
                 ${satisfactionBadge}
               </h3>
             </div>
           `;
-          lastInstructor = qa.instructor;
-          lastInstructorId = qa.instructorId;
+          lastSessionId = qa.sessionId;
         }
         
-        const instructorLabel = qa.instructor
-          ? `<span style=\"display:inline-block;padding:2px 8px;background-color:#dbeafe;color:#1e40af;border-radius:4px;font-size:12px;font-weight:600;margin-left:8px;\">${qa.instructor}</span>`
-          : "";
         questionSummary += `
           <div style=\"margin-bottom:20px;padding:15px;border:1px solid #e5e7eb;border-radius:8px;background-color:#f9fafb;\">
-            <h4 style=\"color:#374151;margin:0 0 10px 0;font-size:14px;font-weight:600;\">${qa.question}${instructorLabel}</h4>
+            <h4 style=\"color:#374151;margin:0 0 10px 0;font-size:14px;font-weight:600;\">${qa.question}</h4>
         `;
         if (qa.stats.average) {
           questionSummary += `
