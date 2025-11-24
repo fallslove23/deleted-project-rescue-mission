@@ -95,28 +95,23 @@ serve(async (req) => {
     const surveyIds = dueSurveys.map((s) => s.id);
 
     // 2) Fetch email logs for those surveys to avoid duplicate sends
+    // 최근 24시간 이내의 성공 로그가 있으면 재발송하지 않음
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
     const { data: logs, error: logErr } = await supabase
       .from("email_logs")
       .select("survey_id, status, created_at")
-      .in("survey_id", surveyIds);
+      .in("survey_id", surveyIds)
+      .gte("created_at", twentyFourHoursAgo);
 
     if (logErr) throw logErr;
-
-    // 각 설문에 대해 가장 최근 로그만 확인
-    const latestLogBysurvey = new Map<string, any>();
-    logs?.forEach((l) => {
-      const surveyId = String(l.survey_id);
-      const existing = latestLogBysurvey.get(surveyId);
-      if (!existing || new Date(l.created_at) > new Date(existing.created_at)) {
-        latestLogBysurvey.set(surveyId, l);
-      }
-    });
 
     const hasSuccessfulLog = new Map<string, boolean>();
     const partialLogCounts = new Map<string, number>();
     
-    latestLogBysurvey.forEach((l, surveyId) => {
-      // 가장 최근 로그가 success 또는 partial이면 재발송하지 않음
+    logs?.forEach((l) => {
+      const surveyId = String(l.survey_id);
+      // 최근 24시간 내 success 또는 partial 로그가 있으면 재발송 금지
       if (l.status === "success" || l.status === "partial") {
         hasSuccessfulLog.set(surveyId, true);
       }

@@ -188,7 +188,10 @@ const DashboardEmailLogs = () => {
     totalLogs: emailLogs.length,
     successCount: emailLogs.filter(log => log.status === 'success').length,
     failedCount: emailLogs.filter(log => log.status === 'failed').length,
-    pendingCount: emailLogs.filter(log => log.status === 'pending').length
+    pendingCount: emailLogs.filter(log => log.status === 'pending').length,
+    duplicateBlocked: emailLogs.reduce((sum, log) => 
+      sum + (log.results?.statistics?.duplicate_blocked || 0), 0
+    )
   };
 
   const getSurveyInfo = (surveyId: string) => {
@@ -247,7 +250,7 @@ const DashboardEmailLogs = () => {
     >
       <div className="space-y-6">
         {/* 통계 카드 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center">
@@ -287,7 +290,19 @@ const DashboardEmailLogs = () => {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center">
-                <Clock className="h-4 w-4 text-yellow-600" />
+                <AlertCircle className="h-4 w-4 text-yellow-600" />
+                <div className="ml-2">
+                  <p className="text-sm font-medium text-muted-foreground">중복 차단</p>
+                  <div className="text-2xl font-bold">{totalStats.duplicateBlocked}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center">
+                <Clock className="h-4 w-4 text-purple-600" />
                 <div className="ml-2">
                   <p className="text-sm font-medium text-muted-foreground">성공률</p>
                   <div className="text-2xl font-bold">
@@ -410,7 +425,111 @@ const DashboardEmailLogs = () => {
                                     </div>
                                   </div>
                                   
-                                  {log.results?.emailResults && (
+                                   {log.results?.statistics && (
+                                    <div>
+                                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4" />
+                                        발송 통계
+                                      </h4>
+                                      <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">총 수신자</p>
+                                          <p className="text-xl font-bold">{log.results.statistics.total_recipients || 0}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">중복 차단</p>
+                                          <p className="text-xl font-bold text-yellow-600">{log.results.statistics.duplicate_blocked || 0}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">전체 결과 수신</p>
+                                          <p className="text-xl font-bold text-blue-600">{log.results.statistics.by_scope?.full || 0}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">개별 결과 수신</p>
+                                          <p className="text-xl font-bold text-purple-600">{log.results.statistics.by_scope?.filtered || 0}</p>
+                                        </div>
+                                      </div>
+                                      {log.results.statistics.by_role && (
+                                        <div className="mt-4">
+                                          <p className="text-sm font-medium mb-2">역할별 발송 현황</p>
+                                          <div className="space-y-2">
+                                            {Object.entries(log.results.statistics.by_role).map(([role, stats]: [string, any]) => (
+                                              <div key={role} className="flex items-center justify-between p-2 bg-background rounded border">
+                                                <span className="font-medium capitalize">{role}</span>
+                                                <div className="flex gap-4 text-sm">
+                                                  <span className="text-green-600">발송: {stats.sent}</span>
+                                                  {stats.failed > 0 && <span className="text-red-600">실패: {stats.failed}</span>}
+                                                  {stats.duplicate_blocked > 0 && <span className="text-yellow-600">중복: {stats.duplicate_blocked}</span>}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {log.results?.recipientDetails && (
+                                    <div>
+                                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                        <Users className="h-4 w-4" />
+                                        수신자별 상세 ({log.results.recipientDetails.length}명)
+                                      </h4>
+                                      <ScrollArea className="h-[400px]">
+                                        <div className="space-y-2">
+                                          {log.results.recipientDetails.map((detail: any, idx: number) => (
+                                            <div 
+                                              key={idx} 
+                                              className={`p-3 rounded-lg border ${
+                                                detail.status === 'sent' 
+                                                  ? 'bg-green-50 border-green-200' 
+                                                  : detail.status === 'duplicate_blocked'
+                                                  ? 'bg-yellow-50 border-yellow-200'
+                                                  : 'bg-red-50 border-red-200'
+                                              }`}
+                                            >
+                                              <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    {detail.status === 'sent' ? (
+                                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                                    ) : detail.status === 'duplicate_blocked' ? (
+                                                      <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                                    ) : (
+                                                      <XCircle className="h-4 w-4 text-red-600" />
+                                                    )}
+                                                    <span className="font-medium">{detail.email}</span>
+                                                  </div>
+                                                  <div className="flex gap-2 text-xs text-muted-foreground">
+                                                    <Badge variant="outline" className="capitalize">{detail.role}</Badge>
+                                                    {detail.dataScope && (
+                                                      <Badge variant={detail.dataScope === 'full' ? 'default' : 'secondary'}>
+                                                        {detail.dataScope === 'full' ? '전체 결과' : '개별 결과'}
+                                                      </Badge>
+                                                    )}
+                                                    {detail.status === 'duplicate_blocked' && (
+                                                      <Badge variant="outline" className="bg-yellow-100">중복 차단</Badge>
+                                                    )}
+                                                  </div>
+                                                  {detail.error && (
+                                                    <p className="text-xs text-red-600 mt-2">{detail.error}</p>
+                                                  )}
+                                                  {detail.reason && (
+                                                    <p className="text-xs text-yellow-700 mt-2">{detail.reason}</p>
+                                                  )}
+                                                </div>
+                                                {detail.emailId && (
+                                                  <span className="text-xs text-muted-foreground">ID: {detail.emailId.slice(0, 8)}...</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </ScrollArea>
+                                    </div>
+                                  )}
+                                  
+                                  {!log.results?.recipientDetails && log.results?.emailResults && (
                                     <div>
                                       <h4 className="font-semibold mb-3 flex items-center gap-2">
                                         <Users className="h-4 w-4" />

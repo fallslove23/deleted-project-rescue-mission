@@ -482,6 +482,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const results: any[] = [];
     const sentEmails = new Set<string>(); // 중복 발송 방지
+    const recipientDetails: any[] = []; // 수신자 상세 정보 (로그용)
     
     for (const emailRaw of recipients) {
       const email = String(emailRaw).toLowerCase();
@@ -525,7 +526,13 @@ const handler = async (req: Request): Promise<Response> => {
         
         // 이미 발송한 이메일은 건너뛰기
         if (sentEmails.has(emailLower)) {
-          console.log(`Skipping duplicate email to ${targetEmail}`);
+          console.log(`[DUPLICATE BLOCKED] Skipping duplicate email to ${targetEmail}`);
+          recipientDetails.push({
+            email: targetEmail,
+            role: emailToRole.get(emailLower) || 'unknown',
+            status: 'duplicate_blocked',
+            reason: '동일 이메일 중복 발송 차단'
+          });
           continue;
         }
         sentEmails.add(emailLower);
@@ -534,9 +541,11 @@ const handler = async (req: Request): Promise<Response> => {
         
         // director와 admin은 전체 결과, 나머지는 본인 결과만
         let instructorId: string | null = null;
+        let dataScope = 'full'; // 'full' 또는 'filtered'
         if (userRole !== 'director' && userRole !== 'admin') {
           // 강사 또는 다른 역할은 본인 결과만
           instructorId = emailToInstructorId.get(emailLower) || null;
+          dataScope = 'filtered';
         }
         
         const content = buildContent(instructorId);
@@ -545,7 +554,7 @@ const handler = async (req: Request): Promise<Response> => {
         const replyTo = Deno.env.get("RESEND_REPLY_TO") || undefined;
         
         try {
-          console.log(`Sending email to ${targetEmail} (role: ${userRole || 'unknown'}, instructorId: ${instructorId || 'none'}) from ${fromAddress}`);
+          console.log(`[SENDING] ${targetEmail} (role: ${userRole || 'unknown'}, scope: ${dataScope}, instructorId: ${instructorId || 'none'})`);
           const sendRes: any = await resend.emails.send({
             from: fromAddress,
             to: [targetEmail],
@@ -555,38 +564,126 @@ const handler = async (req: Request): Promise<Response> => {
           });
           
           if (sendRes?.error) {
-            console.error(`Failed to send to ${targetEmail}:`, sendRes.error);
-            results.push({ to: targetEmail, status: "failed", error: sendRes.error.message || String(sendRes.error) });
+            console.error(`[FAILED] ${targetEmail}:`, sendRes.error);
+            results.push({ 
+              to: targetEmail, 
+              status: "failed", 
+              error: sendRes.error.message || String(sendRes.error),
+              role: userRole,
+              dataScope
+            });
+            recipientDetails.push({
+              email: targetEmail,
+              role: userRole || 'unknown',
+              dataScope,
+              instructorId: instructorId || null,
+              status: 'failed',
+              error: sendRes.error.message || String(sendRes.error)
+            });
           } else {
-            console.log(`Successfully sent to ${targetEmail}, ID: ${sendRes?.id}`);
-            results.push({ to: targetEmail, status: "sent", emailId: sendRes?.id });
+            console.log(`[SUCCESS] ${targetEmail}, ID: ${sendRes?.id}`);
+            results.push({ 
+              to: targetEmail, 
+              status: "sent", 
+              emailId: sendRes?.id,
+              role: userRole,
+              dataScope
+            });
+            recipientDetails.push({
+              email: targetEmail,
+              role: userRole || 'unknown',
+              dataScope,
+              instructorId: instructorId || null,
+              status: 'sent',
+              emailId: sendRes?.id
+            });
           }
           
-          // Rate limiting: 초당 2개 제한을 지키기 위해 500ms 대기
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Rate limiting: 초당 2개 제한을 지키기 위해 600ms 대기 (여유있게)
+          await new Promise(resolve => setTimeout(resolve, 600));
         } catch (emailErr: any) {
-          console.error(`Exception sending to ${targetEmail}:`, emailErr);
-          results.push({ to: targetEmail, status: "failed", error: emailErr?.message || String(emailErr) });
+          console.error(`[EXCEPTION] ${targetEmail}:`, emailErr);
+          results.push({ 
+            to: targetEmail, 
+            status: "failed", 
+            error: emailErr?.message || String(emailErr),
+            role: userRole,
+            dataScope
+          });
+          recipientDetails.push({
+            email: targetEmail,
+            role: userRole || 'unknown',
+            dataScope,
+            instructorId: instructorId || null,
+            status: 'failed',
+            error: emailErr?.message || String(emailErr)
+          });
         }
       }
     }
 
-    // Save to email_logs
+    // Save to email_logs with detailed information
     const sentCount = results.filter((r) => r.status === "sent").length;
     const failedCount = results.filter((r) => r.status === "failed").length;
+    const duplicateBlockedCount = recipientDetails.filter((r) => r.status === "duplicate_blocked").length;
     const recipientList = [...new Set(results.map((r) => r.to))];
     
+    // 역할별 통계
+    const roleStats = recipientDetails.reduce((acc: any, r: any) => {
+      const role = r.role || 'unknown';
+      if (!acc[role]) {
+        acc[role] = { total: 0, sent: 0, failed: 0, duplicate_blocked: 0 };
+      }
+      acc[role].total++;
+      if (r.status === 'sent') acc[role].sent++;
+      if (r.status === 'failed') acc[role].failed++;
+      if (r.status === 'duplicate_blocked') acc[role].duplicate_blocked++;
+      return acc;
+    }, {});
+    
+    // 데이터 스코프 통계
+    const scopeStats = recipientDetails.reduce((acc: any, r: any) => {
+      if (r.dataScope) {
+        if (!acc[r.dataScope]) acc[r.dataScope] = 0;
+        if (r.status === 'sent') acc[r.dataScope]++;
+      }
+      return acc;
+    }, {});
+    
     try {
-      await supabase.from("email_logs").insert({
+      const logEntry = {
         survey_id: surveyId,
         recipients: recipientList,
         status: failedCount === 0 ? "success" : (sentCount > 0 ? "partial" : "failed"),
         sent_count: sentCount,
         failed_count: failedCount,
-        results: { emailResults: results, survey_info: surveyInfo, question_analysis: questionAnalysis },
-      });
+        results: { 
+          emailResults: results, 
+          recipientDetails,
+          survey_info: surveyInfo, 
+          question_analysis: questionAnalysis,
+          statistics: {
+            total_recipients: recipientDetails.length,
+            sent: sentCount,
+            failed: failedCount,
+            duplicate_blocked: duplicateBlockedCount,
+            by_role: roleStats,
+            by_scope: scopeStats
+          },
+          metadata: {
+            sent_at: new Date().toISOString(),
+            rate_limit_delay_ms: 600
+          }
+        },
+      };
+      
+      console.log(`[LOG SUMMARY] Survey ${surveyId}: ${sentCount} sent, ${failedCount} failed, ${duplicateBlockedCount} blocked`);
+      console.log(`[LOG STATS] Roles:`, JSON.stringify(roleStats));
+      console.log(`[LOG STATS] Scopes:`, JSON.stringify(scopeStats));
+      
+      await supabase.from("email_logs").insert(logEntry);
     } catch (logErr: any) {
-      console.error("Failed to save email log:", logErr);
+      console.error("[LOG ERROR] Failed to save email log:", logErr);
     }
 
     return new Response(
