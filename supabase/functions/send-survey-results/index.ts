@@ -114,6 +114,61 @@ const handler = async (req: Request): Promise<Response> => {
     allInstructors.forEach((inst) => {
       if (inst.email) emailToInstructorId.set(String(inst.email).toLowerCase(), inst.id);
     });
+    
+    // 각 이메일의 역할을 확인하는 맵 추가
+    const emailToRole = new Map<string, string>();
+    
+    // profiles 테이블에서 모든 사용자 정보 가져오기
+    const { data: allProfiles } = await supabase
+      .from('profiles')
+      .select('email, instructor_id')
+      .not('email', 'is', null);
+    
+    if (allProfiles) {
+      for (const profile of allProfiles) {
+        const email = String(profile.email).toLowerCase();
+        
+        // instructor_id가 있으면 강사
+        if (profile.instructor_id) {
+          emailToRole.set(email, 'instructor');
+          // instructor_id로 강사 맵핑도 추가
+          if (!emailToInstructorId.has(email)) {
+            emailToInstructorId.set(email, profile.instructor_id);
+          }
+        }
+      }
+    }
+    
+    // user_roles에서 각 사용자의 역할 가져오기
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+    
+    if (userRoles) {
+      const userIdToRole = new Map<string, string[]>();
+      userRoles.forEach((ur: any) => {
+        const roles = userIdToRole.get(ur.user_id) || [];
+        roles.push(ur.role);
+        userIdToRole.set(ur.user_id, roles);
+      });
+      
+      // profiles와 조인하여 이메일-역할 매핑
+      if (allProfiles) {
+        for (const profile of allProfiles) {
+          const roles = userIdToRole.get(profile.id);
+          if (roles && roles.length > 0) {
+            const email = String(profile.email).toLowerCase();
+            // director나 admin 역할이 있으면 우선 적용
+            if (roles.includes('director') || roles.includes('admin')) {
+              emailToRole.set(email, roles.includes('director') ? 'director' : 'admin');
+            } else if (!emailToRole.has(email)) {
+              // 그 외 역할 (operator 등)
+              emailToRole.set(email, roles[0]);
+            }
+          }
+        }
+      }
+    }
 
     const buildContent = (targetInstructorId: string | null) => {
       let filteredResponseIds = new Set<string>(responseIds);
@@ -464,14 +519,23 @@ const handler = async (req: Request): Promise<Response> => {
       
       // 각 이메일에 발송
       for (const targetEmail of targetEmails) {
-        const instructorId = emailToInstructorId.get(targetEmail.toLowerCase()) || null;
+        const emailLower = targetEmail.toLowerCase();
+        const userRole = emailToRole.get(emailLower);
+        
+        // director와 admin은 전체 결과, 나머지는 본인 결과만
+        let instructorId: string | null = null;
+        if (userRole !== 'director' && userRole !== 'admin') {
+          // 강사 또는 다른 역할은 본인 결과만
+          instructorId = emailToInstructorId.get(emailLower) || null;
+        }
+        
         const content = buildContent(instructorId);
         
         const fromAddress = Deno.env.get("RESEND_FROM_ADDRESS") || "onboarding@resend.dev";
         const replyTo = Deno.env.get("RESEND_REPLY_TO") || undefined;
         
         try {
-          console.log(`Sending email to ${targetEmail} from ${fromAddress}`);
+          console.log(`Sending email to ${targetEmail} (role: ${userRole || 'unknown'}, instructorId: ${instructorId || 'none'}) from ${fromAddress}`);
           const sendRes: any = await resend.emails.send({
             from: fromAddress,
             to: [targetEmail],

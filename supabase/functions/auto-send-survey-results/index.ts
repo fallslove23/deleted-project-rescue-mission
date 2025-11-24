@@ -102,11 +102,21 @@ serve(async (req) => {
 
     if (logErr) throw logErr;
 
-    const hasSuccessfulLog = new Map<string, boolean>();
-    const partialLogCounts = new Map<string, number>();
+    // 각 설문에 대해 가장 최근 로그만 확인
+    const latestLogBysurvey = new Map<string, any>();
     logs?.forEach((l) => {
       const surveyId = String(l.survey_id);
-      // Treat both 'success' and 'partial' as completed to prevent resending
+      const existing = latestLogBysurvey.get(surveyId);
+      if (!existing || new Date(l.created_at) > new Date(existing.created_at)) {
+        latestLogBysurvey.set(surveyId, l);
+      }
+    });
+
+    const hasSuccessfulLog = new Map<string, boolean>();
+    const partialLogCounts = new Map<string, number>();
+    
+    latestLogBysurvey.forEach((l, surveyId) => {
+      // 가장 최근 로그가 success 또는 partial이면 재발송하지 않음
       if (l.status === "success" || l.status === "partial") {
         hasSuccessfulLog.set(surveyId, true);
       }
