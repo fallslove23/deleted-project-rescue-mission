@@ -299,18 +299,30 @@ const handler = async (req: Request): Promise<Response> => {
         // 세션(과목)이 바뀔 때 섹션 헤더 추가 (과목명, 강사명, 만족도 포함)
         if (qa.sessionId && qa.sessionId !== lastSessionId) {
           const sessionSat = qa.sessionId ? sessionSatisfactionMap.get(qa.sessionId) : null;
+          const responseCount = sessionSat ? sessionSat.count : 0;
+          const responseRate = totalResponses > 0 ? ((responseCount / totalResponses) * 100).toFixed(1) : '0.0';
+          
           const satisfactionBadge = sessionSat 
             ? `<span style=\"margin-left:12px;padding:4px 12px;background:#fff;color:#667eea;border-radius:20px;font-size:14px;font-weight:700;\">만족도: ${sessionSat.avg.toFixed(1)}점</span>`
             : '';
+          
           questionSummary += `
             <div style=\"margin:30px 0 20px 0;padding:12px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;border-left:4px solid #5a67d8;\">
-              <h3 style=\"color:#ffffff;margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;\">
+              <h3 style=\"color:#ffffff;margin:0 0 10px 0;font-size:16px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;\">
                 <span style=\"margin-right:8px;\">📚</span>
                 <span>${qa.sessionName || '과목 미정'}</span>
                 <span style=\"margin:0 8px;opacity:0.7;\">|</span>
                 <span style=\"opacity:0.9;\">👨‍🏫 ${qa.instructor || '강사 미정'}</span>
                 ${satisfactionBadge}
               </h3>
+              <div style=\"display:flex;gap:12px;margin-top:8px;font-size:13px;flex-wrap:wrap;\">
+                <div style=\"padding:5px 10px;background:rgba(255,255,255,0.2);border-radius:4px;border:1px solid rgba(255,255,255,0.3);\">
+                  <span style=\"color:rgba(255,255,255,0.9);\">응답 수:</span> <strong style=\"color:#fff;\">${responseCount}명</strong>
+                </div>
+                <div style=\"padding:5px 10px;background:rgba(255,255,255,0.2);border-radius:4px;border:1px solid rgba(255,255,255,0.3);\">
+                  <span style=\"color:rgba(255,255,255,0.9);\">응답률:</span> <strong style=\"color:#fff;\">${responseRate}%</strong>
+                </div>
+              </div>
             </div>
           `;
           lastSessionId = qa.sessionId;
