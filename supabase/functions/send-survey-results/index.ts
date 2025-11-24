@@ -302,12 +302,20 @@ const handler = async (req: Request): Promise<Response> => {
           const responseCount = sessionSat ? sessionSat.count : 0;
           const responseRate = totalResponses > 0 ? ((responseCount / totalResponses) * 100).toFixed(1) : '0.0';
           
+          // 만족도 6점 이하일 때 경고 색상 적용
+          const isLowSatisfaction = sessionSat && sessionSat.avg <= 6;
+          const headerGradient = isLowSatisfaction 
+            ? 'linear-gradient(135deg,#dc2626 0%,#991b1b 100%)' 
+            : 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)';
+          const borderColor = isLowSatisfaction ? '#b91c1c' : '#5a67d8';
+          const warningIcon = isLowSatisfaction ? '⚠️ ' : '';
+          
           const satisfactionBadge = sessionSat 
-            ? `<span style=\"margin-left:12px;padding:4px 12px;background:#fff;color:#667eea;border-radius:20px;font-size:14px;font-weight:700;\">만족도: ${sessionSat.avg.toFixed(1)}점</span>`
+            ? `<span style=\"margin-left:12px;padding:4px 12px;background:#fff;color:${isLowSatisfaction ? '#dc2626' : '#667eea'};border-radius:20px;font-size:14px;font-weight:700;\">${warningIcon}만족도: ${sessionSat.avg.toFixed(1)}점</span>`
             : '';
           
           questionSummary += `
-            <div style=\"margin:30px 0 20px 0;padding:12px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:8px;border-left:4px solid #5a67d8;\">
+            <div style=\"margin:30px 0 20px 0;padding:12px 20px;background:${headerGradient};border-radius:8px;border-left:4px solid ${borderColor};\">
               <h3 style=\"color:#ffffff;margin:0 0 10px 0;font-size:16px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;\">
                 <span style=\"margin-right:8px;\">📚</span>
                 <span>${qa.sessionName || '과목 미정'}</span>
@@ -337,9 +345,22 @@ const handler = async (req: Request): Promise<Response> => {
             <p style=\"margin:5px 0;color:#4b5563;font-size:13px;\"><strong>평균 점수:</strong> <span style=\"color:#059669;font-weight:600;\">${qa.stats.average}점</span> (${qa.stats.count}명 응답)</p>
           `;
         } else if (qa.stats.distribution) {
+          const totalCount = Object.values(qa.stats.distribution).reduce((sum: number, count: any) => sum + count, 0);
           questionSummary += '<div style=\"font-size:13px;color:#4b5563;\">';
           Object.entries(qa.stats.distribution).forEach(([option, count]) => {
-            questionSummary += `<div style=\"margin:3px 0;\">• ${option}: <strong>${count}명</strong></div>`;
+            const percentage = totalCount > 0 ? ((count as number / totalCount) * 100).toFixed(1) : '0.0';
+            const barWidth = totalCount > 0 ? (count as number / totalCount) * 100 : 0;
+            questionSummary += `
+              <div style=\"margin:8px 0;\">
+                <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;\">
+                  <span>• ${option}</span>
+                  <span style=\"font-weight:600;\">${count}명 (${percentage}%)</span>
+                </div>
+                <div style=\"width:100%;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;\">
+                  <div style=\"width:${barWidth}%;height:100%;background:linear-gradient(90deg,#667eea 0%,#764ba2 100%);transition:width 0.3s ease;\"></div>
+                </div>
+              </div>
+            `;
           });
           questionSummary += '</div>';
         } else if ((qa.type === 'text' || qa.type === 'textarea') && qa.answers.length > 0) {
