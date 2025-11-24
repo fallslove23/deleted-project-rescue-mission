@@ -121,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
     // profiles 테이블에서 모든 사용자 정보 가져오기
     const { data: allProfiles } = await supabase
       .from('profiles')
-      .select('email, instructor_id')
+      .select('id, email, instructor_id')
       .not('email', 'is', null);
     
     if (allProfiles) {
@@ -481,6 +481,8 @@ const handler = async (req: Request): Promise<Response> => {
     const questionAnalysis = logQaMap;
 
     const results: any[] = [];
+    const sentEmails = new Set<string>(); // 중복 발송 방지
+    
     for (const emailRaw of recipients) {
       const email = String(emailRaw).toLowerCase();
       
@@ -517,9 +519,17 @@ const handler = async (req: Request): Promise<Response> => {
         targetEmails = [email];
       }
       
-      // 각 이메일에 발송
+      // 각 이메일에 발송 (중복 제거 및 rate limiting 적용)
       for (const targetEmail of targetEmails) {
         const emailLower = targetEmail.toLowerCase();
+        
+        // 이미 발송한 이메일은 건너뛰기
+        if (sentEmails.has(emailLower)) {
+          console.log(`Skipping duplicate email to ${targetEmail}`);
+          continue;
+        }
+        sentEmails.add(emailLower);
+        
         const userRole = emailToRole.get(emailLower);
         
         // director와 admin은 전체 결과, 나머지는 본인 결과만
@@ -551,6 +561,9 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`Successfully sent to ${targetEmail}, ID: ${sendRes?.id}`);
             results.push({ to: targetEmail, status: "sent", emailId: sendRes?.id });
           }
+          
+          // Rate limiting: 초당 2개 제한을 지키기 위해 500ms 대기
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch (emailErr: any) {
           console.error(`Exception sending to ${targetEmail}:`, emailErr);
           results.push({ to: targetEmail, status: "failed", error: emailErr?.message || String(emailErr) });
