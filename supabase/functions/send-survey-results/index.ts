@@ -330,8 +330,17 @@ const handler = async (req: Request): Promise<Response> => {
             questionSummary += `<div style=\"margin:3px 0;\">• ${option}: <strong>${count}명</strong></div>`;
           });
           questionSummary += '</div>';
-        } else if (qa.type === 'text' && qa.answers.length > 0) {
-          questionSummary += `<div style=\"font-size:13px;color:#4b5563;\"><p style=\"margin:5px 0 10px 0;font-weight:600;\">${qa.answers.length}건의 응답:</p></div>`;
+        } else if ((qa.type === 'text' || qa.type === 'textarea') && qa.answers.length > 0) {
+          questionSummary += `<div style=\"font-size:13px;color:#4b5563;\">
+            <p style=\"margin:5px 0 10px 0;font-weight:600;\">${qa.answers.length}건의 응답:</p>
+            <div style=\"padding-left:10px;border-left:3px solid #e5e7eb;\">`;
+          qa.answers.forEach((answer: string, idx: number) => {
+            questionSummary += `<div style=\"margin:8px 0;padding:8px;background:#fff;border-radius:4px;border:1px solid #e5e7eb;\">
+              <span style=\"color:#9ca3af;font-size:12px;\">#${idx + 1}</span>
+              <p style=\"margin:4px 0 0 0;color:#374151;white-space:pre-wrap;\">${answer}</p>
+            </div>`;
+          });
+          questionSummary += `</div></div>`;
         }
         questionSummary += '</div>';
       });
