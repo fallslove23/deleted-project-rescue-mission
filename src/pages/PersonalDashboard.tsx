@@ -17,6 +17,7 @@ import {
 import { Award, BarChart3, TrendingUp, Users, Download, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useInstructorStats } from '@/hooks/useInstructorStats';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTestDataToggle } from '@/hooks/useTestDataToggle';
 import { useMyStats } from '@/hooks/useMyStats';
 import { useToast } from '@/hooks/use-toast';
@@ -140,6 +141,7 @@ export default function PersonalDashboard() {
   const { data: myStatsData } = useMyStats();
   const testDataOptions = useTestDataToggle();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
@@ -343,32 +345,42 @@ export default function PersonalDashboard() {
               {stats.trend.length === 0 ? (
                 <ChartEmptyState description="추이 데이터가 없습니다" />
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={stats.trend}>
+                <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+                  <LineChart data={stats.trend} margin={{ 
+                    top: 5, 
+                    right: isMobile ? 5 : 10, 
+                    left: isMobile ? -20 : 0, 
+                    bottom: isMobile ? 5 : 5 
+                  }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
                       dataKey="period" 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
+                      angle={isMobile ? -45 : 0}
+                      textAnchor={isMobile ? 'end' : 'middle'}
+                      height={isMobile ? 60 : 30}
                     />
                     <YAxis 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
+                      width={isMobile ? 40 : 60}
                     />
                     <Tooltip 
                       contentStyle={{
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '6px',
+                        fontSize: isMobile ? '12px' : '14px',
                       }}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="satisfaction" 
                       stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
+                      strokeWidth={isMobile ? 2 : 2}
                       name="만족도"
-                      dot={{ fill: 'hsl(var(--primary))' }}
+                      dot={{ fill: 'hsl(var(--primary))', r: isMobile ? 3 : 4 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -389,7 +401,7 @@ export default function PersonalDashboard() {
                 <ChartEmptyState description="분포 데이터가 없습니다" />
               ) : (
                 <div className="space-y-4">
-                  <ResponsiveContainer width="100%" height={250}>
+                  <ResponsiveContainer width="100%" height={isMobile ? 220 : 250}>
                     <PieChart>
                       <Pie
                         data={stats.ratingDistribution}
@@ -397,14 +409,18 @@ export default function PersonalDashboard() {
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        outerRadius={80}
-                        label={({ name, percentage }) => `${name} (${percentage}%)`}
+                        outerRadius={isMobile ? 60 : 80}
+                        label={isMobile ? false : ({ name, percentage }) => `${name} (${percentage}%)`}
                       >
                         {stats.ratingDistribution.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={RATING_COLORS[index % RATING_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip 
+                        contentStyle={{
+                          fontSize: isMobile ? '12px' : '14px',
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="grid grid-cols-5 gap-2">
@@ -436,32 +452,51 @@ export default function PersonalDashboard() {
               {stats.courseBreakdown.length === 0 ? (
                 <ChartEmptyState description="과정별 데이터가 없습니다" />
               ) : (
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={stats.courseBreakdown} margin={{ bottom: 60 }}>
+                <ResponsiveContainer width="100%" height={isMobile ? 300 : 350}>
+                  <BarChart 
+                    data={stats.courseBreakdown} 
+                    margin={{ 
+                      bottom: isMobile ? 80 : 60,
+                      left: isMobile ? -10 : 0,
+                      right: isMobile ? 10 : 20,
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
                       dataKey="courseName" 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 9 : 11 }}
                       angle={-45}
                       textAnchor="end"
-                      height={100}
+                      height={isMobile ? 120 : 100}
                       interval={0}
                     />
                     <YAxis 
                       className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: isMobile ? 10 : 12 }}
+                      width={isMobile ? 40 : 60}
                     />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--background))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '6px',
+                        fontSize: isMobile ? '11px' : '14px',
                       }}
                     />
-                    <Legend />
-                    <Bar dataKey="avgSatisfaction" fill="hsl(var(--primary))" name="평균 만족도" />
-                    <Bar dataKey="responses" fill="hsl(var(--chart-2))" name="응답 수" />
+                    {!isMobile && <Legend />}
+                    <Bar 
+                      dataKey="avgSatisfaction" 
+                      fill="hsl(var(--primary))" 
+                      name="평균 만족도"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="responses" 
+                      fill="hsl(var(--chart-2))" 
+                      name="응답 수"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
