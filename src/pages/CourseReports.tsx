@@ -27,6 +27,7 @@ import { generateCourseReportPDF } from '@/utils/pdfExport';
 import { ChartErrorBoundary, PageErrorBoundary, HookErrorBoundary, DataProcessingErrorBoundary } from '@/components/error-boundaries';
 import { fetchDashboardCounts, type DashboardCounts } from '@/repositories/dashboardRepository';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -59,6 +60,7 @@ const CourseReportsContent: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { userRoles } = useAuth();
+  const isMobile = useIsMobile();
   
   // Use new filter state hook with URL synchronization
   const { filters, updateFilter } = useFilterState({
@@ -440,20 +442,25 @@ const CourseReportsContent: React.FC = () => {
                 <BarChart 
                   data={satisfactionChartData}
                   layout="vertical"
-                  margin={{ top: 5, right: 10, left: 5, bottom: 5 }}
+                  margin={{ 
+                    top: 5, 
+                    right: isMobile ? 5 : 10, 
+                    left: isMobile ? 10 : 5, 
+                    bottom: 5 
+                  }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                   <XAxis 
                     type="number" 
                     domain={[0, 10]}
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tick={{ fontSize: isMobile ? 9 : 10, fill: 'hsl(var(--muted-foreground))' }}
                     tickFormatter={(value) => `${value}점`}
                   />
                   <YAxis 
                     type="category" 
                     dataKey="name"
-                    tick={{ fontSize: 9, fill: 'hsl(var(--foreground))' }}
-                    width={80}
+                    tick={{ fontSize: isMobile ? 9 : 9, fill: 'hsl(var(--foreground))' }}
+                    width={isMobile ? 70 : 80}
                   />
                   <Tooltip 
                     formatter={(value: number) => [`${value.toFixed(1)}점`, '만족도']}
@@ -461,7 +468,8 @@ const CourseReportsContent: React.FC = () => {
                       backgroundColor: 'hsl(var(--background))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
-                      padding: '8px 12px'
+                      padding: isMobile ? '6px 10px' : '8px 12px',
+                      fontSize: isMobile ? '10px' : '12px'
                     }}
                     cursor={{ fill: 'hsl(var(--accent))', opacity: 0.1 }}
                   />

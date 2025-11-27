@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { ChartEmptyState } from './ChartEmptyState';
 import { DataProcessingErrorBoundary } from '@/components/error-boundaries';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AreaChartProps {
   data: Array<{
@@ -47,6 +48,8 @@ export const AreaChart = ({
   stacked = false,
   emptyState
 }: AreaChartProps) => {
+  const isMobile = useIsMobile();
+  
   const hasData = useMemo(() => {
     if (!data || data.length === 0) return false;
 
@@ -107,10 +110,10 @@ export const AreaChart = ({
           <RechartsAreaChart
             data={safeData}
             margin={{
-              top: 10,
-              right: 10,
-              left: 0,
-              bottom: 5
+              top: isMobile ? 5 : 10,
+              right: isMobile ? 5 : 10,
+              left: isMobile ? -15 : 0,
+              bottom: isMobile ? 5 : 5
             }}
           >
             <defs>
@@ -133,10 +136,13 @@ export const AreaChart = ({
             <XAxis
               type="category"
               dataKey="name"
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }}
+              tick={{ fontSize: isMobile ? 9 : 10, fill: 'hsl(var(--foreground))' }}
               axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+              angle={isMobile ? -45 : 0}
+              textAnchor={isMobile ? 'end' : 'middle'}
+              height={isMobile ? 60 : 30}
               label={
-                xAxisLabel
+                xAxisLabel && !isMobile
                   ? {
                       value: xAxisLabel,
                       position: 'insideBottom',
@@ -149,10 +155,11 @@ export const AreaChart = ({
             <YAxis
               type="number"
               domain={[0, 'dataMax + 1']}
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }}
+              tick={{ fontSize: isMobile ? 9 : 10, fill: 'hsl(var(--foreground))' }}
               axisLine={{ stroke: 'hsl(var(--muted-foreground))' }}
+              width={isMobile ? 35 : 60}
               label={
-                yAxisLabel
+                yAxisLabel && !isMobile
                   ? {
                       value: yAxisLabel,
                       angle: -90,
@@ -168,16 +175,18 @@ export const AreaChart = ({
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
                 color: 'hsl(var(--card-foreground))',
-                fontSize: '11px'
+                fontSize: isMobile ? '10px' : '11px'
               }}
             />
-            <Legend
-              wrapperStyle={{
-                fontSize: '10px',
-                color: 'hsl(var(--foreground))'
-              }}
-              iconSize={10}
-            />
+            {!isMobile && (
+              <Legend
+                wrapperStyle={{
+                  fontSize: '10px',
+                  color: 'hsl(var(--foreground))'
+                }}
+                iconSize={10}
+              />
+            )}
             {dataKeys.map((item, index) => (
               <Area
                 key={item.key}
@@ -187,9 +196,9 @@ export const AreaChart = ({
                 stroke={item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
                 fill={`url(#gradient${index})`}
                 fillOpacity={0.8}
-                strokeWidth={3}
+                strokeWidth={isMobile ? 2 : 3}
                 name={item.label}
-                dot={{ r: 4, strokeWidth: 2, stroke: 'white' }}
+                dot={{ r: isMobile ? 3 : 4, strokeWidth: 2, stroke: 'white' }}
               />
             ))}
           </RechartsAreaChart>
