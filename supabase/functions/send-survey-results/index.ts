@@ -183,6 +183,7 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
+      const totalResponses = filteredResponseIds.size;
       const filteredAnswers = answers?.filter((a: any) => filteredResponseIds.has(a.response_id)) || [];
 
       const qaMap: Record<string, any> = {};
