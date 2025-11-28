@@ -17,6 +17,7 @@ const LoadingScreen = () => {
             src={logo}
             alt="BS 피드백 로고"
             className="w-24 h-24 mx-auto animate-pulse drop-shadow-xl"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 rounded-full bg-primary-foreground/20 animate-ping" aria-hidden="true"></div>
         </div>
