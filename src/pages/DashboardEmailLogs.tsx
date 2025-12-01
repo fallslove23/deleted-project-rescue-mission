@@ -10,6 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface EmailLog {
   id: string;
@@ -38,6 +40,8 @@ const DashboardEmailLogs = () => {
   const [allowlistLoading, setAllowlistLoading] = useState(false);
   const [allowlistEmails, setAllowlistEmails] = useState<string[]>([]);
   const [surveyDetails, setSurveyDetails] = useState<Record<string, SurveyDetails>>({});
+  const [autoEmailEnabled, setAutoEmailEnabled] = useState(true);
+  const [toggleLoading, setToggleLoading] = useState(false);
 
   const canViewLogs = userRoles.includes('admin') || userRoles.includes('operator');
 
@@ -76,6 +80,50 @@ const DashboardEmailLogs = () => {
       setSurveyDetails(details);
     } catch (error) {
       console.error('Error fetching survey details:', error);
+    }
+  };
+
+  const fetchAutoEmailSetting = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('cron_settings')
+        .select('value')
+        .eq('key', 'auto_email_enabled')
+        .single();
+
+      if (error) throw error;
+      setAutoEmailEnabled(data?.value === 'true');
+    } catch (error) {
+      console.error('Error fetching auto email setting:', error);
+    }
+  };
+
+  const toggleAutoEmail = async (enabled: boolean) => {
+    try {
+      setToggleLoading(true);
+      const { error } = await supabase
+        .from('cron_settings')
+        .update({ value: enabled ? 'true' : 'false' })
+        .eq('key', 'auto_email_enabled');
+
+      if (error) throw error;
+      
+      setAutoEmailEnabled(enabled);
+      toast({
+        title: enabled ? '자동 이메일 전송 활성화' : '자동 이메일 전송 비활성화',
+        description: enabled 
+          ? '설문 종료 시 자동으로 이메일이 발송됩니다.' 
+          : '자동 이메일 전송이 중지되었습니다.',
+      });
+    } catch (error) {
+      console.error('Error toggling auto email:', error);
+      toast({
+        title: '오류',
+        description: '설정 변경에 실패했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setToggleLoading(false);
     }
   };
 
@@ -161,6 +209,7 @@ const DashboardEmailLogs = () => {
   useEffect(() => {
     if (canViewLogs) {
       fetchEmailLogs();
+      fetchAutoEmailSetting();
     }
   }, [canViewLogs]);
 
@@ -249,6 +298,31 @@ const DashboardEmailLogs = () => {
       ]}
     >
       <div className="space-y-6">
+        {/* 자동 이메일 전송 제어 */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  <Label htmlFor="auto-email-toggle" className="text-base font-semibold cursor-pointer">
+                    자동 이메일 전송
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  설문 종료 시 자동으로 결과를 이메일로 발송합니다
+                </p>
+              </div>
+              <Switch
+                id="auto-email-toggle"
+                checked={autoEmailEnabled}
+                onCheckedChange={toggleAutoEmail}
+                disabled={toggleLoading}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* 통계 카드 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card>

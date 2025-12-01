@@ -43,6 +43,32 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    // Check if auto email sending is enabled
+    const { data: settings, error: settingsError } = await supabase
+      .from("cron_settings")
+      .select("value")
+      .eq("key", "auto_email_enabled")
+      .single();
+
+    if (settingsError) {
+      console.error("Failed to check auto email setting:", settingsError);
+    }
+
+    const autoEmailEnabled = settings?.value === "true";
+    
+    if (!autoEmailEnabled) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Auto email sending is currently disabled",
+          processed: 0,
+          skipped: 0,
+          details: [],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Ensure survey statuses are up-to-date before processing
     try {
       await supabase.rpc('update_survey_statuses');
