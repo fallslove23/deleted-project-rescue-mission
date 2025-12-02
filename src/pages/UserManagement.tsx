@@ -9,9 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Users, Edit, Search, Shield, Key, Menu } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Users, Edit, Search, Shield, Key, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/lib/utils';
 import { useUserManagementPagination } from '@/hooks/useUserManagementPagination';
@@ -39,7 +38,8 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [useVirtualScroll, setUseVirtualScroll] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const availableRoles = ['admin', 'operator', 'instructor', 'director'];
   const roleLabels: Record<string, string> = {
@@ -128,6 +128,49 @@ const UserManagement = () => {
         description: "비밀번호 재설정 이메일 발송 중 오류가 발생했습니다.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+
+    setIsDeleting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch(
+        `https://zxjiugmqfzqluviuwztr.supabase.co/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.session?.access_token}`,
+          },
+          body: JSON.stringify({ userId: deletingUser.id }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || '사용자 삭제에 실패했습니다.');
+      }
+
+      toast({
+        title: "성공",
+        description: "사용자가 삭제되었습니다."
+      });
+
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "오류",
+        description: error.message || "사용자 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeletingUser(null);
     }
   };
 
@@ -228,6 +271,16 @@ const UserManagement = () => {
                         <span className="hidden sm:inline">권한 편집</span>
                         <span className="sm:hidden">권한</span>
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDeletingUser(user)}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">삭제</span>
+                        <span className="sm:hidden">삭제</span>
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -276,6 +329,30 @@ const UserManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>사용자 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말 <span className="font-semibold">{deletingUser?.email}</span> 사용자를 삭제하시겠습니까?
+              <br />
+              이 작업은 되돌릴 수 없으며, 사용자의 모든 데이터가 삭제됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? '삭제 중...' : '삭제'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
