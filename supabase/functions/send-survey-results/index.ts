@@ -661,6 +661,31 @@ const handler = async (req: Request): Promise<Response> => {
           dataScope = 'filtered';
         }
         
+        // 강사 필터링된 경우, 해당 강사의 응답 수 확인
+        if (instructorId) {
+          const instructorSessionIds = Array.from(sessionIdToInstructorId.entries())
+            .filter(([_, iid]) => iid === instructorId)
+            .map(([sid]) => sid);
+          
+          const instructorResponseCount = responses.filter(
+            (r: any) => r.session_id && instructorSessionIds.includes(r.session_id)
+          ).length;
+          
+          // 해당 강사의 응답이 0건이면 발송하지 않음
+          if (instructorResponseCount === 0) {
+            console.log(`[SKIP] ${targetEmail}: No responses for instructor ${instructorId} (0 out of ${responses.length} total responses)`);
+            recipientDetails.push({
+              email: targetEmail,
+              role: userRole || 'instructor',
+              dataScope,
+              instructorId,
+              status: 'skipped',
+              reason: '해당 강사의 세션에 응답이 없음'
+            });
+            continue;
+          }
+        }
+        
         const content = buildContent(instructorId);
         
         const fromAddress = Deno.env.get("RESEND_FROM_ADDRESS") || "onboarding@resend.dev";
@@ -739,18 +764,20 @@ const handler = async (req: Request): Promise<Response> => {
     const sentCount = results.filter((r) => r.status === "sent").length;
     const failedCount = results.filter((r) => r.status === "failed").length;
     const duplicateBlockedCount = recipientDetails.filter((r) => r.status === "duplicate_blocked").length;
+    const skippedCount = recipientDetails.filter((r) => r.status === "skipped").length;
     const recipientList = [...new Set(results.map((r) => r.to))];
     
     // 역할별 통계
     const roleStats = recipientDetails.reduce((acc: any, r: any) => {
       const role = r.role || 'unknown';
       if (!acc[role]) {
-        acc[role] = { total: 0, sent: 0, failed: 0, duplicate_blocked: 0 };
+        acc[role] = { total: 0, sent: 0, failed: 0, duplicate_blocked: 0, skipped: 0 };
       }
       acc[role].total++;
       if (r.status === 'sent') acc[role].sent++;
       if (r.status === 'failed') acc[role].failed++;
       if (r.status === 'duplicate_blocked') acc[role].duplicate_blocked++;
+      if (r.status === 'skipped') acc[role].skipped++;
       return acc;
     }, {});
     
@@ -767,7 +794,7 @@ const handler = async (req: Request): Promise<Response> => {
       const logEntry = {
         survey_id: surveyId,
         recipients: recipientList,
-        status: failedCount === 0 ? "success" : (sentCount > 0 ? "partial" : "failed"),
+        status: failedCount === 0 && sentCount > 0 ? "success" : (sentCount > 0 ? "partial" : "failed"),
         sent_count: sentCount,
         failed_count: failedCount,
         results: { 
@@ -780,6 +807,7 @@ const handler = async (req: Request): Promise<Response> => {
             sent: sentCount,
             failed: failedCount,
             duplicate_blocked: duplicateBlockedCount,
+            skipped: skippedCount,
             by_role: roleStats,
             by_scope: scopeStats
           },
@@ -790,7 +818,7 @@ const handler = async (req: Request): Promise<Response> => {
         },
       };
       
-      console.log(`[LOG SUMMARY] Survey ${surveyId}: ${sentCount} sent, ${failedCount} failed, ${duplicateBlockedCount} blocked`);
+      console.log(`[LOG SUMMARY] Survey ${surveyId}: ${sentCount} sent, ${failedCount} failed, ${duplicateBlockedCount} blocked, ${skippedCount} skipped`);
       console.log(`[LOG STATS] Roles:`, JSON.stringify(roleStats));
       console.log(`[LOG STATS] Scopes:`, JSON.stringify(scopeStats));
       
