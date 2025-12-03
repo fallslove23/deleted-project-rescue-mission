@@ -7,6 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// 최대 재시도 횟수 (실패 후 더 이상 시도하지 않음)
+const MAX_RETRY_COUNT = 3;
+
 // Helper to call another Edge Function with service role
 async function invokeSendResults(surveyId: string) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -24,7 +27,7 @@ async function invokeSendResults(surveyId: string) {
       Authorization: `Bearer ${serviceKey}`,
       apikey: serviceKey,
     },
-    body: JSON.stringify({ surveyId, recipients: ["instructor", "director", "manager"] }), // default recipients: instructor + director + manager (admin excluded)
+    body: JSON.stringify({ surveyId, recipients: ["instructor", "director", "manager"] }),
   });
 
   const data = await resp.json().catch(() => ({}));
@@ -94,13 +97,12 @@ serve(async (req) => {
     const nowIso = new Date().toISOString();
 
     // 1) Find surveys whose end_date has passed and likely completed
-    // Include both 'completed' and 'active' to avoid missing cases where status wasn't flipped
     const { data: dueSurveys, error: surveyErr } = await supabase
       .from("surveys")
       .select("id, title, education_year, education_round, end_date, status")
       .lte("end_date", nowIso)
       .eq("is_test", false)
-      .in("status", ["completed", "active", "public"]) // be tolerant and include public
+      .in("status", ["completed", "active", "public"])
       .order("end_date", { ascending: false });
 
     if (surveyErr) throw surveyErr;
@@ -121,28 +123,44 @@ serve(async (req) => {
     const surveyIds = dueSurveys.map((s) => s.id);
 
     // 2) Fetch email logs for those surveys to avoid duplicate sends
-    // 최근 24시간 이내의 성공 로그가 있으면 재발송하지 않음
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // 최근 7일 이내의 모든 로그를 확인 (성공, 부분, 실패 모두)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     
     const { data: logs, error: logErr } = await supabase
       .from("email_logs")
-      .select("survey_id, status, created_at")
+      .select("survey_id, status, created_at, sent_count, failed_count")
       .in("survey_id", surveyIds)
-      .gte("created_at", twentyFourHoursAgo);
+      .gte("created_at", sevenDaysAgo);
 
     if (logErr) throw logErr;
 
-    const hasSuccessfulLog = new Map<string, boolean>();
-    const partialLogCounts = new Map<string, number>();
+    // 각 설문별로 로그 상태 분석
+    const surveyLogStatus = new Map<string, {
+      hasSuccess: boolean;
+      hasPartial: boolean;
+      failedAttempts: number;
+      lastAttempt: Date | null;
+    }>();
     
     logs?.forEach((l) => {
       const surveyId = String(l.survey_id);
-      // 최근 24시간 내 success 또는 partial 로그가 있으면 재발송 금지
-      if (l.status === "success" || l.status === "partial") {
-        hasSuccessfulLog.set(surveyId, true);
+      let status = surveyLogStatus.get(surveyId);
+      if (!status) {
+        status = { hasSuccess: false, hasPartial: false, failedAttempts: 0, lastAttempt: null };
+        surveyLogStatus.set(surveyId, status);
       }
-      if (l.status === "partial") {
-        partialLogCounts.set(surveyId, (partialLogCounts.get(surveyId) ?? 0) + 1);
+      
+      if (l.status === "success") {
+        status.hasSuccess = true;
+      } else if (l.status === "partial") {
+        status.hasPartial = true;
+      } else if (l.status === "failed") {
+        status.failedAttempts++;
+      }
+      
+      const logDate = new Date(l.created_at);
+      if (!status.lastAttempt || logDate > status.lastAttempt) {
+        status.lastAttempt = logDate;
       }
     });
 
@@ -152,30 +170,87 @@ serve(async (req) => {
       const { count } = await supabase
         .from("survey_responses")
         .select("*", { count: "exact", head: true })
-        .eq("survey_id", survey.id);
+        .eq("survey_id", survey.id)
+        .neq("is_test", true);
       surveyResponseCounts.set(survey.id, count || 0);
     }
 
-    // 4) Filter targets to send (exclude surveys without responses and already sent)
+    // 4) Filter targets to send
     let targets = dueSurveys.filter((s) => {
       const hasResponses = (surveyResponseCounts.get(s.id) || 0) > 0;
-      const alreadySent = hasSuccessfulLog.get(s.id);
-      return hasResponses && !alreadySent;
+      const logStatus = surveyLogStatus.get(s.id);
+      
+      // 응답이 없으면 제외
+      if (!hasResponses) {
+        console.log(`[SKIP] Survey ${s.id}: No responses`);
+        return false;
+      }
+      
+      // 성공한 로그가 있으면 제외
+      if (logStatus?.hasSuccess) {
+        console.log(`[SKIP] Survey ${s.id}: Already successfully sent`);
+        return false;
+      }
+      
+      // 부분 성공한 로그가 있으면 제외 (일부라도 발송됨)
+      if (logStatus?.hasPartial) {
+        console.log(`[SKIP] Survey ${s.id}: Already partially sent`);
+        return false;
+      }
+      
+      // 최대 재시도 횟수를 초과하면 제외
+      if (logStatus && logStatus.failedAttempts >= MAX_RETRY_COUNT) {
+        console.log(`[SKIP] Survey ${s.id}: Max retry count (${MAX_RETRY_COUNT}) exceeded (${logStatus.failedAttempts} failures)`);
+        return false;
+      }
+      
+      // 마지막 시도 후 1시간 이내면 제외 (rate limiting)
+      if (logStatus?.lastAttempt) {
+        const timeSinceLastAttempt = Date.now() - logStatus.lastAttempt.getTime();
+        const oneHourMs = 60 * 60 * 1000;
+        if (timeSinceLastAttempt < oneHourMs) {
+          console.log(`[SKIP] Survey ${s.id}: Last attempt was ${Math.round(timeSinceLastAttempt / 60000)} minutes ago, waiting for cooldown`);
+          return false;
+        }
+      }
+      
+      return true;
     });
+    
     if (limit) targets = targets.slice(0, limit);
+
+    const skippedDetails = dueSurveys
+      .filter((s) => !targets.find((t) => t.id === s.id))
+      .map((s) => {
+        const logStatus = surveyLogStatus.get(s.id);
+        const responseCount = surveyResponseCounts.get(s.id) || 0;
+        return {
+          surveyId: s.id,
+          title: s.title,
+          responseCount,
+          hasSuccess: logStatus?.hasSuccess || false,
+          hasPartial: logStatus?.hasPartial || false,
+          failedAttempts: logStatus?.failedAttempts || 0,
+          reason: responseCount === 0 
+            ? 'no_responses' 
+            : logStatus?.hasSuccess 
+              ? 'already_sent' 
+              : logStatus?.hasPartial
+                ? 'partially_sent'
+                : (logStatus?.failedAttempts || 0) >= MAX_RETRY_COUNT 
+                  ? 'max_retries_exceeded' 
+                  : 'cooldown'
+        };
+      });
 
     if (targets.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: "All due surveys already processed or have no responses",
+          message: "All due surveys already processed, have no responses, or exceeded retry limit",
           processed: 0,
           skipped: dueSurveys.length,
-          details: [],
-          partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
-            surveyId,
-            count,
-          })),
+          skippedDetails,
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
@@ -186,12 +261,21 @@ serve(async (req) => {
       const results = [];
       for (const s of targets) {
         try {
-          console.log(`Processing survey ${s.id} (${s.title})...`);
+          const logStatus = surveyLogStatus.get(s.id);
+          const attemptNum = (logStatus?.failedAttempts || 0) + 1;
+          console.log(`[PROCESSING] Survey ${s.id} (${s.title}), attempt #${attemptNum}/${MAX_RETRY_COUNT}...`);
+          
           const r = await invokeSendResults(s.id);
-          console.log(`Survey ${s.id} processed: ${r.status}`);
-          results.push({ surveyId: s.id, title: s.title, status: r.status, success: r.status === 200 });
+          console.log(`[RESULT] Survey ${s.id}: status=${r.status}, success=${r.status === 200}`);
+          results.push({ 
+            surveyId: s.id, 
+            title: s.title, 
+            status: r.status, 
+            success: r.status === 200,
+            attemptNumber: attemptNum
+          });
         } catch (e: any) {
-          console.error(`Failed to process survey ${s.id}:`, e);
+          console.error(`[ERROR] Failed to process survey ${s.id}:`, e);
           results.push({ surveyId: s.id, title: s.title, error: e?.message, success: false });
         }
       }
@@ -199,15 +283,12 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Sent emails for ${targets.length} survey(s)`,
+          message: `Processed ${targets.length} survey(s)`,
           processed: results.filter(r => r.success).length,
           failed: results.filter(r => !r.success).length,
           results,
+          skippedDetails,
           dryRun: false,
-          partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
-            surveyId,
-            count,
-          })),
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
@@ -217,13 +298,16 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         processed: 0,
-        targets: targets.map((t) => ({ id: t.id, title: t.title, status: t.status, end_date: t.end_date })),
+        targets: targets.map((t) => ({ 
+          id: t.id, 
+          title: t.title, 
+          status: t.status, 
+          end_date: t.end_date,
+          attemptNumber: (surveyLogStatus.get(t.id)?.failedAttempts || 0) + 1
+        })),
+        skippedDetails,
         results: [],
         dryRun: true,
-        partialLogs: Array.from(partialLogCounts.entries()).map(([surveyId, count]) => ({
-          surveyId,
-          count,
-        })),
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
