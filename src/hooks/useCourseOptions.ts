@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+// 과정 필터에서 제외할 과정 목록 (program_id 또는 course_key)
+const EXCLUDED_COURSE_KEYS = ['300 점검방법'];
+
 export type CourseOption = {
   value: string;        // program_id
   label: string;        // "2025년 7–10차 · BS Basic"
@@ -36,7 +39,12 @@ export function useCourseOptions(year: number | null) {
           throw rpcError;
         }
         
-        setOptions(data ?? []);
+        // 제외 목록에 있는 과정 필터링
+        const filteredData = (data ?? []).filter(
+          option => !EXCLUDED_COURSE_KEYS.includes(option.course_key)
+        );
+        
+        setOptions(filteredData);
       } catch (err) {
         if (!alive) return;
         console.error('Error fetching course options:', err);
