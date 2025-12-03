@@ -306,7 +306,7 @@ function AppContent() {
       <Route
         path="/dashboard/system-logs"
         element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
             <DashboardSystemLogs />
           </ProtectedRoute>
         }
@@ -342,7 +342,7 @@ function AppContent() {
       <Route
         path="/dashboard/policy-management"
         element={
-          <ProtectedRoute allowedRoles={["admin"]}>
+          <ProtectedRoute allowedRoles={["admin", "operator"]}>
             <DashboardPolicyManagement />
           </ProtectedRoute>
         }
