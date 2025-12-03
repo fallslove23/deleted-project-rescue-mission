@@ -80,20 +80,73 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // Delete related data first (profiles, user_roles)
-    await supabaseAdmin.from('user_roles').delete().eq('user_id', userId)
-    await supabaseAdmin.from('profiles').delete().eq('id', userId)
+    console.log('Deleting related data for user:', userId)
+
+    // Delete related data first - order matters due to foreign key constraints
+    // 1. Delete audit_logs (references auth.users)
+    const { error: auditError } = await supabaseAdmin
+      .from('audit_logs')
+      .delete()
+      .eq('user_id', userId)
+    
+    if (auditError) {
+      console.log('Error deleting audit_logs (non-critical):', auditError.message)
+    }
+
+    // 2. Delete email_recipient_presets (references user_id)
+    const { error: presetError } = await supabaseAdmin
+      .from('email_recipient_presets')
+      .delete()
+      .eq('user_id', userId)
+    
+    if (presetError) {
+      console.log('Error deleting email_recipient_presets (non-critical):', presetError.message)
+    }
+
+    // 3. Delete survey_analysis_comments (references author_id)
+    const { error: commentsError } = await supabaseAdmin
+      .from('survey_analysis_comments')
+      .delete()
+      .eq('author_id', userId)
+    
+    if (commentsError) {
+      console.log('Error deleting survey_analysis_comments (non-critical):', commentsError.message)
+    }
+
+    // 4. Delete user_roles
+    const { error: rolesDeleteError } = await supabaseAdmin
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId)
+    
+    if (rolesDeleteError) {
+      console.log('Error deleting user_roles:', rolesDeleteError.message)
+    }
+
+    // 5. Delete profiles
+    const { error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+    
+    if (profilesError) {
+      console.log('Error deleting profiles:', profilesError.message)
+    }
+
+    console.log('Related data deleted, now deleting auth user')
 
     // Delete the user from auth.users
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (deleteError) {
-      console.error('Error deleting user:', deleteError)
+      console.error('Error deleting user from auth:', deleteError)
       return new Response(
         JSON.stringify({ error: deleteError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log('User deleted successfully:', userId)
 
     return new Response(
       JSON.stringify({ success: true, message: 'User deleted successfully' }),
