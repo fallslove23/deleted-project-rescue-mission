@@ -89,7 +89,7 @@ export function AdminSidebar() {
             { title: "설문관리", url: "/surveys-v2", icon: FileText, exact: false },
             { title: "템플릿관리", url: "/dashboard/templates", icon: FileText, exact: false },
             { title: "강사관리", url: "/dashboard/instructors", icon: UserCheck, exact: false },
-            { title: "사용자관리", url: "/dashboard/users", icon: Users, exact: false },
+            ...(isAdmin ? [{ title: "사용자관리", url: "/dashboard/users", icon: Users, exact: false }] : []),
             { title: "강의 과목 관리", url: "/dashboard/courses", icon: BookOpen, exact: false }
           ]
         },
