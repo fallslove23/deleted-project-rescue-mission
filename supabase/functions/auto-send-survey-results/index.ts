@@ -94,13 +94,19 @@ serve(async (req) => {
       }
     }
 
-    const nowIso = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    
+    // 이번 달의 시작일 계산 (1일 00:00:00)
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonthIso = startOfMonth.toISOString();
 
-    // 1) Find surveys whose end_date has passed and likely completed
+    // 1) Find surveys whose end_date has passed THIS MONTH and likely completed
     const { data: dueSurveys, error: surveyErr } = await supabase
       .from("surveys")
       .select("id, title, education_year, education_round, end_date, status")
-      .lte("end_date", nowIso)
+      .gte("end_date", startOfMonthIso) // 이번 달 시작 이후
+      .lte("end_date", nowIso) // 현재까지
       .eq("is_test", false)
       .in("status", ["completed", "active", "public"])
       .order("end_date", { ascending: false });
@@ -122,15 +128,12 @@ serve(async (req) => {
 
     const surveyIds = dueSurveys.map((s) => s.id);
 
-    // 2) Fetch email logs for those surveys to avoid duplicate sends
-    // 최근 7일 이내의 모든 로그를 확인 (성공, 부분, 실패 모두)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    
+    // 2) Fetch ALL email logs for those surveys to avoid duplicate sends
+    // 모든 기간의 로그를 확인하여 중복 발송 완전 차단
     const { data: logs, error: logErr } = await supabase
       .from("email_logs")
       .select("survey_id, status, created_at, sent_count, failed_count")
-      .in("survey_id", surveyIds)
-      .gte("created_at", sevenDaysAgo);
+      .in("survey_id", surveyIds);
 
     if (logErr) throw logErr;
 
@@ -175,32 +178,28 @@ serve(async (req) => {
       surveyResponseCounts.set(survey.id, count || 0);
     }
 
-    // 4) Filter targets to send
+    // 4) Filter targets to send - 조용히 필터링 (불필요한 로그 제거)
+    const skippedReasons: { surveyId: string; title: string; reason: string }[] = [];
+    
     let targets = dueSurveys.filter((s) => {
       const hasResponses = (surveyResponseCounts.get(s.id) || 0) > 0;
       const logStatus = surveyLogStatus.get(s.id);
       
-      // 응답이 없으면 제외
+      // 응답이 없으면 조용히 제외
       if (!hasResponses) {
-        console.log(`[SKIP] Survey ${s.id}: No responses`);
+        skippedReasons.push({ surveyId: s.id, title: s.title, reason: 'no_responses' });
         return false;
       }
       
-      // 성공한 로그가 있으면 제외
-      if (logStatus?.hasSuccess) {
-        console.log(`[SKIP] Survey ${s.id}: Already successfully sent`);
+      // 이미 성공/부분 성공 로그가 있으면 조용히 제외 (중복 발송 완전 차단)
+      if (logStatus?.hasSuccess || logStatus?.hasPartial) {
+        skippedReasons.push({ surveyId: s.id, title: s.title, reason: 'already_sent' });
         return false;
       }
       
-      // 부분 성공한 로그가 있으면 제외 (일부라도 발송됨)
-      if (logStatus?.hasPartial) {
-        console.log(`[SKIP] Survey ${s.id}: Already partially sent`);
-        return false;
-      }
-      
-      // 최대 재시도 횟수를 초과하면 제외
+      // 최대 재시도 횟수를 초과하면 조용히 제외
       if (logStatus && logStatus.failedAttempts >= MAX_RETRY_COUNT) {
-        console.log(`[SKIP] Survey ${s.id}: Max retry count (${MAX_RETRY_COUNT}) exceeded (${logStatus.failedAttempts} failures)`);
+        skippedReasons.push({ surveyId: s.id, title: s.title, reason: 'max_retries_exceeded' });
         return false;
       }
       
@@ -209,7 +208,7 @@ serve(async (req) => {
         const timeSinceLastAttempt = Date.now() - logStatus.lastAttempt.getTime();
         const oneHourMs = 60 * 60 * 1000;
         if (timeSinceLastAttempt < oneHourMs) {
-          console.log(`[SKIP] Survey ${s.id}: Last attempt was ${Math.round(timeSinceLastAttempt / 60000)} minutes ago, waiting for cooldown`);
+          skippedReasons.push({ surveyId: s.id, title: s.title, reason: 'cooldown' });
           return false;
         }
       }
@@ -219,42 +218,21 @@ serve(async (req) => {
     
     if (limit) targets = targets.slice(0, limit);
 
-    const skippedDetails = dueSurveys
-      .filter((s) => !targets.find((t) => t.id === s.id))
-      .map((s) => {
-        const logStatus = surveyLogStatus.get(s.id);
-        const responseCount = surveyResponseCounts.get(s.id) || 0;
-        return {
-          surveyId: s.id,
-          title: s.title,
-          responseCount,
-          hasSuccess: logStatus?.hasSuccess || false,
-          hasPartial: logStatus?.hasPartial || false,
-          failedAttempts: logStatus?.failedAttempts || 0,
-          reason: responseCount === 0 
-            ? 'no_responses' 
-            : logStatus?.hasSuccess 
-              ? 'already_sent' 
-              : logStatus?.hasPartial
-                ? 'partially_sent'
-                : (logStatus?.failedAttempts || 0) >= MAX_RETRY_COUNT 
-                  ? 'max_retries_exceeded' 
-                  : 'cooldown'
-        };
-      });
-
     if (targets.length === 0) {
+      // 처리할 대상이 없으면 조용히 성공 반환 (불필요한 로그 없음)
       return new Response(
         JSON.stringify({
           success: true,
-          message: "All due surveys already processed, have no responses, or exceeded retry limit",
+          message: `No surveys to process this month (${dueSurveys.length} checked, all already processed or ineligible)`,
           processed: 0,
-          skipped: dueSurveys.length,
-          skippedDetails,
+          skipped: skippedReasons.length,
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // 실제 발송 대상이 있을 때만 로그
+    console.log(`[INFO] Found ${targets.length} survey(s) to process this month`);
 
     if (!dryRun) {
       // Process emails synchronously to ensure completion
@@ -287,7 +265,6 @@ serve(async (req) => {
           processed: results.filter(r => r.success).length,
           failed: results.filter(r => !r.success).length,
           results,
-          skippedDetails,
           dryRun: false,
         }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -305,7 +282,6 @@ serve(async (req) => {
           end_date: t.end_date,
           attemptNumber: (surveyLogStatus.get(t.id)?.failedAttempts || 0) + 1
         })),
-        skippedDetails,
         results: [],
         dryRun: true,
       }),
