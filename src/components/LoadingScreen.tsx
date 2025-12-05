@@ -16,6 +16,8 @@ const LoadingScreen = () => {
           <img
             src={logo}
             alt="BS 피드백 로고"
+            width={96}
+            height={96}
             className="w-24 h-24 mx-auto animate-pulse drop-shadow-xl"
             fetchPriority="high"
           />
