@@ -265,95 +265,95 @@ const DashboardOverview: React.FC = () => {
 
         {/* 주요 통계 카드 */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
+          <Card className="relative overflow-hidden bg-card border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent dark:from-purple-500/10" />
             <CardHeader className="relative pb-2 p-3 sm:p-4">
               <div className="flex items-center justify-between">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-purple-100">
-                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                <div className="p-1.5 sm:p-2 rounded-lg bg-purple-100 dark:bg-purple-500/20">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
               <div className="space-y-0.5 sm:space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">전체 설문조사</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">전체 설문조사</p>
                 <div className="flex items-baseline gap-1 sm:gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <span className="text-2xl sm:text-3xl font-bold text-foreground">
                     {busy ? "-" : stats.totalSurveys}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {isAdmin ? "전체 시스템" : "담당 강의"}
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent" />
+          <Card className="relative overflow-hidden bg-card border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent dark:from-blue-500/10" />
             <CardHeader className="relative pb-2 p-3 sm:p-4">
               <div className="flex items-center justify-between">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100">
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100 dark:bg-blue-500/20">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
               <div className="space-y-0.5 sm:space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">진행중인 설문</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">진행중인 설문</p>
                 <div className="flex items-baseline gap-1 sm:gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <span className="text-2xl sm:text-3xl font-bold text-foreground">
                     {busy ? "-" : stats.activeSurveys}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 truncate">현재 응답 가능</p>
+                <p className="text-xs text-muted-foreground truncate">현재 응답 가능</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent" />
+          <Card className="relative overflow-hidden bg-card border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent dark:from-green-500/10" />
             <CardHeader className="relative pb-2 p-3 sm:p-4">
               <div className="flex items-center justify-between">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-green-100">
-                  <BarChart className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                <div className="p-1.5 sm:p-2 rounded-lg bg-green-100 dark:bg-green-500/20">
+                  <BarChart className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
               <div className="space-y-0.5 sm:space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">종합 만족도</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">종합 만족도</p>
                 <div className="flex items-baseline gap-1 sm:gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <span className="text-2xl sm:text-3xl font-bold text-foreground">
                     {busy ? "-" : stats.avgScore !== null && stats.avgScore !== undefined ? stats.avgScore.toFixed(1) : "-"}
                   </span>
                   {!busy && stats.avgScore !== null && stats.avgScore !== undefined && (
-                    <span className="text-sm text-gray-500">점</span>
+                    <span className="text-sm text-muted-foreground">점</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 truncate">평균 만족도 점수</p>
+                <p className="text-xs text-muted-foreground truncate">평균 만족도 점수</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent" />
+          <Card className="relative overflow-hidden bg-card border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent dark:from-orange-500/10" />
             <CardHeader className="relative pb-2 p-3 sm:p-4">
               <div className="flex items-center justify-between">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-orange-100">
-                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                <div className="p-1.5 sm:p-2 rounded-lg bg-orange-100 dark:bg-orange-500/20">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
               <div className="space-y-0.5 sm:space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">최근 7일 응답</p>
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">최근 7일 응답</p>
                 <div className="flex items-baseline gap-1 sm:gap-2">
-                  <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <span className="text-2xl sm:text-3xl font-bold text-foreground">
                     {busy ? "-" : stats.recentResponsesCount}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 truncate">최근 활동</p>
+                <p className="text-xs text-muted-foreground truncate">최근 활동</p>
               </div>
             </CardContent>
           </Card>
@@ -362,68 +362,68 @@ const DashboardOverview: React.FC = () => {
         {/* 관리자 전용 통계 */}
         {isAdmin && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent" />
+            <Card className="relative overflow-hidden bg-card border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent dark:from-indigo-500/10" />
               <CardHeader className="relative pb-2 p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-100">
-                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600" />
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-indigo-100 dark:bg-indigo-500/20">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
                 <div className="space-y-0.5 sm:space-y-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">전체 강사수</p>
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">전체 강사수</p>
                   <div className="flex items-baseline gap-1 sm:gap-2">
-                    <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <span className="text-2xl sm:text-3xl font-bold text-foreground">
                       {busy ? "-" : stats.totalInstructors}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">등록된 강사</p>
+                  <p className="text-xs text-muted-foreground truncate">등록된 강사</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent" />
+            <Card className="relative overflow-hidden bg-card border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-transparent dark:from-pink-500/10" />
               <CardHeader className="relative pb-2 p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-pink-100">
-                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-pink-600" />
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-pink-100 dark:bg-pink-500/20">
+                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-pink-600 dark:text-pink-400" />
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
                 <div className="space-y-0.5 sm:space-y-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">전체 강좌수</p>
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">전체 강좌수</p>
                   <div className="flex items-baseline gap-1 sm:gap-2">
-                    <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <span className="text-2xl sm:text-3xl font-bold text-foreground">
                       {busy ? "-" : stats.totalCourses}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">개설된 강좌</p>
+                  <p className="text-xs text-muted-foreground truncate">개설된 강좌</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="relative overflow-hidden bg-white border-0 shadow-sm hover:shadow-lg transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent" />
+            <Card className="relative overflow-hidden bg-card border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent dark:from-teal-500/10" />
               <CardHeader className="relative pb-2 p-3 sm:p-4">
                 <div className="flex items-center justify-between">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-teal-100">
-                    <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600" />
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-teal-100 dark:bg-teal-500/20">
+                    <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400" />
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="relative p-3 sm:p-4 pt-0 sm:pt-0">
                 <div className="space-y-0.5 sm:space-y-1">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">완료된 설문</p>
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">완료된 설문</p>
                   <div className="flex items-baseline gap-1 sm:gap-2">
-                    <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <span className="text-2xl sm:text-3xl font-bold text-foreground">
                       {busy ? "-" : stats.completedSurveys}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">설문 완료</p>
+                  <p className="text-xs text-muted-foreground truncate">설문 완료</p>
                 </div>
               </CardContent>
             </Card>
@@ -433,7 +433,7 @@ const DashboardOverview: React.FC = () => {
         {/* 차트 섹션 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
           {/* 응답 트렌드 차트 */}
-          <Card className="bg-white border-0 shadow-sm">
+          <Card className="bg-card border-0 shadow-sm">
             <CardHeader className="p-3 sm:p-4 md:p-6">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -505,7 +505,7 @@ const DashboardOverview: React.FC = () => {
           </Card>
 
           {/* 설문 상태 분포 도넛 차트 */}
-          <Card className="bg-white border-0 shadow-sm">
+          <Card className="bg-card border-0 shadow-sm">
             <CardHeader className="p-3 sm:p-4 md:p-6">
               <h3 className="text-sm sm:text-base md:text-lg font-semibold text-foreground">설문 상태 분포</h3>
               <p className="text-xs sm:text-sm text-muted-foreground">설문별 진행 상황</p>
@@ -573,7 +573,7 @@ const DashboardOverview: React.FC = () => {
         {isAdmin && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* 일일 활동 통계 */}
-            <Card className="bg-white border-0 shadow-sm">
+            <Card className="bg-card border-0 shadow-sm">
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -615,7 +615,7 @@ const DashboardOverview: React.FC = () => {
             </Card>
 
             {/* 시스템 상태 */}
-            <Card className="bg-white border-0 shadow-sm">
+            <Card className="bg-card border-0 shadow-sm">
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -636,7 +636,7 @@ const DashboardOverview: React.FC = () => {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">서비스 상태</span>
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">정상</span>
+                        <span className="px-2 py-1 bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-400 rounded-full text-xs font-medium">정상</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">평균 응답 시간</span>
@@ -653,7 +653,7 @@ const DashboardOverview: React.FC = () => {
             </Card>
 
             {/* 월간 요약 */}
-            <Card className="bg-white border-0 shadow-sm">
+            <Card className="bg-card border-0 shadow-sm">
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
