@@ -1107,7 +1107,7 @@ const SurveyDetailedAnalysis = () => {
                  </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6 max-h-96 overflow-y-auto">
+                <div className="space-y-6 max-h-[600px] overflow-y-auto">
                   {textFeedbacks.map((group: any) => (
                     <div key={group.questionId} className="space-y-3">
                       <h4 className="text-sm font-medium text-muted-foreground border-b pb-1">
@@ -1119,7 +1119,7 @@ const SurveyDetailedAnalysis = () => {
                         )}
                       </h4>
                        <div className="space-y-2">
-                         {group.answers.slice(0, 10).map((answer: any, index: number) => (
+                         {group.answers.map((answer: any, index: number) => (
                            <div key={answer.answerId} className="p-3 bg-muted/50 rounded-lg relative group">
                              <p className="text-sm pr-8">{answer.answerText}</p>
                              <div className="text-xs text-muted-foreground mt-1">
@@ -1153,26 +1153,9 @@ const SurveyDetailedAnalysis = () => {
                              )}
                            </div>
                          ))}
-                        {group.answers.length > 10 && (
-                          <div className="text-center pt-2">
-                            <p className="text-xs text-muted-foreground">
-                              {group.answers.length - 10}개의 추가 답변이 있습니다.
-                            </p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
-                   {(() => {
-                     const totalFeedbacks = textFeedbacks.reduce((total: number, group: any) => total + (group.answers?.length || 0), 0) as number;
-                     return totalFeedbacks > 50 ? (
-                       <div className="text-center pt-4">
-                         <p className="text-sm text-muted-foreground">
-                           CSV 다운로드를 통해 전체 피드백을 확인하세요.
-                         </p>
-                       </div>
-                     ) : null;
-                   })()}
                 </div>
               </CardContent>
             </Card>
