@@ -52,10 +52,56 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/SoMtrFfOn8TGqHGdhFXcrBG3fBp2/social-images/social-1758184488521-Gemini_Generated_Image_cyfmehcyfmehcyfm.png">
+    <!-- Critical CSS for immediate FCP -->
+    <style>
+      /* Critical inline styles for loading screen - improves FCP */
+      #root:empty::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(135deg, hsl(263 70% 50.4%) 0%, hsl(270 91% 65%) 100%);
+        z-index: 9999;
+      }
+      #root:empty::after {
+        content: 'BS 피드백';
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+        z-index: 10000;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .initial-loader {
+        position: fixed;
+        top: calc(50% + 60px);
+        left: 50%;
+        transform: translateX(-50%);
+        width: 32px;
+        height: 32px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        z-index: 10000;
+      }
+      @keyframes spin {
+        to { transform: translateX(-50%) rotate(360deg); }
+      }
+      /* Hide loader when React mounts */
+      #root:not(:empty) + .initial-loader,
+      #root:not(:empty)::before,
+      #root:not(:empty)::after {
+        display: none;
+      }
+    </style>
   </head>
 
   <body>
     <div id="root"></div>
+    <div class="initial-loader" aria-hidden="true"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Service Worker registration with aggressive update checking
