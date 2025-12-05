@@ -667,7 +667,8 @@ export default function SurveyManagementV2() {
     paginationHook.goToPage(currentPage); 
   }, [currentPage]);
   useEffect(() => { loadSessions(filters.year); }, [filters.year]);
-  useEffect(() => { loadPrograms(); }, []);
+useEffect(() => { loadPrograms(); }, []);
+  useEffect(() => { loadData(); }, []); // 초기 로드 시 availableYears 설정
   useEffect(() => { (async () => setTemplates(await SurveysRepository.listTemplates()))(); }, []);
   useEffect(() => { fetchFilterPresets(); }, [fetchFilterPresets]);
   useEffect(() => {
