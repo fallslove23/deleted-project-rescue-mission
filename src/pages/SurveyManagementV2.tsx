@@ -176,7 +176,10 @@ function QuickCreateDialog(props: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>빠른 생성</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Wand2 className="h-5 w-5 text-primary" />
+            빠른 생성
+          </DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4">
           <div className="space-y-2">
@@ -1010,12 +1013,12 @@ export default function SurveyManagementV2() {
         </Button>,
         <Button
           key="quick"
-          variant="outline"
           size="sm"
           onClick={() => setQuickOpen(true)}
           disabled={!availableYears.length || !availablePrograms.length}
+          className="bg-muted/80 hover:bg-muted text-foreground border-0 rounded-full px-4 gap-2 shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md"
         >
-          <Wand2 className="h-4 w-4 mr-2" />
+          <Wand2 className="h-4 w-4" />
           빠른 생성
         </Button>,
         <Button
