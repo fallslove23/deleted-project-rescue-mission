@@ -12,6 +12,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   LayoutDashboard,
   BarChart3,
@@ -191,7 +192,7 @@ export function AdminSidebar() {
     );
   };
 
-  return (
+    return (
     <Sidebar collapsible={isMobile ? "offcanvas" : "none"} className="border-r border-sidebar-border/50 bg-sidebar shadow-neumorphic">
       <SidebarContent className="bg-gradient-soft px-3 py-6 text-sidebar-foreground sidebar-scroll">
         <div className="space-y-6">
@@ -209,6 +210,12 @@ export function AdminSidebar() {
           ))}
         </div>
       </SidebarContent>
+      <SidebarFooter className="border-t border-sidebar-border/50 p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-sidebar-muted-foreground">테마</span>
+          <ThemeToggle />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
