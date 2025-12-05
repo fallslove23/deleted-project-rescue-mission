@@ -102,13 +102,13 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 220 13% 18%;
+    --background: 220 15% 10%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 220 15% 13%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 220 15% 13%;
     --popover-foreground: 210 40% 98%;
 
     /* Dark mode purple gradient theme */
@@ -116,42 +116,48 @@ All colors MUST be HSL.
     --primary-variant: 268 85% 73%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 15% 20%;
-    --secondary-foreground: 251 91% 64%;
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 40% 90%;
 
-    --muted: 220 15% 20%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 220 15% 18%;
+    --muted-foreground: 215 20% 70%;
 
-    --accent: 220 15% 22%;
-    --accent-foreground: 251 91% 64%;
+    --accent: 220 15% 20%;
+    --accent-foreground: 210 40% 95%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62.8% 50%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 15% 24%;
-    --input: 220 15% 24%;
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
     --ring: 251 91% 64%;
-    --surface: 220 15% 16%;
+    --surface: 220 15% 12%;
     --surface-foreground: 210 40% 96%;
-    --surface-border: 220 15% 24%;
+    --surface-border: 220 15% 22%;
+    
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(251 91% 64%) 0%, hsl(268 85% 73%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(220 15% 15%) 0%, hsl(220 15% 13%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(251 91% 64%) 0%, hsl(268 85% 73%) 100%);
+    --gradient-soft: linear-gradient(135deg, hsl(220 15% 13%) 0%, hsl(220 15% 11%) 100%);
     
     /* Dark mode neumorphic shadows */
-    --shadow-neumorphic: 6px 6px 12px hsl(220 20% 12%), -6px -6px 12px hsl(220 15% 22%);
-    --shadow-neumorphic-inset: inset 3px 3px 6px hsl(220 20% 12%), inset -3px -3px 6px hsl(220 15% 22%);
-    --shadow-neumorphic-soft: 3px 3px 8px hsl(220 20% 14%), -3px -3px 8px hsl(220 15% 20%);
-    --shadow-purple-glow: 0 4px 20px hsl(251 91% 64% / 0.25);
+    --shadow-neumorphic: 6px 6px 12px hsl(220 20% 6%), -6px -6px 12px hsl(220 15% 16%);
+    --shadow-neumorphic-inset: inset 3px 3px 6px hsl(220 20% 6%), inset -3px -3px 6px hsl(220 15% 16%);
+    --shadow-neumorphic-soft: 3px 3px 8px hsl(220 20% 8%), -3px -3px 8px hsl(220 15% 14%);
+    --shadow-purple-glow: 0 4px 20px hsl(251 91% 64% / 0.3);
     
     /* Dark sidebar theme */
-    --sidebar-background: 220 15% 18%;
-    --sidebar-foreground: 210 40% 85%;
+    --sidebar-background: 220 15% 12%;
+    --sidebar-foreground: 210 40% 90%;
     --sidebar-primary: 251 91% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 22%;
+    --sidebar-accent: 220 15% 18%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 15% 24%;
+    --sidebar-border: 220 15% 20%;
     --sidebar-ring: 251 91% 64%;
-    --sidebar-muted: 220 15% 20%;
-    --sidebar-muted-foreground: 210 40% 70%;
+    --sidebar-muted: 220 15% 16%;
+    --sidebar-muted-foreground: 215 20% 65%;
   }
 }
 
