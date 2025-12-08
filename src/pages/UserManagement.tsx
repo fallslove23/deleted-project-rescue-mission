@@ -79,26 +79,17 @@ const UserManagement = () => {
 
       if (error) throw error;
 
-      // Clear legacy role field in profiles table to avoid conflicts
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ role: null })
-        .eq('id', editingUser.id);
+      // Close dialog first for better UX
+      setIsDialogOpen(false);
+      setEditingUser(null);
 
-      if (profileError) {
-        console.warn('Could not clear legacy role field:', profileError);
-      }
-
-      await fetchUserRoles();
-      await fetchUsers();
+      // Refresh data to show updated roles
+      await Promise.all([fetchUserRoles(), fetchUsers()]);
       
       toast({
         title: "성공",
         description: "사용자 역할이 업데이트되었습니다."
       });
-
-      setIsDialogOpen(false);
-      setEditingUser(null);
     } catch (error) {
       console.error('Error updating roles:', error);
       toast({
